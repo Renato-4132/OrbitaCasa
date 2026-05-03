@@ -18,7 +18,7 @@
 ### 🚀 L'ESSENZA DEL SOFTWARE
 **Orbita Casa** è un ecosistema **Open Source** Gratuito, progettato per chi vuole il controllo totale sulle proprie finanze senza rinunciare alla **Privacy**. Unisce la potenza di un software gestionale alla semplicità di un'app domestica.
 
-Nota Tecnica sulla Sync: Orbita Casa Pro evita deliberatamente le API bancarie (PSD2) per proteggere la privacy dell'utente ed evitare i costi di sottoscrizione che renderebbero il progetto a pagamento. Crediamo in un software libero da canoni e da occhi indiscreti.
+Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2) per proteggere la privacy dell'utente ed evitare i costi di sottoscrizione che renderebbero il progetto a pagamento. Crediamo in un software libero da canoni e da occhi indiscreti.
 
 * 🛡️ **Zero Cloud**: I tuoi dati risiedono solo sul tuo PC.
 * 💰 **Smart Saving**: Algoritmi per il confronto prezzi e risparmio.
