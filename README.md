@@ -4,7 +4,6 @@
 
 <img width="882" height="463" alt="logo" src="https://github.com/user-attachments/assets/642def87-3203-4ffe-a728-5c52f06119c2" />
 
-
 ---
 
 ![Windows](https://img.shields.io/badge/Windows-✔️-blue?style=flat-square&logo=windows&logoColor=white)
@@ -69,6 +68,9 @@ Nota Tecnica sulla Sync: Orbita Casa Pro evita deliberatamente le API bancarie (
 38. **Mercati Finanziari**: Monitoraggio in tempo reale degli indici e degli asset finanziari globali.
 39. **Aggiornamento Librerie Python**: Sistema automatico di manutenzione e update delle dipendenze Python.
 40. **Analizzatore Semantico IA**: Introdotta una nuova suite di analisi intelligente per il confronto multi-documento.
+41. **Modulo Dieta:** Pianificazione settimanale dei pasti, database alimenti, tracciamento macronutrienti e monitoraggio del peso con grafico BMI.
+42. **Gestione Studio:** Agenda appuntamenti, anagrafica clienti, preventivi, fatturazione e gestione magazzino per professionisti e piccole attività.
+
 ---
        
 ### 📺 [Guarda il Video](https://github.com/Renato-4132/OrbitaCasa/raw/main/OrbitaCasa.mp4)
