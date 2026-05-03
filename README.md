@@ -80,7 +80,7 @@ Per bug, suggerimenti o supporto: helporbitacasa@gmail.com
 
 ### 🟦 Windows (Automatico)
 Metodo consigliato per utenti Windows.
-1. Scarica l'installer: [**C.F.Win.Installer.zip**](https://github.com/Renato-4132/OrbitaCasa/raw/main/O.B.Win.Installer.zip)
+1. Scarica l'installer: [**O.C.Win.Installer.zip**](https://github.com/Renato-4132/OrbitaCasa/raw/main/O.C.Win.Installer.zip)
 2. Estrai ed esegui il file EXE.
 > **Nota:** Rieseguendo l'installer potrai creare nuovi profili utente separati.
 
