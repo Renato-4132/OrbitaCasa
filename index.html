@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orbita Casa 2026 - Guida Ufficiale</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --accent: #4f46e5;
+            --accent2: #6366f1;
+            --bg: #0a0e1a;
+            --card: #111827;
+            --border: #1e293b;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg);
+            color: #e2e8f0;
+            font-family: 'DM Sans', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Barlow Condensed', sans-serif;
+        }
+
+        .step-number {
+            background: var(--accent);
+            width: 28px; height: 28px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 50%;
+            font-weight: bold; font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .code-box {
+            background: #000;
+            border-left: 4px solid var(--accent);
+            padding: 1rem;
+            font-family: monospace;
+            color: #10b981;
+            overflow-x: auto;
+            word-break: break-all;
+        }
+
+        .warning-box {
+            background: rgba(245,158,11,0.1);
+            border: 1px solid #f59e0b;
+            padding: 1rem;
+            border-radius: 0.75rem;
+        }
+
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%;
+            height: 0;
+            overflow: hidden;
+            border-radius: 1rem;
+            border: 2px solid #334155;
+        }
+        .video-container video {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+        }
+
+        .btn-download {
+            background: var(--accent);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            font-weight: bold;
+            margin-top: 10px;
+            transition: opacity 0.2s;
+            text-decoration: none;
+        }
+        .btn-download:hover { opacity: 0.9; }
+
+        .carousel-outer {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .carousel-wrap {
+            position: relative;
+            border-radius: 1.25rem;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            background: #000;
+            aspect-ratio: 16 / 9;
+            max-height: 520px;
+            width: 100%;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        @media (max-width: 480px) {
+            .carousel-wrap {
+                aspect-ratio: 4 / 3;
+                border-radius: 0.75rem;
+            }
+        }
+
+        .carousel-track {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+            will-change: transform;
+        }
+
+        .carousel-slide {
+            flex: 0 0 100%;
+            width: 100%;
+            height: 100%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            overflow: hidden;
+        }
+
+        .carousel-slide img {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            object-position: center center;
+            display: block;
+        }
+
+        .slide-overlay {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            background: linear-gradient(
+                to top,
+                rgba(0,0,0,0.95) 0%,
+                rgba(0,0,0,0.6) 50%,
+                transparent 100%
+            );
+            padding: clamp(0.8rem, 3vw, 2rem) clamp(0.8rem, 3vw, 2rem) clamp(0.6rem, 2vw, 1.4rem);
+            z-index: 2;
+        }
+
+        .slide-num {
+            font-size: clamp(9px, 1.5vw, 11px);
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            color: #6366f1;
+            text-transform: uppercase;
+            margin-bottom: 3px;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .slide-title {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: clamp(1rem, 3.5vw, 1.6rem);
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -0.01em;
+            line-height: 1.15;
+            margin-bottom: 4px;
+            font-style: italic;
+        }
+
+        .slide-desc {
+            font-size: clamp(0.65rem, 1.5vw, 0.8rem);
+            color: #94a3b8;
+            font-weight: 400;
+            line-height: 1.4;
+            max-width: 520px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        @media (max-width: 480px) {
+            .slide-desc {
+                -webkit-line-clamp: 2;
+                font-size: 0.65rem;
+            }
+            .slide-overlay {
+                padding: 0.7rem 0.75rem 0.6rem;
+            }
+        }
+
+        .car-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(15,23,42,0.75);
+            border: 1px solid rgba(99,102,241,0.35);
+            color: #a5b4fc;
+            width: clamp(30px, 5vw, 40px);
+            height: clamp(30px, 5vw, 40px);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 10;
+            font-size: clamp(11px, 1.8vw, 14px);
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        .car-btn:hover,
+        .car-btn:active {
+            background: rgba(79,70,229,0.55);
+            border-color: #6366f1;
+            color: #fff;
+        }
+        .car-btn.prev { left: clamp(6px, 2vw, 14px); }
+        .car-btn.next { right: clamp(6px, 2vw, 14px); }
+
+        .car-progress {
+            position: absolute;
+            bottom: 0; left: 0;
+            height: 2px;
+            background: #6366f1;
+            width: 0%;
+            z-index: 5;
+        }
+
+        .car-dots {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-top: 14px;
+            flex-wrap: wrap;
+            padding: 0 1rem;
+        }
+        .car-dot {
+            width: 5px; height: 5px;
+            border-radius: 50%;
+            background: #334155;
+            cursor: pointer;
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .car-dot.active {
+            background: #6366f1;
+            transform: scale(1.5);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-200">
+
+    <header class="relative py-1 pb-0 px-4 text-center bg-slate-950 overflow-hidden">
+        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-full bg-indigo-500/5 blur-[120px] pointer-events-none"></div>
+        <div class="relative z-10">
+            <h1 class="text-5xl md:text-7xl font-black text-white mb-4 tracking-normal uppercase italic">
+                ORBITA CASA<span class="text-indigo-500 drop-shadow-[0_0_15px_rgba(99,102,241,0.6)]"></span>
+            </h1>
+            <p class="text-lg md:text-l text-slate-400 mb-8 max-w-2xl mx-auto leading-relaxed font-light">
+                Il centro di comando per la tua gestione domestica, <br class="hidden md:block">
+                dalle <span class="text-slate-200">spese quotidiane</span> al <span class="text-slate-200">risparmio intelligente</span>.
+            </p>
+            <div class="flex flex-wrap justify-center gap-3 mb-12 opacity-90 hover:opacity-100 transition-opacity">
+                <img src="https://img.shields.io/badge/Windows-✔️-blue?logo=windows&logoColor=white" alt="Windows" class="h-6">
+                <img src="https://img.shields.io/badge/macOS-✔️-lightgrey?logo=apple&logoColor=white" alt="macOS" class="h-6">
+                <img src="https://img.shields.io/badge/Linux-✔️-yellow?logo=linux&logoColor=black" alt="Linux" class="h-6">
+                <img src="https://img.shields.io/badge/Python-3.13+-3776AB?logo=python&logoColor=white" alt="Python" class="h-6">
+                <img src="https://img.shields.io/badge/VERSIONE-2.x-orange" alt="Versione" class="h-6">
+                <img src="https://visitor-badge.laobi.icu/badge?page_id=Renato-4132.OrbitaCasa&left_text=VISITE%20TOTALI&color=4f46e5" alt="Visite" class="h-6">
+            </div>
+            <div class="relative max-w-4xl mx-auto group">
+                <div class="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-slate-800 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
+                <img src="https://github.com/user-attachments/assets/cc6432e4-a670-4e7c-9631-c456046707bb"
+                     alt="Anteprima Software"
+                     class="relative w-full rounded-xl shadow-2xl border border-slate-700/50 bg-slate-900 h-auto transform transition duration-500 hover:scale-[1.01]">
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 pt-0 py-12">
+        <section class="max-w-4xl mx-auto text-center mb-5">
+            <h2 class="text-2xl font-semibold text-indigo-400 mb-4 uppercase tracking-widest">L'Essenza del Software</h2>
+            <p class="text-l text-slate-300 leading-relaxed mb-8">
+                Orbita Casa è un ecosistema <span class="text-white font-bold">Open Source Gratuito</span> progettato per chi vuole il controllo totale sulle proprie finanze senza rinunciare alla <span class="text-white font-bold">Privacy</span>. Unisce la potenza di un software gestionale alla semplicità di un'app domestica.
+            </p>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
+                <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700">🔓 <strong>Open Source</strong><br><span class="text-indigo-400 font-bold">Gratis per sempre</span></div>
+                <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700">🚀 <strong>Zero Cloud</strong><br><span class="text-slate-500">Dati solo su PC</span></div>
+                <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700">📱 <strong>Mobile Ready</strong><br><span class="text-slate-500">Accesso QR Code</span></div>
+                <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700">📑 <strong>Paperless</strong><br><span class="text-slate-500">Archivio PDF</span></div>
+            </div>
+        </section>
+
+        <section class="carousel-outer mb-20">
+            <div class="carousel-wrap" id="carousel">
+                <div class="carousel-track" id="carTrack">
+                    </div>
+                
+                <div class="car-progress" id="carProgress"></div>
+                
+                <button class="car-btn prev" onclick="carMove(-1)" aria-label="Precedente">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <button class="car-btn next" onclick="carMove(1)" aria-label="Successivo">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+            
+            <div class="car-dots" id="carDots"></div>
+        </section>
+
+        <section class="mb-10">
+        <button class="acc-btn" id="btn-funzioni" onclick="accToggleFunzioni()">
+                <div class="acc-header">
+                        <span style="font-size:22px;">🔥</span>
+                        <div style="flex:1;">
+                                <div class="acc-title-main" style="color:#f97316;">POTENZA IN 40+ FUNZIONI</div>
+                                <div class="acc-sub">Dal calendario heartbeat all'AI finanziaria · tutto integrato · zero cloud</div>
+                        </div>
+                        <div class="acc-chevron" id="chev-funzioni"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></div>
+                </div>
+        </button>
+        <div class="acc-body-wrap" id="body-funzioni" style="max-height:0;">
+                <div class="acc-body" style="padding-top:20px;">
+                        <ol style="
+                                display:grid;
+                                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                                gap:8px 24px;
+                                padding-left:0;
+                                list-style:none;
+                                margin:0;
+                        ">
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">01</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Calendario Heartbeat</strong><br><span style="color:#94a3b8;">Vista globale dei tuoi impegni finanziari.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">02</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Gestione Ricorrenze</strong><br><span style="color:#94a3b8;">Automatizza i movimenti fissi.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">03</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Grafici Drill-Down</strong><br><span style="color:#94a3b8;">Analisi visiva profonda delle spese.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">04</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Archivio Documenti Contabili PDF</strong><br><span style="color:#94a3b8;">Collega i documenti ai movimenti.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">05</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Monitor Utenze</strong><br><span style="color:#94a3b8;">Tieni d'occhio i consumi di luce, gas e acqua.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">06</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Simulatore Risparmio</strong><br><span style="color:#94a3b8;">Calcola come raggiungere i tuoi obiettivi.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">07</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Proiezione 31/12</strong><br><span style="color:#94a3b8;">Prevedi il saldo a fine anno.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">08</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Webserver Remoto</strong><br><span style="color:#94a3b8;">Consulta i dati dallo smartphone in rete locale/remota.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">09</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Confronto Prezzi</strong><br><span style="color:#94a3b8;">Ottimizza la tua spesa alimentare.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">10</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Ammortamento Mutui</strong><br><span style="color:#94a3b8;">Calcola rate e interessi reali · Piani Ammortamento.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">11</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Generatore QR Code</strong><br><span style="color:#94a3b8;">Configura i promemoria con un colpo d'occhio.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">12</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Configurazione & Backup</strong><br><span style="color:#94a3b8;">Dati sempre esportabili e sicuri.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">13</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Rubrica Vcard/Android</strong><br><span style="color:#94a3b8;">Esporta/importa i contatti dal tuo smartphone.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">14</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Stampa Report</strong><br><span style="color:#94a3b8;">Documentazione professionale pronta all'uso.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">15</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Saldo Bancario</strong><br><span style="color:#94a3b8;">Riconciliazione immediata dei conti.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">16</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Ricerca Multi-Filtro</strong><br><span style="color:#94a3b8;">Trova ogni centesimo in un istante.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">17</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Profili Multi-Postazione</strong><br><span style="color:#94a3b8;">Gestisci più persone con database separati.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">18</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Sicurezza Password</strong><br><span style="color:#94a3b8;">Accesso protetto e crittografato.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">19</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Esportazione TXT/PDF/Stampa</strong><br><span style="color:#94a3b8;">Scegli come salvare o stampare i dati.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">20</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Aggregazione Categorie</strong><br><span style="color:#94a3b8;">Raggruppa le spese per aree tematiche.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">21</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Sincronizzazione Gmail</strong><br><span style="color:#94a3b8;">Scarica e archivia in automatico le fatture dalla tua email.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">22</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Temi Personalizzabili</strong><br><span style="color:#94a3b8;">Cambia l'aspetto grafico per adattare l'interfaccia al tuo stile.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">23</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Smart Info Point</strong><br><span style="color:#94a3b8;">Popup rapido sul calendario per visualizzare i movimenti al passaggio del mouse.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">24</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">SmartCat AI</strong><br><span style="color:#94a3b8;">Categoria automatica basata sullo storico delle tue entrate e uscite.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">25</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Crash Recovery</strong><br><span style="color:#94a3b8;">Ripristino automatico dell'ultimo salvataggio valido.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">26</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Promemoria Categorie</strong><br><span style="color:#94a3b8;">Avvisi mensili sulle spese ricorrenti dimenticate.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">27</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Notifiche Auto-chiudenti</strong><br><span style="color:#94a3b8;">Messaggi che scompaiono automaticamente dopo il tempo prestabilito.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">28</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Auto-Iconizza</strong><br><span style="color:#94a3b8;">Riduzione automatica a icona dopo un periodo di inattività.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">29</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Carosello Grafici</strong><br><span style="color:#94a3b8;">Tour automatico degli andamenti all'avvio con pausa al mouse.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">30</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Retention Automatica</strong><br><span style="color:#94a3b8;">Determina per quanti anni conservare i dati e rimuove i più vecchi.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">31</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Backup Automatico</strong><br><span style="color:#94a3b8;">Gestione personalizzata del numero di copie per database e documenti.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">32</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Importazione Estratti</strong><br><span style="color:#94a3b8;">Importa i movimenti da qualsiasi estratto PDF o CSV.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">33</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Analisi Finanziaria AI</strong><br><span style="color:#94a3b8;">Analisi completa dell'andamento finanziario con Gemini.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">34</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Archivio Documenti Personali</strong><br><span style="color:#94a3b8;">Documenti sempre a portata di mano.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">35</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Tasti Shortcut Personali</strong><br><span style="color:#94a3b8;">Apri le funzioni rapide con una combinazione di tasti abbreviati.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">36</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Algoritmo FairShare</strong><br><span style="color:#94a3b8;">Ripartizione equa delle spese e dei rimborsi tra i partecipanti.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">37</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Conti FairShare</strong><br><span style="color:#94a3b8;">Ogni partecipante traccia le proprie spese personali ⚖️.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">38</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Mercati Finanziari</strong><br><span style="color:#94a3b8;">Monitoraggio in tempo reale degli indici e degli asset globali.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">39</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Aggiornamento Librerie Python</strong><br><span style="color:#94a3b8;">Manutenzione e update automatici delle dipendenze.</span></span>
+                                </li>
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                        <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">40</span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Analizzatore Semantico IA</strong><br><span style="color:#94a3b8;">Sistema avanzato di analisi, estrazione e correlazione dati per bollette, buste paga e contrattualistica..</span></span>
+                                </li>
+                        </ol>
+                </div>
+        </div>
+        <script>
+                function accToggleFunzioni() {
+                        const btn  = document.getElementById('btn-funzioni');
+                        const body = document.getElementById('body-funzioni');
+                        const chev = document.getElementById('chev-funzioni');
+                        const isOpen = body.style.maxHeight !== '0px' && body.style.maxHeight !== '';
+                        if (isOpen) {
+                                body.style.maxHeight = '0px';
+                                btn.classList.remove('open');
+                                chev.classList.remove('open');
+                        } else {
+                                body.style.maxHeight = body.scrollHeight + 'px';
+                                btn.classList.add('open');
+                                chev.classList.add('open');
+                        }
+                }
+        </script>
+        </section>
+
+        <section class="mb-5">
+            <style>
+                .priv-btn { width: 100%; background: #111827; border: 1px solid #1e293b; color: #e2e8f0; padding: 0; cursor: pointer; text-align: left; border-radius: 16px; overflow: hidden; transition: all 0.2s; }
+                .priv-btn:hover { border-color: #4f46e5; }
+                .priv-btn.open { border-color: #4f46e5; margin-bottom: 0; }
+                .priv-header { display: flex; align-items: center; gap: 16px; padding: 18px 24px; }
+                .priv-chevron { width: 28px; height: 28px; border-radius: 50%; background: #1e293b; display: flex; align-items: center; justify-content: center; transition: transform 0.35s ease; }
+                .priv-btn.open .priv-chevron { transform: rotate(180deg); background: #4f46e5; }
+                .priv-body-wrap { background: transparent; overflow: hidden; max-height: 0; transition: max-height 0.4s ease-out; }
+                .priv-body-wrap.open { max-height: 1000px; }
+            </style>
+            <button class="priv-btn" id="btn-privacy-main" onclick="togglePrivacyMain()">
+                <div class="priv-header">
+                    <span style="font-size:22px;">🛡️</span>
+                    <div style="flex:1; text-align: left;">
+                        <div class="text-lg font-bold italic text-[#fcd34d] font-['Barlow_Condensed'] uppercase tracking-tight">"I tuoi dati sono tuoi. Punto."</div>
+                        <div class="text-xs text-slate-500">Zero Cloud · Trasparenza Totale · Accesso Remoto Sicuro</div>
+                    </div>
+                    <div class="priv-chevron">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </div>
+                </div>
+            </button>
+            <div class="priv-body-wrap" id="body-privacy-main">
+                <div class="p-6 pt-6"> <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+                        <div class="flex flex-col items-center text-center">
+                            <i class="fas fa-shield-alt text-4xl text-green-500 mb-4"></i>
+                            <p class="text-sm font-bold text-white mb-1">Zero Cloud</p>
+                            <p class="text-xs text-slate-400">Nessun invio esterno. Il database risiede esclusivamente nel tuo hard disk.</p>
+                        </div>
+                        <div class="flex flex-col items-center text-center">
+                            <i class="fas fa-eye-slash text-4xl text-red-500 mb-4"></i>
+                            <p class="text-sm font-bold text-white mb-1">Trasparenza Totale</p>
+                            <p class="text-xs text-slate-400">Codice Opensource (MIT): chiunque può verificare come vengono gestiti i dati.</p>
+                        </div>
+                        <div class="flex flex-col items-center text-center">
+                            <i class="fas fa-user-lock text-4xl text-indigo-500 mb-4"></i>
+                            <p class="text-sm font-bold text-white mb-1">Accesso Remoto Sicuro</p>
+                            <p class="text-xs text-slate-400">Se usi il Webserver fuori casa, <span class="text-indigo-400 font-bold">consigliamo una VPN</span>. Proteggi i tuoi dati da occhi indiscreti.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <script>
+                function togglePrivacyMain() {
+                    const btn = document.getElementById('btn-privacy-main');
+                    const body = document.getElementById('body-privacy-main');
+                    const isOpen = btn.classList.contains('open');
+                    if (isOpen) {
+                        btn.classList.remove('open');
+                        body.style.maxHeight = "0px";
+                    } else {
+                        btn.classList.add('open');
+                        body.style.maxHeight = body.scrollHeight + "px";
+                    }
+                }
+            </script>
+        </section>
+        <hr style="border:none;border-top:1px solid #4f46e5;margin:20px 0;">
+        
+        <section class="mb-20">
+          <style>
+            .acc-btn { width:100%; background:#111827; border:1px solid #1e293b; color:#e2e8f0; padding:0; cursor:pointer; text-align:left; border-radius:16px; overflow:hidden; margin-bottom:12px; transition:border-color 0.2s; }
+            .acc-btn:hover { border-color:#4f46e5; }
+            .acc-btn.open { border-color:#4f46e5; border-radius:16px 16px 0 0; margin-bottom:0; border-bottom:none; }
+            .acc-header { display:flex; align-items:center; gap:16px; padding:18px 24px; }
+            .acc-title-main { font-size:18px; font-weight:700; font-style:italic; font-family:'Barlow Condensed',sans-serif; }
+            .acc-sub { font-size:12px; color:#64748b; margin-top:2px; }
+            .acc-chevron { width:28px; height:28px; border-radius:50%; background:#1e293b; border:1px solid #334155; display:flex; align-items:center; justify-content:center; transition:transform 0.35s cubic-bezier(0.4,0,0.2,1), background 0.2s; flex-shrink:0; }
+            .acc-btn.open .acc-chevron { transform:rotate(180deg); background:#4f46e5; border-color:#4f46e5; }
+            .acc-chevron svg { width:14px; height:14px; fill:none; stroke:#94a3b8; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; }
+            .acc-btn.open .acc-chevron svg { stroke:#fff; }
+            .acc-body-wrap { background:#111827; border:1px solid #4f46e5; border-top:none; border-radius:0 0 16px 16px; overflow:hidden; max-height:0; transition:max-height 0.45s cubic-bezier(0.4,0,0.2,1); margin-bottom:12px; }
+            .acc-body-wrap.open { max-height:600px; }
+            .acc-body { padding:0 24px 24px; }
+            .note-row { display:flex; align-items:flex-start; gap:10px; background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.25); border-radius:10px; padding:10px 14px; margin-top:4px; }
+            .note-badge { background:#6366f1; color:#fff; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:12px; flex-shrink:0; margin-top:1px; }
+          </style>
+
+          <button class="acc-btn" id="btn-win" onclick="accToggle('win')">
+            <div class="acc-header">
+              <span style="font-size:22px;">🪟</span>
+              <div style="flex:1;">
+                <div class="acc-title-main" style="color:#60a5fa;">Windows (Automatico)</div>
+                <div class="acc-sub">Installer .zip · configurazione guidata · profili multipli</div>
+             </div>
+              <div class="acc-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></div>
+            </div>
+          </button>
+          <div class="acc-body-wrap" id="body-win">
+            <div class="acc-body">
+              <div class="flex items-start gap-3 mb-4">
+                <span class="step-number mt-1">1</span>
+                <div><p>Scarica l'installer:</p>
+                  <a href="https://github.com/Renato-4132/OrbitaCasa/raw/main/O.C.Win.Installer.zip" class="btn-download"><i class="fas fa-file-archive mr-2"></i> Scarica .zip</a>
+                </div>
+              </div>
+              <div class="flex items-start gap-3 mb-4">
+                <span class="step-number mt-1">2</span>
+                <p>Estrai ed esegui il file EXE per la configurazione automatica.</p>
+              </div>
+              <hr style="border:none;border-top:1px solid #1e293b;margin:12px 0;">
+              <div class="note-row">
+                <div class="note-badge">!</div>
+                <p style="font-size:12px;color:#a5b4fc;font-style:italic;margin:0;line-height:1.5;">Rieseguendo l'installer potrai creare nuovi profili utente separati.</p>
+              </div>
+            </div>
+          </div>
+
+          <button class="acc-btn" id="btn-src" onclick="accToggle('src')">
+            <div class="acc-header">
+              <span style="font-size:22px;">⌨️</span>
+              <div style="flex:1;">
+                <div class="acc-title-main" style="color:#4ade80;">Manuale / Sorgente</div>
+                <div class="acc-sub">Python 3.13+ · pip · codice grezzo</div>
+              </div>
+              <div class="acc-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></div>
+            </div>
+          </button>
+          <div class="acc-body-wrap" id="body-src">
+            <div class="acc-body">
+              <p style="font-size:13px;color:#64748b;margin:0 0 10px;">Procedura per codice sorgente:</p>
+              <ol style="list-style:decimal;padding-left:18px;margin:8px 0;">
+                <li style="font-size:13px;color:#94a3b8;margin-bottom:6px;">Crea una cartella dedicata — <strong style="color:#e2e8f0;">il nome sarà il tuo Nome Profilo</strong>.</li>
+                <li style="font-size:13px;color:#94a3b8;">Inserisci il file <span style="color:#818cf8;font-weight:700;">OrbitaCasa.pyw</span> all'interno.</li>
+              </ol>
+              <div class="warning-box" style="font-size:11px;margin:10px 0;">
+                <strong>Prerequisito Python:</strong> Durante l'installazione (v3.13+), spunta <b class="text-orange-400">"Add Python to PATH"</b>.
+              </div>
+              <p style="font-size:11px;color:#475569;margin:12px 0 0;font-style:italic;">Librerie (solo in caso di errori all'avvio):</p>
+              <div class="code-box" style="font-size:10px;margin-top:6px;">pip install tkcalendar google-genai requests segno pypiwin32 cryptography pystray pymupdf flask</div>
+            </div>
+          </div>
+
+          <script>
+          function accToggle(id) {
+            const isOpen = document.getElementById('btn-'+id).classList.contains('open');
+            ['win','src'].forEach(k => {
+              document.getElementById('btn-'+k).classList.remove('open');
+              document.getElementById('body-'+k).classList.remove('open');
+            });
+            if (!isOpen) {
+              document.getElementById('btn-'+id).classList.add('open');
+              document.getElementById('body-'+id).classList.add('open');
+            }
+          }
+          </script>
+        </section>
+
+        <section class="space-y-1 mb-2">
+            <h2 class="text-4xl font-bold text-center text-white italic">Addio fogli Excel !</h2>
+            <div class="video-container shadow-2xl">
+                <video controls autoplay loop muted playsinline>
+                    <source src="https://github.com/Renato-4132/OrbitaCasa/raw/main/OrbitaCasa.mp4" type="video/mp4">
+                </video>
+            </div>
+        </section>
+
+        <section class="space-y-1 mb-2">
+            <h2 class="text-4xl font-bold text-center text-white italic">Quick Tour</h2>
+            <div class="video-container shadow-2xl">
+                <video controls autoplay loop muted playsinline>
+                    <source src="https://github.com/Renato-4132/OrbitaCasa/raw/main/O.C-Tour-Pro.mp4" type="video/mp4">
+                </video>
+            </div>
+            <div class="text-center mt-12">
+                <a href="https://github.com/Renato-4132/OrbitaCasa" target="_blank"
+                   class="inline-flex items-center px-10 py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-full transition-all">
+                    <i class="fab fa-github mr-3 text-2xl"></i> Repository GitHub Ufficiale
+                </a>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="py-8 text-center border-t border-slate-800 mt-10">
+        <div class="mb-4">
+            <p class="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold mb-1 italic">Assistenza Tecnica</p>
+            <a href="mailto:helporbitacasa@gmail.com" class="text-xs text-indigo-400/80 hover:text-indigo-400">helporbitacasa@gmail.com</a>
+        </div>
+        <p class="text-[10px] text-slate-600 uppercase tracking-widest font-black italic">Orbita Casa 2026 - Licenza MIT</p>
+    </footer>
+
+    <script>
+    const slides = [
+        { img: 'calendario',   title: 'Calendario Heartbeat',     desc: 'Visualizza entrate e uscite direttamente sul calendario con indicatori animati. Un colpo d\'occhio e sai subito come sta andando il mese.' },
+        { img: 'ricorrenze',   title: 'Gestione Ricorrenze',      desc: 'Bollette, abbonamenti, affitti: configurali una volta e vengono registrati in automatico ogni mese, senza dimenticarsi nulla.' },
+        { img: 'grafici',      title: 'Grafici Drill-Down',       desc: 'Analizza le spese per categoria con grafici interattivi. Clicca su una voce e scendi nel dettaglio fino alla singola transazione.' },
+        { img: 'archivio',     title: 'Archivio Contabili PDF',   desc: 'Allega PDF a ogni spesa o documento. Estratti conto, fatture, ricevute: tutto archiviato e consultabile in un istante.' },
+        { img: 'utenze',       title: 'Monitor Utenze',           desc: 'Tieni traccia dei consumi di luce, gas e acqua nel tempo. Individua aumenti anomali e confronta i periodi.' },
+        { img: 'risparmio',    title: 'Simulatore Risparmio',     desc: 'Inserisci un obiettivo di risparmio e il simulatore calcola quanto accantonare ogni mese per raggiungerlo.' },
+        { img: 'proiezione',   title: 'Proiezione al 31/12',      desc: 'Sulla base delle spese correnti e delle ricorrenze future, stima il saldo a fine anno con margine di errore minimo.' },
+        { img: 'wifi',         title: 'Webserver Wi-Fi',          desc: 'Avvia un server web integrato e accedi a Orbita Casa dal tuo smartphone o tablet in Wi-Fi, senza app aggiuntive.' },
+        { img: 'spesa',        title: 'Confronto Prezzi',         desc: 'Registra i prezzi della spesa nel tempo e confronta prodotto per prodotto tra diversi supermercati per la scelta più conveniente.' },
+        { img: 'mutui',        title: 'Piano di Ammortamento',    desc: 'Calcola rate, interessi residui e anticipa i pagamenti. Supporta mutui a tasso fisso e variabile con piano completo scaricabile.' },
+        { img: 'qrcode',       title: 'Generatore QR Code',       desc: 'Genera QR code per accesso rapido al webserver, condivisione di dati o link interni. Personalizzabile con logo e colori.' },
+        { img: 'backup',       title: 'Backup Configurazione',    desc: 'Esporta e ripristina l\'intera configurazione del profilo. Cambio PC o reinstallazione in pochi secondi.' },
+        { img: 'rubrica',      title: 'Rubrica Android',          desc: 'Sincronizza i contatti Android con la rubrica interna.' },
+        { img: 'stampa',       title: 'Stampa Report',            desc: 'Genera report mensili, annuali o personalizzati pronti per la stampa o l\'esportazione PDF, con intestazione configurabile.' },
+        { img: 'saldo',        title: 'Saldo Bancario',           desc: 'Riconcilia il saldo del conto corrente con i movimenti registrati. Evidenzia automaticamente le discrepanze.' },
+        { img: 'ricerca',      title: 'Ricerca & Filtri Avanzati',desc: 'Cerca tra migliaia di movimenti con filtri su data, importo, categoria, descrizione e metodo di pagamento.' },
+        { img: 'multiutente',  title: 'Accesso Multi-Postazione', desc: 'Accedi al tuo profilo da qualsiasi postazione: PC, laptop o tablet. Stesso account, stessi dati, ovunque tu sia in casa.' },
+        { img: 'sicurezza',    title: 'Sicurezza & Password',     desc: 'Accesso protetto da password cifrata. Blocco automatico dopo N tentativi falliti e log degli accessi.' },
+        { img: 'remoto',       title: 'Accesso Remoto SSL',       desc: 'Accedi al webserver da qualsiasi rete in modo sicuro e crittografato.' },
+        { img: 'categorie',    title: 'Categorie Personalizzate', desc: 'Crea e rinomina le categorie di spesa come vuoi, definendo per ognuna se rappresenta un\'entrata o un\'uscita.' },
+        { img: 'gmail',        title: 'Sincronizzazione Gmail',   desc: 'Scansiona automaticamente le email: se trova bollette o estratti conto in allegato, importa i movimenti e archivia i PDF.' },
+        { img: 'temi',         title: 'Temi Personalizzati',      desc: 'Scegli tra diversi temi dark e light o crea il tuo con colori custom. L\'interfaccia si adatta al tuo stile.' },
+        { img: 'infopoint',    title: 'Smart Info Point',         desc: 'Widget informativo sempre visibile con saldo, spese del giorno e prossime scadenze. Il cruscotto a colpo d\'occhio.' },
+        { img: 'smartcat',     title: 'SmartCat AI',              desc: 'Suggerisce automaticamente la categoria per ogni nuovo movimento analizzando le tue spese degli ultimi 365 giorni. Nessuna AI esterna.' },
+        { img: 'crash',        title: 'Crash Recovery',           desc: 'Se il database si corrompe, ripristina automaticamente l\'ultimo salvataggio valido, evitando qualsiasi perdita di dati.' },
+        { img: 'promemoria',   title: 'Reminder Spese',           desc: 'Genera un QR code o apre direttamente il link per aggiungere un promemoria su Google Calendar.' },
+        { img: 'popup',        title: 'Popup Auto-Close',         desc: 'Le notifiche di sistema si chiudono da soli dopo pochi secondi. Nessun click inutile, nessuna interruzione al lavoro.' },
+        { img: 'iconizza',     title: 'Auto-Iconizza',            desc: 'Configura la minimizzazione automatica al tray di sistema dopo un periodo di inattività. L\'app resta attiva senza disturbare.' },
+        { img: 'carosello',    title: 'Carosello di Avvio',       desc: 'All\'avvio, uno slideshow mostra statistiche personalizzate e grafici finanziari.' },
+        { img: 'retention',    title: 'Retention Dati',           desc: 'Definisci per quanto tempo conservare i movimenti storici. Pulizia automatica dei dati più vecchi per mantenere l\'app veloce.' },
+        { img: 'multibackup',  title: 'Multi-Backup',             desc: 'Backup automatici: rotazione delle copie con storico configurabile.' },
+        { img: 'importa',      title: 'Importa Estratti Conto',   desc: 'Carica PDF di estratti conto bancari: l\'AI legge i movimenti, li categorizza e li importa evitando duplicati.' },
+        { img: 'openai',       title: 'Analisi AI',               desc: 'Interroga l\'AI sui tuoi dati finanziari: dove spendi di più, come ottimizzare il budget, proiezioni future.' },
+        { img: 'docpersonali', title: 'Archivio Documenti PDF',   desc: 'Archivia fatture, polizze, manuali con tag e ricerca full-text. Collega documenti a spese o contratti.' },
+        { img: 'shortcut',     title: 'Tasti Rapidi',             desc: 'Scorciatoie da tastiera configurabili per le azioni più frequenti. Inserisci una spesa, apri un report, tutto senza mouse.' },
+        { img: 'fairshare',    title: 'Fair Share',               desc: 'Dividi le spese condivise tra più persone in modo equo. Calcola chi deve quanto a chi e genera un riepilogo da inviare.' },
+        { img: 'mfinanza',     title: 'Modulo Finanza',           desc: 'Monitora investimenti, portafoglio titoli e rendimenti nel tempo integrandoli con il flusso di cassa familiare.' },
+        { img: 'pip',          title: 'Aggiornamento Automatico', desc: 'Verifica e installa gli aggiornamenti delle dipendenze Python direttamente dall\'interfaccia, senza toccare il terminale.' },
+        { img: 'bollette',     title: 'Analisi Documenti e Fatture', desc: 'L\'AI analizza e confronta più immagini o documenti PDF eseguendo un\'analisi dettagliata e un confronto preciso tra bollette, fatture e contratti.' },
+    ];
+
+    const BASE     = 'https://github.com/Renato-4132/OrbitaCasa/raw/main/screenshots/';
+    const INTERVAL = 10000;
+    let cur = 0, autoTimer = null;
+
+    const track  = document.getElementById('carTrack');
+    const dotsEl = document.getElementById('carDots');
+    const prog   = document.getElementById('carProgress');
+
+    slides.forEach((s, i) => {
+        const slide = document.createElement('div');
+        slide.className = 'carousel-slide';
+        slide.innerHTML = `
+            <img src="${BASE}${s.img}.png"
+                 alt="${s.title}"
+                 loading="${i < 3 ? 'eager' : 'lazy'}"
+                 decoding="async">
+            <div class="slide-overlay">
+                <div class="slide-num">${String(i + 1).padStart(2, '0')} &nbsp;/&nbsp; ${slides.length}</div>
+                <div class="slide-title">${s.title}</div>
+                <div class="slide-desc">${s.desc}</div>
+            </div>`;
+        track.appendChild(slide);
+
+        const dot = document.createElement('div');
+        dot.className = 'car-dot' + (i === 0 ? ' active' : '');
+        dot.addEventListener('click', () => goTo(i));
+        dotsEl.appendChild(dot);
+    });
+
+    function goTo(n) {
+        cur = ((n % slides.length) + slides.length) % slides.length;
+        track.style.transform = `translateX(-${cur * 100}%)`;
+        document.querySelectorAll('.car-dot').forEach((d, i) => {
+            d.classList.toggle('active', i === cur);
+        });
+        animateProgress();
+    }
+
+    function carMove(dir) { goTo(cur + dir); }
+
+    function animateProgress() {
+        prog.style.transition = 'none';
+        prog.style.width = '0%';
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            prog.style.transition = `width ${INTERVAL}ms linear`;
+            prog.style.width = '100%';
+        }));
+    }
+
+    function startAuto() {
+        clearInterval(autoTimer);
+        autoTimer = setInterval(() => goTo(cur + 1), INTERVAL);
+        animateProgress();
+    }
+
+    const carousel = document.getElementById('carousel');
+    carousel.addEventListener('mouseenter', () => {
+        clearInterval(autoTimer);
+        prog.style.transition = 'none';
+    });
+    carousel.addEventListener('mouseleave', startAuto);
+
+    let touchStartX = 0, touchStartY = 0;
+    carousel.addEventListener('touchstart', e => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    carousel.addEventListener('touchend', e => {
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 35) {
+            carMove(dx < 0 ? 1 : -1);
+        }
+    }, { passive: true });
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'ArrowLeft')  carMove(-1);
+        if (e.key === 'ArrowRight') carMove(1);
+    });
+
+    goTo(0);
+    startAuto();
+    window.carMove = carMove;
+    </script>
+</body>
+</html>
