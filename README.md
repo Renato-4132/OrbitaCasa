@@ -89,7 +89,7 @@ Metodo consigliato per utenti Windows.
 > ⚠️ **IMPORTANTE:** Durante l'installazione di Python, spunta la casella **"Add Python to PATH"**.
 
 1. Crea una cartella dedicata (il nome della cartella sarà il tuo **Nome Profilo**).
-2. Inserisci il file `Casa Facile.pyw` all'interno.
+2. Inserisci il file `OrbitaCasa.pyw` all'interno.
 3. Il Software installerà in automatico le dipendenze: tkcalendar google-genai requests segno pypiwin32 cryptography pystray pymupdf yfinance.
 
 ## 🌐 SCOPRI DI PIÙ [![Sito Web](https://img.shields.io/badge/SITO_UFFICIALE-VISITA-4f46e5?style=flat-square&logo=google-chrome&logoColor=white)](https://renato-4132.github.io/OrbitaCasa/)
