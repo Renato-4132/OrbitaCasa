@@ -1,21 +1,45 @@
-MIT License
+Business Source License 1.1
+Licensor: Renato-4132
+Licensed Work: OrbitaCasa versione 2.0 e successive
+Additional Use Grant: Periodo di prova di 10 giorni.
+Change Date: 15-05-2029
+Change License: GNU General Public License v3.0
 
-Copyright (c) 2026 Orbita Casa
+Licensor: Renato-4132
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Licensed Work: 
+              OrbitaCasa — software per la gestione delle finanze personali e domestiche.
+              La versione originale del software è disponibile su:
+              https://github.com/Renato-4132/OrbitaCasa
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Additional Use Grant:
+              È consentito utilizzare il software per un periodo di prova
+              di 10 giorni dalla prima installazione. Al termine del periodo di
+              prova è necessaria una licenza per continuare ad
+              utilizzarlo. Non è consentito rimuovere, modificare o aggirare
+              il sistema di licenza/registrazione incluso nel software. Non è
+              consentito redistribuire, sublicenziare o vendere il software
+              o parti di esso senza autorizzazione scritta del Licenziante.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Change Date: Il quindici (15) maggio 2029.
+
+Change License: GNU General Public License versione 3.
+
+Notice:
+
+Il Licenziatario non può utilizzare il Lavoro Concesso in Licenza per un Uso
+Commerciale Competitivo prima della Data di Modifica. "Uso Commerciale Competitivo"
+significa fornire a terzi (incluso tramite SaaS) un prodotto o servizio il cui
+valore dipende in modo sostanziale dalle funzionalità del Lavoro Concesso in Licenza.
+
+A partire dalla Data di Modifica, il Licenziatario può utilizzare il Lavoro
+Concesso in Licenza ai sensi dei termini della Licenza di Modifica indicata sopra.
+
+Il testo completo della Business Source License 1.1 è disponibile su:
+https://spdx.org/licenses/BUSL-1.1.html
+
+Il software viene fornito "così com'è", senza garanzie di alcun tipo, esplicite
+o implicite. In nessun caso il Licenziante sarà responsabile per danni derivanti
+dall'uso del software.
+
+Copyright (c) 2026 Renato-4132. Tutti i diritti riservati.
