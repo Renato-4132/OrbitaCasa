@@ -70,7 +70,7 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 40. **Analizzatore Semantico IA**: Introdotta una nuova suite di analisi intelligente per il confronto multi-documento.
 41. **Modulo Dieta:** Pianificazione dei pasti, database alimenti, tracciamento macronutrienti e monitoraggio del peso con grafico BMI.
 42. **Gestione Studio:** Agenda, anagrafica, preventivi, fatturazione e gestione magazzino per professionisti e piccole attività.
-43. **Gestione Immobili:** Anagrafica proprietà, registro entrate/uscite per immobile, grafici, estratto conto e riepilogo totale con filtri per mese e anno.
+43. **Gestione Immobili:** Anagrafica proprietà, registro entrate/uscite per immobile, grafici, estratto conto e riepilogo totale con filtri.
 
 ---
        
