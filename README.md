@@ -14,13 +14,14 @@
 ![Visite](https://visitor-badge.laobi.icu/badge?page_id=Renato-4132.OrbitaCasa&left_text=VISITE%20TOTALI&color=4f46e5)
 
 ---
----
 
 ### 🏆 COME CI VEDONO
 
 [![FinanzaCafona](https://img.shields.io/badge/FinanzaCafona-Top_3_App_Budget_Familiare-4f46e5?style=flat-square&logo=google-chrome&logoColor=white)](https://finanzacafona.it/2026/05/app-per-gestire-il-budget-familiare.html)
 
 > *"Questa è forse la chicca dell'articolo e l'app per gestire il budget familiare più completa fra tutte"* — [FinanzaCafona, Maggio 2026](https://finanzacafona.it/2026/05/app-per-gestire-il-budget-familiare.html)
+
+> ℹ️ **Nota:** nell'articolo il software è citato con il nome precedente **"CasaFacilePro"**. Orbita Casa è la versione attuale, aggiornata e mantenuta attivamente dello stesso progetto.
 
 ---
 
