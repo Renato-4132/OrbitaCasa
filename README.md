@@ -23,8 +23,7 @@
 
 > ℹ️ **Nota:** nell'articolo il software è citato con il nome precedente **"CasaFacilePro"**. Orbita Casa è la versione attuale, aggiornata e mantenuta attivamente dello stesso progetto.
 
-[![FaceBook](https://www.facebook.com/orbitahome/)
-
+[![FaceBook](https://img.shields.io/badge/FaceBook-4f46e5?style=flat-square&logo=google-chrome&logoColor=white)](https://www.facebook.com/orbitahome/)
 ---
 
 ### 🚀 L'ESSENZA DEL SOFTWARE
