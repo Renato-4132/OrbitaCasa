@@ -17,20 +17,16 @@
             --card: #111827;
             --border: #1e293b;
         }
-  
         * { box-sizing: border-box; }
-
         body {
             background-color: var(--bg);
             color: #e2e8f0;
             font-family: 'DM Sans', sans-serif;
             -webkit-font-smoothing: antialiased;
         }
-
         h1, h2, h3, h4 {
             font-family: 'Barlow Condensed', sans-serif;
         }
-
         .step-number {
             background: var(--accent);
             width: 28px; height: 28px;
@@ -39,7 +35,6 @@
             font-weight: bold; font-size: 0.9rem;
             flex-shrink: 0;
         }
-
         .code-box {
             background: #000;
             border-left: 4px solid var(--accent);
@@ -49,14 +44,12 @@
             overflow-x: auto;
             word-break: break-all;
         }
-
         .warning-box {
             background: rgba(245,158,11,0.1);
             border: 1px solid #f59e0b;
             padding: 1rem;
             border-radius: 0.75rem;
         }
-
         .video-container {
             position: relative;
             padding-bottom: 56.25%;
@@ -70,7 +63,6 @@
             top: 0; left: 0;
             width: 100%; height: 100%;
         }
-
         .btn-download {
             background: var(--accent);
             color: white;
@@ -84,12 +76,10 @@
             text-decoration: none;
         }
         .btn-download:hover { opacity: 0.9; }
-
         .carousel-outer {
             width: 100%;
             box-sizing: border-box;
         }
-
         .carousel-wrap {
             position: relative;
             border-radius: 1.25rem;
@@ -103,14 +93,12 @@
             margin-left: auto;
             margin-right: auto;
         }
-
         @media (max-width: 480px) {
             .carousel-wrap {
                 aspect-ratio: 4 / 3;
                 border-radius: 0.75rem;
             }
         }
-
         .carousel-track {
             display: flex;
             width: 100%;
@@ -118,7 +106,6 @@
             transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
             will-change: transform;
         }
-
         .carousel-slide {
             flex: 0 0 100%;
             width: 100%;
@@ -130,7 +117,6 @@
             background: #000;
             overflow: hidden;
         }
-
         .carousel-slide img {
             position: absolute;
             top: 0; left: 0;
@@ -140,7 +126,6 @@
             object-position: center center;
             display: block;
         }
-
         .slide-overlay {
             position: absolute;
             bottom: 0; left: 0; right: 0;
@@ -153,7 +138,6 @@
             padding: clamp(0.8rem, 3vw, 2rem) clamp(0.8rem, 3vw, 2rem) clamp(0.6rem, 2vw, 1.4rem);
             z-index: 2;
         }
-
         .slide-num {
             font-size: clamp(9px, 1.5vw, 11px);
             font-weight: 700;
@@ -163,7 +147,6 @@
             margin-bottom: 3px;
             font-family: 'DM Sans', sans-serif;
         }
-
         .slide-title {
             font-family: 'Barlow Condensed', sans-serif;
             font-size: clamp(1rem, 3.5vw, 1.6rem);
@@ -174,7 +157,6 @@
             margin-bottom: 4px;
             font-style: italic;
         }
-
         .slide-desc {
             font-size: clamp(0.65rem, 1.5vw, 0.8rem);
             color: #94a3b8;
@@ -186,7 +168,6 @@
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
-
         @media (max-width: 480px) {
             .slide-desc {
                 -webkit-line-clamp: 2;
@@ -196,7 +177,6 @@
                 padding: 0.7rem 0.75rem 0.6rem;
             }
         }
-
         .car-btn {
             position: absolute;
             top: 50%;
@@ -223,7 +203,6 @@
         }
         .car-btn.prev { left: clamp(6px, 2vw, 14px); }
         .car-btn.next { right: clamp(6px, 2vw, 14px); }
-
         .car-progress {
             position: absolute;
             bottom: 0; left: 0;
@@ -232,7 +211,6 @@
             width: 0%;
             z-index: 5;
         }
-
         .car-dots {
             display: flex;
             justify-content: center;
@@ -253,10 +231,43 @@
             background: #6366f1;
             transform: scale(1.5);
         }
+        .press-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(79,70,229,0.12);
+            border: 1px solid rgba(79,70,229,0.35);
+            border-radius: 999px;
+            padding: 8px 18px 8px 12px;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .press-badge:hover {
+            background: rgba(79,70,229,0.22);
+            border-color: #6366f1;
+        }
+        .press-badge-icon {
+            width: 28px; height: 28px;
+            background: #4f46e5;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        .press-quote {
+            background: rgba(79,70,229,0.07);
+            border-left: 3px solid #4f46e5;
+            border-radius: 0 10px 10px 0;
+            padding: 10px 16px;
+            font-style: italic;
+            font-size: 13px;
+            color: #a5b4fc;
+            max-width: 620px;
+            margin: 0 auto;
+        }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-200">
-
     <header class="relative py-1 pb-0 px-4 text-center bg-slate-950 overflow-hidden">
         <div class="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-full bg-indigo-500/5 blur-[120px] pointer-events-none"></div>
         <div class="relative z-10">
@@ -267,13 +278,31 @@
                 Il centro di comando per la tua gestione domestica, <br class="hidden md:block">
                 dalle <span class="text-slate-200">spese quotidiane</span> al <span class="text-slate-200">risparmio intelligente</span>.
             </p>
-            <div class="flex flex-wrap justify-center gap-3 mb-12 opacity-90 hover:opacity-100 transition-opacity">
+            <div class="flex flex-wrap justify-center gap-3 mb-8 opacity-90 hover:opacity-100 transition-opacity">
                 <img src="https://img.shields.io/badge/Windows-✔️-blue?logo=windows&logoColor=white" alt="Windows" class="h-6">
                 <img src="https://img.shields.io/badge/macOS-✔️-lightgrey?logo=apple&logoColor=white" alt="macOS" class="h-6">
                 <img src="https://img.shields.io/badge/Linux-✔️-yellow?logo=linux&logoColor=black" alt="Linux" class="h-6">
                 <img src="https://img.shields.io/badge/Python-3.13+-3776AB?logo=python&logoColor=white" alt="Python" class="h-6">
                 <img src="https://img.shields.io/badge/VERSIONE-2.x-orange" alt="Versione" class="h-6">
                 <img src="https://visitor-badge.laobi.icu/badge?page_id=Renato-4132.OrbitaCasa&left_text=VISITE%20TOTALI&color=4f46e5" alt="Visite" class="h-6">
+            </div>
+            <div class="flex flex-col items-center gap-3 mb-10">
+                <p class="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Come ci vedono</p>
+                <a href="https://finanzacafona.it/2026/05/app-per-gestire-il-budget-familiare.html"
+                   target="_blank" class="press-badge">
+                    <div class="press-badge-icon">📰</div>
+                    <div style="text-align:left;">
+                        <div style="font-size:11px;font-weight:700;color:#e2e8f0;line-height:1.2;">FinanzaCafona.it</div>
+                        <div style="font-size:10px;color:#6366f1;font-weight:600;">🏆 Top 3 App Budget Familiare · Maggio 2026</div>
+                    </div>
+                </a>
+                <div class="press-quote">
+                    "Questa è forse la chicca dell'articolo e l'app per gestire il budget familiare
+                    <strong style="color:#fff;">più completa fra tutte</strong>"
+                    <span style="font-size:11px;color:#475569;font-style:normal;display:block;margin-top:4px;">
+                        ℹ️ Nell'articolo citata come <em>CasaFacilePro</em> — il nome precedente del progetto, ora <strong style="color:#a5b4fc;">Orbita Casa</strong>.
+                    </span>
+                </div>
             </div>
             <div class="relative max-w-4xl mx-auto group">
                 <div class="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-slate-800 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
@@ -283,7 +312,6 @@
             </div>
         </div>
     </header>
-
     <main class="max-w-6xl mx-auto px-4 pt-0 py-12">
         <section class="max-w-4xl mx-auto text-center mb-5">
             <h2 class="text-2xl font-semibold text-indigo-400 mb-4 uppercase tracking-widest">L'Essenza del Software</h2>
@@ -297,14 +325,11 @@
                 <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700">📑 <strong>Paperless</strong><br><span class="text-slate-500">Archivio PDF</span></div>
             </div>
         </section>
-
         <section class="carousel-outer mb-20">
             <div class="carousel-wrap" id="carousel">
                 <div class="carousel-track" id="carTrack">
                     </div>
-                
                 <div class="car-progress" id="carProgress"></div>
-                
                 <button class="car-btn prev" onclick="carMove(-1)" aria-label="Precedente">
                     <i class="fas fa-chevron-left"></i>
                 </button>
@@ -312,10 +337,8 @@
                     <i class="fas fa-chevron-right"></i>
                 </button>
             </div>
-            
             <div class="car-dots" id="carDots"></div>
         </section>
-
         <section class="mb-10">
         <button class="acc-btn" id="btn-funzioni" onclick="accToggleFunzioni()">
                 <div class="acc-header">
@@ -495,9 +518,9 @@
                                 </li>
                                 <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
                                         <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">40</span>
-                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Analizzatore Semantico IA</strong><br><span style="color:#94a3b8;">Sistema avanzato di analisi, estrazione e correlazione dati per bollette, buste paga e contrattualistica..</span></span>
+                                        <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Analizzatore Semantico IA</strong><br><span style="color:#94a3b8;">Sistema avanzato di analisi, estrazione e correlazione dati per bollette, buste paga e contrattualistica.</span></span>
                                 </li>
-<li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
+                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
                                         <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">41</span>
                                         <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Modulo Dieta</strong><br><span style="color:#94a3b8;">Pianificazione settimanale dei pasti, database alimenti, tracciamento macronutrienti e monitoraggio del peso con grafico BMI.</span></span>
                                 </li>
@@ -530,7 +553,6 @@
                 }
         </script>
         </section>
-
         <section class="mb-5">
             <style>
                 .priv-btn { width: 100%; background: #111827; border: 1px solid #1e293b; color: #e2e8f0; padding: 0; cursor: pointer; text-align: left; border-radius: 16px; overflow: hidden; transition: all 0.2s; }
@@ -611,7 +633,6 @@
             .note-row { display:flex; align-items:flex-start; gap:10px; background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.25); border-radius:10px; padding:10px 14px; margin-top:4px; }
             .note-badge { background:#6366f1; color:#fff; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:12px; flex-shrink:0; margin-top:1px; }
           </style>
-
           <button class="acc-btn" id="btn-win" onclick="accToggle('win')">
             <div class="acc-header">
               <span style="font-size:22px;">🪟</span>
@@ -641,7 +662,6 @@
               </div>
             </div>
           </div>
-
           <button class="acc-btn" id="btn-src" onclick="accToggle('src')">
             <div class="acc-header">
               <span style="font-size:22px;">⌨️</span>
@@ -666,7 +686,6 @@
               <div class="code-box" style="font-size:10px;margin-top:6px;">pip install tkcalendar google-genai requests segno pypiwin32 cryptography pystray pymupdf flask</div>
             </div>
           </div>
-
           <script>
           function accToggle(id) {
             const isOpen = document.getElementById('btn-'+id).classList.contains('open');
@@ -681,7 +700,6 @@
           }
           </script>
         </section>
-
         <section class="space-y-1 mb-2">
             <h2 class="text-4xl font-bold text-center text-white italic">Addio fogli Excel !</h2>
             <div class="video-container shadow-2xl">
@@ -690,7 +708,6 @@
                 </video>
             </div>
         </section>
-
         <section class="space-y-1 mb-2">
             <h2 class="text-4xl font-bold text-center text-white italic">Quick Tour</h2>
             <div class="video-container shadow-2xl">
@@ -704,10 +721,13 @@
                     <i class="fab fa-github mr-3 text-2xl"></i> Repository GitHub Ufficiale
                 </a>
             </div>
+            <div class="flex flex-wrap gap-2 justify-center w-full">
+                        <a href="https://www.facebook.com/orbitahome/" target="_blank" class="bg-[#1877F2] text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider inline-flex items-center gap-2 hover:opacity-90 transition-opacity">
+                                <i class="fab fa-facebook-f text-sm"></i> Segui su Facebook
+                        </a>
+                </div>
         </section>
-
     </main>
-
     <footer class="py-8 text-center border-t border-slate-800 mt-10">
         <div class="mb-4">
             <p class="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold mb-1 italic">Assistenza Tecnica</p>
@@ -715,7 +735,6 @@
         </div>
         <p class="text-[10px] text-slate-600 uppercase tracking-widest font-black italic">Orbita Casa 2026 - Licenza MIT</p>
     </footer>
-
     <script>
     const slides = [
         { img: 'calendario',   title: 'Calendario Heartbeat',     desc: 'Visualizza entrate e uscite direttamente sul calendario con indicatori animati. Un colpo d\'occhio e sai subito come sta andando il mese.' },
@@ -760,15 +779,12 @@
         { img: 'immobili',     title: 'Gestione Immobili', desc: 'Anagrafica proprietà, registro entrate/uscite per immobile, estratto conto e riepilogo totale con grafici e filtri per mese e anno.' },
         { img: 'studio',       title: 'Modulo Studio',            desc: 'Organizza e monitora le attività del tuo studio professionale, gestendo scadenze, clienti e flussi economici integrati con la contabilità di casa.' },
     ];
-
     const BASE     = 'https://github.com/Renato-4132/OrbitaCasa/raw/main/screenshots/';
     const INTERVAL = 10000;
     let cur = 0, autoTimer = null;
-
     const track  = document.getElementById('carTrack');
     const dotsEl = document.getElementById('carDots');
     const prog   = document.getElementById('carProgress');
-
     slides.forEach((s, i) => {
         const slide = document.createElement('div');
         slide.className = 'carousel-slide';
@@ -783,13 +799,11 @@
                 <div class="slide-desc">${s.desc}</div>
             </div>`;
         track.appendChild(slide);
-
         const dot = document.createElement('div');
         dot.className = 'car-dot' + (i === 0 ? ' active' : '');
         dot.addEventListener('click', () => goTo(i));
         dotsEl.appendChild(dot);
     });
-
     function goTo(n) {
         cur = ((n % slides.length) + slides.length) % slides.length;
         track.style.transform = `translateX(-${cur * 100}%)`;
@@ -798,9 +812,7 @@
         });
         animateProgress();
     }
-
     function carMove(dir) { goTo(cur + dir); }
-
     function animateProgress() {
         prog.style.transition = 'none';
         prog.style.width = '0%';
@@ -809,26 +821,22 @@
             prog.style.width = '100%';
         }));
     }
-
     function startAuto() {
         clearInterval(autoTimer);
         autoTimer = setInterval(() => goTo(cur + 1), INTERVAL);
         animateProgress();
     }
-
     const carousel = document.getElementById('carousel');
     carousel.addEventListener('mouseenter', () => {
         clearInterval(autoTimer);
         prog.style.transition = 'none';
     });
     carousel.addEventListener('mouseleave', startAuto);
-
     let touchStartX = 0, touchStartY = 0;
     carousel.addEventListener('touchstart', e => {
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
     }, { passive: true });
-
     carousel.addEventListener('touchend', e => {
         const dx = e.changedTouches[0].clientX - touchStartX;
         const dy = e.changedTouches[0].clientY - touchStartY;
@@ -836,12 +844,10 @@
             carMove(dx < 0 ? 1 : -1);
         }
     }, { passive: true });
-
     document.addEventListener('keydown', e => {
         if (e.key === 'ArrowLeft')  carMove(-1);
         if (e.key === 'ArrowRight') carMove(1);
     });
-
     goTo(0);
     startAuto();
     window.carMove = carMove;
