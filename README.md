@@ -34,7 +34,7 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 4.  **Archivio Documenti Contabili PDF**: Collega i documenti ai movimenti.
 5.  **Monitor Utenze**: Tieni d'occhio i consumi di luce, gas e acqua.
 6.  **Simulatore Risparmio**: Calcola come raggiungere i tuoi obiettivi.
-7.  **Proiezione 31/12**: Prevedi il saldo a fine anno.
+7.  **Fondo Risparmio**: Tracking dei risparmi accantonati ed obbiettivi.
 8.  **Webserver Remoto**: Consulta i dati dallo smartphone in rete locale/remota.
 9.  **Confronto Prezzi**: Ottimizza la tua spesa alimentare.
 10. **Ammortamento Mutui**: Calcola rate e interessi reali - Piani Ammortamento.
@@ -71,6 +71,7 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 41. **Modulo Dieta:** Pianificazione dei pasti, database alimenti, tracciamento macronutrienti e monitoraggio del peso con grafico BMI.
 42. **Gestione Studio:** Agenda, anagrafica, preventivi, fatturazione e gestione magazzino per professionisti e piccole attività.
 43. **Gestione Immobili:** Anagrafica proprietà, registro entrate/uscite per immobile, grafici, estratto conto e riepilogo totale con filtri.
+44. **Proiezioni:** Proiezioni finanziarie future (rendite, spese, patrimonio)
 
 ---
        
