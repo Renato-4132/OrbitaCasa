@@ -38,7 +38,7 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 
 ---
 
-### 🔥 POTENZA IN 30+ FUNZIONI
+### 🔥 POTENZA IN 40+ FUNZIONI
 1.  **Calendario Heartbeat**: Vista globale dei tuoi impegni finanziari.
 2.  **Gestione Ricorrenze**: Automatizza i movimenti fissi.
 3.  **Grafici Drill-Down**: Analisi visiva profonda delle spese.
