@@ -83,6 +83,8 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 42. **Gestione Studio:** Agenda, anagrafica, preventivi, fatturazione e gestione magazzino per professionisti e piccole attività.
 43. **Gestione Immobili:** Anagrafica proprietà, registro entrate/uscite per immobile, grafici, estratto conto e riepilogo totale con filtri.
 44. **Proiezioni:** Proiezioni finanziarie future (rendite, spese, patrimonio)
+45. **Calcolo Inflazione:** Indicatore dinamico del tasso di inflazione reale calcolato direttamente in base allo storico.
+46. **Invio Estratti Mail:** Modulo per la distribuzione flessibile dei report, con invio automatico degli estratti conto.
 
 ---
        
@@ -109,64 +111,5 @@ Metodo consigliato per utenti Windows.
 3. Il Software installerà in automatico le dipendenze: tkcalendar google-genai requests segno pypiwin32 cryptography pystray pymupdf yfinance tkinterdnd2
 
 ## 🌐 SCOPRI DI PIÙ [![Sito Web](https://img.shields.io/badge/SITO_UFFICIALE-VISITA-4f46e5?style=flat-square&logo=google-chrome&logoColor=white)](https://renato-4132.github.io/OrbitaCasa/)
-## 🏘️ Orbita Village — Lavora con noi
 
-Orbita Village è la community ufficiale di OrbitaCasa — uno spazio riservato a chi vuole
-**fare parte del progetto**, non solo usarlo.
-Chi entra contribuisce alla crescita dell'app e in cambio riceve una **licenza completa gratuita**.
-
----
-
-### Come si entra
-
-Invia una richiesta a [helporbitacasa@gmail.com](mailto:helporbitacasa@gmail.com)
-con oggetto `Orbita Village`, indicando:
-
-- il tuo nome
-- come intendi contribuire
-- su quale piattaforma sei disposto a essere attivo
-
----
-
-### Forme di contributo accettate
-
-Sono valide una o più delle seguenti:
-
-- 🐛 **Segnalare bug** — sistema operativo, versione, passi per riprodurre
-- 💡 **Proporre funzionalità** — descrizione chiara e motivata
-- ⭐ **Recensione pubblica** — su Reddit, forum o social con link verificabile
-- 🎬 **Tutorial o guida d'uso** — video, testo o guida anche breve
-- ❤️ **Donazione libera** — a sostegno del progetto, qualsiasi importo
-- 👥 **Invitare un amico** — che venga accettato e risulti attivo nella community
-
----
-
-### La licenza
-
-Chi viene accettato riceve una licenza OrbitaCasa per **uso personale, non trasferibile**.
-Rimane valida finché il membro resta attivo —
-almeno un contributo ogni 6 mesi.
-
----
-
-### Donazioni
-
-Non obbligatorie, ma benvenute: server, dominio, tempo di sviluppo.
-Anche una donazione simbolica è un contributo valido per l'accesso.
-
----
-
-### Cosa non è Orbita Village
-
-Non è un servizio di supporto tecnico dedicato,
-non garantisce tempi di risposta,
-non prevede rimborsi.
-È una community volontaria basata sulla buona fede reciproca.
-
----
-
-### Riserva
-
-L'autore si riserva di accettare o rifiutare le richieste senza obbligo di motivazione
-e di modificare questo regolamento in qualsiasi momento.
 
