@@ -755,210 +755,53 @@
     <script>
     const slides = [
         { img: 'cruscotto',    title: 'Cruscotto Termico',        desc: 'Analisi visiva istantanea di entrate, uscite e saldi tramite tachimetri intuitivi. Tieni sotto controllo la percentuale del tuo budget senza calcoli complessi.' },
-        { 
-        img: 'banca', 
-        title: 'Gestione Associativa e Multiconto', 
-        desc: 'Logica di segregazione contabile con associazione univoca tra entità e conti bancari dedicati, per una gestione isolata dei flussi e reportistica specifica.' 
-        },
-        { 
-        img: 'saldo_banca', 
-        title: 'Analisi Finanziaria Storica', 
-        desc: 'Rappresentazione grafica evoluta dello storico saldi, Entrate e Uscite, basata sulla nuova logica multconto per monitorare l\'andamento nel tempo.' 
-        },
-        { 
-        img: 'movimenti_banca', 
-        title: 'Dettaglio Movimenti e Riconciliazione', 
-        desc: 'Gestione granulare delle operazioni bancarie con assegnazione dinamica del conto e verifica immediata tra entrate e uscite.' 
-        },
-        { 
-        img: 'calendario',   
-        title: 'Calendario Heartbeat',     
-        desc: 'Visualizza entrate e uscite direttamente sul calendario con indicatori animati. Un colpo d\'occhio e sai subito come sta andando il mese.' },
-        { 
-        img: 'ricorrenze',   
-        title: 'Gestione Ricorrenze',      
-        desc: 'Bollette, abbonamenti, affitti: configurali una volta e vengono registrati in automatico ogni mese, senza dimenticarsi nulla.' },
-        { 
-        img: 'grafici',      
-        title: 'Grafici Drill-Down',       
-        desc: 'Analizza le spese per categoria con grafici interattivi. Clicca su una voce e scendi nel dettaglio fino alla singola transazione.' },
-        { 
-        img: 'archivio',     
-        title: 'Archivio Contabili PDF',   
-        desc: 'Allega PDF a ogni spesa o documento. Estratti conto, fatture, ricevute: tutto archiviato e consultabile in un istante.' },
-        { 
-        img: 'utenze',       
-        title: 'Monitor Utenze',           
-        desc: 'Tieni traccia dei consumi di luce, gas e acqua nel tempo. Individua aumenti anomali e confronta i periodi.' },
-        { 
-        img: 'risparmio',    
-        title: 'Simulatore Risparmio',     
-        desc: 'Inserisci un obiettivo di risparmio e il simulatore calcola quanto accantonare ogni mese per raggiungerlo.' },
-        { 
-        img: 'proiezione',   
-        title: 'Proiezione al 31/12',      
-        desc: 'Sulla base delle spese correnti e delle ricorrenze future, stima il saldo a fine anno con margine di errore minimo.' },
-        { 
-        img: 'wifi',         
-        title: 'Webserver Wi-Fi',          
-        desc: 'Avvia un server web integrato e accedi a Orbita Casa dal tuo smartphone o tablet in Wi-Fi, senza app aggiuntive.' },
-        { 
-        img: 'spesa',        
-        title: 'Confronto Prezzi',         
-        desc: 'Registra i prezzi della spesa nel tempo e confronta prodotto per prodotto tra diversi supermercati per la scelta più conveniente.' },
-        { 
-        img: 'mutui',        
-        title: 'Piano di Ammortamento',    
-        desc: 'Calcola rate, interessi residui e anticipa i pagamenti. Supporta mutui a tasso fisso e variabile con piano completo scaricabile.' },
-        { 
-        img: 'qrcode',       
-        title: 'Generatore QR Code',       
-        desc: 'Genera QR code per accesso rapido al webserver, condivisione di dati o link interni. Personalizzabile con logo e colori.' },
-        { 
-        img: 'backup',       
-        title: 'Backup Configurazione',    
-        desc: 'Esporta e ripristina l\'intera configurazione del profilo. Cambio PC o reinstallazione in pochi secondi.' },
-        { 
-        img: 'rubrica',      
-        title: 'Rubrica Android',          
-        desc: 'Sincronizza i contatti Android con la rubrica interna.' },
-        { 
-        img: 'stampa',       
-        title: 'Stampa Report',            
-        desc: 'Genera report mensili, annuali o personalizzati pronti per la stampa o l\'esportazione PDF, con intestazione configurabile.' },
-        { 
-        img: 'saldo',        title: 'Saldo Bancario',           desc: 'Riconcilia il saldo del conto corrente con i movimenti registrati. Evidenzia automaticamente le discrepanze.' },
-        { 
-        img: 'ricerca',      title: 'Ricerca & Filtri Avanzati',desc: 'Cerca tra migliaia di movimenti con filtri su data, importo, categoria, descrizione e metodo di pagamento.' },
-        { 
-        img: 'multiutente',  
-        title: 'Accesso Multi-Postazione', 
-        desc: 'Accedi al tuo profilo da qualsiasi postazione: PC, laptop o tablet. Stesso account, stessi dati, ovunque tu sia in casa.' },
-        { 
-        img: 'sicurezza',    
-        title: 'Sicurezza & Password',     
-        desc: 'Accesso protetto da password cifrata. Blocco automatico dopo N tentativi falliti e log degli accessi.' },
-        { 
-        img: 'remoto',       
-        title: 'Accesso Remoto SSL',       
-        desc: 'Accedi al webserver da qualsiasi rete in modo sicuro e crittografato.' },
-        { 
-        img: 'categorie',    
-        title: 'Categorie Personalizzate', 
-        desc: 'Crea e rinomina le categorie di spesa come vuoi, definendo per ognuna se rappresenta un\'entrata o un\'uscita.' },
-        { 
-        img: 'gmail',        
-        title: 'Sincronizzazione Gmail',   
-        desc: 'Scansiona automaticamente le email: se trova bollette o estratti conto in allegato, importa i movimenti e archivia i PDF.' },
-        { 
-        img: 'temi',         
-        title: 'Temi Personalizzati',      
-        desc: 'Scegli tra diversi temi dark e light o crea il tuo con colori custom. L\'interfaccia si adatta al tuo stile.' },
-        { 
-        img: 'infopoint',    
-        title: 'Smart Info Point',         
-        desc: 'Widget informativo sempre visibile con saldo, spese del giorno e prossime scadenze. Il cruscotto a colpo d\'occhio.' },
-        { 
-        img: 'smartcat',     
-        title: 'SmartCat AI',              
-        desc: 'Suggerisce automaticamente la categoria per ogni nuovo movimento analizzando le tue spese degli ultimi 365 giorni. Nessuna AI esterna.' },
-        { 
-        img: 'crash',        
-        title: 'Crash Recovery',           
-        desc: 'Se il database si corrompe, ripristina automaticamente l\'ultimo salvataggio valido, evitando qualsiasi perdita di dati.' },
-        { 
-        img: 'promemoria',   
-        title: 'Reminder Spese',           
-        desc: 'Genera un QR code o apre direttamente il link per aggiungere un promemoria su Google Calendar.' },
-        { 
-        img: 'popup',        
-        title: 'Popup Auto-Close',         
-        desc: 'Le notifiche di sistema si chiudono da soli dopo pochi secondi. Nessun click inutile, nessuna interruzione al lavoro.' },
-        { 
-        img: 'iconizza',     
-        title: 'Auto-Iconizza',            
-        desc: 'Configura la minimizzazione automatica al tray di sistema dopo un periodo di inattività. L\'app resta attiva senza disturbare.' },
-        { 
-        img: 'carosello',    
-        title: 'Carosello di Avvio',       
-        desc: 'All\'avvio, uno slideshow mostra statistiche personalizzate e grafici finanziari.' },
-        { 
-        img: 'retention',    
-        title: 'Retention Dati',           
-        desc: 'Definisci per quanto tempo conservare i movimenti storici. Pulizia automatica dei dati più vecchi per mantenere l\'app veloce.' },
-        { 
-        img: 'multibackup',  
-        title: 'Multi-Backup',             
-        desc: 'Backup automatici: rotazione delle copie con storico configurabile.' },
-        { 
-        { 
-        img: 'backup_snapshot', 
-        title: 'Sistema di Backup Evoluto (PRG)', 
-        desc: 'Gestione unificata di snapshot, backup incrementali e procedura di rollback integrato per ripristino istantaneo.' 
-        }
-        img: 'importa',      
-        title: 'Importa Estratti Conto',   
-        desc: 'Carica PDF di estratti conto bancari: l\'AI legge i movimenti, li categorizza e li importa evitando duplicati.' },
-        { 
-        img: 'openai',       
-        title: 'Analisi AI',               
-        desc: 'Interroga l\'AI sui tuoi dati finanziari: dove spendi di più, come ottimizzare il budget, proiezioni future.' },
-        { 
-        img: 'docpersonali', 
-        title: 'Archivio Documenti PDF',   
-        desc: 'Archivia fatture, polizze, manuali con tag e ricerca full-text. Collega documenti a spese o contratti.' },
-        { 
-        img: 'shortcut',     
-        title: 'Tasti Rapidi',             
-        desc: 'Scorciatoie da tastiera configurabili per le azioni più frequenti. Inserisci una spesa, apri un report, tutto senza mouse.' },
-        { 
-        img: 'fairshare',    
-        title: 'Fair Share',               
-        desc: 'Dividi le spese condivise tra più persone in modo equo. Calcola chi deve quanto a chi e genera un riepilogo da inviare.' },
-        { 
-        img: 'mfinanza',     
-        title: 'Modulo Finanza',           
-        desc: 'Monitora investimenti, portafoglio titoli e rendimenti nel tempo integrandoli con il flusso di cassa familiare.' },
-        { 
-        img: 'pip',          
-        title: 'Aggiornamento Automatico', 
-        desc: 'Verifica e installa gli aggiornamenti delle dipendenze Python direttamente dall\'interfaccia, senza toccare il terminale.' },
-        { 
-        img: 'bollette',     
-        title: 'Analisi Documenti e Fatture', 
-        desc: 'L\'AI analizza e confronta più immagini o documenti PDF eseguendo un\'analisi dettagliata e un confronto preciso tra bollette, fatture e contratti.' },
-        { 
-        img: 'step1_idle', 
-        title: 'Analisi IA - Step 1',     
-        desc: 'Stato iniziale: trascina il tuo documento PDF o premi seleziona file per iniziare.' },
-        { 
-        img: 'step2_selected', 
-        title: 'Analisi IA - Step 2', 
-        desc: 'File pronto: verifica le informazioni preliminari della bolletta o fattura prima dell\'elaborazione.' },
-        { 
-        img: 'step3_loading', 
-        title: 'Analisi IA - Step 3',  
-        desc: 'Analisi in corso: l\'intelligenza artificiale estrae automaticamente importo, azienda, categoria e scadenze.' },
-        { 
-        img: 'step4_success', 
-        title: 'Analisi IA - Step 4',  
-        desc: 'Movimento creato: il documento viene archiviato e contabilizzato automaticamente nei registri.' },
-        { 
-        img: 'immobili',     
-        title: 'Gestione Immobili', 
-        desc: 'Anagrafica proprietà, registro entrate/uscite per immobile, estratto conto e riepilogo totale con grafici e filtri per mese e anno.' },
-        { 
-        img: 'studio',       
-        title: 'Modulo Studio',            
-        desc: 'Organizza e monitora le attività del tuo studio professionale, gestendo scadenze, clienti e flussi economici integrati con la contabilità di casa.' },
-        { 
-        img: 'schedulatore', 
-        title: 'Schedulatore Notifiche Email', 
-        desc: 'Pianifica l\'invio automatico di report finanziari via email: estratto mensile, annuale, giornaliero, settimanale, ricorrenti mancanti, allerta saldo negativo e promemoria libero. Orario, frequenza e destinatario completamente configurabili.' },
-        { 
-        img: 'inflazione',   
-        title: 'Calcolatore Inflazione ISTAT', 
-        desc: 'Rivaluta qualsiasi importo nel tempo usando i dati NIC ISTAT. Mostra il valore rivalutato, il potere d\'acquisto perso e l\'inflazione media annua con grafico ad area interattivo.' },
+        { img: 'calendario',   title: 'Calendario Heartbeat',     desc: 'Visualizza entrate e uscite direttamente sul calendario con indicatori animati. Un colpo d\'occhio e sai subito come sta andando il mese.' },
+        { img: 'ricorrenze',   title: 'Gestione Ricorrenze',      desc: 'Bollette, abbonamenti, affitti: configurali una volta e vengono registrati in automatico ogni mese, senza dimenticarsi nulla.' },
+        { img: 'grafici',      title: 'Grafici Drill-Down',       desc: 'Analizza le spese per categoria con grafici interattivi. Clicca su una voce e scendi nel dettaglio fino alla singola transazione.' },
+        { img: 'archivio',     title: 'Archivio Contabili PDF',   desc: 'Allega PDF a ogni spesa o documento. Estratti conto, fatture, ricevute: tutto archiviato e consultabile in un istante.' },
+        { img: 'utenze',       title: 'Monitor Utenze',           desc: 'Tieni traccia dei consumi di luce, gas e acqua nel tempo. Individua aumenti anomali e confronta i periodi.' },
+        { img: 'risparmio',    title: 'Simulatore Risparmio',     desc: 'Inserisci un obiettivo di risparmio e il simulatore calcola quanto accantonare ogni mese per raggiungerlo.' },
+        { img: 'proiezione',   title: 'Proiezione al 31/12',      desc: 'Sulla base delle spese correnti e delle ricorrenze future, stima il saldo a fine anno con margine di errore minimo.' },
+        { img: 'wifi',         title: 'Webserver Wi-Fi',          desc: 'Avvia un server web integrato e accedi a Orbita Casa dal tuo smartphone o tablet in Wi-Fi, senza app aggiuntive.' },
+        { img: 'spesa',        title: 'Confronto Prezzi',         desc: 'Registra i prezzi della spesa nel tempo e confronta prodotto per prodotto tra diversi supermercati per la scelta più conveniente.' },
+        { img: 'mutui',        title: 'Piano di Ammortamento',    desc: 'Calcola rate, interessi residui e anticipa i pagamenti. Supporta mutui a tasso fisso e variabile con piano completo scaricabile.' },
+        { img: 'qrcode',       title: 'Generatore QR Code',       desc: 'Genera QR code per accesso rapido al webserver, condivisione di dati o link interni. Personalizzabile con logo e colori.' },
+        { img: 'backup',       title: 'Backup Configurazione',    desc: 'Esporta e ripristina l\'intera configurazione del profilo. Cambio PC o reinstallazione in pochi secondi.' },
+        { img: 'rubrica',      title: 'Rubrica Android',          desc: 'Sincronizza i contatti Android con la rubrica interna.' },
+        { img: 'stampa',       title: 'Stampa Report',            desc: 'Genera report mensili, annuali o personalizzati pronti per la stampa o l\'esportazione PDF, con intestazione configurabile.' },
+        { img: 'saldo',        title: 'Saldo Bancario',           desc: 'Riconcilia il saldo del conto corrente con i movimenti registrati. Evidenzia automaticamente le discrepanze.' },
+        { img: 'ricerca',      title: 'Ricerca & Filtri Avanzati',desc: 'Cerca tra migliaia di movimenti con filtri su data, importo, categoria, descrizione e metodo di pagamento.' },
+        { img: 'multiutente',  title: 'Accesso Multi-Postazione', desc: 'Accedi al tuo profilo da qualsiasi postazione: PC, laptop o tablet. Stesso account, stessi dati, ovunque tu sia in casa.' },
+        { img: 'sicurezza',    title: 'Sicurezza & Password',     desc: 'Accesso protetto da password cifrata. Blocco automatico dopo N tentativi falliti e log degli accessi.' },
+        { img: 'remoto',       title: 'Accesso Remoto SSL',       desc: 'Accedi al webserver da qualsiasi rete in modo sicuro e crittografato.' },
+        { img: 'categorie',    title: 'Categorie Personalizzate', desc: 'Crea e rinomina le categorie di spesa come vuoi, definendo per ognuna se rappresenta un\'entrata o un\'uscita.' },
+        { img: 'gmail',        title: 'Sincronizzazione Gmail',   desc: 'Scansiona automaticamente le email: se trova bollette o estratti conto in allegato, importa i movimenti e archivia i PDF.' },
+        { img: 'temi',         title: 'Temi Personalizzati',      desc: 'Scegli tra diversi temi dark e light o crea il tuo con colori custom. L\'interfaccia si adatta al tuo stile.' },
+        { img: 'infopoint',    title: 'Smart Info Point',         desc: 'Widget informativo sempre visibile con saldo, spese del giorno e prossime scadenze. Il cruscotto a colpo d\'occhio.' },
+        { img: 'smartcat',     title: 'SmartCat AI',              desc: 'Suggerisce automaticamente la categoria per ogni nuovo movimento analizzando le tue spese degli ultimi 365 giorni. Nessuna AI esterna.' },
+        { img: 'crash',        title: 'Crash Recovery',           desc: 'Se il database si corrompe, ripristina automaticamente l\'ultimo salvataggio valido, evitando qualsiasi perdita di dati.' },
+        { img: 'promemoria',   title: 'Reminder Spese',           desc: 'Genera un QR code o apre direttamente il link per aggiungere un promemoria su Google Calendar.' },
+        { img: 'popup',        title: 'Popup Auto-Close',         desc: 'Le notifiche di sistema si chiudono da soli dopo pochi secondi. Nessun click inutile, nessuna interruzione al lavoro.' },
+        { img: 'iconizza',     title: 'Auto-Iconizza',            desc: 'Configura la minimizzazione automatica al tray di sistema dopo un periodo di inattività. L\'app resta attiva senza disturbare.' },
+        { img: 'carosello',    title: 'Carosello di Avvio',       desc: 'All\'avvio, uno slideshow mostra statistiche personalizzate e grafici finanziari.' },
+        { img: 'retention',    title: 'Retention Dati',           desc: 'Definisci per quanto tempo conservare i movimenti storici. Pulizia automatica dei dati più vecchi per mantenere l\'app veloce.' },
+        { img: 'multibackup',  title: 'Multi-Backup',             desc: 'Backup automatici: rotazione delle copie con storico configurabile.' },
+        { img: 'importa',      title: 'Importa Estratti Conto',   desc: 'Carica PDF di estratti conto bancari: l\'AI legge i movimenti, li categorizza e li importa evitando duplicati.' },
+        { img: 'openai',       title: 'Analisi AI',               desc: 'Interroga l\'AI sui tuoi dati finanziari: dove spendi di più, come ottimizzare il budget, proiezioni future.' },
+        { img: 'docpersonali', title: 'Archivio Documenti PDF',   desc: 'Archivia fatture, polizze, manuali con tag e ricerca full-text. Collega documenti a spese o contratti.' },
+        { img: 'shortcut',     title: 'Tasti Rapidi',             desc: 'Scorciatoie da tastiera configurabili per le azioni più frequenti. Inserisci una spesa, apri un report, tutto senza mouse.' },
+        { img: 'fairshare',    title: 'Fair Share',               desc: 'Dividi le spese condivise tra più persone in modo equo. Calcola chi deve quanto a chi e genera un riepilogo da inviare.' },
+        { img: 'mfinanza',     title: 'Modulo Finanza',           desc: 'Monitora investimenti, portafoglio titoli e rendimenti nel tempo integrandoli con il flusso di cassa familiare.' },
+        { img: 'pip',          title: 'Aggiornamento Automatico', desc: 'Verifica e installa gli aggiornamenti delle dipendenze Python direttamente dall\'interfaccia, senza toccare il terminale.' },
+        { img: 'bollette',     title: 'Analisi Documenti e Fatture', desc: 'L\'AI analizza e confronta più immagini o documenti PDF eseguendo un\'analisi dettagliata e un confronto preciso tra bollette, fatture e contratti.' },
+        { img: 'step1_idle', title: 'Analisi IA - Step 1',     desc: 'Stato iniziale: trascina il tuo documento PDF o premi seleziona file per iniziare.' },
+        { img: 'step2_selected', title: 'Analisi IA - Step 2', desc: 'File pronto: verifica le informazioni preliminari della bolletta o fattura prima dell\'elaborazione.' },
+        { img: 'step3_loading', title: 'Analisi IA - Step 3',  desc: 'Analisi in corso: l\'intelligenza artificiale estrae automaticamente importo, azienda, categoria e scadenze.' },
+        { img: 'step4_success', title: 'Analisi IA - Step 4',  desc: 'Movimento creato: il documento viene archiviato e contabilizzato automaticamente nei registri.' },
+        { img: 'immobili',     title: 'Gestione Immobili', desc: 'Anagrafica proprietà, registro entrate/uscite per immobile, estratto conto e riepilogo totale con grafici e filtri per mese e anno.' },
+        { img: 'studio',       title: 'Modulo Studio',            desc: 'Organizza e monitora le attività del tuo studio professionale, gestendo scadenze, clienti e flussi economici integrati con la contabilità di casa.' },
+        { img: 'schedulatore', title: 'Schedulatore Notifiche Email', desc: 'Pianifica l\'invio automatico di report finanziari via email: estratto mensile, annuale, giornaliero, settimanale, ricorrenti mancanti, allerta saldo negativo e promemoria libero. Orario, frequenza e destinatario completamente configurabili.' },
+        { img: 'inflazione',   title: 'Calcolatore Inflazione ISTAT', desc: 'Rivaluta qualsiasi importo nel tempo usando i dati NIC ISTAT. Mostra il valore rivalutato, il potere d\'acquisto perso e l\'inflazione media annua con grafico ad area interattivo.' },
         
     ];
     const BASE     = 'https://github.com/Renato-4132/OrbitaCasa/raw/main/screenshots/';
