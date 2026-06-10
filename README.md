@@ -85,7 +85,8 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 44. **Proiezioni:** Proiezioni finanziarie future (rendite, spese, patrimonio)
 45. **Calcolo Inflazione:** Indicatore dinamico del tasso di inflazione reale calcolato direttamente in base allo storico.
 46. **Invio Estratti Mail:** Modulo per la distribuzione flessibile dei report, con invio automatico degli estratti conto.
-
+47. **Sistema di Backup Evoluto (PRG):** Gestione unificata di snapshot e backup incrementali e procedura di rollback integrato.
+48. **Gestione Associativa e Multiconto:** Implementazione della logica di associazione tra entità contabili e conti bancari dedicati.
 ---
        
 ### 📺 [Guarda il Video](https://github.com/Renato-4132/OrbitaCasa/raw/main/OrbitaCasa.mp4)
