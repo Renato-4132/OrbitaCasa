@@ -1,5 +1,5 @@
 
-## 🏠 Orbita Casa [![Sito Web](https://img.shields.io/badge/SITO_UFFICIALE-VISITA-4f46e5?style=flat-square&logo=google-chrome&logoColor=white)](https://renato-4132.github.io/OrbitaCasa/)
+## 🏠 🇮🇹 Orbita Casa [![Sito Web](https://img.shields.io/badge/SITO_UFFICIALE-VISITA-4f46e5?style=flat-square&logo=google-chrome&logoColor=white)](https://renato-4132.github.io/OrbitaCasa/)
 ### Il centro di comando per la tua gestione domestica, dalle spese quotidiane al risparmio intelligente.
 
 <img width="882" height="463" alt="logo" src="https://github.com/user-attachments/assets/642def87-3203-4ffe-a728-5c52f06119c2" />
