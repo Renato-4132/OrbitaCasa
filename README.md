@@ -89,6 +89,7 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 46. **Invio Estratti Mail:** Modulo per la distribuzione flessibile dei report, con invio automatico degli estratti conto.
 47. **Sistema di Backup Evoluto (PRG):** Gestione unificata di snapshot e backup incrementali e procedura di rollback integrato.
 48. **Gestione Associativa e Multiconto:** Implementazione della logica di associazione tra entità contabili e conti bancari dedicati.
+49. **Monitoraggio Budget per Categoria:** Controllo spese rispetto al budget di categoria con avviso al superamento della soglia.
 ---
        
 ### 📺 [Guarda il Video](https://github.com/Renato-4132/OrbitaCasa/raw/main/OrbitaCasa.mp4)
