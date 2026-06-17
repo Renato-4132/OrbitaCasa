@@ -265,6 +265,233 @@
             max-width: 620px;
             margin: 0 auto;
         }
+        .storia-section {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 60px 20px 80px;
+        }
+        .storia-eyebrow {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: #4f46e5;
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        .storia-headline {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: clamp(2.2rem, 6vw, 4rem);
+            font-weight: 900;
+            font-style: italic;
+            text-align: center;
+            color: #fff;
+            line-height: 1.05;
+            margin-bottom: 10px;
+        }
+        .storia-sub {
+            text-align: center;
+            font-size: 14px;
+            color: #64748b;
+            margin-bottom: 56px;
+        }
+        .tl {
+            position: relative;
+            padding-left: 0;
+        }
+        .tl::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0; bottom: 0;
+            width: 1px;
+            background: linear-gradient(to bottom, transparent, #1e293b 60px, #1e293b calc(100% - 60px), transparent);
+            transform: translateX(-50%);
+        }
+        @media (max-width: 640px) {
+            .tl::before { left: 28px; }
+        }
+        .tl-item {
+            display: grid;
+            grid-template-columns: 1fr 56px 1fr;
+            gap: 0;
+            margin-bottom: 0;
+            align-items: start;
+        }
+        @media (max-width: 640px) {
+            .tl-item {
+                grid-template-columns: 56px 1fr;
+            }
+            .tl-left { display: none; }
+        }
+        .tl-left {
+            padding-right: 32px;
+            padding-top: 6px;
+            text-align: right;
+        }
+        .tl-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 4px;
+        }
+        .tl-dot {
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            background: #0a0e1a;
+            border: 2px solid #4f46e5;
+            flex-shrink: 0;
+            margin-top: 6px;
+            transition: all 0.4s;
+            position: relative;
+            z-index: 2;
+        }
+        .tl-dot.active {
+            background: #4f46e5;
+            box-shadow: 0 0 0 5px rgba(79,70,229,0.2);
+        }
+        .tl-dot.milestone {
+            width: 20px; height: 20px;
+            border-width: 3px;
+            border-color: #f59e0b;
+        }
+        .tl-dot.milestone.active {
+            background: #f59e0b;
+            box-shadow: 0 0 0 6px rgba(245,158,11,0.2);
+        }
+        .tl-line {
+            width: 1px;
+            flex: 1;
+            min-height: 40px;
+            background: #1e293b;
+        }
+        .tl-right {
+            padding-left: 32px;
+            padding-bottom: 48px;
+        }
+        .tl-card {
+            background: #111827;
+            border: 1px solid #1e293b;
+            border-radius: 14px;
+            padding: 20px 22px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            cursor: default;
+        }
+        .tl-card:hover {
+            border-color: rgba(79,70,229,0.4);
+            box-shadow: 0 0 24px rgba(79,70,229,0.08);
+        }
+        .tl-card.milestone-card {
+            border-color: rgba(245,158,11,0.25);
+        }
+        .tl-card.milestone-card:hover {
+            border-color: rgba(245,158,11,0.5);
+            box-shadow: 0 0 24px rgba(245,158,11,0.1);
+        }
+        .tl-date {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #4f46e5;
+            margin-bottom: 6px;
+        }
+        .tl-card.milestone-card .tl-date { color: #f59e0b; }
+        .tl-title {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 800;
+            font-style: italic;
+            color: #fff;
+            margin-bottom: 8px;
+            line-height: 1.2;
+        }
+        .tl-body {
+            font-size: 13px;
+            color: #94a3b8;
+            line-height: 1.7;
+        }
+        .tl-body strong { color: #cbd5e1; font-weight: 500; }
+        .tl-tag {
+            display: inline-block;
+            margin-top: 10px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            padding: 3px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(99,102,241,0.35);
+            color: #818cf8;
+        }
+        .tl-card.milestone-card .tl-tag {
+            border-color: rgba(245,158,11,0.35);
+            color: #fbbf24;
+        }
+        .tl-item.alt .tl-left { order: 1; padding-right: 0; padding-left: 32px; text-align: left; }
+        .tl-item.alt .tl-center { order: 2; }
+        .tl-item.alt .tl-right { order: 3; padding-left: 0; padding-right: 32px; text-align: right; }
+        .tl-item.alt .tl-card { text-align: left; }
+        @media (max-width: 640px) {
+            .tl-item.alt .tl-left { display: none; }
+            .tl-item.alt .tl-center { order: 1; }
+            .tl-item.alt .tl-right { order: 2; padding-right: 0; padding-left: 32px; text-align: left; }
+        }
+        .storia-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin: 48px 0 0;
+        }
+        .sstat {
+            background: #111827;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 20px 16px;
+            text-align: center;
+        }
+        .sstat-num {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 900;
+            font-style: italic;
+            color: #fff;
+            line-height: 1;
+        }
+        .sstat-num span { color: #4f46e5; }
+        .sstat-label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #64748b;
+            margin-top: 6px;
+        }
+        .storia-quote {
+            margin: 52px auto 0;
+            max-width: 660px;
+            text-align: center;
+        }
+        .storia-quote blockquote {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: clamp(1.3rem, 3.5vw, 2rem);
+            font-style: italic;
+            font-weight: 700;
+            color: #e2e8f0;
+            line-height: 1.35;
+            border: none;
+            padding: 0;
+            margin: 0 0 12px;
+        }
+        .storia-quote cite {
+            font-size: 12px;
+            color: #475569;
+            font-style: normal;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-200">
@@ -553,7 +780,6 @@
                                         <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">48</span>
                                         <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Monitoraggio Budget per Categoria</strong><br><span style="color:#94a3b8;">Controllo spese rispetto al budget di categoria con avviso al superamento della soglia.</span></span>
                                 </li>
-                                
                         </ol>
                 </div>
         </div>
@@ -565,14 +791,197 @@
                         const isOpen = body.style.maxHeight !== '0px' && body.style.maxHeight !== '';
                         if (isOpen) {
                                 body.style.maxHeight = '0px';
+                                body.style.borderColor = 'transparent';
                                 btn.classList.remove('open');
                                 chev.classList.remove('open');
                         } else {
                                 body.style.maxHeight = body.scrollHeight + 'px';
+                                body.style.borderColor = '#4f46e5';
                                 btn.classList.add('open');
                                 chev.classList.add('open');
                         }
                 }
+        </script>
+        </section>
+        <section class="mb-10">
+        <button class="acc-btn" id="btn-storia" onclick="accToggleStoria()">
+            <div class="acc-header">
+                <span style="font-size:22px;">📖</span>
+                <div style="flex:1;">
+                    <div class="acc-title-main" style="color:#818cf8;">LA NOSTRA STORIA</div>
+                    <div class="acc-sub">La mia sfida ai dati: da foglio di calcolo a strumento di gestione.</div>
+                </div>
+                <div class="acc-chevron" id="chev-storia"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></div>
+            </div>
+        </button>
+        <div class="acc-body-wrap" id="body-storia" style="max-height:0;">
+        <section class="storia-section">
+        <p class="storia-eyebrow">Chi siamo</p>
+        <h2 class="storia-headline">La nostra storia,<br>un passo alla volta</h2>
+        <p class="storia-sub">Analisi, gestione e archiviazione: l'evoluzione del sistema di lavoro.</p>
+        <div class="storia-stats">
+            <div class="sstat">
+                <div class="sstat-num">60<span>K+</span></div>
+                <div class="sstat-label">Visualizzazioni totali</div>
+            </div>
+            <div class="sstat">
+                <div class="sstat-num">48<span>+</span></div>
+                <div class="sstat-label">Funzioni integrate</div>
+            </div>
+            <div class="sstat">
+                <div class="sstat-num">1<span> anno</span></div>
+                <div class="sstat-label">Di sviluppo continuo</div>
+            </div>
+        </div>
+        <div class="tl" style="margin-top: 64px;" id="tl-root">
+            <div class="tl-item">
+                <div class="tl-left"></div>
+                <div class="tl-center">
+                    <div class="tl-dot" data-tl="0"></div>
+                    <div class="tl-line"></div>
+                </div>
+                <div class="tl-right">
+                    <div class="tl-card">
+                        <div class="tl-date">Luglio 2025</div>
+                        <div class="tl-title">L'idea nasce tra i conti di casa</div>
+                        <div class="tl-body">Nessuna app soddisfaceva davvero le esigenze: troppo limitata sul cellulare, troppo inaffidabile su Excel. Serviva qualcosa di <strong>solido e professionale</strong>, così nascono le prime righe di codice di quello che si sarebbe chiamato <strong>Casa Facile Pro</strong>.</div>
+                        <span class="tl-tag">Origine</span>
+                    </div>
+                </div>
+            </div>
+            <div class="tl-item alt">
+                <div class="tl-left">
+                    <div class="tl-card" style="text-align:right;">
+                        <div class="tl-date">Prime settimane</div>
+                        <div class="tl-title">Doccia fredda su Reddit</div>
+                        <div class="tl-body">Il primo post pubblico è un flop totale. La community boccia senza appello: Python e un'interfaccia che <strong>ricorda la cassa di un supermercato</strong>. Ma il brutto voto diventa il carburante giusto.</div>
+                        <span class="tl-tag">Svolta</span>
+                    </div>
+                </div>
+                <div class="tl-center">
+                    <div class="tl-dot" data-tl="1"></div>
+                    <div class="tl-line"></div>
+                </div>
+                <div class="tl-right"></div>
+            </div>
+            <div class="tl-item">
+                <div class="tl-left"></div>
+                <div class="tl-center">
+                    <div class="tl-dot" data-tl="2"></div>
+                    <div class="tl-line"></div>
+                </div>
+                <div class="tl-right">
+                    <div class="tl-card">
+                        <div class="tl-date">Autunno 2025</div>
+                        <div class="tl-title">Il grande redesign dell'interfaccia</div>
+                        <div class="tl-body">Via tutti i bottoni squadrati. Dentro le <strong>label trasparenti</strong>, i temi personalizzati e un design rifatto da zero. L'app smette di sembrare gestionale anni '90 e diventa moderna, tematizzata, <strong>accogliente</strong>.</div>
+                        <span class="tl-tag">Design</span>
+                    </div>
+                </div>
+            </div>
+            <div class="tl-item alt">
+                <div class="tl-left">
+                    <div class="tl-card milestone-card" style="text-align:right;">
+                        <div class="tl-date">⚡ Milestone</div>
+                        <div class="tl-title">60.000 visualizzazioni</div>
+                        <div class="tl-body">La seconda presentazione su Reddit è un'esplosione. Migliaia di persone scrivono, chiedono, raccontano le proprie storie finanziarie. <strong>60.000+ visualizzazioni</strong> complessive in pochi mesi.</div>
+                        <span class="tl-tag">Traguardo</span>
+                    </div>
+                </div>
+                <div class="tl-center">
+                    <div class="tl-dot milestone" data-tl="3"></div>
+                    <div class="tl-line"></div>
+                </div>
+                <div class="tl-right"></div>
+            </div>
+            <div class="tl-item">
+                <div class="tl-left"></div>
+                <div class="tl-center">
+                    <div class="tl-dot" data-tl="4"></div>
+                    <div class="tl-line"></div>
+                </div>
+                <div class="tl-right">
+                    <div class="tl-card">
+                        <div class="tl-date">Fine 2025 — inizio 2026</div>
+                        <div class="tl-title">Il diluvio di feature</div>
+                        <div class="tl-body">Ogni richiesta della community diventa codice. Arrivano l'<strong>archivio PDF drag-and-drop</strong>, la sincronizzazione Gmail, il portafoglio bancario multiconto, il modulo dieta, FairShare, il webserver Flask. Un pezzo alla volta, l'app diventa un ecosistema.</div>
+                        <span class="tl-tag">Sviluppo</span>
+                    </div>
+                </div>
+            </div>
+            <div class="tl-item alt">
+                <div class="tl-left">
+                    <div class="tl-card" style="text-align:right;">
+                        <div class="tl-date">Aprile 2026</div>
+                        <div class="tl-title">Nasce OrbitaCasa</div>
+                        <div class="tl-body">Il rebrand ufficiale: <strong>Casa Facile Pro</strong> diventa <strong>OrbitaCasa</strong>. Un nome più grande, che rende l'idea di un ecosistema maturo e strutturato. Open-source su GitHub, licenza BUSL-1.1.</div>
+                        <span class="tl-tag">Rebrand</span>
+                    </div>
+                </div>
+                <div class="tl-center">
+                    <div class="tl-dot" data-tl="5"></div>
+                    <div class="tl-line"></div>
+                </div>
+                <div class="tl-right"></div>
+            </div>
+            <div class="tl-item">
+                <div class="tl-left"></div>
+                <div class="tl-center">
+                    <div class="tl-dot milestone" data-tl="6"></div>
+                    <div class="tl-line"></div>
+                </div>
+                <div class="tl-right">
+                    <div class="tl-card milestone-card">
+                        <div class="tl-date">⭐ Maggio 2026 — FinanzaCafona</div>
+                        <div class="tl-title">"La più completa fra tutte"</div>
+                        <div class="tl-body">
+                            FinanzaCafona.it seleziona <strong>CasaFacile Pro</strong> — ultima versione pre-rebrand OrbitaCasa — come <em>"la chicca dell'articolo"</em> e l'app più completa per il budget familiare. 
+                            La community di <strong>r/ItaliaPersonalFinance</strong> ha validato l'approccio tecnico del sistema, apprezzandone il rigore nella quadratura dei conti e l'architettura dei suoi 48 moduli di gestione. 
+                            Il progetto prosegue su altri canali di settore, tra cui <em>Too Big To Fail</em> e <em>Startup Finance Italia</em>. Per chi vuole seguire gli sviluppi tecnici e le logiche di automazione fuori dagli schemi classici, è ora attiva la <strong>pagina Facebook ufficiale</strong>.
+                        </div>
+                        <span class="tl-tag">Stampa & Community</span>
+                    </div>
+                </div>
+            </div>
+            <div class="tl-item alt">
+                <div class="tl-left">
+                    <div class="tl-card" style="text-align:right;">
+                        <div class="tl-date">Giugno 2026 — oggi</div>
+                        <div class="tl-title">v2.2.x: il cantiere non si ferma</div>
+                        <div class="tl-body">Budget per categoria, avvisi di sforamento in tempo reale, sistema di snapshot PRG, portafoglio multiconto, analisi AI delle bollette. Aggiornamenti quasi quotidiani. <strong>48 funzioni documentate</strong> in aggiornamento continuo.</div>
+                        <span class="tl-tag">Attuale</span>
+                    </div>
+                </div>
+                <div class="tl-center">
+                    <div class="tl-dot" data-tl="7"></div>
+                    <div class="tl-line" style="background: linear-gradient(to bottom, #1e293b, transparent);"></div>
+                </div>
+                <div class="tl-right"></div>
+            </div>
+        </div>
+        <div class="storia-quote">
+            <blockquote>"Per chi decide di fare questo passo, tornare indietro diventa davvero impossibile."</blockquote>
+        </div>
+        </section>
+        </div>
+        <script>
+        function accToggleStoria() {
+            const btn  = document.getElementById('btn-storia');
+            const body = document.getElementById('body-storia');
+            const chev = document.getElementById('chev-storia');
+            const isOpen = body.style.maxHeight !== '0px' && body.style.maxHeight !== '';
+            if (isOpen) {
+                body.style.maxHeight = '0px';
+                body.style.borderColor = 'transparent';
+                btn.classList.remove('open');
+                chev.classList.remove('open');
+            } else {
+                body.style.maxHeight = body.scrollHeight + 'px';
+                body.style.borderColor = '#4f46e5';
+                btn.classList.add('open');
+                chev.classList.add('open');
+            }
+        }
         </script>
         </section>
         <section class="mb-5">
@@ -635,8 +1044,6 @@
                 }
             </script>
         </section>
-        <hr style="border:none;border-top:1px solid #4f46e5;margin:20px 0;">
-        
         <section class="mb-20">
           <style>
             .acc-btn { width:100%; background:#111827; border:1px solid #1e293b; color:#e2e8f0; padding:0; cursor:pointer; text-align:left; border-radius:16px; overflow:hidden; margin-bottom:12px; transition:border-color 0.2s; }
@@ -649,8 +1056,8 @@
             .acc-btn.open .acc-chevron { transform:rotate(180deg); background:#4f46e5; border-color:#4f46e5; }
             .acc-chevron svg { width:14px; height:14px; fill:none; stroke:#94a3b8; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; }
             .acc-btn.open .acc-chevron svg { stroke:#fff; }
-            .acc-body-wrap { background:#111827; border:1px solid #4f46e5; border-top:none; border-radius:0 0 16px 16px; overflow:hidden; max-height:0; transition:max-height 0.45s cubic-bezier(0.4,0,0.2,1); margin-bottom:12px; }
-            .acc-body-wrap.open { max-height:600px; }
+            .acc-body-wrap { background:#111827; border:1px solid transparent; border-top:none; border-radius:0 0 16px 16px; overflow:hidden; max-height:0; transition:max-height 0.45s cubic-bezier(0.4,0,0.2,1), border-color 0.2s; margin-bottom:12px; }
+            .acc-body-wrap.open { max-height:600px; border-color:#4f46e5; }
             .acc-body { padding:0 24px 24px; }
             .note-row { display:flex; align-items:flex-start; gap:10px; background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.25); border-radius:10px; padding:10px 14px; margin-top:4px; }
             .note-badge { background:#6366f1; color:#fff; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:12px; flex-shrink:0; margin-top:1px; }
@@ -749,7 +1156,6 @@
                         </a>
                 </div>
         </section>
-
     </main>
     <footer class="py-8 text-center border-t border-slate-800 mt-10">
         <div class="mb-4">
@@ -1020,7 +1426,6 @@
           title: 'Calcolatore Inflazione ISTAT', 
           desc: 'Rivaluta qualsiasi importo nel tempo usando i dati NIC ISTAT. Mostra il valore rivalutato, il potere d\'acquisto perso e l\'inflazione media annua con grafico ad area interattivo.' 
         },
-        
     ];
     const BASE     = 'https://github.com/Renato-4132/OrbitaCasa/raw/main/screenshots/';
     const INTERVAL = 10000;
@@ -1094,6 +1499,34 @@
     goTo(0);
     startAuto();
     window.carMove = carMove;
+    (function() {
+        const dots = document.querySelectorAll('.tl-dot');
+        const cards = document.querySelectorAll('.tl-card');
+        const items = document.querySelectorAll('.tl-item');
+        cards.forEach(c => {
+            c.style.opacity = '0';
+            c.style.transform = 'translateY(18px)';
+            c.style.transition = 'opacity 0.55s ease, transform 0.55s ease';
+        });
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const item = entry.target;
+                    const idx = Array.from(items).indexOf(item);
+                    const dot = item.querySelector('.tl-dot');
+                    if (dot) dot.classList.add('active');
+                    item.querySelectorAll('.tl-card').forEach((c, ci) => {
+                        setTimeout(() => {
+                            c.style.opacity = '1';
+                            c.style.transform = 'translateY(0)';
+                        }, ci * 80);
+                    });
+                    observer.unobserve(item);
+                }
+            });
+        }, { threshold: 0.15 });
+        items.forEach(item => observer.observe(item));
+    })();
     </script>
 </body>
 </html>
