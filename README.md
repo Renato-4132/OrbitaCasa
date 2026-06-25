@@ -41,56 +41,86 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 ---
 
 ### 🔥 POTENZA IN 40+ FUNZIONI
-1.  **Calendario Heartbeat**: Vista globale dei tuoi impegni finanziari.
-2.  **Gestione Ricorrenze**: Automatizza i movimenti fissi.
-3.  **Grafici Drill-Down**: Analisi visiva profonda delle spese.
-4.  **Archivio Documenti Contabili PDF**: Collega i documenti ai movimenti.
-5.  **Monitor Utenze**: Tieni d'occhio i consumi di luce, gas e acqua.
-6.  **Simulatore Risparmio**: Calcola come raggiungere i tuoi obiettivi.
-7.  **Fondo Risparmio**: Tracking dei risparmi accantonati ed obbiettivi.
-8.  **Webserver Remoto**: Consulta i dati dallo smartphone in rete locale/remota.
-9.  **Confronto Prezzi**: Ottimizza la tua spesa alimentare.
-10. **Ammortamento Mutui**: Calcola rate e interessi reali - Piani Ammortamento.
-11. **Generatore QR Code**: Configura i promemoria con un colpo d'occhio.
-12. **Configurazione & Backup**: Configurabile - Dati sempre esportabili e sicuri.
-13. **Rubrica Vcard/Android**: Esporta/importa i contatti dal tuo smartphone.
-14. **Stampa Report**: Documentazione professionale pronta all'uso.
-15. **Saldo Bancario**: Riconciliazione immediata dei conti.
-16. **Ricerca Multi-Filtro**: Trova ogni centesimo in un istante.
-17. **Profili Multi-Utente**: Gestisci più persone con database separati.
-18. **Sicurezza Password**: Accesso protetto e crittografato.
-19. **Esportazione TXT/PDF/STAMPA**: È possibile selezionare come salvare o stampare i dati.
-20. **Aggregazione Categorie**: Raggruppa le spese per aree tematiche.
-21. **Sincronizzazione Gmail**: Scarica e archivia in automatico le fatture dalla tua email.
-22. **Temi Personalizzabili**: Cambia l'aspetto grafico per adattare l'interfaccia al tuo stile.
-23. **Smart Info Point**: Popup rapido sul calendario per visualizzare i movimenti al passaggio del mouse.
-24. **SmartCat**: Suggerimento automatico della categoria basato sullo storico delle tue entrate e uscite.
-25. **Backup & Ripristino**: Protezione contro i crash con salvataggio automatico e ripristino dei dati.
-26. **Promemoria Categorie**: Avvisi mensili sulle spese ricorrenti dimenticate rispetto ai mesi passati.
-27. **Notifiche Auto-chiudenti**: Messaggi di conferma e avvisi che scompaiono automaticamente dopo il tempo da te prestabilito.
-28. **Auto-Iconizza**: Riduzione automatica a icona all'avvio e dopo un periodo di inattività.
-29. **Carosello Grafici**: Tour automatico degli andamenti all'avvio che si mette in pausa al movimento del mouse.
-30. **Retention Automatica**: Determina per quanti anni conservare i dati e rimuove automaticamente i più vecchi.
-31. **Backup Automatico**: Gestione personalizzata del numero di copie per database e documenti archiviati.
-32. **Importazione Estratti**: Importa i movimenti da qualsiasi estratto PDF o CSV.
-33. **Analisi Finanziaria OpenAI**: Analisi completa dell' andamento finanziario.
-34. **Archivio Documenti Personali**: Documenti Sempre a portata di mano.
-35. **Tasti Shortcut Personali**: Apri le funzioni rapide con una combinazione di tasti abbreviati.
-36. **Algoritmo FairShare**: Calcolo intelligente per la ripartizione equa delle spese e dei rimborsi tra i partecipanti.
-37. **Conti Personali FairShare**: Ogni partecipante può avere un conto ⚖️ per tracciare le proprie spese personali.
-38. **Mercati Finanziari**: Monitoraggio in tempo reale degli indici e degli asset finanziari globali.
-39. **Aggiornamento Librerie Python**: Sistema automatico di manutenzione e update delle dipendenze Python.
-40. **Analizzatore Semantico IA**: Introdotta una nuova suite di analisi intelligente per il confronto multi-documento.
-41. **Modulo Dieta:** Pianificazione dei pasti, database alimenti, tracciamento macronutrienti e monitoraggio del peso con grafico BMI.
-42. **Gestione Studio:** Agenda, anagrafica, preventivi, fatturazione e gestione magazzino per professionisti e piccole attività.
-43. **Gestione Immobili:** Anagrafica proprietà, registro entrate/uscite per immobile, grafici, estratto conto e riepilogo totale con filtri.
-44. **Proiezioni:** Proiezioni finanziarie future (rendite, spese, patrimonio)
-45. **Calcolo Inflazione:** Indicatore dinamico del tasso di inflazione reale calcolato direttamente in base allo storico.
-46. **Invio Estratti Mail:** Modulo per la distribuzione flessibile dei report, con invio automatico degli estratti conto.
-47. **Sistema di Backup Evoluto (PRG):** Gestione unificata di snapshot e backup incrementali e procedura di rollback integrato.
-48. **Gestione Associativa e Multiconto:** Implementazione della logica di associazione tra entità contabili e conti bancari dedicati.
-49. **Monitoraggio Budget per Categoria:** Controllo spese rispetto al budget di categoria con avviso al superamento della soglia.
+
 ---
+
+## 🟠 Carburante — eliminare l'inserimento manuale
+> Questo è il motivo per cui l'utente installa o abbandona il software
+
+1. **Importazione Estratti** — PDF e CSV da banca, stipendi, spese — il punto di ingresso di tutto
+2. **Sincronizzazione Gmail** — Fatture scaricate e archiviate in automatico dall'email
+3. **Archivio Documenti Contabili PDF** — Ogni movimento collegato al suo documento — tutto aggregato in un posto
+4. **SmartCat** — Categorizza da solo basandosi sullo storico — l'utente non ci pensa
+5. **Gestione Ricorrenze** — Inserisci una volta affitto, abbonamenti, stipendio — poi dimentica
+6. **Promemoria & QR Code** — Inserimento manuale rapido dei promemoria o tramite QR Code con un colpo d'occhio
+
+---
+
+## 🟢 Fondamenta operative
+> Senza questi non esiste un software di finanza personale
+
+7. **Saldo Bancario** — Riconciliazione immediata — quanto ho davvero sul conto
+8. **Calendario Heartbeat** — Vista globale degli impegni finanziari nel tempo
+9. **Ricerca Multi-Filtro** — Trova qualsiasi movimento in un istante
+10. **Sicurezza Password** — Accesso protetto — dati finanziari, non si scherza
+11. **Backup & Ripristino** — Salvataggio automatico, nessun dato perso
+12. **Backup Automatico** — Gestione copie database e documenti senza pensarci
+13. **Promemoria Categorie** — Avvisi su spese ricorrenti dimenticate rispetto ai mesi passati
+14. **Profili Multi-Utente** — Database separati per più persone o nuclei familiari
+15. **Esportazione TXT/PDF/Stampa** — I dati sempre esportabili nel formato che serve
+16. **Configurazione & Backup** — Tutto configurabile, dati sempre sicuri e portabili
+
+---
+
+## 🔵 Analisi e controllo
+> Il valore che l'utente vede ogni giorno dopo aver caricato i dati
+
+17. **Grafici Drill-Down** — Analisi visiva profonda — dove vanno davvero i soldi
+18. **Aggregazione Categorie** — Spese raggruppate per aree tematiche
+19. **Monitoraggio Budget per Categoria** — Avviso quando si supera la soglia di spesa
+20. **Fondo Risparmio** — Tracking risparmi accantonati e obiettivi
+21. **Simulatore Risparmio** — Calcola come e quando raggiungere un obiettivo
+22. **Proiezioni Finanziarie** — Rendite, spese e patrimonio nel futuro
+23. **Stampa Report** — Documentazione professionale pronta all'uso
+24. **Analisi Finanziaria OpenAI** — Analisi intelligente dell'andamento complessivo
+25. **Calcolo Inflazione** — Tasso reale calcolato sullo storico personale
+26. **Invio Estratti Mail** — Distribuzione automatica dei report
+
+---
+
+## 🟡 Strumenti avanzati
+> Per chi ha esigenze specifiche — immobili, studio, mutuo, convivenza
+
+27. **Gestione Immobili** — Entrate/uscite per immobile, estratto conto, riepilogo
+28. **Gestione Studio** — Agenda, preventivi, fatturazione, magazzino
+29. **Gestione Associativa e Multiconto** — Associazione tra entità contabili e conti bancari
+30. **Ammortamento Mutui** — Rate, interessi reali, piani di ammortamento completi
+31. **Algoritmo FairShare** — Ripartizione equa spese tra più persone
+32. **Conti Personali FairShare** — Conto individuale per tracciare spese nel gruppo
+33. **Mercati Finanziari** — Monitoraggio real-time indici e asset globali
+34. **Monitor Utenze** — Consumi di luce, gas e acqua sotto controllo
+35. **Confronto Prezzi** — Ottimizza la spesa alimentare nel tempo
+36. **Analizzatore Semantico IA** — Analisi intelligente e confronto multi-documento
+37. **Webserver Remoto** — Consulta i dati da smartphone anche in remoto
+38. **Sistema di Backup Evoluto (PRG)** — Snapshot, backup incrementali e rollback integrato
+
+---
+
+## ⚫ Specialistiche e comfort
+> Fanno la differenza nel lungo periodo, non nell'onboarding
+
+39. **Archivio Documenti Personali** — Documenti sempre a portata di mano
+40. **Modulo Dieta** — Pasti, macronutrienti, peso e grafico BMI
+41. **Rubrica Vcard/Android** — Esporta/importa contatti dallo smartphone
+42. **Retention Automatica** — Rimuove automaticamente i dati più vecchi
+43. **Tasti Shortcut Personali** — Funzioni rapide con combinazioni di tasti
+44. **Temi Personalizzabili** — Interfaccia adattata al proprio stile
+45. **Smart Info Point** — Popup rapido sui movimenti al passaggio del mouse
+46. **Carosello Grafici** — Tour automatico degli andamenti all'avvio
+47. **Auto-Iconizza** — Riduzione a icona per inattività
+48. **Notifiche Auto-chiudenti** — Avvisi che scompaiono dopo tempo prestabilito
+49. **Aggiornamento Librerie Python** — Manutenzione automatica delle dipendenze
+
        
 ### 📺 [Guarda il Video](https://github.com/Renato-4132/OrbitaCasa/raw/main/OrbitaCasa.mp4)
 
