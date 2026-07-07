@@ -824,7 +824,7 @@ def aggiorna_librerie_pip(self):
     popup.resizable(False, False)
     popup.transient(self)
     popup.bind("<Escape>", lambda e: popup.destroy())
-    w, h = 1000, 620
+    w, h = 1200, 620
     sw, sh = popup.winfo_screenwidth(), popup.winfo_screenheight()
     popup.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
     header = tk.Frame(popup, bg=self.COLOR_HEADER_BG, height=40)
