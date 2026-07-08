@@ -129,20 +129,60 @@ def apri_finestra_importa(self, path=None):
             else:
                 try:
                     with open(path, "r", encoding="utf-8") as f:
-                        campione = "".join([f.readline() for _ in range(25)])
+                        righe = f.readlines()
                 except Exception:
                     with open(path, "r", encoding="latin-1") as f:
-                        campione = "".join([f.readline() for _ in range(25)])
-                prompt = (
-                    f"Analizza queste righe di un CSV bancario e convertile in JSON.\n"
-                    f"REGOLE:\n"
-                    f"1. Identifica Data, Descrizione e Importo.\n"
-                    f"2. Negativi = uscite, Positivi = entrate.\n"
-                    f"3. {regola_cat}\n"
-                    f"4. Restituisci SOLO un array JSON: "
-                    f'[{{"data": "YYYY-MM-DD", "desc": "stringa", "importo": float, "categoria": "stringa"}}].\n'
-                    f"CAMPIONE:\n{campione}"
-                )
+                        righe = f.readlines()
+                if not righe:
+                    raise ValueError("Il file CSV è vuoto o illeggibile.")
+                intestazione_csv = righe[0]
+                righe_dati = righe[1:]
+                DIMENSIONE_BLOCCO_CSV = 40
+                blocchi_csv = [
+                    righe_dati[i:i + DIMENSIONE_BLOCCO_CSV]
+                    for i in range(0, len(righe_dati), DIMENSIONE_BLOCCO_CSV)
+                ] or [[]]
+                dati_csv = []
+                for blocco in blocchi_csv:
+                    if not blocco:
+                        continue
+                    campione_blocco = intestazione_csv + "".join(blocco)
+                    prompt_blocco = (
+                        f"Analizza queste righe di un CSV bancario e convertile in JSON.\n"
+                        f"REGOLE:\n"
+                        f"1. Identifica Data, Descrizione e Importo.\n"
+                        f"2. Negativi = uscite, Positivi = entrate.\n"
+                        f"3. {regola_cat}\n"
+                        f"4. Restituisci SOLO un array JSON: "
+                        f'[{{"data": "YYYY-MM-DD", "desc": "stringa", "importo": float, "categoria": "stringa"}}].\n'
+                        f"CAMPIONE:\n{campione_blocco}"
+                    )
+                    risposta_blocco = client.models.generate_content(
+                        model=GEMINI, contents=prompt_blocco)
+                    raw_blocco = risposta_blocco.text.strip()
+                    if "```json" in raw_blocco:
+                        raw_blocco = raw_blocco.split("```json")[1].split("```")[0].strip()
+                    elif "```" in raw_blocco:
+                        raw_blocco = raw_blocco.split("```")[1].split("```")[0].strip()
+                    dati_csv.extend(json.loads(raw_blocco))
+                movimenti = []
+                for d in dati_csv:
+                    desc = d["desc"]
+                    fattura  = d.get("fattura")
+                    scadenza = d.get("scadenza")
+                    if fattura and str(fattura).lower() not in ("null", "", "none"):
+                        desc += f" {fattura}"
+                    if scadenza and str(scadenza).lower() not in ("null", "", "none"):
+                        desc += f" ⏰{scadenza}"
+                    movimenti.append({
+                        "data":        datetime.strptime(d["data"], "%Y-%m-%d").date(),
+                        "descrizione": desc,
+                        "importo":     float(d["importo"]),
+                        "categoria":   d.get("categoria", "Generica")
+                    })
+                if attesa.winfo_exists(): attesa.destroy()
+                self.after(0, lambda: self.apri_finestra_revisione_universale(movimenti))
+                return
             response = client.models.generate_content(
                 model=GEMINI, contents=prompt)
             raw_json = response.text.strip()
