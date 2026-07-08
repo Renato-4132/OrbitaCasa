@@ -146,40 +146,38 @@ def _crea_voce_sidebar(self, icon_key, testo, comando, icon_fallback="•"):
         w.bind("<Enter>", _on_enter)
         w.bind("<Leave>", _on_leave)
     self.widgets_voci.append(f)
-def pop_gestione(self): 
-    m = tk.Menu(self, tearoff=0, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,  
-                activebackground=self.MENU_ACT_BG_COLOR, font=("Arial", 9)) 
-    self._add_m_item(m, "Gestione SuperMarket", "spesa", self.spesa_supermercato) 
-    self._add_m_item(m, "Gestione Documenti", "documenti", self.gestisci_archivi_pdf) 
+def _crea_menu(self):
+    return tk.Menu(self, tearoff=0, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,
+                   activebackground=self.MENU_ACT_BG_COLOR, font=("Arial", 9))
+def pop_gestione(self):
+    m = self._crea_menu()
+    self._add_m_item(m, "Gestione SuperMarket", "spesa", self.spesa_supermercato)
+    self._add_m_item(m, "Gestione Documenti", "documenti", self.gestisci_archivi_pdf)
     self._add_m_item(m, "Gestione Documenti Personali", "documenti", self.gestisci_documenti_personali)
-    self._add_m_item(m, "Gestione Utenze", "mobile", self.utenze, "Ctrl+U") 
+    self._add_m_item(m, "Gestione Utenze", "mobile", self.utenze, "Ctrl+U")
     self._add_m_item(m, "ImmoBil — Gestione Immobili", "home", self.immobil)
-    m.add_separator() 
-    self._add_m_item(m, "Sincronizza Acquisti Email (Gmail)", "sync", self.avvia_sincronizzazione) 
+    m.add_separator()
+    self._add_m_item(m, "Sincronizza Acquisti Email (Gmail)", "sync", self.avvia_sincronizzazione)
     self._add_m_item(m, "Importa Documento AI (Gemini)", "documenti", self.apri_finestra_importa)
     self._add_m_item(m, "Log Importazioni", "sync", self.mostra_log_importazioni)
-    m.add_separator() 
-    self._add_m_item(m, "Rubrica", "oggi", self.rubrica_app, "Ctrl+R") 
-    self._add_m_item(m, "Promemoria", "promemoria", self.gestisci_promemoria, "Ctrl+Y") 
-    self._add_m_item(m, "GCalendar", "calendario", self.launch_qr_svg_generator)
-    self._add_m_item(m, "Piano Dieta", "spesa", self.apri_dieta) 
+    m.add_separator()
+    self._add_m_item(m, "Rubrica", "oggi", self.rubrica_app, "Ctrl+R")
+    self._add_m_item(m, "Promemoria", "promemoria", self.gestisci_promemoria, "Ctrl+Y")
+    self._add_m_item(m, "GCalendar", "calendario", self.launch_qr_svg_generator)  # <-- da verificare
+    self._add_m_item(m, "Piano Dieta", "spesa", self.apri_dieta)
     self._add_m_item(m, "Studio Professionale", "lavoro_B", self.apri_studio)
-    sub_ric = tk.Menu(m, tearoff=0, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,  
-                      activebackground=self.MENU_ACT_BG_COLOR, font=("Arial", 9)) 
-    img_ric = self.icone_gui.get("descrizione") 
-    m.add_separator() 
-    self._add_m_item(m, "Portafoglio Bancario", "saldo", self.open_saldo_conto, "Ctrl+S") 
-    self._add_m_item(m, "Stampa", "stampa", self.anteprima_e_stampa_txt, "Ctrl+P") 
-    self._add_m_item(m, "Pannello Controllo", "timer", self.calcola_mancanti, "Ctrl+Z") 
-    self._add_m_item(m, "Calcolatrice", "calcolatrice", self.apri_calcolatrice, "Ctrl+E") 
-    self._add_m_item(m, "Cancella Voci Bulk", "delete", self.apri_cancella_spese_treeview_unica) 
-    m.add_separator() 
-    self._add_m_item(m, "Salva ed Esci", "chiudi", self._on_close, "Ctrl+Q") 
-    self._add_m_item(m, "Riduci a Icona", "iconizza", self.iconify, "Ctrl+X") 
-    self._mostra_popup(m, 50) 
+    m.add_separator()
+    self._add_m_item(m, "Portafoglio Bancario", "saldo", self.open_saldo_conto, "Ctrl+S")
+    self._add_m_item(m, "Stampa", "stampa", self.anteprima_e_stampa_txt, "Ctrl+P")
+    self._add_m_item(m, "Pannello Controllo", "timer", self.calcola_mancanti, "Ctrl+Z")
+    self._add_m_item(m, "Calcolatrice", "calcolatrice", self.apri_calcolatrice, "Ctrl+E")
+    self._add_m_item(m, "Cancella Voci Bulk", "delete", self.apri_cancella_spese_treeview_unica)
+    m.add_separator()
+    self._add_m_item(m, "Salva ed Esci", "chiudi", self._on_close, "Ctrl+Q")
+    self._add_m_item(m, "Riduci a Icona", "iconizza", self.iconify, "Ctrl+X")
+    self._mostra_popup(m, 50)
 def pop_analisi(self): 
-    m = tk.Menu(self, tearoff=0, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,  
-                activebackground=self.MENU_ACT_BG_COLOR, font=("Arial", 9)) 
+    m = self._crea_menu()
     self._add_m_item(m, "Ricerca Globale", "search", self.cerca_operazioni, "Ctrl+F")
     self._add_m_item(m, "Gestione Tag #", "filtri", self.apri_gestione_tag)
     self._add_m_item(m, "Confronta Periodi", "report", self.open_compare_window, "Ctrl+N")
@@ -196,8 +194,7 @@ def pop_analisi(self):
     self._add_m_item(m, "Bilancio Grafico PDF", "grafico_linea", self.genera_report_pdf, "Alt+R") 
     self._mostra_popup(m, 100) 
 def pop_finanze(self): 
-    m = tk.Menu(self, tearoff=0, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,  
-                activebackground=self.MENU_ACT_BG_COLOR, font=("Arial", 9)) 
+    m = self._crea_menu()
     self._add_m_item(m, "Calcolo Mutuo/Prestiti", "banca", self.calcolo_mutuo_prestito, "Ctrl+O") 
     self._add_m_item(m, "Portafoglio", "lavoro", self.apri_portafoglio)
     m.add_separator() 
@@ -211,16 +208,14 @@ def pop_finanze(self):
     self._add_m_item(m, "Analisi e Confronto Documenti OpenAI", "report", self.confronta_bollette_ia)
     self._mostra_popup(m, 140)
 def pop_ricorrenze(self): 
-    m = tk.Menu(self, tearoff=0, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,  
-                activebackground=self.MENU_ACT_BG_COLOR, font=("Arial", 9)) 
+    m = self._crea_menu()
     self._add_m_item(m, "Gestione Ricorrenze", "descrizione", self.mostra_ricorrenza_popup, "Ctrl+T") 
     self._add_m_item(m, "Lista Ricorrenze", "descrizione", self.mostra_lista_ricorrenze, "Ctrl+L") 
     self._add_m_item(m, "Scadenze Mese", "scadenze", self.scadenze_mese, "Ctrl+J") 
     self._mostra_popup(m, 180) 
 
 def pop_opzioni(self): 
-    m = tk.Menu(self, tearoff=0, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,  
-                activebackground=self.MENU_ACT_BG_COLOR, font=("Arial", 9))
+    m = self._crea_menu()
     self._add_m_item(m, "Impostazioni App", "filtri", self.gestisci_configurazione)
     m.add_separator()
     self._add_m_item(m, "Cambia Password", "api_key", self.apri_cambio_password)
@@ -240,8 +235,7 @@ def pop_opzioni(self):
     self._add_m_item(m, "Contatta Assistenza", "help", lambda: self.apri_pannello_topic(self.topic_unico))
     self._mostra_popup(m, 260) 
 def pop_info(self): 
-    m = tk.Menu(self, tearoff=0, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,  
-                activebackground=self.MENU_ACT_BG_COLOR, font=("Arial", 9))
+    m = self._crea_menu()
     self._add_m_item(m, "Esporta DB Transazioni", "carica", self.export_db) 
     self._add_m_item(m, "Importa DB Transazioni", "archivia", self.import_db) 
     self._add_m_item(m, "Reset DB", "reset", self.show_reset_dialog) 
@@ -456,4 +450,3 @@ def _filtra_sidebar(self, *_):
         lbl.bind("<Enter>", _on_enter)
         lbl.bind("<Leave>", _on_leave)
         row.bind("<Button-1>", lambda e, f=_esegui: f())
-
