@@ -137,13 +137,14 @@ def apri_finestra_importa(self, path=None):
                     raise ValueError("Il file CSV è vuoto o illeggibile.")
                 intestazione_csv = righe[0]
                 righe_dati = righe[1:]
-                DIMENSIONE_BLOCCO_CSV = 40
+                DIMENSIONE_BLOCCO_CSV = 20
                 blocchi_csv = [
                     righe_dati[i:i + DIMENSIONE_BLOCCO_CSV]
                     for i in range(0, len(righe_dati), DIMENSIONE_BLOCCO_CSV)
                 ] or [[]]
                 dati_csv = []
-                for blocco in blocchi_csv:
+                blocchi_falliti = []
+                for indice_blocco, blocco in enumerate(blocchi_csv, start=1):
                     if not blocco:
                         continue
                     campione_blocco = intestazione_csv + "".join(blocco)
@@ -153,18 +154,31 @@ def apri_finestra_importa(self, path=None):
                         f"1. Identifica Data, Descrizione e Importo.\n"
                         f"2. Negativi = uscite, Positivi = entrate.\n"
                         f"3. {regola_cat}\n"
-                        f"4. Restituisci SOLO un array JSON: "
+                        f"4. Restituisci SOLO un array JSON, senza testo attorno: "
                         f'[{{"data": "YYYY-MM-DD", "desc": "stringa", "importo": float, "categoria": "stringa"}}].\n'
                         f"CAMPIONE:\n{campione_blocco}"
                     )
-                    risposta_blocco = client.models.generate_content(
-                        model=GEMINI, contents=prompt_blocco)
-                    raw_blocco = risposta_blocco.text.strip()
-                    if "```json" in raw_blocco:
-                        raw_blocco = raw_blocco.split("```json")[1].split("```")[0].strip()
-                    elif "```" in raw_blocco:
-                        raw_blocco = raw_blocco.split("```")[1].split("```")[0].strip()
-                    dati_csv.extend(json.loads(raw_blocco))
+                    dati_blocco = None
+                    for tentativo in range(2):
+                        try:
+                            risposta_blocco = client.models.generate_content(
+                                model=GEMINI, contents=prompt_blocco)
+                            raw_blocco = (risposta_blocco.text or "").strip()
+                            if "```json" in raw_blocco:
+                                raw_blocco = raw_blocco.split("```json")[1].split("```")[0].strip()
+                            elif "```" in raw_blocco:
+                                raw_blocco = raw_blocco.split("```")[1].split("```")[0].strip()
+                            if not raw_blocco:
+                                raise ValueError("Risposta vuota da Gemini")
+                            dati_blocco = json.loads(raw_blocco)
+                            break
+                        except Exception:
+                            dati_blocco = None
+                            continue
+                    if dati_blocco is None:
+                        blocchi_falliti.append(indice_blocco)
+                        continue
+                    dati_csv.extend(dati_blocco)
                 movimenti = []
                 for d in dati_csv:
                     desc = d["desc"]
@@ -181,7 +195,17 @@ def apri_finestra_importa(self, path=None):
                         "categoria":   d.get("categoria", "Generica")
                     })
                 if attesa.winfo_exists(): attesa.destroy()
+                if blocchi_falliti and not movimenti:
+                    self.after(0, lambda: self.show_custom_warning(
+                        "Errore IA",
+                        "Gemini non ha risposto correttamente per nessun blocco del CSV.\nRiprova tra qualche minuto."))
+                    return
                 self.after(0, lambda: self.apri_finestra_revisione_universale(movimenti))
+                if blocchi_falliti:
+                    _n_falliti = len(blocchi_falliti)
+                    self.after(300, lambda n=_n_falliti: self.show_toast(
+                        f"Attenzione: {n} blocco/i del CSV non è stato importato (errore Gemini). Controlla il file.",
+                        duration=5000))
                 return
             response = client.models.generate_content(
                 model=GEMINI, contents=prompt)
