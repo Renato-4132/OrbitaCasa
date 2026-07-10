@@ -19,15 +19,24 @@ def _visualizza_changelog_thread(self):
 
     from datetime import datetime
     api_url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/commits"
-    params = {"path": NOME_FILE, "per_page": 20}
+    percorsi = [NOME_FILE, "moduli"]
     changelog_text = ""
     try:
-        response = requests.get(api_url, params=params, timeout=10)
-        response.raise_for_status()
-        commits = response.json()
-        if not commits:
+        commits_per_sha = {}
+        for percorso in percorsi:
+            params = {"path": percorso, "per_page": 20}
+            response = requests.get(api_url, params=params, timeout=10)
+            response.raise_for_status()
+            for commit in response.json():
+                commits_per_sha[commit["sha"]] = commit
+        if not commits_per_sha:
             self.after(0, lambda: self.show_toast("Nessuno storico di commit trovato per questo file."))
             return
+        commits = sorted(
+            commits_per_sha.values(),
+            key=lambda c: c["commit"]["committer"]["date"],
+            reverse=True
+        )[:30]
         for commit in commits:
             date_str = commit["commit"]["committer"]["date"]
             commit_dt = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%SZ")
