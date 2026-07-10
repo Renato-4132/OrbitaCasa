@@ -780,7 +780,7 @@ def _veicoli_grafici(self, db):
     popup.transient(self)
     popup.bind("<Escape>", lambda e: popup.destroy())
     popup.withdraw()
-    W, H = 1300, 630
+    W, H = 1350, 630
     x = self.winfo_rootx() + (self.winfo_width() // 2) - (W // 2)
     y = self.winfo_rooty() + (self.winfo_height() // 2) - (H // 2)
     popup.geometry(f"{W}x{H}+{max(0,x)}+{max(0,y)}")
