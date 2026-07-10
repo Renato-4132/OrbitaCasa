@@ -40,7 +40,7 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 
 ---
 
-### 🔥 POTENZA IN 40+ FUNZIONI
+### 🔥 POTENZA IN 50+ FUNZIONI
 
 ---
 
