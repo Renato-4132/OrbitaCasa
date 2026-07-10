@@ -573,7 +573,7 @@ def _forza_check_thread(self):
         ).replace(microsecond=0)
         if sha_diversi or remote_time.date() > local_time.date():
             self.after(0, lambda rt=remote_time, lt=local_time, ct=changelog_text:
-               self._mostra_popup_forza_aggiornamento(rt, lt, ct)
+               self._mostra_popup_forza_aggiornamento(rt, lt, ct))
         else:
             self.after(0, lambda: self.show_custom_warning(
                 "Controllo Manuale",
