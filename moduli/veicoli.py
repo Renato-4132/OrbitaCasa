@@ -251,18 +251,18 @@ def _veicoli_crea_tab(self, nb, v, db, win):
 
     stato_lf = ttk.LabelFrame(tab, text="⏱ Scadenze e Indicatori", style="RedBold.TLabelframe")
     stato_lf.pack(fill=tk.X, padx=8, pady=(0, 4))
-
+    stato_lf.columnconfigure(2, weight=1)
     campi_scad = [("Bollo", "scad_bollo"), ("Assicurazione", "scad_assicurazione"), ("Revisione", "scad_revisione")]
     lbl_scad = {}
     vars_scad = {}
-    for col, (etichetta, chiave) in enumerate(campi_scad):
+    for riga_idx, (etichetta, chiave) in enumerate(campi_scad):
         tk.Label(stato_lf, text=etichetta + ":", bg=self.COLOR_WIDGET_BG,
-                 fg=self.COLOR_HEADER, font=("Arial", 9, "bold")).grid(
-            row=0, column=col * 3, sticky="w", padx=(8, 2), pady=4)
+                 fg=self.COLOR_HEADER, font=("Arial", 9, "bold"), width=13, anchor="w").grid(
+            row=riga_idx, column=0, sticky="w", padx=(8, 2), pady=4)
         vv = tk.StringVar(value=str(v.get(chiave, "")))
         vars_scad[chiave] = vv
         frm_data_box = tk.Frame(stato_lf, bg=self.COLOR_WIDGET_BG)
-        frm_data_box.grid(row=0, column=col * 3 + 1, sticky="w", padx=(0, 2), pady=4)
+        frm_data_box.grid(row=riga_idx, column=1, sticky="w", padx=(0, 2), pady=4)
         ent = ttk.Entry(frm_data_box, textvariable=vv, width=11)
         ent.pack(side=tk.LEFT)
         btn_cal = ttk.Label(frm_data_box, image=self.icone_gui.get("calendario"),
@@ -271,8 +271,8 @@ def _veicoli_crea_tab(self, nb, v, db, win):
         btn_cal.pack(side=tk.LEFT, padx=(4, 0))
         btn_cal.bind("<Button-1>", lambda e, ent=ent, vv=vv: self.mostra_calendario_popup_semplice(ent, vv))
         lbl = tk.Label(stato_lf, text="—", bg=self.COLOR_WIDGET_BG,
-                        fg=self.TEXT_COLOR, font=("Arial", 9, "bold"))
-        lbl.grid(row=0, column=col * 3 + 2, sticky="w", padx=(6, 14), pady=4)
+                        fg=self.TEXT_COLOR, font=("Arial", 9, "bold"), anchor="w")
+        lbl.grid(row=riga_idx, column=2, sticky="w", padx=(6, 14), pady=4)
         lbl_scad[chiave] = lbl
 
     def _salva_scadenze():
@@ -296,11 +296,11 @@ def _veicoli_crea_tab(self, nb, v, db, win):
         background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2"
     )
     btn_salva_scad.image = img_save_scad
-    btn_salva_scad.grid(row=1, column=0, columnspan=10, padx=8, pady=(2, 6), sticky="e")
+    btn_salva_scad.grid(row=0, column=3, rowspan=3, padx=8, pady=4, sticky="ne")
     btn_salva_scad.bind("<Button-1>", lambda e: _salva_scadenze())
 
     riga2_lf = tk.Frame(stato_lf, bg=self.COLOR_WIDGET_BG)
-    riga2_lf.grid(row=2, column=0, columnspan=10, sticky="ew", padx=8, pady=(0, 6))
+    riga2_lf.grid(row=3, column=0, columnspan=4, sticky="ew", padx=8, pady=(0, 6))
     lbl_tagliando = tk.Label(riga2_lf, text="—", bg=self.COLOR_WIDGET_BG,
                               fg=self.TEXT_COLOR, font=("Arial", 9, "bold"))
     lbl_tagliando.pack(side=tk.LEFT, padx=(0, 20))
