@@ -300,7 +300,7 @@ def _veicoli_crea_tab(self, nb, v, db, win):
     btn_salva_scad.bind("<Button-1>", lambda e: _salva_scadenze())
 
     riga2_lf = tk.Frame(stato_lf, bg=self.COLOR_WIDGET_BG)
-    riga2_lf.grid(row=1, column=0, columnspan=10, sticky="ew", padx=8, pady=(0, 6))
+    riga2_lf.grid(row=2, column=0, columnspan=10, sticky="ew", padx=8, pady=(0, 6))
     lbl_tagliando = tk.Label(riga2_lf, text="—", bg=self.COLOR_WIDGET_BG,
                               fg=self.TEXT_COLOR, font=("Arial", 9, "bold"))
     lbl_tagliando.pack(side=tk.LEFT, padx=(0, 20))
