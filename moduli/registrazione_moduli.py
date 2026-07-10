@@ -58,8 +58,10 @@ def registra_tutti_i_moduli(GestioneSpese):
     _immobil_grafici, _immobil_estratto, _immobil_estratto_totale)
 
     from moduli.documenti_personali import (
-        gestisci_documenti_personali, backup_documenti_personali, mostra_help_documenti_personali,)
-    _registra(gestisci_documenti_personali, backup_documenti_personali, mostra_help_documenti_personali)
+        gestisci_documenti_personali, backup_documenti_personali, mostra_help_documenti_personali,
+        _genera_testo_scadenze_documenti,)
+    _registra(gestisci_documenti_personali, backup_documenti_personali, mostra_help_documenti_personali,
+              _genera_testo_scadenze_documenti)
 
     from moduli.archivi_pdf import (
         gestisci_archivi_pdf, mostra_help_pdf, esegui_export_documenti_pdf, esegui_import_documenti_pdf,backup_documenti,)

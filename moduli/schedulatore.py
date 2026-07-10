@@ -24,6 +24,7 @@ def apri_schedulatore(self):
         ("giornaliero",           "Registro Giornaliero"),
         ("controllo_ricorrenti",  "Ricorrenti Mancanti"),
         ("scadenze_veicoli",      "Scadenze Veicoli"),
+        ("documenti_scadenza",    "Documenti in Scadenza"),
         ("allerta_saldo_negativo","Allerta Saldo Negativo"),
         ("promemoria_libero",     "Promemoria Libero"),
     ]
@@ -374,6 +375,9 @@ def apri_schedulatore(self):
                     corpo = self._genera_testo_ricorrenti_mancanti()
                 elif tipo == "scadenze_veicoli":
                     corpo = self._genera_testo_scadenze_veicoli()
+                elif tipo == "documenti_scadenza":
+                    profilo_filtro = (task.get("note") or "").strip() or None
+                    corpo = self._genera_testo_scadenze_documenti(profilo=profilo_filtro)
                 inviata = False
                 if corpo and EMAIL_USER and APP_PASSWORD:
                     import threading
@@ -533,6 +537,9 @@ def _esegui_scheduler(self):
                         corpo_mail = self._genera_testo_ricorrenti_mancanti()
                     elif t == "scadenze_veicoli":
                         corpo_mail = self._genera_testo_scadenze_veicoli()
+                    elif t == "documenti_scadenza":
+                        profilo_filtro = (tk_task.get("note") or "").strip() or None
+                        corpo_mail = self._genera_testo_scadenze_documenti(profilo=profilo_filtro)
                     elif t == "allerta_saldo_negativo":
                         saldo_mese = self._calcola_saldo_mese_corrente()
                         ultimo_notificato = tk_task.get("ultimo_saldo_notificato", None)

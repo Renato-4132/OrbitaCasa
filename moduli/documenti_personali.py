@@ -125,6 +125,18 @@ def gestisci_documenti_personali(self):
         combo_cat.grid(row=0, column=4, sticky="w", padx=4, pady=3)
         if categorie:
             combo_cat.current(0)
+        lbl_scad = ttk.Label(frm_top, text="Scadenza:")
+        lbl_scad.grid(row=0, column=7, sticky="e", padx=4, pady=3)
+        scad_var = tk.StringVar(value="")
+        entry_scad = ttk.Entry(frm_top, textvariable=scad_var, width=12)
+        entry_scad.grid(row=0, column=8, sticky="w", padx=4, pady=3)
+        btn_cal_scad = ttk.Label(frm_top, image=self.icone_gui.get("calendario"),
+                                 text="", background=self.COLOR_WIDGET_BG, cursor="hand2")
+        btn_cal_scad.image = self.icone_gui.get("calendario")
+        btn_cal_scad.grid(row=0, column=9, padx=2)
+        btn_cal_scad.bind("<Button-1>", lambda e: self.mostra_calendario_popup(entry_scad, scad_var))
+        def _aggiorna_visibilita_scadenza(event=None):
+            pass
         ttk.Label(frm_top, text="Descrizione:").grid(row=0, column=5, sticky="e", padx=4, pady=3)
         entry_desc = ttk.Entry(frm_top, width=28)
         entry_desc.grid(row=0, column=6, sticky="w", padx=4, pady=3)
@@ -270,11 +282,26 @@ def gestisci_documenti_personali(self):
             e_note     = ttk.Entry(pad, textvariable=e_note_var, width=32,
                                    validate="key", validatecommand=(vcmd_n, "%P"))
             e_note.grid(row=3, column=1, columnspan=2, sticky="w", padx=6, pady=5)
+            lbl_scad_e = ttk.Label(pad, text="Scadenza:")
+            lbl_scad_e.grid(row=4, column=0, sticky="e", padx=6, pady=5)
+            e_scad_var = tk.StringVar(value=rec.get("data_scadenza", ""))
+            frm_scad_e = ttk.Frame(pad)
+            frm_scad_e.grid(row=4, column=1, columnspan=2, sticky="w", padx=6, pady=5)
+            e_scad = ttk.Entry(frm_scad_e, textvariable=e_scad_var, width=14)
+            e_scad.pack(side="left")
+            btn_cal_scad_e = ttk.Label(frm_scad_e, image=self.icone_gui.get("calendario"),
+                                       text="", background=self.COLOR_WIDGET_BG, cursor="hand2")
+            btn_cal_scad_e.image = self.icone_gui.get("calendario")
+            btn_cal_scad_e.pack(side="left", padx=4)
+            btn_cal_scad_e.bind("<Button-1>", lambda e: self.mostra_calendario_popup_semplice(e_scad, e_scad_var))
+            def _aggiorna_visibilita_scad_e(event=None):
+                pass
             def salva_modifica():
                     data_s = e_data_var.get().strip()
                     cat    = e_cat.get().strip()
                     desc   = e_desc_var.get().strip()
                     note   = e_note_var.get().strip()
+                    scad_s = e_scad_var.get().strip()
                     if not cat:  return self.show_toast("Seleziona una categoria.")
                     if not desc: return self.show_toast("Inserisci una descrizione.")
                     try:
@@ -282,17 +309,23 @@ def gestisci_documenti_personali(self):
                             data_raw = data_obj.strftime("%d%m%Y")
                     except Exception:
                             return self.show_custom_warning("Data non valida", "Formato richiesto: GG-MM-AAAA")
-                    reg[fname]["data_raw"]    = data_raw
-                    reg[fname]["data_fmt"]    = data_obj.strftime("%d-%m-%Y")
-                    reg[fname]["categoria"]   = cat
-                    reg[fname]["descrizione"] = desc
-                    reg[fname]["note"]        = note
+                    if scad_s:
+                        try:
+                            datetime.strptime(scad_s, "%d-%m-%Y")
+                        except Exception:
+                            return self.show_custom_warning("Scadenza non valida", "Formato richiesto: GG-MM-AAAA")
+                    reg[fname]["data_raw"]      = data_raw
+                    reg[fname]["data_fmt"]      = data_obj.strftime("%d-%m-%Y")
+                    reg[fname]["categoria"]     = cat
+                    reg[fname]["descrizione"]   = desc
+                    reg[fname]["note"]          = note
+                    reg[fname]["data_scadenza"] = scad_s
                     save_registry(nome_profilo, reg)
                     load_tree(campo_cerca.get())
                     ewin.destroy()
                     self.show_toast("Documento aggiornato.")
             frm_eb = ttk.Frame(pad)
-            frm_eb.grid(row=4, column=0, columnspan=3, pady=10)
+            frm_eb.grid(row=5, column=0, columnspan=3, pady=10)
             btn_ok2 = ttk.Label(frm_eb, text=" Salva", compound="left",
                                 image=self.icone_gui.get("check"),
                                 background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
@@ -310,7 +343,7 @@ def gestisci_documenti_personali(self):
             btn_ch2.bind("<Button-1>", lambda e: chiudi_ewin())
             ewin.update_idletasks()
             w  = 420
-            h  = 220
+            h  = 260
             sw = ewin.winfo_screenwidth()
             sh = ewin.winfo_screenheight()
             ewin.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
@@ -413,6 +446,7 @@ def gestisci_documenti_personali(self):
             cat    = combo_cat.get().strip()
             desc   = entry_desc.get().strip()
             note   = entry_note.get().strip()
+            scad_s = scad_var.get().strip()
             if not cat:  return self.show_toast("Seleziona una categoria.")
             if not desc: return self.show_toast("Inserisci una descrizione.")
             try:
@@ -420,6 +454,11 @@ def gestisci_documenti_personali(self):
                 data_raw = data_obj.strftime("%d%m%Y")
             except Exception:
                 return self.show_custom_warning("Data non valida", "Formato richiesto: GG-MM-AAAA")
+            if scad_s:
+                try:
+                    datetime.strptime(scad_s, "%d-%m-%Y")
+                except Exception:
+                    return self.show_custom_warning("Scadenza non valida", "Formato richiesto: GG-MM-AAAA")
             path = _drop_path_ref[0] or filedialog.askopenfilename(parent=win, filetypes=[("PDF", "*.pdf")])
             if not path: return
             def san(s):
@@ -432,21 +471,24 @@ def gestisci_documenti_personali(self):
                 return self.show_custom_warning("Errore copia", f"Impossibile copiare il file:\n{e}")
             reg = load_registry(nome_profilo)
             reg[fname] = {
-                "data_raw":    data_raw,
-                "data_fmt":    data_obj.strftime("%d-%m-%Y"),
-                "categoria":   cat,
-                "descrizione": desc,
-                "note":        note,
-                "timestamp":   datetime.now().isoformat()
+                "data_raw":      data_raw,
+                "data_fmt":      data_obj.strftime("%d-%m-%Y"),
+                "categoria":     cat,
+                "descrizione":   desc,
+                "note":          note,
+                "data_scadenza": scad_s,
+                "timestamp":     datetime.now().isoformat()
             }
             save_registry(nome_profilo, reg)
             load_tree(campo_cerca.get())
             _drop_path_ref[0] = None
             entry_desc.delete(0, tk.END)
             entry_note.delete(0, tk.END)
+            scad_var.set("")
             data_var.set(datetime.now().strftime("%d-%m-%Y"))
             if categorie:
                 combo_cat.set(categorie[0])
+            _aggiorna_visibilita_scadenza()
             self.show_toast("Documento archiviato correttamente.")
         def cancella():
             sels = tree.selection()
@@ -696,11 +738,16 @@ def gestisci_documenti_personali(self):
                         client_dp = genai_client.Client(api_key=API_KEY)
                         lista_cat_dp = ", ".join(f'"{c}"' for c in categorie)
                         prompt_dp = (
-                            f"Analizza questo documento PDF (fattura, ricevuta, certificato o simile).\n"
+                            f"Analizza questo documento PDF (fattura, ricevuta, certificato, "
+                            f"documento d'identità, patente, tessera, polizza, contratto o simile).\n"
                             f"Estrai i seguenti campi e restituisci SOLO un JSON (senza backtick):\n"
                             f'{{\\"descrizione\\": \\"titolo breve del documento (max 30 car.)\\", '
-                            f'\\"categoria\\": \\"la più adatta tra [{lista_cat_dp}]\\"}}\n'
-                            f"REGOLE: descrizione concisa senza emoji; SOLO JSON."
+                            f'\\"categoria\\": \\"la più adatta tra [{lista_cat_dp}]\\", '
+                            f'\\"scadenza\\": \\"GG-MM-AAAA o null\\"}}\n'
+                            f"REGOLE: descrizione concisa senza emoji. Per 'scadenza' cerca una data "
+                            f"di scadenza/validità del documento stesso (es. \\\"Valida fino al\\\", "
+                            f"\\\"Scadenza\\\", \\\"Data di scadenza\\\"), NON la data di emissione/rilascio "
+                            f"né la data di stampa del documento; se non presente usa null. SOLO JSON."
                         )
                         r_dp = client_dp.models.generate_content(
                             model=GEMINI,
@@ -714,6 +761,13 @@ def gestisci_documenti_personali(self):
                         desc_ia  = str(dati_dp.get("descrizione") or "").strip()[:30]
                         cat_ia   = dati_dp.get("categoria", "")
                         cat_ok   = cat_ia if cat_ia in categorie else ""
+                        scadenza_ia = dati_dp.get("scadenza")
+                        scad_ia_ok = ""
+                        if scadenza_ia and str(scadenza_ia).lower() != "null":
+                            try:
+                                scad_ia_ok = datetime.strptime(str(scadenza_ia).strip(), "%d-%m-%Y").strftime("%d-%m-%Y")
+                            except Exception:
+                                scad_ia_ok = ""
                         def _aggiorna_gui_dp():
                             _nascondi_progress_dp()
                             if desc_ia:
@@ -721,6 +775,8 @@ def gestisci_documenti_personali(self):
                                 entry_desc.insert(0, desc_ia)
                             if cat_ok:
                                 combo_cat.set(cat_ok)
+                            if scad_ia_ok:
+                                scad_var.set(scad_ia_ok)
                             self.show_toast(f"📎 {os.path.basename(pdf_path)} — campi compilati, verifica e archivia")
                         frm.after(0, _aggiorna_gui_dp)
                     except Exception as e_dp:
@@ -991,6 +1047,81 @@ def gestisci_documenti_personali(self):
     win.geometry(f"{w}x{h}+{(sw - w) // 2}+{(sh - h) // 2}")
     win.transient(self)
     win.deiconify()
+
+def _genera_testo_scadenze_documenti(self, profilo=None, soglia_giorni=30):
+    import __main__ as _app
+    import json
+    import datetime
+    DOC_PERS_DIR = _app.DOC_PERS_DIR
+    data_oggi = datetime.date.today().strftime('%d/%m/%Y')
+    profili_file = os.path.join(DOC_PERS_DIR, "profili.json")
+    if os.path.exists(profili_file):
+        try:
+            with open(profili_file, "r", encoding="utf-8") as f:
+                profili = json.load(f)
+        except Exception:
+            profili = []
+    else:
+        profili = []
+    if profilo:
+        profili = [p for p in profili if p == profilo]
+    scadute = []
+    in_scadenza = []
+    for nome_profilo in profili:
+        reg_path = os.path.join(DOC_PERS_DIR, nome_profilo, "registry.json")
+        if not os.path.exists(reg_path):
+            continue
+        try:
+            with open(reg_path, "r", encoding="utf-8") as f:
+                reg = json.load(f)
+        except Exception:
+            continue
+        for fname, rec in reg.items():
+            cat = rec.get("categoria", "")
+            data_str = rec.get("data_scadenza", "")
+            if not data_str:
+                continue
+            giorni = self._veicoli_giorni_a_scadenza(data_str)
+            if giorni is None:
+                continue
+            voce = (nome_profilo, cat, rec.get("descrizione", ""), data_str, giorni)
+            if giorni < 0:
+                scadute.append(voce)
+            elif giorni <= soglia_giorni:
+                in_scadenza.append(voce)
+    scadute.sort(key=lambda x: x[4])
+    in_scadenza.sort(key=lambda x: x[4])
+    if not scadute and not in_scadenza:
+        return ""
+    lines = []
+    lines.append("")
+    testo_centrato = "SCADENZE DOCUMENTI".center(28)
+    lines.append(f"{testo_centrato}")
+    lines.append("─" * 31)
+    lines.append("")
+    if scadute:
+        lines.append("🔴 SCADUTI")
+        lines.append("─" * 31)
+        lines.append("")
+        for nome_profilo, cat, desc, data_str, giorni in scadute:
+            lines.append(f"    📄 {nome_profilo} — {cat} ({desc})")
+            lines.append(f"       Scaduto da {abs(giorni)} gg ({data_str})")
+        lines.append("")
+    if in_scadenza:
+        lines.append("🟡 IN SCADENZA")
+        lines.append("─" * 31)
+        lines.append("")
+        for nome_profilo, cat, desc, data_str, giorni in in_scadenza:
+            testo_gg = "Scade OGGI" if giorni == 0 else f"tra {giorni} gg"
+            lines.append(f"    📄 {nome_profilo} — {cat} ({desc})")
+            lines.append(f"       {testo_gg} ({data_str})")
+        lines.append("")
+    lines.append("┈" * 30)
+    lines.append("Controlla la sezione Documenti Personali su OrbitaCasa")
+    lines.append("per i dettagli e per rinnovare i documenti in tempo.")
+    lines.append("")
+    lines.append(f"📊 Report generato il {data_oggi}.")
+    return "\n".join(lines)
 
 def backup_documenti_personali(self):
     import __main__ as _app
