@@ -146,11 +146,12 @@ def registra_tutti_i_moduli(GestioneSpese):
 
     from moduli.schedulatore import (
         apri_schedulatore, _tick_scheduler, _esegui_scheduler, _genera_testo_ricorrenti_mancanti, _genera_testo_estratto_mensile,
-        _genera_testo_estratto_annuale, _calcola_saldo_mese_corrente, _genera_testo_allerta_saldo, _invia_email_scheduler,)
+        _genera_testo_estratto_annuale, _calcola_saldo_mese_corrente, _genera_testo_allerta_saldo, _invia_email_scheduler,
+        _genera_testo_scadenze_veicoli,)
     _registra(apri_schedulatore, _tick_scheduler, _esegui_scheduler,
               _genera_testo_ricorrenti_mancanti, _genera_testo_estratto_mensile,
               _genera_testo_estratto_annuale, _calcola_saldo_mese_corrente,
-              _genera_testo_allerta_saldo, _invia_email_scheduler)
+              _genera_testo_allerta_saldo, _invia_email_scheduler, _genera_testo_scadenze_veicoli)
 
     from moduli.toggle_stats_view import toggle_stats_view
     _registra(toggle_stats_view)

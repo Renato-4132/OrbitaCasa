@@ -23,6 +23,7 @@ def apri_schedulatore(self):
         ("riepilogo_settimanale", "Riepilogo Settimanale"),
         ("giornaliero",           "Registro Giornaliero"),
         ("controllo_ricorrenti",  "Ricorrenti Mancanti"),
+        ("scadenze_veicoli",      "Scadenze Veicoli"),
         ("allerta_saldo_negativo","Allerta Saldo Negativo"),
         ("promemoria_libero",     "Promemoria Libero"),
     ]
@@ -371,6 +372,8 @@ def apri_schedulatore(self):
                     )
                 elif tipo == "controllo_ricorrenti":
                     corpo = self._genera_testo_ricorrenti_mancanti()
+                elif tipo == "scadenze_veicoli":
+                    corpo = self._genera_testo_scadenze_veicoli()
                 if corpo and EMAIL_USER and APP_PASSWORD:
                     import threading
                     threading.Thread(
@@ -523,6 +526,8 @@ def _esegui_scheduler(self):
                         corpo_mail = self._genera_testo_riepilogo_cronologico(t)
                     elif t == "controllo_ricorrenti":
                         corpo_mail = self._genera_testo_ricorrenti_mancanti()
+                    elif t == "scadenze_veicoli":
+                        corpo_mail = self._genera_testo_scadenze_veicoli()
                     elif t == "allerta_saldo_negativo":
                         saldo_mese = self._calcola_saldo_mese_corrente()
                         ultimo_notificato = tk_task.get("ultimo_saldo_notificato", None)
@@ -620,6 +625,66 @@ def _genera_testo_ricorrenti_mancanti(self):
     else:
         lines.append("🟩 Tutto sotto controllo!")
         lines.append("Hai inserito tutte le categorie ricorrenti abituali.")
+    lines.append("")
+    lines.append(f"📊 Report generato il {data_oggi}.")
+    return "\n".join(lines)
+
+def _genera_testo_scadenze_veicoli(self, soglia_giorni=30):
+    oggi = datetime.date.today()
+    data_oggi = oggi.strftime('%d/%m/%Y')
+    db = self._veicoli_carica()
+    veicoli = db.get("veicoli", [])
+    CAMPI_SCAD = [
+        ("scad_bollo",         "Bollo"),
+        ("scad_assicurazione", "Assicurazione"),
+        ("scad_revisione",     "Revisione"),
+    ]
+    scadute = []
+    in_scadenza = []
+    for v in veicoli:
+        nome = v.get("nome", "Veicolo")
+        for chiave, etichetta in CAMPI_SCAD:
+            data_str = v.get(chiave, "")
+            giorni = self._veicoli_giorni_a_scadenza(data_str)
+            if giorni is None:
+                continue
+            if giorni < 0:
+                scadute.append((nome, etichetta, data_str, giorni))
+            elif giorni <= soglia_giorni:
+                in_scadenza.append((nome, etichetta, data_str, giorni))
+    scadute.sort(key=lambda x: x[3])
+    in_scadenza.sort(key=lambda x: x[3])
+    lines = []
+    lines.append("")
+    testo_centrato = "SCADENZE VEICOLI".center(28)
+    lines.append(f"{testo_centrato}")
+    lines.append("─" * 31)
+    lines.append("")
+    if not scadute and not in_scadenza:
+        lines.append("🟩 Tutto sotto controllo!")
+        lines.append(f"Nessuna scadenza (bollo/assicurazione/revisione) nei")
+        lines.append(f"prossimi {soglia_giorni} giorni.")
+    else:
+        if scadute:
+            lines.append("🔴 SCADUTE")
+            lines.append("─" * 31)
+            lines.append("")
+            for nome, etichetta, data_str, giorni in scadute:
+                lines.append(f"    🚗 {nome} — {etichetta}")
+                lines.append(f"       Scaduta da {abs(giorni)} gg ({data_str})")
+            lines.append("")
+        if in_scadenza:
+            lines.append("🟡 IN SCADENZA")
+            lines.append("─" * 31)
+            lines.append("")
+            for nome, etichetta, data_str, giorni in in_scadenza:
+                testo_gg = "Scade OGGI" if giorni == 0 else f"tra {giorni} gg"
+                lines.append(f"    🚗 {nome} — {etichetta}")
+                lines.append(f"       {testo_gg} ({data_str})")
+            lines.append("")
+        lines.append("┈" * 30)
+        lines.append("Controlla la sezione Veicoli su OrbitaCasa per i dettagli")
+        lines.append("e per rinnovare le scadenze in tempo.")
     lines.append("")
     lines.append(f"📊 Report generato il {data_oggi}.")
     return "\n".join(lines)
