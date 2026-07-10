@@ -92,34 +92,35 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 > Per chi ha esigenze specifiche — immobili, studio, mutuo, convivenza
 
 27. **Gestione Immobili** — Entrate/uscite per immobile, estratto conto, riepilogo
-28. **Gestione Studio** — Agenda, preventivi, fatturazione, magazzino
-29. **Gestione Associativa e Multiconto** — Associazione tra entità contabili e conti bancari
-30. **Ammortamento Mutui** — Rate, interessi reali, piani di ammortamento completi
-31. **Algoritmo FairShare** — Ripartizione equa spese tra più persone
-32. **Conti Personali FairShare** — Conto individuale per tracciare spese nel gruppo
-33. **Mercati Finanziari** — Monitoraggio real-time indici e asset globali
-34. **Monitor Utenze** — Consumi di luce, gas e acqua sotto controllo
-35. **Confronto Prezzi** — Ottimizza la spesa alimentare nel tempo
-36. **Analizzatore Semantico IA** — Analisi intelligente e confronto multi-documento
-37. **Webserver Remoto** — Consulta i dati da smartphone anche in remoto
-38. **Sistema di Backup Evoluto (PRG)** — Snapshot, backup incrementali e rollback integrato
+28. **Gestione Veicoli** — Scadenze bollo/assicurazione/revisione, consumi, costo al km, spese per veicolo
+29. **Gestione Studio** — Agenda, preventivi, fatturazione, magazzino
+30. **Gestione Associativa e Multiconto** — Associazione tra entità contabili e conti bancari
+31. **Ammortamento Mutui** — Rate, interessi reali, piani di ammortamento completi
+32. **Algoritmo FairShare** — Ripartizione equa spese tra più persone
+33. **Conti Personali FairShare** — Conto individuale per tracciare spese nel gruppo
+34. **Mercati Finanziari** — Monitoraggio real-time indici e asset globali
+35. **Monitor Utenze** — Consumi di luce, gas e acqua sotto controllo
+36. **Confronto Prezzi** — Ottimizza la spesa alimentare nel tempo
+37. **Analizzatore Semantico IA** — Analisi intelligente e confronto multi-documento
+38. **Webserver Remoto** — Consulta i dati da smartphone anche in remoto
+39. **Sistema di Backup Evoluto (PRG)** — Snapshot, backup incrementali e rollback integrato
 
 ---
 
 ## ⚫ Specialistiche e comfort
 > Fanno la differenza nel lungo periodo, non nell'onboarding
 
-39. **Archivio Documenti Personali** — Documenti sempre a portata di mano
-40. **Modulo Dieta** — Pasti, macronutrienti, peso e grafico BMI
-41. **Rubrica Vcard/Android** — Esporta/importa contatti dallo smartphone
-42. **Retention Automatica** — Rimuove automaticamente i dati più vecchi
-43. **Tasti Shortcut Personali** — Funzioni rapide con combinazioni di tasti
-44. **Temi Personalizzabili** — Interfaccia adattata al proprio stile
-45. **Smart Info Point** — Popup rapido sui movimenti al passaggio del mouse
-46. **Carosello Grafici** — Tour automatico degli andamenti all'avvio
-47. **Auto-Iconizza** — Riduzione a icona per inattività
-48. **Notifiche Auto-chiudenti** — Avvisi che scompaiono dopo tempo prestabilito
-49. **Aggiornamento Librerie Python** — Manutenzione automatica delle dipendenze
+40. **Archivio Documenti Personali** — Documenti sempre a portata di mano
+41. **Modulo Dieta** — Pasti, macronutrienti, peso e grafico BMI
+42. **Rubrica Vcard/Android** — Esporta/importa contatti dallo smartphone
+43. **Retention Automatica** — Rimuove automaticamente i dati più vecchi
+44. **Tasti Shortcut Personali** — Funzioni rapide con combinazioni di tasti
+45. **Temi Personalizzabili** — Interfaccia adattata al proprio stile
+46. **Smart Info Point** — Popup rapido sui movimenti al passaggio del mouse
+47. **Carosello Grafici** — Tour automatico degli andamenti all'avvio
+48. **Auto-Iconizza** — Riduzione a icona per inattività
+49. **Notifiche Auto-chiudenti** — Avvisi che scompaiono dopo tempo prestabilito
+50. **Aggiornamento Librerie Python** — Manutenzione automatica delle dipendenze
 
        
 ### 📺 [Guarda il Video](https://github.com/Renato-4132/OrbitaCasa/raw/main/OrbitaCasa.mp4)
