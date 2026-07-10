@@ -296,7 +296,7 @@ def _veicoli_crea_tab(self, nb, v, db, win):
         background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2"
     )
     btn_salva_scad.image = img_save_scad
-    btn_salva_scad.grid(row=0, column=9, padx=8, pady=4, sticky="e")
+    btn_salva_scad.grid(row=1, column=0, columnspan=10, padx=8, pady=(2, 6), sticky="e")
     btn_salva_scad.bind("<Button-1>", lambda e: _salva_scadenze())
 
     riga2_lf = tk.Frame(stato_lf, bg=self.COLOR_WIDGET_BG)
