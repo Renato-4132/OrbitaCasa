@@ -522,6 +522,10 @@ def _forza_check_thread(self):
             sha_locale = _boot_git_blob_sha1(NOME_FILE) if os.path.exists(NOME_FILE) else None
             if sha_locale == sha_remoto:
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] Software allineato all'ultimo commit (hash identico).")
+                self.after(0, lambda: self.show_custom_warning(
+                    "Controllo Manuale",
+                    "Nessun nuovo aggiornamento software disponibile."
+                ))
                 return
             sha_diversi = True
         except Exception as e:
@@ -567,9 +571,9 @@ def _forza_check_thread(self):
         local_time = datetime.fromtimestamp(
             os.path.getmtime(NOME_FILE), timezone.utc
         ).replace(microsecond=0)
-        if sha_diversi or remote_time.date() > local_time.date():   # <-- SHA ha priorità sulla data
+        if sha_diversi or remote_time.date() > local_time.date():
             self.after(0, lambda rt=remote_time, lt=local_time, ct=changelog_text:
-               self._mostra_popup_aggiornamento(rt, lt, ct))
+               self._mostra_popup_forza_aggiornamento(rt, lt, ct)
         else:
             self.after(0, lambda: self.show_custom_warning(
                 "Controllo Manuale",
