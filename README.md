@@ -44,7 +44,7 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 
 ---
 
-## 🟠 Inserimento manuale o Automatico
+## 🟠 Inserimento Manuale o Automatico
 
 1. **Importazione Estratti** — PDF e CSV da banca, stipendi, spese — il punto di ingresso di tutto
 2. **Sincronizzazione Gmail** — Fatture scaricate e archiviate in automatico dall'email
