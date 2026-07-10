@@ -374,6 +374,7 @@ def apri_schedulatore(self):
                     corpo = self._genera_testo_ricorrenti_mancanti()
                 elif tipo == "scadenze_veicoli":
                     corpo = self._genera_testo_scadenze_veicoli()
+                inviata = False
                 if corpo and EMAIL_USER and APP_PASSWORD:
                     import threading
                     threading.Thread(
@@ -381,10 +382,14 @@ def apri_schedulatore(self):
                         args=(nome, corpo, dest),
                         daemon=True
                     ).start()
+                    inviata = True
                 tasks[idx]["ultima_esecuzione"] = datetime.date.today().strftime("%d/%m/%Y")
                 _salva(tasks)
                 self.after(0, _aggiorna_tree)
-                self.after(0, lambda: self.show_toast(f"Email Inviata Ora: {nome}", duration=3000))
+                if inviata:
+                    self.after(0, lambda: self.show_toast(f"Email Inviata Ora: {nome}", duration=3000))
+                else:
+                    self.after(0, lambda: self.show_toast(f"Nessuna scadenza da segnalare: email non inviata ({nome})", duration=3500))
             except Exception as ex:
                 print(f"[SCHEDULER] Errore invio manuale: {ex}")
         import threading
@@ -654,37 +659,34 @@ def _genera_testo_scadenze_veicoli(self, soglia_giorni=30):
                 in_scadenza.append((nome, etichetta, data_str, giorni))
     scadute.sort(key=lambda x: x[3])
     in_scadenza.sort(key=lambda x: x[3])
+    if not scadute and not in_scadenza:
+        return ""
     lines = []
     lines.append("")
     testo_centrato = "SCADENZE VEICOLI".center(28)
     lines.append(f"{testo_centrato}")
     lines.append("─" * 31)
     lines.append("")
-    if not scadute and not in_scadenza:
-        lines.append("🟩 Tutto sotto controllo!")
-        lines.append(f"Nessuna scadenza (bollo/assicurazione/revisione) nei")
-        lines.append(f"prossimi {soglia_giorni} giorni.")
-    else:
-        if scadute:
-            lines.append("🔴 SCADUTE")
-            lines.append("─" * 31)
-            lines.append("")
-            for nome, etichetta, data_str, giorni in scadute:
-                lines.append(f"    🚗 {nome} — {etichetta}")
-                lines.append(f"       Scaduta da {abs(giorni)} gg ({data_str})")
-            lines.append("")
-        if in_scadenza:
-            lines.append("🟡 IN SCADENZA")
-            lines.append("─" * 31)
-            lines.append("")
-            for nome, etichetta, data_str, giorni in in_scadenza:
-                testo_gg = "Scade OGGI" if giorni == 0 else f"tra {giorni} gg"
-                lines.append(f"    🚗 {nome} — {etichetta}")
-                lines.append(f"       {testo_gg} ({data_str})")
-            lines.append("")
-        lines.append("┈" * 30)
-        lines.append("Controlla la sezione Veicoli su OrbitaCasa per i dettagli")
-        lines.append("e per rinnovare le scadenze in tempo.")
+    if scadute:
+        lines.append("🔴 SCADUTE")
+        lines.append("─" * 31)
+        lines.append("")
+        for nome, etichetta, data_str, giorni in scadute:
+            lines.append(f"    🚗 {nome} — {etichetta}")
+            lines.append(f"       Scaduta da {abs(giorni)} gg ({data_str})")
+        lines.append("")
+    if in_scadenza:
+        lines.append("🟡 IN SCADENZA")
+        lines.append("─" * 31)
+        lines.append("")
+        for nome, etichetta, data_str, giorni in in_scadenza:
+            testo_gg = "Scade OGGI" if giorni == 0 else f"tra {giorni} gg"
+            lines.append(f"    🚗 {nome} — {etichetta}")
+            lines.append(f"       {testo_gg} ({data_str})")
+        lines.append("")
+    lines.append("┈" * 30)
+    lines.append("Controlla la sezione Veicoli su OrbitaCasa per i dettagli")
+    lines.append("e per rinnovare le scadenze in tempo.")
     lines.append("")
     lines.append(f"📊 Report generato il {data_oggi}.")
     return "\n".join(lines)
