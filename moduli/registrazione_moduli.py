@@ -43,6 +43,14 @@ def registra_tutti_i_moduli(GestioneSpese):
     from moduli.utenze import utenze
     _registra(utenze)
 
+    from moduli.veicoli import (
+        _veicoli_carica, _veicoli_salva, _veicoli_giorni_a_scadenza, _veicoli_colore_giorni, _veicoli_testo_scadenza,
+        _veicoli_costo_al_km, _veicoli_consumo_medio, veicoli, _veicoli_crea_tab, _veicoli_nuovo, _veicoli_elimina,
+        _veicoli_grafici, _veicoli_estratto, _veicoli_estratto_totale,)
+    _registra(_veicoli_carica, _veicoli_salva, _veicoli_giorni_a_scadenza, _veicoli_colore_giorni, _veicoli_testo_scadenza,
+    _veicoli_costo_al_km, _veicoli_consumo_medio, veicoli, _veicoli_crea_tab, _veicoli_nuovo, _veicoli_elimina,
+    _veicoli_grafici, _veicoli_estratto, _veicoli_estratto_totale)
+    
     from moduli.immobil import (
         _immobil_carica, _immobil_salva, immobil, _immobil_crea_tab, _immobil_nuovo, _immobil_elimina, _immobil_grafici,
         _immobil_estratto, _immobil_estratto_totale,)

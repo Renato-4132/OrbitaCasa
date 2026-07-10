@@ -66,6 +66,7 @@ def mostra_piramide(self):
                             ("Analisi IA",     "Gemini bilancio",       getattr(self, "analizza_andamento_ia", None)),
                             ("Ricorrenze",     "Scadenze, notifiche",   getattr(self, "mostra_lista_ricorrenze", None)),
                             ("Immobili",       "Gestione Immobili",     getattr(self, "immobil", None)),
+                            ("Veicoli",        "Scadenze e consumi",    getattr(self, "veicoli", None)),
                     ],
             },
     ]
@@ -166,7 +167,7 @@ def mostra_piramide(self):
                     canvas.tag_bind(hit, "<Button-1>", on_click)
             y += CARD_H + GAP_Y
     canvas.create_text(CANVAS_W // 2, total_h - 18,
-                       text="6 livelli  ·  25 moduli e tool  ·  Python · Tkinter · Flask · Gemini AI",
+                       text="6 livelli  ·  26 moduli e tool  ·  Python · Tkinter · Flask · Gemini AI",
                        font=("Arial", 8), fill="#BBBBBB", anchor="center")
     btn_chiudi = tk.Label(win, compound="left", image=self.icone_gui.get("chiudi"), text=" Chiudi", background=bg, foreground=fg_title, cursor="hand2", padx=15, pady=6, font=("Arial", 9, "bold"))
     btn_chiudi.pack(side=tk.BOTTOM, pady=10)

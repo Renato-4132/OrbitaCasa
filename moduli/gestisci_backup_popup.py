@@ -38,6 +38,7 @@ def gestisci_backup_popup(self):
     STUDIO_CASSA = _app.STUDIO_CASSA
     STUDIO_MAGAZZINO = _app.STUDIO_MAGAZZINO
     IMMOBIL_FILE = _app.IMMOBIL_FILE
+    VEICOLI_FILE = _app.VEICOLI_FILE
     FR_FILE = _app.FR_FILE
     PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
     SCHEDULE_FILE = _app.SCHEDULE_FILE
@@ -79,6 +80,7 @@ def gestisci_backup_popup(self):
         "studio_cassa.json":              "Studio Cassa",
         "studio_magazzino.json":          "Studio Magazzino",
         "immobil.json":                   "Immobili",
+        "veicoli.json":                   "Veicoli",
         "fondo_risparmio.json":           "Fondo Risparmio",
         "schedule.json":                  "Schedulatore",
         "tags_db.json":                   "Tag",
@@ -284,7 +286,7 @@ def gestisci_backup_popup(self):
                 CUSTOM_FILE, PESO_FILE, FABB_FILE, PEDOMETRO_FILE, STUDIO_CLIENTI,
                 STUDIO_APPUNTAMENTI, STUDIO_PRESTAZIONI, STUDIO_FATTURE, STUDIO_EMITTENTE,
                 STUDIO_CASSA, STUDIO_MAGAZZINO, IMMOBIL_FILE, FR_FILE, PORTAFOGLIO_BANCARIO,
-                SCHEDULE_FILE, TAGS_DB
+                SCHEDULE_FILE, TAGS_DB, VEICOLI_FILE
             ]
             for s in selezione:
                 nome_bak = tree.set(s, "File")

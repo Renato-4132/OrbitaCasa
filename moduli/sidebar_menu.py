@@ -154,6 +154,7 @@ def pop_gestione(self):
     self._add_m_item(m, "Gestione Documenti Personali", "documenti", self.gestisci_documenti_personali)
     self._add_m_item(m, "Gestione Utenze", "mobile", self.utenze, "Ctrl+U") 
     self._add_m_item(m, "ImmoBil — Gestione Immobili", "home", self.immobil)
+    self._add_m_item(m, "Veicoli", "veicoli", self.veicoli)
     m.add_separator() 
     self._add_m_item(m, "Sincronizza Acquisti Email (Gmail)", "sync", self.avvia_sincronizzazione) 
     self._add_m_item(m, "Importa Documento AI (Gemini)", "documenti", self.apri_finestra_importa)
@@ -331,6 +332,7 @@ def _filtra_sidebar(self, *_):
         ("Gestione Documenti Personali",          self.gestisci_documenti_personali),
         ("Gestione Utenze",                       self.utenze),
         ("ImmoBil — Gestione Immobili",           self.immobil),
+        ("Veicoli",                               self.veicoli),
         ("Sincronizza Acquisti Email",            self.avvia_sincronizzazione),
         ("Importa Documento AI",                  self.apri_finestra_importa),
         ("Log Importazioni",                      self.mostra_log_importazioni),

@@ -102,7 +102,8 @@ def carica_costanti(path_locale):
     g['API_KEY'] = ""
     g['LOG_IMPORTAZIONI'] = os.path.join(DB_DIR, "log_importazioni.txt")
     g['DOC_PERS_DIR'] = os.path.join(DB_DIR, "documenti_personali")
-
+    g['VEICOLI_FILE'] = os.path.join(DB_DIR, "veicoli.json")
+    
     g['CAT_DEFAULT'] = [
         "Atto Notarile", "Altro", "Assicurazione", "Carta d'Identità",
         "Certificato", "Codice Fiscale", "Contratto", "Curriculum",
@@ -119,7 +120,7 @@ def carica_costanti(path_locale):
     g['WARN_TIMEOUT'] = 20000                       # Timeout Messaggi Popup (ms)
     g['USE_WAIT_WINDOW'] = False                    # Timeout chiusura self.show_custom_warning
     g['TOLL'] = 15                                  # Tolleranza Movimenti simili (SmartCat) - Euro
-    g['VERSION'] = "2.2.6"
+    g['VERSION'] = "2.2.7"
     g['ICONIZZA_INATTIVITA'] = True                 # Attiva/disattiva Timer Minimizza
     g['TIMEOUT_INATTIVITA_MS'] = 1200000            # 20 minuti in ms - Timer Minimizza
     g['ANNI_DA_MANTENERE'] = 10                     # Anni conservati nel db
@@ -234,6 +235,7 @@ def carica_costanti(path_locale):
         ("lavoro_B", ("1f4bc", "💼")),
         ("occhio_B", ("1f441", "👁️")),
         ("spina_B", ("1f50c", "🔌")),
+        ("veicoli", ("1f697", "🚗")),
         ("iconizza", ("2796", "🗗")),
         ("tag", ("1f3f7", "🏷️")),
         ("report", ("1f4ca", "📊")),

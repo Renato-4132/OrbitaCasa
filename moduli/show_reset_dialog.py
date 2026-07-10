@@ -46,6 +46,7 @@ def _elenco_file_variabili(_app):
         ("Studio - Cassa",                    "Registro di cassa dello Studio (studio_cassa.json)", "STUDIO_CASSA", False),
         ("Studio - Magazzino",                "Inventario magazzino dello Studio (studio_magazzino.json)", "STUDIO_MAGAZZINO", False),
         ("Immobili",                          "Elenco immobili gestiti (immobil.json)", "IMMOBIL_FILE", False),
+        ("Veicoli",                            "Veicoli, scadenze e registro movimenti (veicoli.json)", "VEICOLI_FILE", False),
         ("Schedulatore Email",                "Regole dello schedulatore email (schedule.json)", "SCHEDULE_FILE", False),
         ("Password di Accesso",               "Password impostata per l'accesso all'app (password.json)", "PW_FILE", False),
         ("Configurazione Generale",           "⚠ Tema, soglie e opzioni dell'app, incluse le impostazioni di rete (config.json)", "CONFIG_FILE", False),
