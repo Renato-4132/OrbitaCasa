@@ -44,8 +44,7 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 
 ---
 
-## 🟠 Carburante — eliminare l'inserimento manuale
-> Questo è il motivo per cui l'utente installa o abbandona il software
+## 🟠 Inserimento manuale o Automatico
 
 1. **Importazione Estratti** — PDF e CSV da banca, stipendi, spese — il punto di ingresso di tutto
 2. **Sincronizzazione Gmail** — Fatture scaricate e archiviate in automatico dall'email
@@ -57,7 +56,6 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 ---
 
 ## 🟢 Fondamenta operative
-> Senza questi non esiste un software di finanza personale
 
 7. **Saldo Bancario** — Riconciliazione immediata — quanto ho davvero sul conto
 8. **Calendario Heartbeat** — Vista globale degli impegni finanziari nel tempo
@@ -73,7 +71,6 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 ---
 
 ## 🔵 Analisi e controllo
-> Il valore che l'utente vede ogni giorno dopo aver caricato i dati
 
 17. **Grafici Drill-Down** — Analisi visiva profonda — dove vanno davvero i soldi
 18. **Aggregazione Categorie** — Spese raggruppate per aree tematiche
@@ -89,7 +86,6 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 ---
 
 ## 🟡 Strumenti avanzati
-> Per chi ha esigenze specifiche — immobili, studio, mutuo, convivenza
 
 27. **Gestione Immobili** — Entrate/uscite per immobile, estratto conto, riepilogo
 28. **Gestione Veicoli** — Scadenze bollo/assicurazione/revisione, consumi, costo al km, spese per veicolo
@@ -108,7 +104,6 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 ---
 
 ## ⚫ Specialistiche e comfort
-> Fanno la differenza nel lungo periodo, non nell'onboarding
 
 40. **Archivio Documenti Personali** — Documenti sempre a portata di mano
 41. **Modulo Dieta** — Pasti, macronutrienti, peso e grafico BMI
