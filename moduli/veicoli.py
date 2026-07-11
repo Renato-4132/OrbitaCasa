@@ -198,9 +198,19 @@ def _veicoli_crea_tab(self, nb, v, db, win):
     righe_campi = [
         [("Nome/Targa", "nome", 16), ("Modello", "modello", 22), ("Targa", "targa", 12)],
         [("Km Iniziale", "km_iniziale", 10), ("Km Attuali", "km_attuali", 10), ("Data Immatricolazione", "data_immatricolazione", 12)],
-        [("Prossimo Tagliando (km)", "prossimo_tagliando_km", 10), ("Note", "note", 40)],
+        [("Prossimo Tagliando (km)", "prossimo_tagliando_km", 10), ("Note", "note", 40), ("Conto Bancario", "conto_bancario", 20)],
     ]
     vars_ana = {}
+    widgets_combo_ana = {}
+    import __main__ as _app
+    PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
+    conti_disponibili = ["(nessuno)"]
+    try:
+        with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as f:
+            _db_p = json.load(f)
+        conti_disponibili += [c.get("nome", "") for c in _db_p.get("conti", []) if c.get("nome")]
+    except Exception:
+        pass
     for r_idx, riga in enumerate(righe_campi):
         for col, (etichetta, chiave, w) in enumerate(riga):
             tk.Label(ana_lf, text=etichetta + ":", bg=self.COLOR_WIDGET_BG,
@@ -219,13 +229,23 @@ def _veicoli_crea_tab(self, nb, v, db, win):
                 btn_cal_imm.image = self.icone_gui.get("calendario")
                 btn_cal_imm.pack(side=tk.LEFT, padx=(4, 0))
                 btn_cal_imm.bind("<Button-1>", lambda e, ent=ent_imm, vv=vv: self.mostra_calendario_popup_semplice(ent, vv))
+            elif chiave == "conto_bancario":
+                if vv.get() not in conti_disponibili:
+                    vv.set("(nessuno)")
+                cb_conto = ttk.Combobox(ana_lf, textvariable=vv, values=conti_disponibili, width=w,
+                                         state="readonly", style="Border.TCombobox")
+                cb_conto.grid(row=r_idx, column=col * 2 + 1, sticky="ew", padx=(0, 8), pady=2)
+                widgets_combo_ana[chiave] = cb_conto
             else:
                 ttk.Entry(ana_lf, textvariable=vv, width=w, style="TEntry").grid(
                     row=r_idx, column=col * 2 + 1, sticky="ew", padx=(0, 8), pady=2)
 
     def _salva_ana():
         for chiave, var in vars_ana.items():
-            val = var.get().strip()
+            if chiave in widgets_combo_ana:
+                val = widgets_combo_ana[chiave].get().strip()
+            else:
+                val = var.get().strip()
             if chiave in ("km_iniziale", "km_attuali", "prossimo_tagliando_km"):
                 try:
                     v[chiave] = float(val.replace(",", "."))
@@ -638,6 +658,60 @@ def _veicoli_crea_tab(self, nb, v, db, win):
         self._veicoli_salva(db)
         _popola_tree()
 
+    def _esporta_in_spesedb():
+        fc = v_fcat.get()
+        movimenti_filtrati = [
+            m for m in v.get("movimenti", [])
+            if _match_f(m.get("data", ""))
+            and (fc == "Tutte" or m.get("categoria", "") == fc)
+        ]
+        tot = sum(float(m.get("importo", 0) or 0) for m in movimenti_filtrati)
+        if tot == 0:
+            self.show_toast("Nessuna spesa da esportare per il periodo selezionato.")
+            return
+        nome = v.get("nome", "Veicolo")
+        cat_export = "AutoPark"
+        if cat_export not in self.categorie:
+            self.categorie.append(cat_export)
+            self.aggiorna_combobox_categorie()
+        oggi = datetime.date.today()
+        if oggi not in self.spese:
+            self.spese[oggi] = []
+        self.spese[oggi].append((cat_export, f"Veicoli: {nome}", tot, "Uscita"))
+        nome_conto = widgets_combo_ana["conto_bancario"].get().strip() if "conto_bancario" in widgets_combo_ana else v.get("conto_bancario", "")
+        if nome_conto and nome_conto != "(nessuno)":
+            try:
+                with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as f:
+                    _db_p = json.load(f)
+                _conto = next((c for c in _db_p.get("conti", []) if c.get("nome") == nome_conto), None)
+                if _conto:
+                    _conto["saldo"] = round(float(_conto.get("saldo", 0)) - tot, 2)
+                    _ids = {t.get("id", "") for t in _db_p.get("trasferimenti", [])}
+                    _i = 1
+                    while f"t{_i}" in _ids:
+                        _i += 1
+                    _db_p.setdefault("trasferimenti", []).append({
+                        "id": f"t{_i}",
+                        "data": oggi.strftime("%d-%m-%Y"),
+                        "da": _conto["id"],
+                        "a": "__spese__",
+                        "importo": round(tot, 2),
+                        "note": f"{cat_export} – Veicoli: {nome}"
+                    })
+                    with open(PORTAFOGLIO_BANCARIO, "w", encoding="utf-8") as f:
+                        json.dump(_db_p, f, indent=2, ensure_ascii=False)
+                    if hasattr(self, '_saldo_refresh'):
+                        self._saldo_refresh()
+                    if hasattr(self, '_saldo_refresh_movimenti'):
+                        self._saldo_refresh_movimenti()
+                else:
+                    self.show_toast(f"Conto '{nome_conto}' non trovato nel Portafoglio Bancario.")
+            except Exception as e:
+                self.show_toast(f"Errore aggiornamento conto: {e}")
+        self.save_db()
+        self.refresh_gui()
+        self.show_toast(f"Spesa {nome} ({tot:.2f}€) esportata in SpesaDB.")
+
     img_add = self.icone_gui.get("aggiungi")
     btn_add = ttk.Label(btn_frame, compound="left", image=img_add,
                          text=" Aggiungi" if img_add else "➕ Aggiungi",
@@ -661,6 +735,21 @@ def _veicoli_crea_tab(self, nb, v, db, win):
     btn_delete.image = img_delete
     btn_delete.pack(side=tk.LEFT, padx=4)
     btn_delete.bind("<Button-1>", lambda e: _elimina_mov())
+
+    btn_frame2 = tk.Frame(form_lf, bg=self.COLOR_WIDGET_BG)
+    btn_frame2.grid(row=r + 1, column=0, columnspan=2, pady=(0, 8))
+    img_export = self.icone_gui.get("archivia")
+    btn_export = ttk.Label(
+        btn_frame2, compound="left", image=img_export,
+        text=" → SpesaDB" if img_export else "📤 → SpesaDB",
+        background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2"
+    )
+    btn_export.image = img_export
+    btn_export.pack(side=tk.LEFT, padx=4)
+    btn_export.bind("<Button-1>", lambda e: _esporta_in_spesedb())
+    tk.Label(btn_frame2, text="(esporta spesa periodo visualizzato)",
+             bg=self.COLOR_WIDGET_BG, fg=self.COLOR_TEXT,
+             font=("Arial", 8, "italic")).pack(side=tk.LEFT, padx=(4, 0))
 
     _popola_tree()
 
