@@ -43,7 +43,7 @@ def confronta_bollette_ia(self):
               font=("Segoe UI", 12, "bold")).pack(side="left")
     file_frame = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
     file_frame.pack(fill="x", padx=18, pady=(4, 0))
-    tk.Label(file_frame, text="Documenti caricati (PDF / immagini):",
+    tk.Label(file_frame, text="Documenti caricati (PDF / immagini) — trascinali qui:",
              bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
              font=("Segoe UI", 9, "bold")).pack(anchor="w")
     list_outer = tk.Frame(file_frame, bg=self.COLOR_TOPLEVEL)
@@ -61,6 +61,34 @@ def confronta_bollette_ia(self):
     listbox.pack(side="left", fill="x", expand=True)
     lb_scroll.config(command=listbox.yview)
     file_paths = []
+    ESTENSIONI_VALIDE = (".pdf", ".png", ".jpg", ".jpeg", ".webp")
+    def _aggiungi_path(p):
+        ext = os.path.splitext(p)[1].lower()
+        if ext not in ESTENSIONI_VALIDE:
+            self.show_toast(f"Formato non supportato: {os.path.basename(p)}")
+            return
+        if p not in file_paths:
+            file_paths.append(p)
+            listbox.insert("end", os.path.basename(p))
+    if getattr(_app, '_HAS_DND', False):
+        def _on_drop_bollette(event):
+            raw = event.data.strip()
+            if raw.startswith("{") and raw.endswith("}"):
+                raw = raw[1:-1]
+            paths = [p.strip("{}") for p in raw.split("} {") if p.strip()]
+            for p in paths:
+                _aggiungi_path(p)
+        def _on_drag_enter(event):
+            listbox.config(highlightbackground=self.COLOR_HIGHLIGHT, highlightthickness=2)
+        def _on_drag_leave(event):
+            listbox.config(highlightthickness=1)
+        try:
+            listbox.drop_target_register(_app._DND_FILES)
+            listbox.dnd_bind("<<Drop>>", _on_drop_bollette)
+            listbox.dnd_bind("<<DragEnter>>", _on_drag_enter)
+            listbox.dnd_bind("<<DragLeave>>", _on_drag_leave)
+        except Exception:
+            pass
     btn_row = tk.Frame(file_frame, bg=self.COLOR_TOPLEVEL)
     btn_row.pack(fill="x", pady=5)
     def aggiungi_file():
@@ -70,9 +98,7 @@ def confronta_bollette_ia(self):
                        ("PDF", "*.pdf"), ("Immagini", "*.png *.jpg *.jpeg *.webp")],
             parent=popup)
         for p in paths:
-            if p not in file_paths:
-                file_paths.append(p)
-                listbox.insert("end", os.path.basename(p))
+            _aggiungi_path(p)
     def rimuovi_file():
         sel = listbox.curselection()
         for i in reversed(sel):
@@ -156,9 +182,29 @@ def confronta_bollette_ia(self):
         if f:
             try:
                 import fitz
-                doc  = fitz.open()
-                page = doc.new_page(width=595, height=842)
-                page.insert_text((40, 40), t, fontname="cour", fontsize=10)
+                import textwrap
+                font_size   = 10
+                line_height = font_size * 1.3
+                margin      = 40
+                page_w, page_h = 595, 842
+                usable_w = page_w - 2 * margin
+                usable_h = page_h - 2 * margin
+                chars_per_line = max(1, int(usable_w / (font_size * 0.6)))
+                lines_per_page = max(1, int(usable_h / line_height))
+                righe = []
+                for paragrafo in t.split("\n"):
+                    if not paragrafo.strip():
+                        righe.append("")
+                        continue
+                    righe.extend(textwrap.wrap(paragrafo, width=chars_per_line) or [""])
+                doc = fitz.open()
+                for i in range(0, len(righe), lines_per_page):
+                    blocco = righe[i:i + lines_per_page]
+                    page = doc.new_page(width=page_w, height=page_h)
+                    y = margin
+                    for riga in blocco:
+                        page.insert_text((margin, y), riga, fontname="cour", fontsize=font_size)
+                        y += line_height
                 doc.save(f); doc.close()
                 self.show_toast("PDF salvato.")
             except Exception as e:
