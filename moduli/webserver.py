@@ -7427,6 +7427,7 @@ def cancella_voce_web(self, giorno_str, idx):
         data_obj = datetime.datetime.strptime(giorno_str, "%d-%m-%Y").date()
         if data_obj in self.spese:
             if 0 <= idx < len(self.spese[data_obj]):
+                _ordinale_dup = self._ordine_in_gruppo_chiave(data_obj, idx)
                 voce_rimossa = self.spese[data_obj].pop(idx)
                 if not self.spese[data_obj]:
                     del self.spese[data_obj]
@@ -7434,13 +7435,13 @@ def cancella_voce_web(self, giorno_str, idx):
                 try:
                     _imp_r = round(float(voce_rimossa[2]), 2)
                     _tipo_r = voce_rimossa[3]
-                    _nome_c = self._trova_conto_da_portafoglio(data_obj, _imp_r, _tipo_r)
+                    _nome_c = self._trova_conto_da_portafoglio(data_obj, _imp_r, _tipo_r, _ordinale_dup)
                     if _nome_c and _nome_c != "(nessuno)":
                         self._aggiorna_conto_portafoglio(
                             _nome_c,
                             _imp_r, _tipo_r,
                             None, None, None, None, None,
-                            data_old=data_obj
+                            data_old=data_obj, ordinale=_ordinale_dup
                         )
                 except Exception as _ex:
                     print(f"[cancella_voce_web] Errore pulizia portafoglio: {_ex}")

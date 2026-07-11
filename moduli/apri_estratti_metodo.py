@@ -65,7 +65,7 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
                 _imp_t  = round(float(_t.get("importo",0)), 2)
                 _tipo_t = "Entrata" if _t.get("da") in ("__spese__","Contabilità") else "Uscita"
                 _cnome  = _id_a_nome_em.get(_t.get("a") if _tipo_t=="Entrata" else _t.get("da"), "")
-                _agganci_em.setdefault((_data_t, _imp_t, _tipo_t), _cnome)
+                _agganci_em.setdefault((_data_t, _imp_t, _tipo_t), []).append(_cnome)
     except Exception:
         _conti_em = []
         _agganci_em = {}
@@ -244,6 +244,7 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
         tot_e = 0.0
         tot_u = 0.0
         righe = []
+        _uso_ordinale_em = {}
         for data_obj, voci in sorted(self.spese.items()):
             if periodo == "anno":
                 if str(data_obj.year) != var_anno.get():
@@ -278,7 +279,10 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
                 if simbolo and simbolo not in desc:
                     continue
                 _key_em = (data_obj.strftime("%d-%m-%Y"), round(importo, 2), tipo)
-                nome_conto_em = _agganci_em.get(_key_em, "")
+                _lista_c_em = _agganci_em.get(_key_em, [])
+                _ord_em = _uso_ordinale_em.get(_key_em, 0)
+                nome_conto_em = _lista_c_em[_ord_em] if _ord_em < len(_lista_c_em) else ""
+                _uso_ordinale_em[_key_em] = _ord_em + 1
                 if conto_f != "Tutti" and nome_conto_em != conto_f:
                     continue
                 data_str = data_obj.strftime("%d/%m/%Y")

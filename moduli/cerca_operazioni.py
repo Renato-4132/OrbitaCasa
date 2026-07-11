@@ -201,9 +201,10 @@ def cerca_operazioni(self):
                     _imp_t  = round(float(_t.get("importo",0)), 2)
                     _tipo_t = "Entrata" if _t.get("da") in ("__spese__","Contabilità") else "Uscita"
                     _cnome  = _id_a_nome_cerca.get(_t.get("a") if _tipo_t=="Entrata" else _t.get("da"), "")
-                    _agganci_cerca.setdefault((_data_t, _imp_t, _tipo_t), _cnome)
+                    _agganci_cerca.setdefault((_data_t, _imp_t, _tipo_t), []).append(_cnome)
         except Exception:
             _agganci_cerca = {}
+        _uso_ordinale_cerca = {}
         for data_key in sorted(self.spese.keys(), reverse=True):
             try:
                 d = data_key if isinstance(data_key, datetime.date) else datetime.datetime.strptime(data_key, "%d-%m-%Y").date()
@@ -224,7 +225,10 @@ def cerca_operazioni(self):
                               if any(f"{ico}{p['nome']}".lower() in descrizione
                                      for ico in ("👤", "⚖️", "⚖", "🏠"))), "")
                 _key_cerca = (d.strftime("%d-%m-%Y"), round(float(importo_voce), 2), str(voce[3]).capitalize())
-                nome_conto_cerca = _agganci_cerca.get(_key_cerca, "")
+                _lista_c_cerca = _agganci_cerca.get(_key_cerca, [])
+                _ord_cerca = _uso_ordinale_cerca.get(_key_cerca, 0)
+                nome_conto_cerca = _lista_c_cerca[_ord_cerca] if _ord_cerca < len(_lista_c_cerca) else ""
+                _uso_ordinale_cerca[_key_cerca] = _ord_cerca + 1
                 matches = True
                 if parola:
                     if not any(parola in str(campo).lower() for campo in [categoria, descrizione, tipo, str(importo_voce), nome_conto_cerca.lower()]):

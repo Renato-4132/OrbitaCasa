@@ -796,6 +796,7 @@ def open_saldo_conto(self):
                             _agganci.setdefault((_data_t, _imp_t, _tipo_t), []).append(_cnome)
                 except Exception:
                     _agganci = {}
+                _uso_ordinale_sc = {}
                 for d in sorted(self.spese.keys(), reverse=True):
                     if not self.considera_futuri_portafoglio_var.get() and d > datetime.date.today():
                         continue
@@ -810,7 +811,9 @@ def open_saldo_conto(self):
                         if cat_f != "Tutte" and cat != cat_f: continue
                         _key = (d.strftime("%d-%m-%Y"), round(imp, 2), tipo)
                         _lista_c = _agganci.get(_key, [])
-                        nome_conto_sp = _lista_c[0] if _lista_c else ""
+                        _ord_sc = _uso_ordinale_sc.get(_key, 0)
+                        nome_conto_sp = _lista_c[_ord_sc] if _ord_sc < len(_lista_c) else ""
+                        _uso_ordinale_sc[_key] = _ord_sc + 1
                         if conto_f == "(nessuno)" and nome_conto_sp: continue
                         if conto_f not in ("Tutti", "(nessuno)") and nome_conto_sp != conto_f: continue
                         oggi = datetime.date.today()

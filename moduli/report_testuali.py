@@ -61,7 +61,7 @@ def export_stats(self):
             _key_st = (giorno.strftime("%d-%m-%Y"), round(float(imp), 2), tipo)
             _lista_conti = _agganci_st.get(_key_st, [])
             _uso = _agganci_uso_st.get(_key_st, 0)
-            nome_conto = _lista_conti[_uso] if _uso < len(_lista_conti) else (_lista_conti[-1] if _lista_conti else "")
+            nome_conto = _lista_conti[_uso] if _uso < len(_lista_conti) else ""
             _agganci_uso_st[_key_st] = _uso + 1
             lines.append(f"{cat:<{label_width}.{label_width}} {desc:<{desc_width}.{desc_width}} {imp:>{value_width}.2f}  {tipo:<{tipo_width}} {nome_conto:<{conto_width}.{conto_width}}")
             if tipo == "Entrata":
@@ -121,7 +121,7 @@ def export_month_detail(self):
                 _key_st = (d.strftime("%d-%m-%Y"), round(importo_v, 2), tipo)
                 _lista_conti = _agganci_st.get(_key_st, [])
                 _uso = _agganci_uso_st.get(_key_st, 0)
-                nome_conto = _lista_conti[_uso] if _uso < len(_lista_conti) else (_lista_conti[-1] if _lista_conti else "")
+                nome_conto = _lista_conti[_uso] if _uso < len(_lista_conti) else ""
                 _agganci_uso_st[_key_st] = _uso + 1
                 tutti_movimenti.append((d, categoria, desc, tipo, importo_v, nome_conto))
                 if tipo == "Entrata":
