@@ -586,10 +586,14 @@ def _immobil_crea_tab(self, nb, imm, db, win):
         nome = imm.get("nome", "Immobile")
         tipo_mov = "Entrata" if saldo >= 0 else "Uscita"
         imp_mov  = abs(saldo)
+        cat_export = "ImmoBil"
+        if cat_export not in self.categorie:
+            self.categorie.append(cat_export)
+            self.aggiorna_combobox_categorie()
         oggi = datetime.date.today()
         if oggi not in self.spese:
             self.spese[oggi] = []
-        self.spese[oggi].append(("Casa", f"ImmoBil: {nome}", imp_mov, tipo_mov))
+        self.spese[oggi].append((cat_export, f"ImmoBil: {nome}", imp_mov, tipo_mov))
         self.save_db()
         self.refresh_gui()
         self.show_toast(f"Saldo {nome} ({tipo_mov} {imp_mov:.2f}€) esportato in SpesaDB.")
