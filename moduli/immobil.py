@@ -93,6 +93,7 @@ def immobil(self):
         for imm in db["immobili"]:
             self._immobil_crea_tab(nb, imm, db, win)
 def _immobil_crea_tab(self, nb, imm, db, win):
+    from __main__ import PORTAFOGLIO_BANCARIO
     tab = ttk.Frame(nb)
     nb.add(tab, text=f"  🏠 {imm.get('nome','Immobile')}  ")
     ana_lf = ttk.LabelFrame(tab, text="📋 Anagrafica", style="RedBold.TLabelframe")
@@ -124,6 +125,21 @@ def _immobil_crea_tab(self, nb, imm, db, win):
         vars_ana[chiave] = v
         ttk.Entry(ana_lf, textvariable=v, width=w, style="TEntry").grid(
             row=1, column=col*2+1, sticky="ew", padx=(0,8), pady=2)
+    try:
+        with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as _pf_imm:
+            _db_p_imm = json.load(_pf_imm)
+        _conti_imm = [c.get("nome", "") for c in _db_p_imm.get("conti", []) if c.get("nome")]
+    except Exception:
+        _conti_imm = []
+    tk.Label(ana_lf, text="Conto:", bg=self.COLOR_WIDGET_BG,
+             fg=self.COLOR_HEADER, font=("Arial", 9, "bold")).grid(
+        row=2, column=0, sticky="w", padx=(8,2), pady=2)
+    v_conto_imm = tk.StringVar(value=imm.get("conto", "(nessuno)"))
+    vars_ana["conto"] = v_conto_imm
+    cb_conto_imm = ttk.Combobox(ana_lf, textvariable=v_conto_imm,
+                                values=["(nessuno)"] + _conti_imm,
+                                state="readonly", style="Border.TCombobox", width=20)
+    cb_conto_imm.grid(row=2, column=1, sticky="ew", padx=(0,8), pady=2)
     def _salva_ana():
         for chiave, var in vars_ana.items():
             val = var.get().strip()
@@ -586,15 +602,22 @@ def _immobil_crea_tab(self, nb, imm, db, win):
         nome = imm.get("nome", "Immobile")
         tipo_mov = "Entrata" if saldo >= 0 else "Uscita"
         imp_mov  = abs(saldo)
-        cat_export = "ImmoBil"
-        if cat_export not in self.categorie:
-            self.categorie.append(cat_export)
-            self.aggiorna_combobox_categorie()
         oggi = datetime.date.today()
         if oggi not in self.spese:
             self.spese[oggi] = []
-        self.spese[oggi].append((cat_export, f"ImmoBil: {nome}", imp_mov, tipo_mov))
+        self.spese[oggi].append(("Casa", f"ImmoBil: {nome}", imp_mov, tipo_mov))
         self.save_db()
+        _nome_conto_imm = imm.get("conto", "")
+        if _nome_conto_imm and _nome_conto_imm != "(nessuno)":
+            try:
+                self._aggiorna_conto_portafoglio(
+                    _nome_conto_imm,
+                    None, None,
+                    imp_mov, tipo_mov, oggi, "Casa", f"ImmoBil: {nome}",
+                    data_old=None
+                )
+            except Exception as _ex:
+                self.show_toast(f"Errore aggiornamento conto: {_ex}")
         self.refresh_gui()
         self.show_toast(f"Saldo {nome} ({tipo_mov} {imp_mov:.2f}€) esportato in SpesaDB.")
     img_add = self.icone_gui.get("aggiungi")
