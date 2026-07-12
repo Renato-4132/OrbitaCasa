@@ -47,7 +47,7 @@ def apri_inserimento_rapido(self, event):
     popup.title(f"Inserimento Rapido")
     popup.transient(self)
     popup.resizable(False, False)
-    w, h = 400, 380
+    w, h = 400, 415
     x = self.winfo_rootx() + (self.winfo_width() // 2) - (w // 2)
     y = self.winfo_rooty() + (self.winfo_height() // 2) - (h // 2)
     popup.geometry(f"{w}x{h}+{x}+{y}")
@@ -169,11 +169,22 @@ def apri_inserimento_rapido(self, event):
     ttk.Label(frame, text="Descrizione:", font=("Arial", 9, "bold")).grid(row=6, column=0, sticky="w", pady=5)
     entry_desc_rapida = ttk.Entry(frame, textvariable=var_desc, width=27)
     entry_desc_rapida.grid(row=6, column=1, columnspan=2, sticky="w", pady=5)
+    riga_tag = 7
     if _conti_rap:
         ttk.Label(frame, text="Conto:", font=("Arial", 9, "bold")).grid(row=7, column=0, sticky="w", pady=5)
         ttk.Combobox(frame, textvariable=var_conto_rap,
                      values=["(nessuno)"] + _conti_rap,
                      state="readonly", style="Border.TCombobox", width=25).grid(row=7, column=1, columnspan=2, sticky="w", pady=5)
+        riga_tag = 8
+    var_tag_rapido = tk.StringVar()
+    lbl_hash_rapido = tk.Label(frame, text="#", cursor="hand2",
+                                background=self.COLOR_WIDGET_BG, font=("Arial", 12, "bold"))
+    lbl_hash_rapido.grid(row=riga_tag, column=0, sticky="w", pady=5)
+    lbl_hash_rapido.bind("<Button-1>", lambda e: self.apri_gestione_tag())
+    _vcmd_tag_rapido = (frame.register(lambda P: len(P) <= 40), "%P")
+    entry_tag_rapido = ttk.Entry(frame, textvariable=var_tag_rapido, width=27,
+                                  validate="key", validatecommand=_vcmd_tag_rapido)
+    entry_tag_rapido.grid(row=riga_tag, column=1, columnspan=2, sticky="w", pady=5)
     def aggiorna_tutto_desc(event=None):
         testo_puro = entry_desc_rapida.get().strip()
         simbolo_attuale = ""
@@ -247,6 +258,13 @@ def apri_inserimento_rapido(self, event):
         if data_sel not in self.spese:
             self.spese[data_sel] = []
         self.spese[data_sel].append((cat, desc_finale, imp, var_tipo.get()))
+        _tags_rapido = self._normalizza_tags(var_tag_rapido.get())
+        if _tags_rapido:
+            _tdb_rapido = self._carica_tags_db()
+            _tdb_rapido[self._chiave_tag(data_sel, cat, desc_finale, imp)] = _tags_rapido
+            self._salva_tags_db(_tdb_rapido)
+            if hasattr(self, '_cache_tutti_tag'):
+                del self._cache_tutti_tag
         self.save_db()
         _nome_c_rap = var_conto_rap.get()
         if _nome_c_rap and _nome_c_rap != "(nessuno)":
