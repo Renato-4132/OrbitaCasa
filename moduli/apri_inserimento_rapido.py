@@ -177,8 +177,7 @@ def apri_inserimento_rapido(self, event):
                      state="readonly", style="Border.TCombobox", width=25).grid(row=7, column=1, columnspan=2, sticky="w", pady=5)
         riga_tag = 8
     var_tag_rapido = tk.StringVar()
-    lbl_hash_rapido = tk.Label(frame, text="#", cursor="hand2",
-                                background=self.COLOR_WIDGET_BG, font=("Arial", 12, "bold"))
+    lbl_hash_rapido = ttk.Label(frame, text="Tag #:", font=("Arial", 9, "bold"), cursor="hand2")
     lbl_hash_rapido.grid(row=riga_tag, column=0, sticky="w", pady=5)
     lbl_hash_rapido.bind("<Button-1>", lambda e: self.apri_gestione_tag())
     _vcmd_tag_rapido = (frame.register(lambda P: len(P) <= 40), "%P")
