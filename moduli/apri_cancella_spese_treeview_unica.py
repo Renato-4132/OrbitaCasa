@@ -6,7 +6,7 @@ import json
 import datetime
 import tkinter as tk
 from tkinter import ttk
-from moduli.modello_spesa import campo, METODI_PAGAMENTO, METODI_PAGAMENTO_EMOJI
+from moduli.modello_spesa import campo, METODI_PAGAMENTO
 
 def apri_cancella_spese_treeview_unica(self):
     import __main__ as _app
@@ -24,7 +24,6 @@ def apri_cancella_spese_treeview_unica(self):
         "mese": "—",
         "da": "",
         "a": "",
-        "icona": "—",
         "conto": "—",
         "metodo": "—",
         "hashtag": ""
@@ -157,11 +156,10 @@ def apri_cancella_spese_treeview_unica(self):
             lista_voci = self.spese.get(giorno_obj, [])
             for indice, voce in enumerate(lista_voci): 
                 try:
-                    categoria, descrizione, importo = voce[0], voce[1], voce[2]
-                    tipo = voce[3].capitalize() if len(voce) > 3 else "N/A" 
-                    filtro_icona = filtri.get("icona")
-                    if filtro_icona not in ["", "—"] and filtro_icona.split(" ")[0] not in descrizione:
-                        continue
+                    categoria   = campo(voce, "categoria", "")
+                    descrizione = campo(voce, "descrizione", "")
+                    importo     = campo(voce, "importo", 0.0)
+                    tipo        = campo(voce, "tipo", "").capitalize() 
                     metodo_sp   = campo(voce, "metodo_pagamento", "")
                     ora_sp      = campo(voce, "ora", "")
                     hashtag_sp  = campo(voce, "hashtag", [])
@@ -266,7 +264,6 @@ def apri_cancella_spese_treeview_unica(self):
         mese_var = tk.StringVar(value=self.filtri_cancellazione.get("mese", "—"))
         da_var = tk.StringVar(value=self.filtri_cancellazione.get("da", ""))
         a_var = tk.StringVar(value=self.filtri_cancellazione.get("a", ""))
-        icona_var = tk.StringVar(value=self.filtri_cancellazione.get("icona", "—"))
         conto_var = tk.StringVar(value=self.filtri_cancellazione.get("conto", "—"))
         metodo_var = tk.StringVar(value=self.filtri_cancellazione.get("metodo", "—"))
         hashtag_var = tk.StringVar(value=self.filtri_cancellazione.get("hashtag", ""))
@@ -305,7 +302,6 @@ def apri_cancella_spese_treeview_unica(self):
         crea_riga("Tipo voce:", tipo_var, ["—", "Entrata", "Uscita"])
         crea_riga("Anno:", anno_var, anni)
         crea_riga("Mese:", mese_var, nomi_mesi_dropdown)
-        crea_riga("Pagamento:", icona_var, ["—"] + METODI_PAGAMENTO_EMOJI)
         crea_riga("Importo da (€):", da_var)
         crea_riga("Importo a (€):", a_var)
         crea_riga("Conto:", conto_var, conti_nomi)
@@ -327,7 +323,6 @@ def apri_cancella_spese_treeview_unica(self):
                 "mese": mese_var.get(),
                 "da": da_var.get(),
                 "a": a_var.get(),
-                "icona": icona_var.get(),
                 "conto": conto_var.get(),
                 "metodo": metodo_var.get(),
                 "hashtag": hashtag_var.get()
@@ -345,7 +340,6 @@ def apri_cancella_spese_treeview_unica(self):
             mese_var.set("—")
             da_var.set("")
             a_var.set("")
-            icona_var.set("—")
             conto_var.set("—")
             metodo_var.set("—")
             hashtag_var.set("")
@@ -358,7 +352,6 @@ def apri_cancella_spese_treeview_unica(self):
                 "mese": "—",
                 "da": "",
                 "a": "",
-                "icona": "—",
                 "conto": "—",
                 "metodo": "—",
                 "hashtag": ""
@@ -427,7 +420,6 @@ def apri_cancella_spese_treeview_unica(self):
                     "mese": "—",
                     "da": "",
                     "a": "",
-                    "icona": "—",
                     "conto": "—",
                     "metodo": "—",
                     "hashtag": ""
