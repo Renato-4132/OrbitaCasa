@@ -553,7 +553,7 @@ def cerca_operazioni(self):
                     self.show_custom_warning("Errore", f"❌ Salvataggio fallito:\n{e}")
         preview_popup = tk.Toplevel(finestra, bg=self.COLOR_TOPLEVEL)
         preview_popup.title("Anteprima Risultati Ricerca")
-        pw, ph = 1000, 500
+        pw, ph = 1300, 630
         px = (preview_popup.winfo_screenwidth()  - pw) // 2
         py = (preview_popup.winfo_screenheight() - ph) // 2
         preview_popup.geometry(f"{pw}x{ph}+{px}+{py}")
