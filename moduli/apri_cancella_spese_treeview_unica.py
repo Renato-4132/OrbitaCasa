@@ -244,9 +244,9 @@ def apri_cancella_spese_treeview_unica(self):
         filtro_win.grab_set()
         filtro_win.bind("<Escape>", lambda e: filtro_win.destroy())
         nomi_p = ["—"] + [
-                   f"❍ {p['nome']}" if p.get("tipo") == "contenitore" else
+                   f"🏠 {p['nome']}" if p.get("tipo") == "contenitore" else
                    f"⚖️ {p['nome']}" if p.get("tipo") == "personale" else
-                   f"✽ {p['nome']}"
+                   f"👤 {p['nome']}"
                    for p in sorted(self.nomi_partecipanti, key=lambda p: (p.get("nome", "") if isinstance(p, dict) else p).lower())
         ]
         p_salvato = self.filtri_cancellazione.get("partecipante", "—")
@@ -281,9 +281,9 @@ def apri_cancella_spese_treeview_unica(self):
             else:
                 ttk.Entry(f, textvariable=var, width=22).pack(side="left")
         nomi_p = ["—"] + [
-           f"❍ {p['nome']}" if p.get("tipo") == "contenitore" else
+           f"🏠 {p['nome']}" if p.get("tipo") == "contenitore" else
            f"⚖️ {p['nome']}" if p.get("tipo") == "personale" else
-           f"✽ {p['nome']}"
+           f"👤 {p['nome']}"
            for p in sorted(self.nomi_partecipanti, key=lambda p: (p.get("nome", "") if isinstance(p, dict) else p).lower())
         ]
         tutte_cat = ["—"] + sorted(list(self.categorie_tipi.keys()))

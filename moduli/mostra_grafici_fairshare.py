@@ -42,7 +42,7 @@ def mostra_grafici_fairshare(self, anno_sel="Tutti", mese_sel="Tutti"):
     if self._gestore_partecipa() and _gestore not in nomi_p_raw:
         nomi_p_raw[_gestore] = "persona"
     def _ico_g(nome):
-        return "❍" if nomi_p_raw.get(nome) == "contenitore" else "✽"
+        return "🏠" if nomi_p_raw.get(nome) == "contenitore" else "👤"
     nomi_p = sorted([f"{_ico_g(n)} {n}" for n in nomi_p_raw], key=lambda x: x[2:].lower())
     toolbar = tk.Frame(popup, bg=bg)
     toolbar.pack(fill=tk.X, padx=10, pady=(8, 0))

@@ -13,7 +13,7 @@ def cerca_operazioni(self):
     PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
     EXPORT_FILES         = _app.EXPORT_FILES
     self.mostra_treeview_statistiche()
-    larghezza, altezza = 1200, 600
+    larghezza, altezza = 1300, 600
     x = self.winfo_screenwidth() // 2 - larghezza // 2
     y = self.winfo_screenheight() // 2 - altezza // 2
     finestra = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
@@ -261,7 +261,7 @@ def cerca_operazioni(self):
                             matches = False
                     if filtri.get("partecipanti") not in ["", "—"]:
                         nome_filtro = filtri["partecipanti"]
-                        for prefisso in ("⚖️ ", "⚖ ", "❍ ", "✽ "):
+                        for prefisso in ("⚖️ ", "⚖ ", "🏠 ", "👤 "):
                             if nome_filtro.startswith(prefisso):
                                 nome_filtro = nome_filtro[len(prefisso):]
                                 break
@@ -424,8 +424,8 @@ def cerca_operazioni(self):
                      "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
         lista_partecipanti = ["—"] + [
             f"⚖️ {p['nome']}" if p.get("tipo") == "personale" else
-            f"❍ {p['nome']}" if p.get("tipo") == "contenitore" else
-            f"✽ {p['nome']}"
+            f"🏠 {p['nome']}" if p.get("tipo") == "contenitore" else
+            f"👤 {p['nome']}"
             for p in sorted(self.nomi_partecipanti, key=lambda p: p["nome"].lower())
         ] if hasattr(self, "nomi_partecipanti") and self.nomi_partecipanti else ["—"]
         try:
@@ -493,9 +493,8 @@ def cerca_operazioni(self):
                 conto    = values[5] if len(values) > 5 else ""
                 ora      = values[6] if len(values) > 6 else ""
                 hashtag  = values[7] if len(values) > 7 else ""
-                metodo   = values[8] if len(values) > 8 else ""
                 importo_float = converti_importo(importo_str)
-                dati_tree.append((data, cat, desc, tipo, importo_float, conto, ora, hashtag, metodo))
+                dati_tree.append((data, cat, desc, tipo, importo_float, conto, ora, hashtag))
                 if tipo == "Entrata":
                     tot_entrate += importo_float
                 elif tipo == "Uscita":
@@ -503,11 +502,11 @@ def cerca_operazioni(self):
         if not dati_tree:
             self.show_custom_warning("Esportazione", "⚠️ Nessun risultato trovato da salvare o stampare.")
             return
-        W_DATA, W_CAT, W_DESC, W_TIPO, W_IMP, W_CNT, W_ORA, W_TAG, W_MET = 10, 18, 24, 8, 13, 12, 6, 16, 12
+        W_DATA, W_CAT, W_DESC, W_TIPO, W_IMP, W_CNT, W_ORA, W_TAG = 10, 18, 24, 8, 13, 12, 6, 16
         header    = (f"{'Data':<{W_DATA}} │ {'Categoria':<{W_CAT}} │ {'Descrizione':<{W_DESC}} │ {'Tipo':<{W_TIPO}} │ "
-                     f"{'Importo (EUR)':>{W_IMP}} │ {'Conto':<{W_CNT}} │ {'Ora':<{W_ORA}} │ {'Hashtag':<{W_TAG}} │ {'Metodo':<{W_MET}}\n")
+                     f"{'Importo (€)':>{W_IMP}} │ {'Conto':<{W_CNT}} │ {'Ora':<{W_ORA}} │ {'Hashtag':<{W_TAG}}\n")
         separator = (f"{'─'*W_DATA}─┼─{'─'*W_CAT}─┼─{'─'*W_DESC}─┼─{'─'*W_TIPO}─┼─{'─'*W_IMP}─┼─"
-                     f"{'─'*W_CNT}─┼─{'─'*W_ORA}─┼─{'─'*W_TAG}─┼─{'─'*W_MET}\n")
+                     f"{'─'*W_CNT}─┼─{'─'*W_ORA}─┼─{'─'*W_TAG}\n")
         testo_filtri_attivi = lbl_risultati.cget("text").split("| Filtri:")[1].strip() if "| Filtri:" in lbl_risultati.cget("text") else "Nessuno"
         netto = tot_entrate - tot_uscite
         contenuto_preview  = f"─── RISULTATI RICERCA ({datetime.date.today():%d/%m/%Y}) ───────────────────────────────────────────────\n"
@@ -519,19 +518,78 @@ def cerca_operazioni(self):
         contenuto_preview += f" • Saldo Netto:    {formatta_italiano(netto)} €\n\n"
         contenuto_preview += "─── DETTAGLIO OPERAZIONI ────────────────────────────────────────────────────────────────────────────\n"
         contenuto_preview += header + separator
-        for data, cat, desc, tipo, importo_float, conto, ora, hashtag, metodo in dati_tree:
+        for data, cat, desc, tipo, importo_float, conto, ora, hashtag in dati_tree:
+            desc_troncata = (desc[:W_DESC-3] + '...') if len(desc) > W_DESC else desc
             cat_troncata  = (cat[:W_CAT-3]  + '...') if len(cat)  > W_CAT  else cat
             cnt_troncato  = (conto[:W_CNT-3] + '...') if len(conto) > W_CNT else conto
             tag_troncato  = (hashtag[:W_TAG-3] + '...') if len(hashtag) > W_TAG else hashtag
-            met_troncato  = (metodo[:W_MET-3] + '...') if len(metodo) > W_MET else metodo
-            desc_troncata = (desc[:W_DESC-3] + '...') if len(desc) > W_DESC else desc
             contenuto_preview += (f"{data:<{W_DATA}} │ {cat_troncata:<{W_CAT}} │ "
                           f"{desc_troncata:<{W_DESC}} │ {tipo:<{W_TIPO}} │ "
                           f"{formatta_italiano(importo_float):>{W_IMP}} │ {cnt_troncato:<{W_CNT}} │ "
-                          f"{ora:<{W_ORA}} │ {tag_troncato:<{W_TAG}} │ {met_troncato:<{W_MET}}\n")
+                          f"{ora:<{W_ORA}} │ {tag_troncato:<{W_TAG}}\n")
         contenuto_preview += "\n" + separator
-        nome_file = f"Risultati_Ricerca_{datetime.date.today():%d_%m_%Y}.txt"
-        self.show_export_preview(contenuto_preview, nome_file)
+        def _salva_su_file(content_text, preview_popup):
+            preview_popup.destroy()
+            nome_file = f"Risultati_Ricerca_{datetime.date.today():%d_%m_%Y}.txt"
+            file = filedialog.asksaveasfilename(
+                defaultextension=".txt",
+                filetypes=[("File di testo", "*.txt")],
+                initialdir=EXPORT_FILES,
+                initialfile=nome_file,
+                title="Salva risultati ricerca",
+                confirmoverwrite=False,
+                parent=finestra
+            )
+            if file:
+                if os.path.exists(file):
+                    if not self.show_custom_askyesno("Sovrascrivere file?",
+                            f"Il file '{os.path.basename(file)}' esiste già. Vuoi sovrascriverlo?"):
+                        return
+                try:
+                    with open(file, "w", encoding="utf-8") as f:
+                        f.write(content_text)
+                    self.show_custom_warning("Esportazione completata", f"✓ Risultati salvati:\n{file}")
+                except Exception as e:
+                    self.show_custom_warning("Errore", f"❌ Salvataggio fallito:\n{e}")
+        preview_popup = tk.Toplevel(finestra, bg=self.COLOR_TOPLEVEL)
+        preview_popup.title("Anteprima Risultati Ricerca")
+        pw, ph = 1300, 630
+        px = (preview_popup.winfo_screenwidth()  - pw) // 2
+        py = (preview_popup.winfo_screenheight() - ph) // 2
+        preview_popup.geometry(f"{pw}x{ph}+{px}+{py}")
+        preview_popup.minsize(pw, ph)
+        preview_popup.transient(finestra)
+        preview_popup.update_idletasks()
+        preview_popup.grab_set()
+        preview_popup.bind('<Escape>', lambda e: preview_popup.destroy())
+        text_area = tk.Text(preview_popup, wrap='word', font=('Courier', 10), padx=10, pady=10)
+        text_area.insert('1.0', contenuto_preview)
+        text_area.config(state='disabled')
+        text_area.pack(fill='both', expand=True, padx=10, pady=10)
+        frame_btn = tk.Frame(preview_popup, bg=self.COLOR_TOPLEVEL)
+        frame_btn.pack(pady=(0, 10))
+        img_chiudi_ant = self.icone_gui.get("chiudi")
+        btn_chiudi_ant = ttk.Label(frame_btn, compound="left", image=img_chiudi_ant,
+                                   text=" Chiudi" if img_chiudi_ant else "Chiudi",
+                                   background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
+                                   cursor="hand2", padding=(10, 5))
+        btn_chiudi_ant.pack(side='right', padx=5)
+        btn_chiudi_ant.bind("<Button-1>", lambda e: preview_popup.destroy())
+        img_esporta = self.icone_gui.get("salva")
+        btn_esporta = ttk.Label(frame_btn, compound="left", image=img_esporta,
+                                text=" Esporta" if img_esporta else "Esporta",
+                                background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
+                                cursor="hand2", padding=(10, 5))
+        btn_esporta.pack(side='left', padx=5)
+        btn_esporta.bind("<Button-1>", lambda e: _salva_su_file(contenuto_preview, preview_popup))
+        if hasattr(self, '_stampa_lista_diretta'):
+            img_stampa_ant = self.icone_gui.get("stampa")
+            btn_stampa_ant = ttk.Label(frame_btn, compound="left", image=img_stampa_ant,
+                                       text=" Stampa" if img_stampa_ant else "Stampa",
+                                       background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
+                                       cursor="hand2", padding=(10, 5))
+            btn_stampa_ant.pack(side='left', padx=5)
+            btn_stampa_ant.bind("<Button-1>", lambda e: self._stampa_lista_diretta(contenuto_preview, self.show_custom_warning))
     frame_bottoni = tk.Frame(finestra, bg=self.COLOR_TOPLEVEL)
     frame_bottoni.pack(pady=(0, 12))
     for testo, ico, cmd in [

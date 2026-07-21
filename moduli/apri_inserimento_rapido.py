@@ -161,7 +161,7 @@ def apri_inserimento_rapido(self, event):
         for p in self.nomi_partecipanti:
             n = p.get("nome", "")
             t = p.get("tipo", "persona")
-            ico = "❍" if t == "contenitore" else ("⚖️" if t == "personale" else "✽")
+            ico = "🏠" if t == "contenitore" else ("⚖️" if t == "personale" else "👤")
             vals.append(f"{ico} {n}")
         vals.append("⚙️ Gestisci Partecipanti")
         return vals

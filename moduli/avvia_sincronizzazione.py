@@ -20,7 +20,6 @@ def avvia_sincronizzazione(self, manuale=False):
     app_config_globale = _app.app_config_globale
     genai_client = _app.genai_client
     types = _app.types
-
     if not self._licenza_valida():
         self.show_toast("Funzione disponibile solo con licenza attiva.", duration=3000)
         return
@@ -241,16 +240,16 @@ def avvia_sincronizzazione(self, manuale=False):
                         scadenza_raw = dati.get("scadenza")
                         desc = f"{azienda}"
                         if dati.get("fattura"): desc += f" {dati['fattura']}"
-                        if scadenza_raw and scadenza_raw != "null": desc += f" ⚑{scadenza_raw}"
+                        if scadenza_raw and scadenza_raw != "null": desc += f" ⏰{scadenza_raw}"
                         esiste = False
                         for d_chiave in self.spese:
                             for s in self.spese[d_chiave]:
-                                if s[1] in (desc, f"⚡ {desc}") and abs(s[2] - importo) < 0.01:
+                                if s[1] in (desc, f"📎 {desc}") and abs(s[2] - importo) < 0.01:
                                     esiste = True
                                     break
                             if esiste: break
                         if not esiste:
-                            desc_spesa = f"⚡ {desc}" if pdf_data else desc
+                            desc_spesa = f"📎 {desc}" if pdf_data else desc
                             self.spese.setdefault(data_oggi, []).append(SpesaEntry.nuova(CATEGORIA_TEMPORANEA, desc_spesa, importo, direzione))
                             self.operazioni_scaricate_sessione += 1
                             with open(LOG_IMPORTAZIONI, "a", encoding="utf-8") as log:
@@ -280,7 +279,7 @@ def avvia_sincronizzazione(self, manuale=False):
                                     registry[nome_reg] = {
                                         "data_raw":           data_ggmmaaaa,
                                         "categoria_esatta":   CATEGORIA_TEMPORANEA,
-                                        "descrizione_esatta": f"⚡ {desc}",
+                                        "descrizione_esatta": f"📎 {desc}",
                                         "importo_raw":        imp_centesimi,
                                         "tipo_esatto":        direzione,
                                         "timestamp":          datetime.now().isoformat()
@@ -294,7 +293,7 @@ def avvia_sincronizzazione(self, manuale=False):
                                 self.lbl_sync_count_widget.config(text=f"📡 Sync {self.operazioni_scaricate_sessione}")
                         mail.store(m_id, '+FLAGS', '\\Seen')
                         if pdf_data:
-                            aggiorna_UI(f"⚡ PDF salvato: {azienda}", percentuale, self.operazioni_scaricate_sessione)
+                            aggiorna_UI(f"📎 PDF salvato: {azienda}", percentuale, self.operazioni_scaricate_sessione)
                         else:
                             aggiorna_UI(f"✓ OK: {azienda}", percentuale, self.operazioni_scaricate_sessione)
                         time.sleep(5) 

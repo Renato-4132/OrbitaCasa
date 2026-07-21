@@ -726,7 +726,7 @@ def gestisci_documenti_personali(self):
                     return
                 _drop_path_ref[0] = pdf_path
                 if not API_KEY:
-                    self.show_toast(f"⚡ {os.path.basename(pdf_path)} — imposta API Key Gemini per l'analisi automatica")
+                    self.show_toast(f"📎 {os.path.basename(pdf_path)} — imposta API Key Gemini per l'analisi automatica")
                     return
                 self.show_toast(f"Analisi AI: {os.path.basename(pdf_path)}…")
                 _mostra_progress_dp()
@@ -777,7 +777,7 @@ def gestisci_documenti_personali(self):
                                 combo_cat.set(cat_ok)
                             if scad_ia_ok:
                                 scad_var.set(scad_ia_ok)
-                            self.show_toast(f"⚡ {os.path.basename(pdf_path)} — campi compilati, verifica e archivia")
+                            self.show_toast(f"📎 {os.path.basename(pdf_path)} — campi compilati, verifica e archivia")
                         frm.after(0, _aggiorna_gui_dp)
                     except Exception as e_dp:
                         err_dp = str(e_dp)

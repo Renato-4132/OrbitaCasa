@@ -436,7 +436,7 @@ def _crea_flask_app(self):
                     data_obj = datetime.datetime.strptime(g, "%d-%m-%Y").date()
                     if data_obj in tk_app.spese and 0 <= i < len(tk_app.spese[data_obj]):
                         voce = tk_app.spese[data_obj][i]
-                        if "⚡" in str(voce[1]):
+                        if "📎" in str(voce[1]):
                             o_s = data_obj.strftime("%d%m%Y")
                             o_i = str(int(round(float(voce[2]) * 100)))
                             o_t = voce[3]
@@ -1557,7 +1557,7 @@ def pagina_risultati_avanzati(self, params):
                         <button type="submit" class="btn-action btn-edit">✏️</button>
                     </form>
                     <button type="button" class="btn-action btn-delete"
-                        onclick="apriModal('{v['data']}', '{v['idx']}', '{v['cat'].replace("'", "\\'")}', '{v['imp']:.2f}', {'1' if '⚡' in v['desc'] else '0'})">❌</button>
+                        onclick="apriModal('{v['data']}', '{v['idx']}', '{v['cat'].replace("'", "\\'")}', '{v['imp']:.2f}', {'1' if '📎' in v['desc'] else '0'})">❌</button>
                     <span class="voce-data">{v['data']}</span>
                 </div>
                 <div class="voce-body">
@@ -1719,7 +1719,7 @@ def pagina_risultati_avanzati(self, params):
 </div>
 <div id="pdfModal" style="display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.75); align-items:center; justify-content:center;">
     <div class="modal-box">
-        <h3>⚡ Documento Allegato</h3>
+        <h3>📎 Documento Allegato</h3>
         <p>Vuoi eliminare anche il documento PDF dal registro?</p>
         <div class="modal-actions">
             <button class="btn-no" onclick="confermaCancella(0)">Solo Movimento</button>
@@ -2189,7 +2189,7 @@ def html_form(self):
     partecipanti_fs = []
     for p in self.nomi_partecipanti:
         tipo = p.get("tipo", "persona")
-        ico = "❑" if tipo == "contenitore" else ("⚖️" if tipo == "personale" else "✍")
+        ico = "🏠" if tipo == "contenitore" else ("⚖️" if tipo == "personale" else "👤")
         partecipanti_fs.append({"nome": p["nome"], "tipo": tipo, "ico": ico})
     partecipanti_json = json.dumps(partecipanti_fs)
     smartcat_toll = app_config_globale.get("smartcat_toll", 15)
@@ -2574,7 +2574,7 @@ def html_form(self):
 
     <div class="pdf-upload-card">
         <div class="pdf-upload-header" onclick="toggleSection('pdfUploadBody','pdfUploadArrow')">
-            <span>⚡ Carica PDF → Crea Movimento</span>
+            <span>📎 Carica PDF → Crea Movimento</span>
             <span id="pdfUploadArrow" style="font-size:0.75em;">▼</span>
         </div>
         <div id="pdfUploadBody" class="pdf-upload-body">
@@ -6728,7 +6728,7 @@ def html_lista_spese_mensili(self):
                             <button type="submit" class="op-btn">✏️ Modifica</button>
                         </form>
                         <button type="button" class="op-btn danger"
-                            onclick="event.stopPropagation(); apriModal('{data_str}', '{idx}', '{cat}', '{imp:.2f}', {'1' if '⚡' in desc else '0'})">
+                            onclick="event.stopPropagation(); apriModal('{data_str}', '{idx}', '{cat}', '{imp:.2f}', {'1' if '📎' in desc else '0'})">
                             ❌ Cancella
                         </button>
                     </div>
@@ -6898,7 +6898,7 @@ def html_lista_spese_mensili(self):
 </div>
 <div id="pdfModal" class="modal-overlay" style="display:none;">
     <div class="modal-box">
-        <div class="modal-title">⚡ Documento Allegato</div>
+        <div class="modal-title">📎 Documento Allegato</div>
         <div class="modal-text">Vuoi eliminare anche il documento PDF dal registro?</div>
         <div class="modal-btns">
             <button class="m-btn m-cancel" onclick="confermaCancella(0)">Solo Movimento</button>
@@ -7628,8 +7628,8 @@ def analizza_pdf_web(self, pdf_bytes, filename_originale="documento.pdf"):
     else:
         desc = azienda
         if fattura: desc += f" {fattura}"
-        if scadenza and scadenza != "null": desc += f" ⚑{scadenza}"
-    desc_spesa = f"⚡ {desc}"
+        if scadenza and scadenza != "null": desc += f" ⏰{scadenza}"
+    desc_spesa = f"📎 {desc}"
     for s in self.spese.get(data_oggi, []):
         if s[1] in (desc_spesa, desc) and abs(s[2] - importo) < 0.01:
             return {"ok": False, "errore": "Movimento già presente (duplicato)"}

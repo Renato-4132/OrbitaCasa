@@ -44,10 +44,10 @@ def mostra_dare_avere(self):
     for p in self.nomi_partecipanti:
         if p.get("tipo") not in ("persona", "contenitore"):
             continue
-        _ico = "❍" if p.get("tipo") == "contenitore" else "✽"
+        _ico = "🏠" if p.get("tipo") == "contenitore" else "👤"
         _nomi_ico[p["nome"]] = f"{_ico} {p['nome']}"
     if self._gestore_partecipa() and _gestore not in _nomi_ico:
-        _nomi_ico[_gestore] = f"✽ {_gestore}"
+        _nomi_ico[_gestore] = f"👤 {_gestore}"
     nomi_parti = ["Tutti"] + sorted(_nomi_ico.values(), key=lambda x: x[2:].lower())
     cat_list   = ["Tutte"] + sorted(self.categorie, key=str.lower)
     stato_list = ["Tutti", "Aperto", "Chiuso"]
@@ -204,7 +204,7 @@ def mostra_dare_avere(self):
         if not righe:
             tree.insert("", "end",
                         values=("—", "Nessun dato",
-                                "Nessuna spesa con tag ✽Nome o ❍Nome trovata.",
+                                "Nessuna spesa con tag 👤Nome o 🏠Nome trovata.",
                                 "", "", "", "", "", ""),
                         tags=("sep",))
         if righe:

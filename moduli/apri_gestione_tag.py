@@ -532,7 +532,7 @@ def apri_gestione_tag(self):
         except ValueError:
             pass
         self.desc_entry.delete(0, tk.END)
-        desc_pulita = descrizione.replace("⚡", "").strip()
+        desc_pulita = descrizione.replace("📎", "").strip()
         self.desc_entry.insert(0, desc_pulita[:30])
         if self.tipo_spesa_var.get() != tipo:
             self.toggle_tipo_spesa()

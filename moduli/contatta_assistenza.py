@@ -63,7 +63,7 @@ def apri_pannello_topic(self, topic):
     allegato_path = {"file": None}
     allegato_frame = tk.Frame(popup, bg=self.COLOR_BACKGROUND)
     allegato_frame.grid(row=5, column=0, sticky="ew", padx=15, pady=(8, 0))
-    lbl_allegato = tk.Label(allegato_frame, text="⚡ Nessun file allegato",
+    lbl_allegato = tk.Label(allegato_frame, text="📎 Nessun file allegato",
                              bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
                              font=("Arial", 8, "italic"))
     lbl_allegato.pack(side="left")
@@ -81,11 +81,11 @@ def apri_pannello_topic(self, topic):
         if path:
             allegato_path["file"] = path
             nome = os.path.basename(path)
-            lbl_allegato.config(text=f"⚡ {nome}", fg=self.COLOR_GREEN_SMOOTH)
+            lbl_allegato.config(text=f"📎 {nome}", fg=self.COLOR_GREEN_SMOOTH)
 
     def rimuovi_file():
         allegato_path["file"] = None
-        lbl_allegato.config(text="⚡ Nessun file allegato", fg=self.TEXT_COLOR)
+        lbl_allegato.config(text="📎 Nessun file allegato", fg=self.TEXT_COLOR)
 
     ttk.Label(allegato_frame, text=" ", background=self.COLOR_BACKGROUND).pack(side="left")
     ttk.Label(allegato_frame, image=self.icone_gui.get("carica"), text=" Allega",
