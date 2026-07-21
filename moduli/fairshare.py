@@ -27,13 +27,13 @@ def _aggiorna_descrizione_con_partecipante(self, scelta_combo, target_var=None):
     if scelta_combo:
             nome_nuovo = scelta_combo[2:].strip() if " " in scelta_combo else scelta_combo.strip()
             nome_nuovo = nome_nuovo.strip()
-            nuova_ico = "👤"
+            nuova_ico = "✽"
             for p in self.nomi_partecipanti:
                     if _gn(p) == nome_nuovo and isinstance(p, dict):
                             if p.get("tipo") == "personale":
                                     nuova_ico = "⚖️"
                             elif p.get("tipo") == "contenitore":
-                                    nuova_ico = "🏠"
+                                    nuova_ico = "❍"
                             break
     desc = target_var.get().strip() if target_var else self.desc_entry.get().strip()
     simboli_pag = set(SIMBOLI_METODO.values())
@@ -43,7 +43,7 @@ def _aggiorna_descrizione_con_partecipante(self, scelta_combo, target_var=None):
                     prefisso_pag = s
                     desc = desc[len(s):].strip()
                     break
-    icone_possibili = ["🏠", "👤", "⚖️"]
+    icone_possibili = ["❍", "✽", "⚖️"]
     _gestore_n = os.path.basename(os.getcwd())
     nomi_noti = sorted([_gn(p) for p in self.nomi_partecipanti] + [_gestore_n], key=len, reverse=True)
     blocco_trovato = False
@@ -86,13 +86,13 @@ def _aggiorna_descrizione_con_ric_partecipante(self, scelta_combo, target_var=No
     if scelta_combo:
         nome_nuovo = scelta_combo[2:].strip() if " " in scelta_combo else scelta_combo.strip()
         nome_nuovo = nome_nuovo.strip()
-        nuova_ico = "👤"
+        nuova_ico = "✽"
         for p in self.nomi_partecipanti:
             if _gn(p) == nome_nuovo and isinstance(p, dict):
                 if p.get("tipo") == "personale":
                     nuova_ico = "⚖️"
                 elif p.get("tipo") == "contenitore":
-                    nuova_ico = "🏠"
+                    nuova_ico = "❍"
                 break
     desc = target_var.get().strip() if target_var else self.ricorrenza_desc.get().strip()
     simboli_pag = set(SIMBOLI_METODO.values())
@@ -102,7 +102,7 @@ def _aggiorna_descrizione_con_ric_partecipante(self, scelta_combo, target_var=No
             prefisso_pag = s
             desc = desc[len(s):].strip()
             break
-    icone_possibili = ["🏠", "👤", "⚖️"]
+    icone_possibili = ["❍", "✽", "⚖️"]
     _gestore_n = os.path.basename(os.getcwd())
     nomi_noti = sorted([_gn(p) for p in self.nomi_partecipanti] + [_gestore_n], key=len, reverse=True)
     blocco_trovato = False
@@ -209,16 +209,16 @@ def sincronizza_fairshare_state(self):
                 if tipo_p not in ("persona", "contenitore"):
                     continue
                 if tipo_p == "contenitore":
-                    if f"🏠{nome_p}" in desc_str:
+                    if f"❍{nome_p}" in desc_str:
                         soci = soci_per_cont.get(nome_p, [])
                         if soci:
                             parti_trovati = list(soci)
                         break
                 else:
-                    if f"👤{nome_p}" in desc_str:
+                    if f"✽{nome_p}" in desc_str:
                         parti_trovati = list(persone_fisiche) if persone_fisiche else [nome_p]
                         break
-            if not parti_trovati and gestore_partecipa and f"👤{NOME_GESTORE}" in desc_str:
+            if not parti_trovati and gestore_partecipa and f"✽{NOME_GESTORE}" in desc_str:
                 parti_trovati = list(persone_fisiche) if persone_fisiche else [NOME_GESTORE]
 
             parti_sorted = sorted(set(parti_trovati))
@@ -229,14 +229,14 @@ def sincronizza_fairshare_state(self):
             key        = f"{data_str}#{idx_v}|{cat}|{imp:.2f}"
             desc_pulita = desc_str
             for p in tutti_partecipanti:
-                desc_pulita = desc_pulita.replace(f"👤{p['nome']}", "").replace(f"🏠{p['nome']}", "").replace(f"⚖️{p['nome']}", "")
+                desc_pulita = desc_pulita.replace(f"✽{p['nome']}", "").replace(f"❍{p['nome']}", "").replace(f"⚖️{p['nome']}", "")
             if gestore_partecipa:
-                desc_pulita = desc_pulita.replace(f"👤{NOME_GESTORE}", "")
+                desc_pulita = desc_pulita.replace(f"✽{NOME_GESTORE}", "")
             desc_pulita = desc_pulita.strip()
             nuove_chiavi.add(key)
             creditore = None
             for pf in persone_fisiche:
-                if f"👤{pf}" in desc_str:
+                if f"✽{pf}" in desc_str:
                     creditore = pf
                     break
             if creditore is None:
@@ -292,10 +292,10 @@ def sincronizza_fairshare_state(self):
                 continue
             pagante = None
             for p in tutti_partecipanti:
-                if p.get("tipo") == "persona" and f"👤{p['nome']}" in desc_str:
+                if p.get("tipo") == "persona" and f"✽{p['nome']}" in desc_str:
                     pagante = p["nome"]
                     break
-            if not pagante and f"👤{NOME_GESTORE}" in desc_str:
+            if not pagante and f"✽{NOME_GESTORE}" in desc_str:
                 pagante = NOME_GESTORE
             if pagante:
                 entrate_valide.add((pagante, cat, round(imp, 2)))
@@ -364,7 +364,7 @@ def mostra_riepilogo_fairshare_periodo(self):
     if self._gestore_partecipa() and _gestore not in nomi_p_raw:
         nomi_p_raw[_gestore] = "persona"
     def _ico_p(nome):
-        return "🏠" if nomi_p_raw.get(nome) == "contenitore" else "👤"
+        return "❍" if nomi_p_raw.get(nome) == "contenitore" else "✽"
     nomi_p = ["Tutti"] + sorted([f"{_ico_p(n)} {n}" for n in nomi_p_raw], key=lambda x: x[2:].lower())
     cat_lst = ["Tutte"] + sorted(self.categorie, key=str.lower)
     filter_f = tk.Frame(popup, bg=self.COLOR_TOPLEVEL, pady=8)
@@ -1177,13 +1177,13 @@ def mostra_guida_dare_avere(self, popup=None):
         "   Il Gestore (" + NOME_GESTORE + ") partecipa come qualsiasi altra Persona\n"
         "   se abilitato in 'Gestisci Partecipanti'.\n\n"
         "2. TIPI DI PARTECIPANTE\n"
-        "   👤 Persona    → Partecipa alla divisione delle spese comuni.\n"
-        "   🏠 Gruppo     → Fondo comune (es. Casa). Le spese vengono divise tra i soci.\n"
+        "   ✽ Persona    → Partecipa alla divisione delle spese comuni.\n"
+        "   ❍ Gruppo     → Fondo comune (es. Casa). Le spese vengono divise tra i soci.\n"
         "                   Non paga quota propria.\n"
         "   ⚖️ Personale  → Spese e entrate solo sue (stipendio, spese private).\n"
         "                   Non partecipa alla divisione.\n\n"
         "3. COME REGISTRARE UNA SPESA\n"
-        "   - Seleziona il partecipante dalla combobox 👤/🏠:\n"
+        "   - Seleziona il partecipante dalla combobox ✽/❍:\n"
         "     il prefisso icona+Nome viene aggiunto in automatico alla descrizione.\n"
         "   - USCITA  → spesa pagata da quel partecipante (chi ha anticipato i soldi).\n"
         "   - ENTRATA → rimborso ricevuto (chi restituisce la quota).\n"
@@ -1191,7 +1191,7 @@ def mostra_guida_dare_avere(self, popup=None):
         "   - Metodi di pagamento disponibili: simboli_pag = "
         + ", ".join(SIMBOLI_METODO.values()) + "\n\n"
         "4. SEGNARE UN PAGAMENTO\n"
-        "   AUTOMATICO: se registri un'entrata con tag 👤Nome e stessa categoria\n"
+        "   AUTOMATICO: se registri un'entrata con tag ✽Nome e stessa categoria\n"
         "   della spesa originale, il sistema segna il pagamento automaticamente.\n\n"
         "   MANUALE: doppio click sulla riga nella vista Dare & Avere.\n"
         "   - Primo doppio click  → segna PAGATO (con data odierna)\n"
@@ -1204,9 +1204,9 @@ def mostra_guida_dare_avere(self, popup=None):
         "   Positivo → deve RICEVERE dagli altri.\n"
         "   Negativo → deve VERSARE agli altri.\n"
         "   Zero     → pari.\n\n"
-        "6. GRUPPI 🏠\n"
+        "6. GRUPPI ❍\n"
         "   Crea un Gruppo in 'Gestisci Partecipanti' e seleziona i soci.\n"
-        "   Le spese taggate 🏠NomeGruppo vengono divise automaticamente tra i soci.\n"
+        "   Le spese taggate ❍NomeGruppo vengono divise automaticamente tra i soci.\n"
         "   Il Gestore può essere incluso tra i soci di un Gruppo.\n\n"
         "7. MOVIMENTI PERSONALI ⚖️\n"
         "   Accessibili da 'Personali' nel pannello FairShare.\n"

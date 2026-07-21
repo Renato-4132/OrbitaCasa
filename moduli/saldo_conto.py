@@ -890,7 +890,7 @@ def open_saldo_conto(self):
                     self.imp_entry.insert(0, f"{imp:.2f}")
                 except Exception: pass
                 self.desc_entry.delete(0, tk.END)
-                self.desc_entry.insert(0, desc.replace("♻️","").replace("📎","").strip()[:30])
+                self.desc_entry.insert(0, desc.replace("♻️","").replace("⚡","").strip()[:30])
             tree.bind("<Button-3>", on_click_dx_mov)
             self._bind_tooltip_metodo(tree, col_desc=2)
             

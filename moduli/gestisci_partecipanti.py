@@ -61,10 +61,10 @@ def gestisci_partecipanti(self, target_popup=None):
         if isinstance(p, dict):
             nome = p.get("nome", "")
             tipo = p.get("tipo", "persona")
-            icona = "🏠" if tipo == "contenitore" else ("⚖️" if tipo == "personale" else "👤")
+            icona = "❍" if tipo == "contenitore" else ("⚖️" if tipo == "personale" else "✽")
             info = f" ({len(p.get('soci', []))} soci)" if tipo == "contenitore" else ""
             return f"{icona} {nome}{info}"
-        return f"👤 {p}"
+        return f"✽ {p}"
     def _get_nome(p):
         return p.get("nome", p) if isinstance(p, dict) else p
     def aggiorna_lista():
@@ -79,11 +79,11 @@ def gestisci_partecipanti(self, target_popup=None):
         gestore_partecipa = self._gestore_partecipa()
         nomi_esistenti = [_get_nome(p) for p in self.nomi_partecipanti]
         if gestore_partecipa and NOME_GESTORE not in nomi_esistenti:
-            nomi_per_combo.append(f"👤 {NOME_GESTORE}")
+            nomi_per_combo.append(f"✽ {NOME_GESTORE}")
         for p in self.nomi_partecipanti:
             nome = p.get("nome", p) if isinstance(p, dict) else p
             tipo = p.get("tipo", "persona") if isinstance(p, dict) else "persona"
-            ico = "🏠" if tipo == "contenitore" else ("⚖️" if tipo == "personale" else "👤")
+            ico = "❍" if tipo == "contenitore" else ("⚖️" if tipo == "personale" else "✽")
             nomi_per_combo.append(f"{ico} {nome}")
             listbox.insert(tk.END, _nomi_display(p))
         nuovi_valori = [""] + nomi_per_combo + ["⚙️ Gestisci Partecipanti"]
@@ -114,9 +114,9 @@ def gestisci_partecipanti(self, target_popup=None):
     radio_f = ttk.Frame(add_frame)
     radio_f.pack(fill=tk.X, pady=(0, 2))
     tipo_var = tk.StringVar(value="persona")
-    ttk.Radiobutton(radio_f, text="👤 Persona", variable=tipo_var,
+    ttk.Radiobutton(radio_f, text="✽ Persona", variable=tipo_var,
                     value="persona", style="Custom.TRadiobutton").pack(side=tk.LEFT, padx=(0, 4))
-    ttk.Radiobutton(radio_f, text="🏠 Contenitore", variable=tipo_var,
+    ttk.Radiobutton(radio_f, text="❍ Contenitore", variable=tipo_var,
                     value="contenitore", style="Custom.TRadiobutton").pack(side=tk.LEFT, padx=(0, 6))
     ttk.Radiobutton(radio_f, text="⚖️ Personale", variable=tipo_var,
                     value="personale", style="Custom.TRadiobutton").pack(side=tk.LEFT, padx=(0, 6))
@@ -235,7 +235,7 @@ def gestisci_partecipanti(self, target_popup=None):
             return
         testo_riga = listbox.get(sel[0])
         nome_pulito = testo_riga
-        for ico in ["🏠 ", "👤 ", "⚖️ "]:
+        for ico in ["❍ ", "✽ ", "⚖️ "]:
             nome_pulito = nome_pulito.replace(ico, "")
         nome_pulito = nome_pulito.split(" (")[0].strip()
         p_selezionato = next(

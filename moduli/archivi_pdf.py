@@ -369,9 +369,9 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
         except Exception:
           return self.show_toast("Dati non validi.")
         desc_pulita = descrizione_esatta.strip()
-        while desc_pulita.startswith('📎'):
-            desc_pulita = desc_pulita[len('📎'):].strip()
-        desc_icona = f"📎 {desc_pulita}"
+        while desc_pulita.startswith('⚡'):
+            desc_pulita = desc_pulita[len('⚡'):].strip()
+        desc_icona = f"⚡ {desc_pulita}"
         f_name = f"{data_ggmmaaaa}_{sanitizza_stringa(descrizione_esatta, 30)}_{tipo_esatto}_{sanitizza_stringa(categoria_esatta, 20)}_{imp_raw}.pdf"
         path = _drop_path_ref[0] or filedialog.askopenfilename(parent=pdf_window, filetypes=[("PDF", "*.pdf")])
         if not path: return
@@ -454,8 +454,8 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                     i_f = float(i_v.replace("€","").replace(".","").replace(",",".").strip())
                     if d_o in self.spese:
                         for s in self.spese[d_o]:
-                            desc_db = str(s[1]).replace("📎 ", "").strip()
-                            desc_tabella = str(d_v).replace("📎 ", "").strip()
+                            desc_db = str(s[1]).replace("⚡ ", "").strip()
+                            desc_tabella = str(d_v).replace("⚡ ", "").strip()
                             if (s[0] == c_v and s[3] == t_v and abs(float(s[2]) - i_f) < 0.01 and desc_db == desc_tabella):
                                 spese_trovate = True
                                 break
@@ -477,8 +477,8 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                     if d_o in self.spese:
                         nuova_lista = []
                         for s in self.spese[d_o]:
-                            desc_db = str(s[1]).replace("📎 ", "").strip()
-                            desc_tabella = str(d_v).replace("📎 ", "").strip()
+                            desc_db = str(s[1]).replace("⚡ ", "").strip()
+                            desc_tabella = str(d_v).replace("⚡ ", "").strip()
                             if (s[0] == c_v and s[3] == t_v and abs(float(s[2]) - i_f) < 0.01 and desc_db == desc_tabella):
                                 mod = True
                                 if not cancella_anche_spesa:
@@ -1008,8 +1008,8 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
         data_e_var = tk.StringVar(value=d_s)
         cat_e_var = tk.StringVar(value=c_v)
         desc_pulita = d_v.strip()
-        while desc_pulita.startswith('📎'):
-            desc_pulita = desc_pulita[len('📎'):].strip()
+        while desc_pulita.startswith('⚡'):
+            desc_pulita = desc_pulita[len('⚡'):].strip()
         desc_e_var = tk.StringVar(value=desc_pulita)
         def _limita_desc_e(*_):
             v = desc_e_var.get()
@@ -1028,7 +1028,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
             if _data_obj_orig in self.spese:
                 for _s in self.spese[_data_obj_orig]:
                     if (abs(float(_s[2]) - _imp_orig) < 0.01 and _s[3] == _tipo_orig
-                            and (_s[1] == _desc_orig or _s[1] == _desc_orig.lstrip('📎').strip())):
+                            and (_s[1] == _desc_orig or _s[1] == _desc_orig.lstrip('⚡').strip())):
                         tag_e_var.set(" ".join(campo(_s, "hashtag", [])))
                         _spesa_collegata_mod = _s
                         break
@@ -1166,9 +1166,9 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
             except Exception:
                 self.show_toast("Dati non validi.")
             desc_pulita = desc_e_var.get().strip()
-            while desc_pulita.startswith('📎'):
-                desc_pulita = desc_pulita[len('📎'):].strip()
-            desc_icona = f"📎 {desc_pulita}"
+            while desc_pulita.startswith('⚡'):
+                desc_pulita = desc_pulita[len('⚡'):].strip()
+            desc_icona = f"⚡ {desc_pulita}"
             categoria = cat_e_var.get()
             tipo = tipo_e_var.get()
             data_obj_old = datetime.strptime(d_s, "%d-%m-%Y").date()
@@ -1181,7 +1181,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                 for i, s in enumerate(self.spese[data_obj_old]):
                     corrispondenza_importo = abs(float(s[2]) - imp_float_old) < 0.01
                     corrispondenza_tipo    = s[3] == tipo_old
-                    corrispondenza_desc    = s[1] == desc_old or s[1] == desc_old.lstrip('📎').strip()
+                    corrispondenza_desc    = s[1] == desc_old or s[1] == desc_old.lstrip('⚡').strip()
                     if corrispondenza_importo and corrispondenza_tipo and corrispondenza_desc:
                         idx_spesa = i
                         break
@@ -1284,7 +1284,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                 return
             _drop_path_ref[0] = pdf_path
             if not API_KEY:
-                self.show_toast(f"📎 {os.path.basename(pdf_path)} — imposta API Key Gemini per l'analisi automatica")
+                self.show_toast(f"⚡ {os.path.basename(pdf_path)} — imposta API Key Gemini per l'analisi automatica")
                 return
             nome_file_drop = os.path.basename(pdf_path)
             self.show_toast(f"Analisi AI: {nome_file_drop}…")
@@ -1359,7 +1359,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                         if fattura_ia and str(fattura_ia).lower() != "null":
                             desc_ia += f" {fattura_ia}"
                         if scadenza_ia and str(scadenza_ia).lower() != "null":
-                            desc_ia += f" ⏰{scadenza_ia}"
+                            desc_ia += f" ⚑{scadenza_ia}"
                             try:
                                 data_ia = datetime.strptime(str(scadenza_ia), "%d-%m-%Y").strftime("%d-%m-%Y")
                             except Exception:
@@ -1376,7 +1376,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                             combo_tipo.set(direzione_ia)
                         if categoria_ia:
                             combo_categoria.set(categoria_ia)
-                        self.show_toast(f"📎 {os.path.basename(pdf_path)} — campi compilati, verifica e archivia", duration=2000)
+                        self.show_toast(f"⚡ {os.path.basename(pdf_path)} — campi compilati, verifica e archivia", duration=2000)
                     pdf_window.after(0, _aggiorna_gui)
                 except Exception as e_ia:
                     err_ia = str(e_ia)

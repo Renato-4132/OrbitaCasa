@@ -136,7 +136,7 @@ def mostra_log_importazioni(self):
             self.imp_entry.insert(0, f"{float(importo_str):.2f}")
         except ValueError:
             pass
-        desc_pulita = descrizione.replace("♻️", "").replace("📎", "").strip()
+        desc_pulita = descrizione.replace("♻️", "").replace("⚡", "").strip()
         self.desc_entry.delete(0, 'end')
         self.desc_entry.insert(0, desc_pulita[:30])
         if self.tipo_spesa_var.get() != direzione:

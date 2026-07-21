@@ -187,7 +187,7 @@ def apri_finestra_importa(self, path=None):
                     if fattura and str(fattura).lower() not in ("null", "", "none"):
                         desc += f" {fattura}"
                     if scadenza and str(scadenza).lower() not in ("null", "", "none"):
-                        desc += f" ⏰{scadenza}"
+                        desc += f" ⚑{scadenza}"
                     movimenti.append({
                         "data":        datetime.strptime(d["data"], "%Y-%m-%d").date(),
                         "descrizione": desc,
@@ -247,7 +247,7 @@ def apri_finestra_importa(self, path=None):
                     if fattura and str(fattura).lower() not in ("null", "", "none"):
                         desc += f" {fattura}"
                     if scadenza and str(scadenza).lower() not in ("null", "", "none"):
-                        desc += f" ⏰{scadenza}"
+                        desc += f" ⚑{scadenza}"
                         try:
                             data_str = datetime.strptime(str(scadenza), "%d-%m-%Y").strftime("%Y-%m-%d")
                         except Exception:
@@ -273,7 +273,7 @@ def apri_finestra_importa(self, path=None):
                     if fattura and str(fattura).lower() not in ("null", "", "none"):
                         desc += f" {fattura}"
                     if scadenza and str(scadenza).lower() not in ("null", "", "none"):
-                        desc += f" ⏰{scadenza}"
+                        desc += f" ⚑{scadenza}"
                     movimenti.append({
                         "data":        datetime.strptime(d["data"], "%Y-%m-%d").date(),
                         "descrizione": desc,

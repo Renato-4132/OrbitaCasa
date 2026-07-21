@@ -390,11 +390,11 @@ def mostra_ricorrenza_popup(self):
     _gestore_init = os.path.basename(os.getcwd())
     _nomi_init    = [p.get("nome", "") for p in self.nomi_partecipanti]
     if self._gestore_partecipa() and _gestore_init not in _nomi_init:
-        self.nomi_con_icone.append(f"👤 {_gestore_init}")
+        self.nomi_con_icone.append(f"✽ {_gestore_init}")
     for p in self.nomi_partecipanti:
             n = p.get("nome", "")
             t = p.get("tipo", "persona")
-            ico = "🏠" if t == "contenitore" else ("⚖️" if t == "personale" else "👤")
+            ico = "❍" if t == "contenitore" else ("⚖️" if t == "personale" else "✽")
             self.nomi_con_icone.append(f"{ico} {n}")
     img_partecipante = self.icone_gui.get("utenti")
     lbl_part = ttk.Label(desc_frame, image=img_partecipante,
