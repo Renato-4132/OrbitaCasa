@@ -3,7 +3,7 @@
 
 import uuid
 import datetime
- 
+
 METODI_PAGAMENTO = [
     "Contanti", "RID/SDD", "Bonifico", "C.Credito 1", "C.Credito 2", "C.Debito",
     "Contactless", "PayPal", "Bollettino", "Prepagata", "Assegno",
