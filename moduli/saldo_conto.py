@@ -731,7 +731,7 @@ def open_saldo_conto(self):
             ttk.Combobox(tb, textvariable=v_conto,
                          values=["Tutti", "(nessuno)"] + _conti_nomi_filt,
                          state="readonly", width=14, style="Border.TCombobox").pack(side="left")
-            lf = tk.LabelFrame(tab_movimenti, text="⚙️ Storico Movimenti",
+            lf = tk.LabelFrame(tab_movimenti, text="Storico Movimenti",
                                font=("Arial", 10, "bold"), fg="red",
                                bg=bg, padx=6, pady=6)
             img_mouse = self.icone_gui.get("mouse")
