@@ -420,8 +420,14 @@ def apri_studio(self):
                      fg=self.COLOR_HIGHLIGHT).pack(padx=12, pady=(10,4), anchor="w")
             nb_s = ttk.Notebook(sw)
             nb_s.pack(fill="both", expand=True, padx=8, pady=4)
+            def _add_tab_s(frame, ico_key, testo):
+                img = self.icone_gui.get(ico_key)
+                if img:
+                    nb_s.add(frame, image=img, text=f" {testo} ", compound="left")
+                else:
+                    nb_s.add(frame, text=f"  {testo}  ")
             tf_a = tk.Frame(nb_s, bg=self.COLOR_WIDGET_BG)
-            nb_s.add(tf_a, text="  Appuntamenti  ")
+            _add_tab_s(tf_a, "calendario", "Appuntamenti")
             tv_a = _tree(tf_a,
                          ["Data","Ora","Prestazione","Stato","Note"],
                          [90, 50, 170, 100, 220], height=10)
@@ -434,7 +440,7 @@ def apri_studio(self):
                             values=(df, a.get("ora",""), a.get("prestazione",""),
                                     a.get("stato",""), a.get("note","")))
             tf_f = tk.Frame(nb_s, bg=self.COLOR_WIDGET_BG)
-            nb_s.add(tf_f, text="  Fatture / Preventivi  ")
+            _add_tab_s(tf_f, "fattura_ai", "Fatture / Preventivi")
             tv_f = _tree(tf_f,
                          ["N°","Data","Tipo","Totale €","Stato"],
                          [55, 90, 90, 90, 90], height=10)
@@ -1149,8 +1155,14 @@ def apri_studio(self):
                 tk.Label(pop, text="Doppio click per inserire", bg=self.COLOR_TOPLEVEL, fg=self.COLOR_HIGHLIGHT, font=("Arial",8)).pack(pady=5)
                 nb_pop = ttk.Notebook(pop)
                 nb_pop.pack(fill="both", expand=True, padx=10, pady=5)
+                def _add_tab_pop(frame, ico_key, testo):
+                    img = self.icone_gui.get(ico_key)
+                    if img:
+                        nb_pop.add(frame, image=img, text=f" {testo} ", compound="left")
+                    else:
+                        nb_pop.add(frame, text=f" {testo} ")
                 f_prod = tk.Frame(nb_pop, bg=self.COLOR_BACKGROUND)
-                nb_pop.add(f_prod, text=" Prodotti ")
+                _add_tab_pop(f_prod, "archivia", "Prodotti")
                 tree_p = ttk.Treeview(f_prod, columns=("Nome", "Prezzo", "Giacenza"), show="headings")
                 for c in ("Nome", "Prezzo", "Giacenza"):
                     tree_p.heading(c, text=c, command=lambda _c=c: self.treeview_sort_column(tree_p, _c, False))
@@ -1164,7 +1176,7 @@ def apri_studio(self):
                         f"{m.get('quantita',0)} {m.get('unita','pz')}"
                     ))
                 f_pre = tk.Frame(nb_pop, bg=self.COLOR_BACKGROUND)
-                nb_pop.add(f_pre, text=" Prestazioni ")
+                _add_tab_pop(f_pre, "lavoro", "Prestazioni")
                 tree_s = ttk.Treeview(f_pre, columns=("Nome", "Prezzo", "IVA"), show="headings")
                 for c in ("Nome", "Prezzo", "IVA"):
                     tree_s.heading(c, text=c, command=lambda _c=c: self.treeview_sort_column(tree_s, _c, False))
