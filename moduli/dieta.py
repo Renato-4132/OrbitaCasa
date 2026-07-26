@@ -1341,10 +1341,16 @@ def apri_dieta(self):
                lambda e: [popup.destroy(), setattr(self, '_dieta_popup', None)])
     nb = ttk.Notebook(popup)
     nb.pack(fill="both", expand=True, padx=10, pady=(10,0))
+    def _add_tab(frame, ico_key, testo):
+        img = self.icone_gui.get(ico_key)
+        if img:
+            nb.add(frame, image=img, text=f" {testo} ", compound="left")
+        else:
+            nb.add(frame, text=f" {testo} ")
     trees_footer = []
     for s_idx, sett in enumerate(piano_dati):
         frame = ttk.Frame(nb)
-        nb.add(frame, text=f" {sett['titolo']} ")
+        _add_tab(frame, "calendario", sett['titolo'])
         vsb = ttk.Scrollbar(frame, orient="vertical", style="Vertical.TScrollbar")
         vsb.pack(side="right", fill="y")
         tree_foot = ttk.Treeview(frame, columns=COL_PIANO, show="headings",
@@ -1391,7 +1397,7 @@ def apri_dieta(self):
             self.show_custom_warning("Errore", f"Salvataggio peso fallito:\n{e}")
     peso_storico, _alt_saved, _ob_saved = _carica_peso()
     tab_peso = tk.Frame(nb, bg=self.COLOR_WIDGET_BG)
-    nb.add(tab_peso, text="Peso ")
+    _add_tab(tab_peso, "grafico_linea", "Peso")
     fr_left  = tk.Frame(tab_peso, bg=self.COLOR_WIDGET_BG)
     fr_left.pack(side="left", fill="y", padx=(10,4), pady=8)
     fr_right = tk.Frame(tab_peso, bg=self.COLOR_WIDGET_BG)
@@ -1698,7 +1704,7 @@ def apri_dieta(self):
         except Exception as e:
             self.show_custom_warning("Errore", f"Salvataggio fabbisogno fallito:\n{e}")
     _fabb_saved = _carica_fabb()
-    nb.add(tab_fabb, text="Fabbisogno")
+    _add_tab(tab_fabb, "calcolatrice", "Fabbisogno")
     fr_input = tk.LabelFrame(tab_fabb, text=" Dati Biometrici ", bg=self.COLOR_WIDGET_BG, 
                              fg=self.COLOR_HIGHLIGHT, font=("Arial", 9, "bold"), padx=15, pady=15)
     fr_input.pack(fill="x", padx=20, pady=20)
@@ -1806,7 +1812,7 @@ def apri_dieta(self):
             self.show_custom_warning("Errore", f"Salvataggio pedometro fallito:\n{e}")
     passi_db, _ped_ob_default = _carica_pedometro()
     tab_ped = tk.Frame(nb, bg=self.COLOR_WIDGET_BG)
-    nb.add(tab_ped, text="Passi")
+    _add_tab(tab_ped, "fitness", "Passi")
     ped_left  = tk.Frame(tab_ped, bg=self.COLOR_WIDGET_BG, width=280)
     ped_left.pack(side="left", fill="y", padx=(10, 4), pady=8)
     ped_left.pack_propagate(False)
@@ -2317,7 +2323,7 @@ def apri_dieta(self):
     except Exception:
         _utente_corrente = "Generico"
     tab_utenti = tk.Frame(nb, bg=self.COLOR_WIDGET_BG)
-    nb.add(tab_utenti, text=f" 👤 Utenti > {_utente_corrente} ")
+    _add_tab(tab_utenti, "utenti", f"Utenti > {_utente_corrente}")
     fr_u_left  = tk.Frame(tab_utenti, bg=self.COLOR_WIDGET_BG, width=340)
     fr_u_left.pack(side="left", fill="y", padx=(16, 8), pady=12)
     fr_u_left.pack_propagate(False)
