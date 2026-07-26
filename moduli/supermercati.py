@@ -1163,7 +1163,11 @@ def spesa_supermercato(self):
     notebook = ttk.Notebook(popup)
     notebook.pack(expand=True, fill='both', padx=10, pady=10)
     frame_lista = ttk.Frame(notebook, padding="10", name='frame_lista')
-    notebook.add(frame_lista, text="Lista Spesa Intelligente")
+    img_tab_lista = self.icone_gui.get("anagrafica")
+    if img_tab_lista:
+        notebook.add(frame_lista, image=img_tab_lista, text="  Lista Spesa Intelligente  ", compound="left")
+    else:
+        notebook.add(frame_lista, text="Lista Spesa Intelligente")
     frame_lista.grid_rowconfigure(1, weight=1)
     frame_lista.grid_rowconfigure(3, weight=2)
     frame_lista.grid_columnconfigure(0, weight=1)
@@ -1386,7 +1390,11 @@ def spesa_supermercato(self):
     btn_esporta_lista.pack(side='right', padx=5)
     btn_esporta_lista.bind("<Button-1>", lambda e: _mostra_anteprima_esportazione())
     frame_gestione = ttk.Frame(notebook, padding="10")
-    notebook.add(frame_gestione, text="Gestione Supermercati")
+    img_tab_gestione = self.icone_gui.get("home")
+    if img_tab_gestione:
+        notebook.add(frame_gestione, image=img_tab_gestione, text="  Gestione Supermercati  ", compound="left")
+    else:
+        notebook.add(frame_gestione, text="Gestione Supermercati")
     frame_gestione.grid_columnconfigure(0, weight=1)
     frame_gestione.grid_rowconfigure(3, weight=1)
     img_carrello = self.icone_gui.get("spesa")
@@ -2042,10 +2050,18 @@ Obiettivo: Mantenere aggiornati i cataloghi (prezzi, promozioni, descrizioni) di
     notebook_help = ttk.Notebook(main_frame)
     notebook_help.pack(expand=True, fill='both')
     frame_help_lista = ttk.Frame(notebook_help, padding="10")
-    notebook_help.add(frame_help_lista, text="Lista Spesa Intelligente")
+    img_tab_help_lista = self.icone_gui.get("spesa")
+    if img_tab_help_lista:
+        notebook_help.add(frame_help_lista, image=img_tab_help_lista, text="  Lista Spesa Intelligente  ", compound="left")
+    else:
+        notebook_help.add(frame_help_lista, text="Lista Spesa Intelligente")
     _crea_text_area(frame_help_lista, help_text_lista)
     frame_help_gestione = ttk.Frame(notebook_help, padding="10")
-    notebook_help.add(frame_help_gestione, text="Gestione Supermercati (CRUD)")
+    img_tab_help_gestione = self.icone_gui.get("anagrafica")
+    if img_tab_help_gestione:
+        notebook_help.add(frame_help_gestione, image=img_tab_help_gestione, text="  Gestione Supermercati (CRUD)  ", compound="left")
+    else:
+        notebook_help.add(frame_help_gestione, text="Gestione Supermercati (CRUD)")
     _crea_text_area(frame_help_gestione, help_text_gestione)
     btn_frame = ttk.Frame(help_popup, padding=(15, 0))
     btn_frame.pack(fill='x', padx=15, pady=(5, 15))
