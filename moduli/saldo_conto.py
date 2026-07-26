@@ -81,11 +81,17 @@ def open_saldo_conto(self):
         tab_trasferimenti = tk.Frame(nb, bg=bg)
         tab_movimenti     = tk.Frame(nb, bg=bg)
         tab_storico       = tk.Frame(nb, bg=bg)
-        nb.add(tab_riepilogo,     text="Riepilogo")
-        nb.add(tab_conti,         text="Conti")
-        nb.add(tab_trasferimenti, text="Trasferimenti")
-        nb.add(tab_movimenti,     text="Movimenti")
-        nb.add(tab_storico,       text="Storico Saldo")
+        def _add_tab(frame, ico_key, testo):
+            img = self.icone_gui.get(ico_key)
+            if img:
+                nb.add(frame, image=img, text=f"  {testo}  ", compound="left")
+            else:
+                nb.add(frame, text=testo)
+        _add_tab(tab_riepilogo,     "report",      "Riepilogo")
+        _add_tab(tab_conti,         "banca",       "Conti")
+        _add_tab(tab_trasferimenti, "reset_campo", "Trasferimenti")
+        _add_tab(tab_movimenti,     "descrizione", "Movimenti")
+        _add_tab(tab_storico,       "grafico_linea", "Storico Saldo")
         bar_bottom = tk.Frame(popup, bg=bg)
         bar_bottom.pack(fill=tk.X, side=tk.BOTTOM, pady=(4, 6))
         def build_riepilogo():
