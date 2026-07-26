@@ -48,10 +48,16 @@ def calcola_mancanti(self):
     }, reverse=True)
     notebook = ttk.Notebook(popup)
     notebook.pack(fill="both", expand=True, padx=10, pady=(8, 0))
+    def _add_tab(frame, ico_key, testo):
+        img = self.icone_gui.get(ico_key)
+        if img:
+            notebook.add(frame, image=img, text=f" {testo} ", compound="left")
+        else:
+            notebook.add(frame, text=f" {testo} ")
     tab_mensili = ttk.Frame(notebook)
     tab_annuali = ttk.Frame(notebook)
-    notebook.add(tab_mensili, text="Mensili / Periodiche")
-    notebook.add(tab_annuali, text="Annuali")
+    _add_tab(tab_mensili, "scadenze", "Mensili / Periodiche")
+    _add_tab(tab_annuali, "calendario", "Annuali")
     anno_var = tk.StringVar(value=str(oggi.year))
     top_bar = ttk.Frame(tab_mensili, padding=10)
     top_bar.pack(fill="x")
