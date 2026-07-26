@@ -50,12 +50,18 @@ def apri_portafoglio(self):
         tab_div    = tk.Frame(nb, bg=self.COLOR_BACKGROUND)
         tab_graf = tk.Frame(nb, bg=self.COLOR_BACKGROUND)
         tab_mercati = tk.Frame(nb, bg=self.COLOR_BACKGROUND)
-        nb.add(tab_dash,  text="  Dashboard  ")
-        nb.add(tab_porta, text="  Portafoglio  ")
-        nb.add(tab_mov,   text="  Movimenti  ")
-        nb.add(tab_div,   text="  Dividendi  ")
-        nb.add(tab_graf,  text="  Grafici  ")
-        nb.add(tab_mercati, text="  Mercati  ")
+        def _add_tab(frame, ico_key, testo):
+            img = self.icone_gui.get(ico_key)
+            if img:
+                nb.add(frame, image=img, text=f"  {testo}  ", compound="left")
+            else:
+                nb.add(frame, text=f"  {testo}  ")
+        _add_tab(tab_dash,    "report",       "Dashboard")
+        _add_tab(tab_porta,   "saldo",        "Portafoglio")
+        _add_tab(tab_mov,     "descrizione",  "Movimenti")
+        _add_tab(tab_div,     "regalo",       "Dividendi")
+        _add_tab(tab_graf,    "grafico_linea","Grafici")
+        _add_tab(tab_mercati, "google",       "Mercati")
         def _build_dashboard():
             for w in tab_dash.winfo_children():
                 w.destroy()
@@ -205,8 +211,14 @@ def apri_portafoglio(self):
             sub_nb.pack(fill="both", expand=True, padx=6, pady=6)
             tab_sp500 = tk.Frame(sub_nb, bg=self.COLOR_BACKGROUND)
             tab_mib   = tk.Frame(sub_nb, bg=self.COLOR_BACKGROUND)
-            sub_nb.add(tab_sp500, text="  S&P 500  ")
-            sub_nb.add(tab_mib,   text="  FTSE MIB  ")
+            def _add_mercato_tab(frame, ico_key, testo):
+                img = self.icone_gui.get(ico_key)
+                if img:
+                    sub_nb.add(frame, image=img, text=f"  {testo}  ", compound="left")
+                else:
+                    sub_nb.add(frame, text=f"  {testo}  ")
+            _add_mercato_tab(tab_sp500, "grafico_linea", "S&P 500")
+            _add_mercato_tab(tab_mib,   "grafico_torta", "FTSE MIB")
             def _build_tab(parent, url_wiki, col_ticker_idx, col_nome_idx, col_settore_idx, max_rows, label_carica, suffisso=""):
                 frm_top = tk.Frame(parent, bg=self.COLOR_BACKGROUND)
                 frm_top.pack(fill="x", padx=8, pady=(6, 2))
@@ -2084,20 +2096,26 @@ Genera un report completo del portafoglio (KPI, titoli, movimenti, dividendi) es
                     cvs.bind("<Leave>",  _leave)
                 cvs.bind("<Configure>", _draw)
                 cvs.after(100, _draw)
+            def _add_subtab(frame, ico_key, testo):
+                img = self.icone_gui.get(ico_key)
+                if img:
+                    sub_nb.add(frame, image=img, text=f"  {testo}  ", compound="left")
+                else:
+                    sub_nb.add(frame, text=f"  {testo}  ")
             t1 = tk.Frame(sub_nb, bg=self.COLOR_BACKGROUND)
-            sub_nb.add(t1, text="  Investito  ")
+            _add_subtab(t1, "banca", "Investito")
             _disegna_grafico(t1, "Capitale Investito nel Tempo",
                              date_uniche, [inv_cum], ["Investito"], [PALETTE[0]], fill_sotto=True)
             t2 = tk.Frame(sub_nb, bg=self.COLOR_BACKGROUND)
-            sub_nb.add(t2, text="  P&L (stimato)  ")
+            _add_subtab(t2, "grafico_torta", "P&L (stimato)")
             _disegna_grafico(t2, "P&L stimato al prezzo attuale",
                              date_uniche, [pl_cum], ["P&L (prezzo attuale)"], [PALETTE[2]], fill_sotto=True)
             t3 = tk.Frame(sub_nb, bg=self.COLOR_BACKGROUND)
-            sub_nb.add(t3, text="  Dividendi  ")
+            _add_subtab(t3, "regalo", "Dividendi")
             _disegna_grafico(t3, "Dividendi Incassati nel Tempo",
                              date_uniche, [div_cum], ["Dividendi"], [PALETTE[4]], fill_sotto=True)
             t4 = tk.Frame(sub_nb, bg=self.COLOR_BACKGROUND)
-            sub_nb.add(t4, text="  Per Titolo  ")
+            _add_subtab(t4, "tag", "Per Titolo")
             _disegna_grafico(t4, "Capitale Investito per Titolo",
                              date_uniche,
                              [serie_titoli[tk_] for tk_ in tickers_unici],
