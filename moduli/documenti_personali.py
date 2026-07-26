@@ -99,11 +99,17 @@ def gestisci_documenti_personali(self):
     barra_menu.add_cascade(label="📂 Archivio", menu=menu_arch)
     nb = ttk.Notebook(win)
     nb.pack(fill="both", expand=True, padx=6, pady=6)
+    def _add_tab(frame, ico_key, testo):
+        img = self.icone_gui.get(ico_key)
+        if img:
+            nb.add(frame, image=img, text=f"  {testo}  ", compound="left")
+        else:
+            nb.add(frame, text=f"  {testo}  ")
     def costruisci_tab(nome_profilo):
         init_profilo(nome_profilo)
         categorie = load_categorie(nome_profilo)
         frm = ttk.Frame(nb)
-        nb.add(frm, text=f"  👤 {nome_profilo}  ")
+        _add_tab(frm, "utenti", nome_profilo)
         COLS     = ["data", "categoria", "descrizione", "note", "file"]
         COL_HDRS = {"data": "Data", "categoria": "Categoria",
                     "descrizione": "Descrizione", "note": "Note", "file": "File"}
@@ -831,7 +837,7 @@ def gestisci_documenti_personali(self):
         return load_tree, esegui_backup_manuale
     def costruisci_tab_profili():
         frm_p = ttk.Frame(nb)
-        nb.add(frm_p, text="  ⚙️ Profili  ")
+        _add_tab(frm_p, "filtri", "Profili")
         lf = ttk.LabelFrame(frm_p, text="  👤  Aggiungi profilo  ", padding=10)
         lf.pack(fill="x", padx=16, pady=16)
         ttk.Label(lf, text="Nome:").grid(row=0, column=0, sticky="e", padx=6, pady=6)
