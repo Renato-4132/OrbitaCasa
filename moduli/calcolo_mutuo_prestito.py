@@ -64,7 +64,11 @@ def calcolo_mutuo_prestito(self):
         tree_widget.tag_configure('total_row', font=('Arial', 10, 'bold'))
     def crea_tab_piano_ammortamento(notebook_widget, title):
         frame = ttk.Frame(notebook_widget, padding=10)
-        notebook_widget.add(frame, text=title)
+        img_tab_piano = self.icone_gui.get("grafico_linea")
+        if img_tab_piano:
+            notebook_widget.add(frame, image=img_tab_piano, text=f"  {title}  ", compound="left")
+        else:
+            notebook_widget.add(frame, text=title)
         title_label = ttk.Label(frame, text="Nessun dato disponibile", font=("Arial", 9, "bold"))
         title_label.pack(pady=10, fill=tk.X)
         tree_frame = ttk.Frame(frame)
@@ -721,10 +725,10 @@ def calcolo_mutuo_prestito(self):
     self.killer_stats = []
     root = tk.Toplevel(bg=self.COLOR_TOPLEVEL)
     root.title("Gestore Finanziario - Calcolo Finanziamento e Simulazioni - Ammortamento Francese")
-    root.geometry("1200x650")
+    root.geometry("1300x650")
     screen_width = root.winfo_screenwidth()
     screen_height = root.winfo_screenheight()
-    window_width = 1200
+    window_width = 1300
     window_height = 650
     position_top = int(screen_height / 2 - window_height / 2)
     position_right = int(screen_width / 2 - window_width / 2)
@@ -737,7 +741,11 @@ def calcolo_mutuo_prestito(self):
     notebook = ttk.Notebook(root)
     notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
     simulazioni_frame = ttk.Frame(notebook, padding=10)
-    notebook.add(simulazioni_frame, text="Simulazioni")
+    img_tab_simulazioni = self.icone_gui.get("calcolatrice")
+    if img_tab_simulazioni:
+        notebook.add(simulazioni_frame, image=img_tab_simulazioni, text="  Simulazioni  ", compound="left")
+    else:
+        notebook.add(simulazioni_frame, text="Simulazioni")
     titoli_simulazioni = ["Scenario", "Capitale (€)", "Durata (anni)", "Tasso (%)", "Spese Incasso (€)", "Ammort. Extra (€)", "N° Rate", "Tasso Mensile", "Rata Mensile", "Interessi Totali", "Costo Totale", "Risparmio Interessi"]
     for i, titolo in enumerate(titoli_simulazioni):
         ttk.Label(simulazioni_frame, text=titolo, font=("Arial", 9, "bold")).grid(row=0, column=i, padx=5, pady=5, sticky="w")
@@ -767,7 +775,11 @@ def calcolo_mutuo_prestito(self):
     btn_reset_simulazioni.grid(row=7, column=7, pady=10, padx=5)
     btn_reset_simulazioni.bind("<Button-1>", lambda e: resetta_tutti_i_campi_simulazione())
     analisi_frame = ttk.Frame(notebook, padding=10)
-    notebook.add(analisi_frame, text="Riepilogo Analisi")
+    img_tab_analisi = self.icone_gui.get("report")
+    if img_tab_analisi:
+        notebook.add(analisi_frame, image=img_tab_analisi, text="  Riepilogo Analisi  ", compound="left")
+    else:
+        notebook.add(analisi_frame, text="Riepilogo Analisi")
     tree_analisi = ttk.Treeview(analisi_frame, columns=("Scenario", "Capitale", "Durata", "Tasso", "Ammortamento Extra", "Rata Mensile", "Importo Totale", "Interessi Totali", "Risparmio Interessi"), show="headings")
     tree_analisi.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
     headings = {"Scenario": 120, "Capitale": 120, "Durata": 150, "Tasso": 80, "Ammortamento Extra": 140, "Rata Mensile": 120, "Importo Totale": 150, "Interessi Totali": 120, "Risparmio Interessi": 140}
@@ -779,7 +791,11 @@ def calcolo_mutuo_prestito(self):
         tree, label = crea_tab_piano_ammortamento(notebook, f"Simulazione {i+1}")
         trees_piani.append(tree); labels_piani.append(label)
     killer_frame = ttk.Frame(notebook, padding=10)
-    notebook.add(killer_frame, text="🎯 Piano KILLER")
+    img_tab_killer = self.icone_gui.get("tools")
+    if img_tab_killer:
+        notebook.add(killer_frame, image=img_tab_killer, text="  Piano KILLER  ", compound="left")
+    else:
+        notebook.add(killer_frame, text="🎯 Piano KILLER")
     k_input_frame = ttk.LabelFrame(killer_frame, text=" Parametri Estinzione Anticipata Strategica ", padding=10)
     k_input_frame.pack(fill=tk.X, pady=5)
     ttk.Label(k_input_frame, text="Debito Residuo (€):").grid(row=0, column=0, padx=5, sticky="w")
