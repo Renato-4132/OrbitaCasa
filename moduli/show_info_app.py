@@ -104,8 +104,14 @@ def show_info_app(self):
     btn_chiudi.bind("<Button-1>", lambda e: info_win.destroy())
     notebook = ttk.Notebook(info_win)
     notebook.pack(fill="both", expand=True, padx=10, pady=(2, 0))
+    def _add_tab(frame, ico_key, testo):
+        img = self.icone_gui.get(ico_key)
+        if img:
+            notebook.add(frame, image=img, text=f" {testo} ", compound="left")
+        else:
+            notebook.add(frame, text=f" {testo} ")
     tab_info = ttk.Frame(notebook)
-    notebook.add(tab_info, text=" Info App ")
+    _add_tab(tab_info, "info", "Info App")
     main_frame = tk.Frame(tab_info, bg=self.COLOR_TOPLEVEL)
     main_frame.pack(expand=True, fill="both", padx=20, pady=10)
     if os.path.exists(logo_path):
@@ -129,14 +135,14 @@ def show_info_app(self):
         lbl.pack(side=tk.LEFT, padx=10)
         lbl.bind("<Button-1>", cmd)
     tab_filtri = ttk.Frame(notebook)
-    notebook.add(tab_filtri, text=" Filtri e Tabelle ")
+    _add_tab(tab_filtri, "filtri", "Filtri e Tabelle")
     container_f = tk.Frame(tab_filtri, bg=self.COLOR_WHITE, highlightbackground=self.COLOR_TOPLEVEL, highlightthickness=4, bd=0)
     container_f.pack(fill="both", expand=True, padx=15, pady=2)
     tk.Label(container_f, text=testo_filtri, font=("Arial", 10),
              bg=self.COLOR_WHITE, fg=self.COLOR_BLACK, justify=tk.LEFT, anchor='nw',
              wraplength=920).pack(fill='both', expand=True, padx=15, pady=5)
     tab_icone = ttk.Frame(notebook)
-    notebook.add(tab_icone, text=" Pulsanti Icone ")
+    _add_tab(tab_icone, "tools", "Pulsanti Icone")
     container_i = tk.Frame(tab_icone, bg=self.COLOR_WHITE, highlightbackground=self.COLOR_TOPLEVEL, highlightthickness=4, bd=0)
     container_i.pack(fill="both", expand=True, padx=15, pady=2)
     tk.Label(container_i, text=testo_icone, font=("Arial", 10),
