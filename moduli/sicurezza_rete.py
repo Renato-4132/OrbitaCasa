@@ -848,6 +848,12 @@ def mostra_log_accessi(self):
              row=0, column=0, pady=(12, 5), padx=15, sticky="w")
     nb = ttk.Notebook(popup)
     nb.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
+    def _add_tab(frame, ico_key, testo):
+        img = self.icone_gui.get(ico_key)
+        if img:
+            nb.add(frame, image=img, text=f" {testo} ", compound="left")
+        else:
+            nb.add(frame, text=f" {testo} ")
     def carica_json(path):
         if os.path.exists(path):
             try:
@@ -910,18 +916,18 @@ def mostra_log_accessi(self):
         return frame
     dati_web_ok = [{"Timestamp": r.get("data_ora",""), "Indirizzo IP": r.get("ip",""), "Browser": r.get("browser","")} for r in carica_json(LOGIN_WEB) if isinstance(r, dict)]
     tab_ok = crea_tab_lista(nb, dati_web_ok, ["Timestamp", "Indirizzo IP", "Browser"], larghezze=[240, 220, 700])
-    nb.add(tab_ok, text="✅ Accessi WEB OK")
+    _add_tab(tab_ok, "check", "Accessi WEB OK")
     dati_web_fail = [{"Timestamp": r.get("data_ora",""), "Indirizzo IP": r.get("ip",""), "Tentativo": r.get("pwd_tentata",""), "Browser": r.get("browser","")} for r in carica_json(LOGIN_WEB_FAIL) if isinstance(r, dict)]
     tab_fail = crea_tab_lista(nb, dati_web_fail, ["Timestamp", "Indirizzo IP", "Tentativo", "Browser"])
-    nb.add(tab_fail, text="❌ Accessi WEB Falliti")
+    _add_tab(tab_fail, "chiudi", "Accessi WEB Falliti")
     dati_lcl = carica_json(LOGIN_LCL)
     if isinstance(dati_lcl, dict):
         dati_lcl = dati_lcl.get("eventi", [])
     dati_lcl = [{"Timestamp": r.get("timestamp",""), "Tipo": r.get("tipo",""), "Utente": r.get("utente",""), "Session ID": r.get("session_id",""), "Tentativo": r.get("tentativo",""), "Password Tentata": r.get("password_tentata","")} for r in dati_lcl if isinstance(r, dict)]
     tab_lcl = crea_tab_lista(nb, dati_lcl, ["Timestamp", "Tipo", "Utente", "Session ID", "Tentativo", "Password Tentata"])
-    nb.add(tab_lcl, text="🖥️ Login Locali")
+    _add_tab(tab_lcl, "home", "Login Locali")
     tab_ac = crea_tab_access_control(nb, carica_access_control())
-    nb.add(tab_ac, text="🛡️ Ban Status")
+    _add_tab(tab_ac, "occhio_chiuso", "Ban Status")
     btns = tk.Frame(popup, bg=self.COLOR_BACKGROUND)
     btns.grid(row=2, column=0, pady=10, padx=15, sticky="ew")
     btns.columnconfigure(0, weight=1)
@@ -947,18 +953,18 @@ def mostra_log_accessi(self):
             nb.forget(tab)
         dati_web_ok = [{"Timestamp": r.get("data_ora",""), "Indirizzo IP": r.get("ip",""), "Browser": r.get("browser","")} for r in carica_json(LOGIN_WEB) if isinstance(r, dict)]
         tab_ok = crea_tab_lista(nb, dati_web_ok, ["Timestamp", "Indirizzo IP", "Browser"], larghezze=[140, 120, 700])
-        nb.add(tab_ok, text="✅ Accessi WEB OK")
+        _add_tab(tab_ok, "check", "Accessi WEB OK")
         dati_web_fail = [{"Timestamp": r.get("data_ora",""), "Indirizzo IP": r.get("ip",""), "Tentativo": r.get("pwd_tentata",""), "Browser": r.get("browser","")} for r in carica_json(LOGIN_WEB_FAIL) if isinstance(r, dict)]
         tab_fail = crea_tab_lista(nb, dati_web_fail, ["Timestamp", "Indirizzo IP", "Tentativo", "Browser"], larghezze=[100, 100, 150, 600])
-        nb.add(tab_fail, text="❌ Accessi WEB Falliti")
+        _add_tab(tab_fail, "chiudi", "Accessi WEB Falliti")
         dati_lcl = carica_json(LOGIN_LCL)
         if isinstance(dati_lcl, dict):
             dati_lcl = dati_lcl.get("eventi", [])
         dati_lcl = [{"Timestamp": r.get("timestamp",""), "Tipo": r.get("tipo",""), "Utente": r.get("utente",""), "Session ID": r.get("session_id",""), "Tentativo": r.get("tentativo",""), "Password Tentata": r.get("password_tentata","")} for r in dati_lcl if isinstance(r, dict)]
         tab_lcl = crea_tab_lista(nb, dati_lcl, ["Timestamp", "Tipo", "Utente", "Session ID", "Tentativo", "Password Tentata"])
-        nb.add(tab_lcl, text="🖥️ Login Locali")
+        _add_tab(tab_lcl, "home", "Login Locali")
         tab_ac = crea_tab_access_control(nb, carica_access_control())
-        nb.add(tab_ac, text="🛡️ Ban Status")
+        _add_tab(tab_ac, "occhio_chiuso", "Ban Status")
     lbl_azzera = ttk.Label(btns, image=self.icone_gui.get("delete"),
             text=" Azzera Tutti i Log", compound="left", cursor="hand2",
             background=self.COLOR_BACKGROUND, foreground=self.COLOR_RED_SMOOTH,
