@@ -434,7 +434,7 @@ def apri_gestione_tag(self):
     win = tk.Toplevel(self.master, bg=self.COLOR_TOPLEVEL)
     self._win_tag = win
     win.title("Gestione Tag Movimenti")
-    larg, alt = 1000, 600
+    larg, alt = 1366, 600
     sw = win.winfo_screenwidth()
     sh = win.winfo_screenheight()
     win.geometry(f"{larg}x{alt}+{(sw-larg)//2}+{(sh-alt)//2}")
