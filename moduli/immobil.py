@@ -88,7 +88,11 @@ def immobil(self):
     nb.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
     if not db["immobili"]:
         ph = ttk.Frame(nb)
-        nb.add(ph, text="  (nessun immobile)  ")
+        img_ph = self.icone_gui.get("home")
+        if img_ph:
+            nb.add(ph, image=img_ph, text="  (nessun immobile)  ", compound="left")
+        else:
+            nb.add(ph, text="  (nessun immobile)  ")
         tk.Label(
             ph, text="Clicca '🏠 Nuovo Immobile' per iniziare",
             font=("Arial", 12), bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HEADER
@@ -749,7 +753,11 @@ def _immobil_elimina(self, db, nb, win):
     nb.forget(idx)
     if not db["immobili"]:
         ph = ttk.Frame(nb)
-        nb.add(ph, text="  (nessun immobile)  ")
+        img_ph = self.icone_gui.get("home")
+        if img_ph:
+            nb.add(ph, image=img_ph, text="  (nessun immobile)  ", compound="left")
+        else:
+            nb.add(ph, text="  (nessun immobile)  ")
         tk.Label(
             ph, text="Clicca '🏠 Nuovo Immobile' per iniziare",
             font=("Arial", 12), bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HEADER

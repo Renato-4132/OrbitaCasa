@@ -180,7 +180,11 @@ def veicoli(self):
 
     if not db["veicoli"]:
         ph = ttk.Frame(nb)
-        nb.add(ph, text="  (nessun veicolo)  ")
+        img_ph = self.icone_gui.get("veicoli")
+        if img_ph:
+            nb.add(ph, image=img_ph, text="  (nessun veicolo)  ", compound="left")
+        else:
+            nb.add(ph, text="  (nessun veicolo)  ")
         tk.Label(
             ph, text="Clicca '🚗 Nuovo Veicolo' per iniziare",
             font=("Arial", 12), bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HEADER
@@ -836,7 +840,11 @@ def _veicoli_elimina(self, db, nb, win):
     nb.forget(idx)
     if not db["veicoli"]:
         ph = ttk.Frame(nb)
-        nb.add(ph, text="  (nessun veicolo)  ")
+        img_ph = self.icone_gui.get("veicoli")
+        if img_ph:
+            nb.add(ph, image=img_ph, text="  (nessun veicolo)  ", compound="left")
+        else:
+            nb.add(ph, text="  (nessun veicolo)  ")
         tk.Label(ph, text="Clicca '🚗 Nuovo Veicolo' per iniziare",
                  font=("Arial", 12), bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HEADER).pack(expand=True)
     self.show_toast("Veicolo eliminato.")
