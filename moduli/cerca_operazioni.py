@@ -13,7 +13,7 @@ def cerca_operazioni(self):
     PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
     EXPORT_FILES         = _app.EXPORT_FILES
     self.mostra_treeview_statistiche()
-    larghezza, altezza = 1300, 600
+    larghezza, altezza = 1366, 600
     x = self.winfo_screenwidth() // 2 - larghezza // 2
     y = self.winfo_screenheight() // 2 - altezza // 2
     finestra = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
