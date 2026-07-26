@@ -393,9 +393,15 @@ def gestisci_configurazione(self):
                   font=("Arial", 12, "bold"), foreground="#00529B").pack(pady=(0, 10))
         notebook = ttk.Notebook(main_container)
         notebook.pack(fill="both", expand=True, pady=(0, 10))
-        def crea_tab_bianco(titolo, contenuto_testo):
+        def _add_tab(frame, ico_key, testo):
+            img = self.icone_gui.get(ico_key)
+            if img:
+                notebook.add(frame, image=img, text=f" {testo} ", compound="left")
+            else:
+                notebook.add(frame, text=testo)
+        def crea_tab_bianco(titolo, contenuto_testo, ico_key=None):
             frame_tab = ttk.Frame(notebook)
-            notebook.add(frame_tab, text=titolo)
+            _add_tab(frame_tab, ico_key, titolo)
             container = tk.Frame(frame_tab, bg=self.COLOR_WHITE, 
                                  highlightbackground=self.COLOR_TOPLEVEL, 
                                  highlightthickness=4, bd=0)
@@ -474,11 +480,11 @@ def gestisci_configurazione(self):
             "di 1200,00 € disposto da AZIENDA ROSSI SPA. I fondi sono disponibili."
         )
 
-        crea_tab_bianco("🤖 Automatismo & Web", testo_tab1)
-        crea_tab_bianco("🖥️ Interfaccia & Window", testo_tab2)
-        crea_tab_bianco("📊 Carosello & Alert", testo_tab3)
-        crea_tab_bianco("💾 Database & Backup", testo_tab4)
-        crea_tab_bianco("📡 Connettività & Sync", testo_tab5)
+        crea_tab_bianco("Automatismo & Web", testo_tab1, "tools")
+        crea_tab_bianco("Interfaccia & Window", testo_tab2, "filtri")
+        crea_tab_bianco("Carosello & Alert", testo_tab3, "alert")
+        crea_tab_bianco("Database & Backup", testo_tab4, "salva")
+        crea_tab_bianco("Connettività & Sync", testo_tab5, "sync")
         footer_frame = ttk.Frame(main_container)
         footer_frame.pack(fill="x", side="bottom")
         ttk.Separator(footer_frame, orient='horizontal').pack(fill="x", pady=5)                  
