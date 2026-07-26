@@ -69,9 +69,15 @@ def mostra_grafici_fairshare(self, anno_sel="Tutti", mese_sel="Tutti"):
                  state="readonly", style="Border.TCombobox", width=16).pack(side=tk.LEFT)
     nb = ttk.Notebook(popup)
     nb.pack(fill=tk.BOTH, expand=True, padx=10, pady=8)
-    tab1 = tk.Frame(nb, bg=bg); nb.add(tab1, text="PER· Dovuto / Versato per Persona")
-    tab2 = tk.Frame(nb, bg=bg); nb.add(tab2, text="📂 Aperto / Chiuso per Categoria")
-    tab3 = tk.Frame(nb, bg=bg); nb.add(tab3, text="📅 Andamento Mensile")
+    def _add_tab(frame, ico_key, testo):
+        img = self.icone_gui.get(ico_key)
+        if img:
+            nb.add(frame, image=img, text=f" {testo} ", compound="left")
+        else:
+            nb.add(frame, text=testo)
+    tab1 = tk.Frame(nb, bg=bg); _add_tab(tab1, "utenti",     "Dovuto / Versato per Persona")
+    tab2 = tk.Frame(nb, bg=bg); _add_tab(tab2, "documenti",  "Aperto / Chiuso per Categoria")
+    tab3 = tk.Frame(nb, bg=bg); _add_tab(tab3, "calendario", "Andamento Mensile")
     def _crea_canvas_scroll(tab):
         hsb = ttk.Scrollbar(tab, orient="horizontal")
         hsb.pack(side=tk.BOTTOM, fill=tk.X)
