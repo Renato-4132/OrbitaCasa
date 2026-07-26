@@ -206,9 +206,13 @@ def utenze(self):
         notebook_guida = ttk.Notebook(guida_win)
         notebook_guida.pack(fill="both", expand=True, padx=10, pady=(10, 0))
 
-        def _crea_tab(titolo, testo):
+        def _crea_tab(titolo, testo, ico_key=None):
             tab = ttk.Frame(notebook_guida)
-            notebook_guida.add(tab, text=titolo)
+            img = self.icone_gui.get(ico_key) if ico_key else None
+            if img:
+                notebook_guida.add(tab, image=img, text=f" {titolo} ", compound="left")
+            else:
+                notebook_guida.add(tab, text=titolo)
             container = tk.Frame(tab, bg=self.COLOR_WHITE, highlightbackground=self.COLOR_TOPLEVEL, highlightthickness=4, bd=0)
             container.pack(fill="both", expand=True, padx=15, pady=10)
             tk.Label(container, text=testo, font=("Arial", 10),
@@ -216,9 +220,9 @@ def utenze(self):
                      wraplength=920).pack(fill='both', expand=True, padx=15, pady=5)
             return tab
 
-        _crea_tab(" Consumi e Grafico ", testo_consumi)
-        _crea_tab(" Anagrafica e Fattura AI ", testo_anagrafica)
-        _crea_tab(" Database ", testo_database)
+        _crea_tab("Consumi e Grafico", testo_consumi, "grafico_linea")
+        _crea_tab("Anagrafica e Fattura AI", testo_anagrafica, "fattura_ai")
+        _crea_tab("Database", testo_database, "salva")
 
         guida_win.update_idletasks()
         w, h = guida_win.winfo_reqwidth(), guida_win.winfo_reqheight()
