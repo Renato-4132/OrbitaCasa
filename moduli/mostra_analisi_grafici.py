@@ -370,10 +370,16 @@ def mostra_analisi_grafici(self):
     self.grafico_analisi_popup.bind("<Escape>", lambda e: self.grafico_analisi_popup.destroy())
     notebook = ttk.Notebook(self.grafico_analisi_popup)
     notebook.pack(fill="both", expand=True, padx=10, pady=(10, 5))
+    def _add_tab(frame, ico_key, testo):
+        img = self.icone_gui.get(ico_key)
+        if img:
+            notebook.add(frame, image=img, text=f" {testo} ", compound="left")
+        else:
+            notebook.add(frame, text=f" {testo} ")
     anni = sorted({d.year for d in self.spese.keys()}, reverse=True)
     anno_corrente = str(datetime.date.today().year)
     tab1 = ttk.Frame(notebook)
-    notebook.add(tab1, text="Entrate/Uscite")
+    _add_tab(tab1, "grafico_linea", "Entrate/Uscite")
     frame_totali = ttk.Frame(tab1)
     frame_totali.pack(side="bottom", pady=10)
     lbl_entrate = ttk.Label(frame_totali, text="Entrate: € 0.00", style="GSaldoPositivo.TLabel")
@@ -406,7 +412,7 @@ def mostra_analisi_grafici(self):
     tab2.grid_columnconfigure(0, weight=3)
     tab2.grid_columnconfigure(1, weight=1)
     tab2.grid_rowconfigure(1, weight=1)
-    notebook.add(tab2, text="Categorie")
+    _add_tab(tab2, "grafico_torta", "Categorie")
     img_mouse = self.icone_gui.get("mouse")
     lbl_periodo_tab2 = tk.Label(
             tab2, 
@@ -451,7 +457,7 @@ def mostra_analisi_grafici(self):
     self.tree_legenda.pack(side="left", fill="both", expand=True)
     self.tree_legenda.bind("<Double-1>", on_legenda_double_click)
     tab3 = ttk.Frame(notebook)
-    notebook.add(tab3, text="Saldo Mensile/Annuale")
+    _add_tab(tab3, "saldo", "Saldo Mensile/Annuale")
     frame_totali_tab3 = ttk.Frame(tab3)
     frame_totali_tab3.pack(side="bottom", pady=10)
     self.lbl_entrate_tab3 = ttk.Label(frame_totali_tab3, text="Entrate: € 0.00", style="GSaldoPositivo.TLabel")
