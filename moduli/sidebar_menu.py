@@ -235,6 +235,7 @@ def pop_opzioni(self):
     self._add_m_item(m, "Log Accessi", "scadenze", self.mostra_log_accessi) 
     m.add_separator()
     self._add_m_item(m, "Aggiorna Librerie Python", "sync", self.aggiorna_librerie_pip)
+    self._add_m_item(m, "Verifica Moduli (GitHub)", "sync", self.verifica_moduli_git)
     m.add_separator()
     self._add_m_item(m, "Contatta Assistenza", "help", lambda: self.apri_pannello_topic(self.topic_unico))
     self._mostra_popup(m, 260) 
@@ -389,6 +390,7 @@ def _filtra_sidebar(self, *_):
         ("Storico Anomalie",                      lambda: self.mostra_registro_errori()),
         ("Log Accessi Web",                       self.mostra_log_accessi),
         ("Aggiorna Librerie Python",              self.aggiorna_librerie_pip),
+        ("Verifica Moduli (GitHub)",              self.verifica_moduli_git),
         ("Contatta Assistenza",                   lambda: self.apri_pannello_topic(self.topic_unico)),
         ("Esporta DB Transazioni",                self.export_db),
         ("Importa DB Transazioni",                self.import_db),

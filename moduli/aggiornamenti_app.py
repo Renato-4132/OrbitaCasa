@@ -162,6 +162,56 @@ def _check_librerie_in_background(self):
         self.after(0, _aggiorna_ui)
     threading.Thread(target=_check, daemon=True).start()
 
+# Controllo automatico in background dei Moduli rispetto al repository GitHub
+def _check_moduli_in_background(self):
+    import threading
+    import __main__ as _app
+    MODULI_DIR = _app.MODULI_DIR
+    _boot_lista_moduli_remoti = _app._boot_lista_moduli_remoti
+    _boot_git_blob_sha1 = _app._boot_git_blob_sha1
+    _boot_pyw_allineato = _app._boot_pyw_allineato
+    def _check():
+        if not _boot_pyw_allineato():
+            def _salta():
+                if not self.winfo_exists():
+                    return
+                print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] "
+                      f".pyw non allineato: controllo moduli saltato.")
+                self.after(21600000, self._check_moduli_in_background)
+            self.after(0, _salta)
+            return
+        try:
+            elenco = _boot_lista_moduli_remoti()
+        except Exception:
+            elenco = None
+        def _aggiorna_ui():
+            if not self.winfo_exists():
+                return
+            if elenco is None:
+                print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] "
+                      f"Check moduli fallito (offline?)")
+            else:
+                diversi = 0
+                for voce in elenco:
+                    nome = voce.get("name", "?")
+                    dest = os.path.join(MODULI_DIR, nome)
+                    sha_remoto = voce.get("sha", "")
+                    if not os.path.isfile(dest):
+                        diversi += 1
+                        continue
+                    if _boot_git_blob_sha1(dest) != sha_remoto:
+                        diversi += 1
+                if diversi > 0:
+                    self.btn_verifica_moduli.pack(side=tk.LEFT, padx=(4, 0))
+                    print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] "
+                          f"{diversi} modul{'o' if diversi == 1 else 'i'} da aggiornare")
+                else:
+                    print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] "
+                          f"Moduli tutti aggiornati.")
+            self.after(21600000, self._check_moduli_in_background)
+        self.after(0, _aggiorna_ui)
+    threading.Thread(target=_check, daemon=True).start()
+
 # Controllo automatico degli Aggiornamenti Software
 def check_aggiornamento_con_api(self):
     splash_attivo = getattr(self, '_splash_reg', None) and self._splash_reg.winfo_exists()
@@ -257,7 +307,7 @@ def check_aggiornamento_thread(self):
         local_time = datetime.fromtimestamp(
             os.path.getmtime(NOME_FILE), timezone.utc
         ).replace(microsecond=0)
-        if sha_diversi or remote_time.date() > local_time.date():   # <-- SHA ha priorità sulla data
+        if sha_diversi or remote_time.date() > local_time.date():
             self.after(0, lambda rt=remote_time, lt=local_time, ct=changelog_text:
                        self._mostra_popup_aggiornamento(rt, lt, ct))
         else:
@@ -999,6 +1049,7 @@ def aggiorna_librerie_pip(self):
     def _riavvia(e=None):
         self.show_toast("Riavvio In Corso !", duration=3000)
         def esegui_kill():
+            self.save_db()
             if popup.winfo_exists():
                 popup.destroy()
             script_path = os.path.abspath(sys.argv[0])
@@ -1051,6 +1102,284 @@ def aggiorna_librerie_pip(self):
         msg = f"\n✅ Completato. {len(selezionate)-errori} ok, {errori} errori." if errori else "\n✅ Completato. Tutte le librerie aggiornate."
         self.after(0, lambda: _log(msg))
         self.after(0, _abilita_riavvia)
+    def _avvia_click(e=None):
+        btn_avvia.config(cursor="X_cursor")
+        btn_avvia.unbind("<Button-1>")
+        threading.Thread(target=_esegui, daemon=True).start()
+    btn_avvia.bind("<Button-1>", _avvia_click)
+
+# Verifica i moduli locali rispetto al repository GitHub e li aggiorna in automatico
+def verifica_moduli_git(self):
+    import threading
+    import __main__ as _app
+    MODULI_DIR = _app.MODULI_DIR
+    REPO_OWNER = _app.REPO_OWNER
+    REPO_NAME = _app.REPO_NAME
+    BRANCH_PRINCIPALE = _app.BRANCH_PRINCIPALE
+    _boot_lista_moduli_remoti = _app._boot_lista_moduli_remoti
+    _boot_git_blob_sha1 = _app._boot_git_blob_sha1
+    _boot_pyw_allineato = _app._boot_pyw_allineato
+    popup = tk.Toplevel(self)
+    popup.title("Verifica Moduli (GitHub)")
+    popup.configure(bg=self.COLOR_BACKGROUND)
+    popup.resizable(True, True)
+    popup.transient(self)
+    popup.bind("<Escape>", lambda e: popup.destroy())
+    w, h = 1350, 680
+    sw, sh = popup.winfo_screenwidth(), popup.winfo_screenheight()
+    popup.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
+    popup.minsize(1350, 660)
+    header = tk.Frame(popup, bg=self.COLOR_HEADER_BG, height=40)
+    header.pack(fill=tk.X)
+    header.pack_propagate(False)
+    img_h = self.icone_gui.get("sync")
+    tk.Label(header, compound="left", image=img_h,
+             text=f"  Verifica Moduli — {REPO_OWNER}/{REPO_NAME} ({BRANCH_PRINCIPALE})",
+             bg=self.COLOR_HEADER_BG, fg=self.COLOR_HEADER,
+             font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=14, pady=10)
+    body = tk.Frame(popup, bg=self.COLOR_BACKGROUND, padx=20, pady=12)
+    body.pack(fill=tk.BOTH, expand=True)
+    frame_top = tk.Frame(body, bg=self.COLOR_BACKGROUND)
+    frame_top.pack(fill=tk.X, pady=(0, 6))
+    tk.Label(frame_top, text="Seleziona i moduli da aggiornare:",
+             bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
+             font=("Segoe UI", 9)).pack(side=tk.LEFT)
+    var_tutti = tk.BooleanVar(value=True)
+    chk_tutti = ttk.Checkbutton(frame_top, variable=var_tutti, style="TCheckbutton")
+    chk_tutti.pack(side=tk.LEFT, padx=(16, 4))
+    lbl_tutti = tk.Label(frame_top, text="Tutto / Nessuno",
+                         bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
+                         font=("Segoe UI", 8), cursor="hand2")
+    lbl_tutti.pack(side=tk.LEFT)
+    lbl_check_stato = tk.Label(frame_top, text="🔄 Recupero elenco dal repository...",
+                               bg=self.COLOR_BACKGROUND, fg="gray60",
+                               font=("Segoe UI", 8, "italic"))
+    lbl_check_stato.pack(side=tk.RIGHT)
+    frame_lista = tk.Frame(body, bg=self.COLOR_WIDGET_BG,
+                           highlightbackground=self.COLOR_HEADER_BG, highlightthickness=1)
+    frame_lista.pack(fill=tk.BOTH, expand=True)
+    sb_lista = ttk.Scrollbar(frame_lista, style="Vertical.TScrollbar")
+    sb_lista.pack(side=tk.RIGHT, fill=tk.Y)
+    canvas_lista = tk.Canvas(frame_lista, bg=self.COLOR_WIDGET_BG, highlightthickness=0,
+                             yscrollcommand=sb_lista.set)
+    canvas_lista.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    sb_lista.config(command=canvas_lista.yview)
+    frame_checks = tk.Frame(canvas_lista, bg=self.COLOR_WIDGET_BG)
+    win_id = canvas_lista.create_window((0, 0), window=frame_checks, anchor="nw")
+    frame_checks.bind("<Configure>", lambda e: canvas_lista.configure(scrollregion=canvas_lista.bbox("all")))
+    canvas_lista.bind("<Configure>", lambda e: canvas_lista.itemconfig(win_id, width=e.width))
+    def _on_mousewheel(event):
+        try:
+            if event.num == 5 or event.delta < 0:
+                canvas_lista.yview_scroll(1, "units")
+            elif event.num == 4 or event.delta > 0:
+                canvas_lista.yview_scroll(-1, "units")
+        except Exception:
+            pass
+    canvas_lista.bind("<Enter>", lambda e: (canvas_lista.bind_all("<MouseWheel>", _on_mousewheel),
+                                            canvas_lista.bind_all("<Button-4>", _on_mousewheel),
+                                            canvas_lista.bind_all("<Button-5>", _on_mousewheel)))
+    canvas_lista.bind("<Leave>", lambda e: (canvas_lista.unbind_all("<MouseWheel>"),
+                                            canvas_lista.unbind_all("<Button-4>"),
+                                            canvas_lista.unbind_all("<Button-5>")))
+    col_sx = tk.Frame(frame_checks, bg=self.COLOR_WIDGET_BG)
+    col_dx = tk.Frame(frame_checks, bg=self.COLOR_WIDGET_BG)
+    col_sx.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=6)
+    col_dx.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=6)
+    righe_stato = {}
+    vars_moduli = []
+    tk.Label(col_sx, text="🔄 Recupero elenco moduli dal repository...",
+            bg=self.COLOR_WIDGET_BG, fg="gray60",
+            font=("Segoe UI", 8, "italic")).pack(anchor="w", pady=10)
+    tk.Label(body, text="Output:", bg=self.COLOR_BACKGROUND,
+             fg=self.TEXT_COLOR, font=("Segoe UI", 8)).pack(anchor="w", pady=(10, 2))
+    frame_txt = tk.Frame(body, bg=self.COLOR_WIDGET_BG,
+                         highlightbackground=self.COLOR_HEADER_BG, highlightthickness=1)
+    frame_txt.pack(fill=tk.BOTH, expand=False)
+    sb = ttk.Scrollbar(frame_txt, style="Vertical.TScrollbar")
+    sb.pack(side=tk.RIGHT, fill=tk.Y)
+    txt = tk.Text(frame_txt, height=7, bg=self.COLOR_HEADER_BG, fg=self.TEXT_COLOR,
+                  font=("Consolas", 8), relief="flat", bd=0, padx=6, pady=4,
+                  yscrollcommand=sb.set, state=tk.DISABLED)
+    txt.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    sb.config(command=txt.yview)
+    frame_btn = tk.Frame(popup, bg=self.COLOR_BACKGROUND, pady=10)
+    frame_btn.pack(fill=tk.X, padx=20)
+    img_avvia = self.icone_gui.get("sync")
+    img_riavvia = self.icone_gui.get("reset")
+    img_chiudi = self.icone_gui.get("chiudi")
+    btn_avvia = tk.Label(frame_btn, compound="left", image=img_avvia,
+                         text=" Verifica e Aggiorna", bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR,
+                         cursor="hand2", padx=14, pady=7, font=("Arial", 9, "bold"))
+    btn_riavvia = tk.Label(frame_btn, compound="left", image=img_riavvia,
+                           text=" Riavvia App", bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR,
+                           cursor="X_cursor", padx=14, pady=7, font=("Arial", 9, "bold"))
+    btn_chiudi_l = tk.Label(frame_btn, compound="left", image=img_chiudi,
+                            text=" Chiudi", bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR,
+                            cursor="hand2", padx=14, pady=7, font=("Arial", 9, "bold"))
+    btn_avvia.pack(side=tk.LEFT, expand=True)
+    btn_riavvia.pack(side=tk.LEFT, expand=True)
+    btn_chiudi_l.pack(side=tk.LEFT, expand=True)
+    btn_chiudi_l.bind("<Button-1>", lambda e: popup.destroy())
+    def _log(msg):
+        txt.config(state=tk.NORMAL)
+        txt.insert(tk.END, msg + "\n")
+        txt.see(tk.END)
+        txt.config(state=tk.DISABLED)
+    def _toggle_tutti():
+        stato = var_tutti.get()
+        for _, v in vars_moduli:
+            v.set(stato)
+    var_tutti.trace_add("write", lambda *_: _toggle_tutti())
+    lbl_tutti.bind("<Button-1>", lambda e: var_tutti.set(not var_tutti.get()))
+    def _aggiungi_riga(parent, nome, stato_testo, colore, data_testo="", size_testo=""):
+        var = tk.BooleanVar(value=True)
+        vars_moduli.append((nome, var))
+        row = tk.Frame(parent, bg=self.COLOR_WIDGET_BG)
+        row.pack(fill=tk.X, pady=2)
+        ttk.Checkbutton(row, variable=var, style="TCheckbutton").pack(side=tk.LEFT)
+        tk.Label(row, text=nome, bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HIGHLIGHT,
+                 font=("Consolas", 8, "bold"), width=39, anchor="w").pack(side=tk.LEFT)
+        lbl_data = tk.Label(row, text=data_testo, bg=self.COLOR_WIDGET_BG, fg="gray60",
+                            font=("Consolas", 7), width=12, anchor="w")
+        lbl_data.pack(side=tk.LEFT)
+        tk.Label(row, text="·", bg=self.COLOR_WIDGET_BG, fg="gray50",
+                 font=("Consolas", 7), width=2, anchor="center").pack(side=tk.LEFT)
+        lbl_size = tk.Label(row, text=size_testo, bg=self.COLOR_WIDGET_BG, fg="gray60",
+                            font=("Consolas", 7, "italic"), width=9, anchor="w")
+        lbl_size.pack(side=tk.LEFT)
+        lbl_stato = tk.Label(row, text=stato_testo, bg=self.COLOR_WIDGET_BG, fg=colore,
+                             font=("Consolas", 8, "bold"), anchor="w")
+        lbl_stato.pack(side=tk.LEFT)
+        righe_stato[nome] = (lbl_stato, lbl_data, lbl_size)
+    elenco_remoto_cache = []
+    pyw_allineato_ref = {"ok": True}
+    def _carica_elenco():
+        if not _boot_pyw_allineato():
+            pyw_allineato_ref["ok"] = False
+            def _blocca():
+                for w_ in col_sx.winfo_children():
+                    w_.destroy()
+                tk.Label(col_sx, text="⚠️ Il programma (.pyw) non è aggiornato all'ultima versione.\n"
+                                       "I moduli non vengono sincronizzati finché non aggiorni prima il programma.",
+                        bg=self.COLOR_WIDGET_BG, fg="#c9a84c", justify="left",
+                        font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=10, pady=10)
+                lbl_check_stato.config(text="⚠️ .pyw non allineato", fg="#c9a84c")
+                btn_avvia.config(cursor="X_cursor")
+                btn_avvia.unbind("<Button-1>")
+                _log("⚠️ Sincronizzazione moduli bloccata: aggiorna prima il programma (.pyw).")
+            self.after(0, _blocca)
+            return
+        try:
+            elenco = _boot_lista_moduli_remoti()
+        except Exception as e:
+            msg_err = str(e)
+            self.after(0, lambda m=msg_err: lbl_check_stato.config(text=f"❌ Impossibile contattare GitHub: {m}", fg="#C62828"))
+            return
+        elenco_remoto_cache.extend(elenco)
+        def _popola():
+            for w_ in col_sx.winfo_children():
+                w_.destroy()
+            elenco_ord = sorted(elenco, key=lambda v: v.get("name", ""))
+            meta = len(elenco_ord) // 2 + len(elenco_ord) % 2
+            diversi = 0
+            for i, voce in enumerate(elenco_ord):
+                nome = voce.get("name", "?")
+                dest = os.path.join(MODULI_DIR, nome)
+                sha_remoto = voce.get("sha", "")
+                parent = col_sx if i < meta else col_dx
+                if not os.path.isfile(dest):
+                    _aggiungi_riga(parent, nome, "✖ mancante", "#C62828", "-", "-")
+                    diversi += 1
+                    continue
+                dimensione_kb = os.path.getsize(dest) / 1024
+                data_mod = datetime.datetime.fromtimestamp(os.path.getmtime(dest)).strftime("%d/%m/%Y")
+                size_testo = f"{dimensione_kb:.1f} KB"
+                sha_locale = _boot_git_blob_sha1(dest)
+                if sha_locale == sha_remoto:
+                    _aggiungi_riga(parent, nome, "✓ aggiornato", "#2E7D32", data_mod, size_testo)
+                else:
+                    _aggiungi_riga(parent, nome, "⟳ da aggiornare", "#E65100", data_mod, size_testo)
+                    diversi += 1
+            lbl_check_stato.config(text="✓ Elenco verificato")
+            _log(f"Verifica completata: {len(elenco_ord)} moduli controllati, {diversi} da aggiornare.")
+        self.after(0, _popola)
+    threading.Thread(target=_carica_elenco, daemon=True).start()
+    def _esegui():
+        if not pyw_allineato_ref["ok"]:
+            self.after(0, lambda: _log("⚠️ Aggiornamento bloccato: il programma (.pyw) non è allineato all'ultima versione."))
+            return
+        if not elenco_remoto_cache:
+            self.after(0, lambda: _log("⚠️ Elenco remoto non ancora disponibile, riprova tra poco."))
+            self.after(0, lambda: btn_avvia.config(cursor="hand2"))
+            self.after(0, lambda: btn_avvia.bind("<Button-1>", _avvia_click))
+            return
+        selezionati = {nome for nome, v in vars_moduli if v.get()}
+        if not selezionati:
+            self.after(0, lambda: _log("⚠️ Nessun modulo selezionato."))
+            self.after(0, lambda: btn_avvia.config(cursor="hand2"))
+            self.after(0, lambda: btn_avvia.bind("<Button-1>", _avvia_click))
+            return
+        self.after(0, lambda: _log(f"Avvio verifica e aggiornamento di {len(selezionati)} moduli...\n"))
+        aggiornati = 0
+        errori = 0
+        for voce in elenco_remoto_cache:
+            nome = voce.get("name", "?")
+            if nome not in selezionati:
+                continue
+            dest = os.path.join(MODULI_DIR, nome)
+            sha_remoto = voce.get("sha", "")
+            sha_locale = _boot_git_blob_sha1(dest) if os.path.isfile(dest) else None
+            if sha_locale == sha_remoto:
+                continue
+            url_raw = voce.get("download_url")
+            if not url_raw:
+                continue
+            try:
+                req = urllib.request.Request(url_raw, headers={"User-Agent": "OrbitaCasa-Sync"})
+                with urllib.request.urlopen(req, timeout=20) as resp, open(dest, "wb") as out:
+                    shutil.copyfileobj(resp, out)
+                aggiornati += 1
+                self.after(0, lambda n=nome: _log(f"✓ {n} aggiornato"))
+                if nome in righe_stato:
+                    dimensione_kb = os.path.getsize(dest) / 1024
+                    data_mod = datetime.datetime.fromtimestamp(os.path.getmtime(dest)).strftime("%d/%m/%Y")
+                    size_testo = f"{dimensione_kb:.1f} KB"
+                    def _aggiorna_riga(n=nome, d=data_mod, s=size_testo):
+                        lbl_s, lbl_d, lbl_k = righe_stato[n]
+                        lbl_s.config(text="✓ aggiornato", fg="#2E7D32")
+                        lbl_d.config(text=d)
+                        lbl_k.config(text=s)
+                    self.after(0, _aggiorna_riga)
+            except Exception as e:
+                errori += 1
+                self.after(0, lambda n=nome, err=e: _log(f"❌ {n}: {err}"))
+        msg = f"\n✅ Completato. {aggiornati} moduli aggiornati, {errori} errori." if (aggiornati or errori) else "\n✅ I moduli selezionati erano già aggiornati."
+        self.after(0, lambda: _log(msg))
+        if aggiornati:
+            self.after(0, _abilita_riavvia)
+        else:
+            self.after(0, lambda: btn_avvia.config(cursor="hand2"))
+            self.after(0, lambda: btn_avvia.bind("<Button-1>", _avvia_click))
+    def _riavvia(e=None):
+        self.show_toast("Riavvio In Corso !", duration=3000)
+        def esegui_kill():
+            self.save_db()
+            if popup.winfo_exists():
+                popup.destroy()
+            script_path = os.path.abspath(sys.argv[0])
+            args = [sys.executable, script_path] + sys.argv[1:]
+            if os.name == 'nt':
+                subprocess.Popen(args, creationflags=0x00000008, shell=False, close_fds=True)
+            else:
+                subprocess.Popen(args, start_new_session=True, close_fds=True)
+            self.destroy()
+            os._exit(0)
+        self.after(800, esegui_kill)
+    def _abilita_riavvia():
+        btn_riavvia.config(cursor="hand2")
+        btn_riavvia.bind("<Button-1>", _riavvia)
+        self.btn_verifica_moduli.pack_forget()
     def _avvia_click(e=None):
         btn_avvia.config(cursor="X_cursor")
         btn_avvia.unbind("<Button-1>")

@@ -382,10 +382,10 @@ def registra_tutti_i_moduli(GestioneSpese):
     invia_notifica_fallimento, get_ip_locale_reale, get_dominio_ssl, gestisci_certificati, mostra_log_accessi)
 
     from moduli.aggiornamenti_app import (
-        forza_aggiorna, aggiorna, _check_librerie_in_background, check_aggiornamento_con_api, check_aggiornamento_thread,
+        forza_aggiorna, aggiorna, _check_librerie_in_background, _check_moduli_in_background, check_aggiornamento_con_api, check_aggiornamento_thread,
         _mostra_popup_aggiornamento, forza_check_aggiornamento_con_api, _forza_check_thread, _mostra_popup_forza_aggiornamento,
-        aggiorna_librerie_pip, ripristina_da_backup,)
-    _registra(forza_aggiorna, aggiorna, _check_librerie_in_background, check_aggiornamento_con_api, check_aggiornamento_thread, 
+        aggiorna_librerie_pip, verifica_moduli_git, ripristina_da_backup,)
+    _registra(forza_aggiorna, aggiorna, _check_librerie_in_background, _check_moduli_in_background, check_aggiornamento_con_api, check_aggiornamento_thread, 
     _mostra_popup_aggiornamento, forza_check_aggiornamento_con_api, _forza_check_thread, _mostra_popup_forza_aggiornamento, 
-    aggiorna_librerie_pip, ripristina_da_backup)
+    aggiorna_librerie_pip, verifica_moduli_git, ripristina_da_backup)
 
