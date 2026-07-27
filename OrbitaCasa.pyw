@@ -885,6 +885,18 @@ class GestioneSpese(tk.Tk):
         )
         self.btn_aggiorna_lib.image = self.icone_gui.get("carica")
         self.btn_aggiorna_lib.bind("<Button-1>", lambda e: self.aggiorna_librerie_pip())
+        self.btn_verifica_moduli = tk.Label(
+                frame_licence,
+                image=self.icone_gui.get("sync"),
+                text="🔄" if not self.icone_gui.get("sync") else "",
+                compound="left",
+                font=("Arial", 8, "italic"),
+                cursor="hand2",
+                bg=self.COLOR_WIDGET_BG,
+                fg="#E65100"
+        )
+        self.btn_verifica_moduli.image = self.icone_gui.get("sync")
+        self.btn_verifica_moduli.bind("<Button-1>", lambda e: self.verifica_moduli_git())
         tk.Frame(_lbl_frame_avanzato, height=1, bg="gray50").pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=2)
         self.lbl_server_start = tk.Label(
                 _lbl_frame_avanzato,
@@ -1038,6 +1050,7 @@ class GestioneSpese(tk.Tk):
         add_tt(self.btn_analisi, "Mostra analisi grafiche dettagliate")
         add_tt(self.btn_help, "Hub Pannello Moduli Principali")
         add_tt(self.btn_aggiorna_lib, "Aggiornamenti librerie disponibili — clicca per aggiornare")    
+        add_tt(self.btn_verifica_moduli, "Moduli da aggiornare — clicca per verificare/aggiornare")    
         def crea_icona_nav(chiave, comando, tooltip, emoji):
                 img = self.icone_gui.get(chiave)
                 lbl = tk.Label(
@@ -1794,6 +1807,7 @@ class GestioneSpese(tk.Tk):
         self.refresh_gui()
         self.after(1000, self.check_aggiornamento_con_api)
         self.after(5000, self._check_librerie_in_background)
+        self.after(5500, self._check_moduli_in_background)
         if CLOSE:
                 self.protocol("WM_DELETE_WINDOW", self._iconizza_finestra_x)
         else:
@@ -5996,7 +6010,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "449111d929705d02f7467d1922064a4958baa7a391cdd2a83c5d612c89552cad"
+        E_H_B = "1e1d851b9cd60cce5a66f26dc501e0587a34c440c7c76d97c168e119ded21833"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
