@@ -1013,12 +1013,12 @@ def aggiorna_librerie_pip(self):
     threading.Thread(target=_carica_versioni_disponibili, daemon=True).start()
     tk.Label(body, text="Output:", bg=self.COLOR_BACKGROUND,
              fg=self.TEXT_COLOR, font=("Segoe UI", 8)).pack(anchor="w", pady=(10, 2))
-    frame_txt = tk.Frame(body, bg=self.COLOR_WIDGET_BG,
+    frame_txt = tk.Frame(body, bg=self.COLOR_BACKGROUND,
                          highlightbackground=self.COLOR_HEADER_BG, highlightthickness=1)
     frame_txt.pack(fill=tk.BOTH, expand=True)
     sb = ttk.Scrollbar(frame_txt, style="Vertical.TScrollbar")
     sb.pack(side=tk.RIGHT, fill=tk.Y)
-    txt = tk.Text(frame_txt, height=7, bg=self.COLOR_HEADER_BG, fg=self.TEXT_COLOR,
+    txt = tk.Text(frame_txt, height=7, bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
                   font=("Consolas", 8), relief="flat", bd=0, padx=6, pady=4,
                   yscrollcommand=sb.set, state=tk.DISABLED)
     txt.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -1129,13 +1129,13 @@ def verifica_moduli_git(self):
     sw, sh = popup.winfo_screenwidth(), popup.winfo_screenheight()
     popup.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
     popup.minsize(1350, 660)
-    header = tk.Frame(popup, bg=self.COLOR_HEADER_BG, height=40)
+    header = tk.Frame(popup, bg=self.COLOR_BACKGROUND, height=40)
     header.pack(fill=tk.X)
     header.pack_propagate(False)
     img_h = self.icone_gui.get("sync")
     tk.Label(header, compound="left", image=img_h,
              text=f"  Verifica Moduli — {REPO_OWNER}/{REPO_NAME} ({BRANCH_PRINCIPALE})",
-             bg=self.COLOR_HEADER_BG, fg=self.COLOR_HEADER,
+             bg=self.COLOR_BACKGROUND, fg=self.COLOR_HEADER,
              font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=14, pady=10)
     body = tk.Frame(popup, bg=self.COLOR_BACKGROUND, padx=20, pady=12)
     body.pack(fill=tk.BOTH, expand=True)
@@ -1193,14 +1193,14 @@ def verifica_moduli_git(self):
             font=("Segoe UI", 8, "italic")).pack(anchor="w", pady=10)
     tk.Label(body, text="Output:", bg=self.COLOR_BACKGROUND,
              fg=self.TEXT_COLOR, font=("Segoe UI", 8)).pack(anchor="w", pady=(10, 2))
-    frame_txt = tk.Frame(body, bg=self.COLOR_WIDGET_BG,
+    frame_txt = tk.Frame(body, bg=self.COLOR_BACKGROUND,
                          highlightbackground=self.COLOR_HEADER_BG, highlightthickness=1)
     frame_txt.pack(fill=tk.BOTH, expand=False)
     sb = ttk.Scrollbar(frame_txt, style="Vertical.TScrollbar")
     sb.pack(side=tk.RIGHT, fill=tk.Y)
-    txt = tk.Text(frame_txt, height=7, bg=self.COLOR_HEADER_BG, fg=self.TEXT_COLOR,
-                  font=("Consolas", 8), relief="flat", bd=0, padx=6, pady=4,
-                  yscrollcommand=sb.set, state=tk.DISABLED)
+    txt = tk.Text(frame_txt, height=7, bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
+              font=("Consolas", 8), relief="flat", bd=0, padx=6, pady=4,
+              yscrollcommand=sb.set, state=tk.DISABLED)
     txt.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
     sb.config(command=txt.yview)
     frame_btn = tk.Frame(popup, bg=self.COLOR_BACKGROUND, pady=10)
