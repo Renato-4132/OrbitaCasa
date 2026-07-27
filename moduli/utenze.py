@@ -1060,6 +1060,9 @@ def utenze(self):
                 fg=self.TEXT_COLOR,
                 insertbackground=self.TEXT_COLOR,
                 relief=tk.FLAT,
+                highlightthickness=1,
+                highlightbackground=self.COLOR_HEADER,
+                highlightcolor=self.COLOR_HEADER,   
                 yscrollcommand=note_scrollbar.set
         )
         note_txt.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
