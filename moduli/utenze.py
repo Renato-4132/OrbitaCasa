@@ -1176,6 +1176,34 @@ def utenze(self):
         status_lbl.grid(row=1, column=0, sticky="new", padx=8, pady=(0, 10))
         ai_status_labels[utenza] = status_lbl
 
+        def _azzera_anagrafica(u=utenza):
+            if not self.show_custom_askyesno(
+                "Azzera Anagrafica",
+                f"Vuoi svuotare TUTTI i dati anagrafici di {u} ?\n"
+                f"(contatti, offerta, costi e storico fatture)\n\n"
+                f"Le letture dei consumi mensili (Smc/kWh) NON vengono toccate."
+            ):
+                return
+            for campo, ent in anag_entries[u].items():
+                if campo == "Note":
+                    ent.delete("1.0", tk.END)
+                else:
+                    ent.delete(0, tk.END)
+            anagrafiche[u] = anagrafica_vuota()
+            for campo in anag_entries[u]:
+                if campo not in anagrafiche[u]:
+                    anagrafiche[u][campo] = ""
+            scrivi_db()
+            if u in ai_status_labels and ai_status_labels[u].winfo_exists():
+                ai_status_labels[u].config(text=_testo_storico(u))
+            aggiorna_colonna_stima(u)
+            self.show_toast(f"Anagrafica {u} azzerata.")
+
+        btn_azzera_anagrafica = tk.Label(ai_frame, text="🗑️ Azzera anagrafica", bg=self.COLOR_WIDGET_BG,
+                                          fg=self.COLOR_HEADER, font=("Arial", 8, "underline"), cursor="hand2")
+        btn_azzera_anagrafica.grid(row=2, column=0, sticky="w", padx=8, pady=(0, 8))
+        btn_azzera_anagrafica.bind("<Button-1>", lambda e, u=utenza: _azzera_anagrafica(u))
+
     tab_consumi = ttk.Frame(notebook)
     img_tab_consumi = self.icone_gui.get("report")
     if img_tab_consumi:
