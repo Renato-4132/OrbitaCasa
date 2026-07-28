@@ -740,15 +740,45 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
     crea_directory_documenti()
     if hasattr(self, 'pdf_window') and self.pdf_window.winfo_exists(): self.pdf_window.lift(); return
     pdf_window = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
-    barra_menu_popup = tk.Menu(pdf_window, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT, activebackground=self.MENU_ACT_BG_COLOR, activeforeground=self.MENU_ACT_FG_COLOR) 
-    barra_menu_popup.config(bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT)
-    pdf_window.config(menu=barra_menu_popup)
-    menu_archivio = tk.Menu(barra_menu_popup, tearoff=0,bg=self.MENU_BG, fg=self.MENU_FG_LIGHT, activebackground=self.MENU_ACT_BG_COLOR, activeforeground=self.MENU_ACT_FG_COLOR)
-    barra_menu_popup.add_cascade(label="📂 Archivio", menu=menu_archivio)
+    menu_popup = tk.Menu(pdf_window, tearoff=0, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT, activebackground=self.MENU_ACT_BG_COLOR, activeforeground=self.MENU_ACT_FG_COLOR)
+    menu_archivio = tk.Menu(menu_popup, tearoff=0,bg=self.MENU_BG, fg=self.MENU_FG_LIGHT, activebackground=self.MENU_ACT_BG_COLOR, activeforeground=self.MENU_ACT_FG_COLOR)
+    menu_popup.add_cascade(label="📂 Archivio", menu=menu_archivio)
     menu_archivio.add_command(label="💾 Esporta documenti Zip", command=self.esegui_export_documenti_pdf)
     menu_archivio.add_command(label="📥 Importa documenti Zip", command=self.esegui_import_documenti_pdf)
     menu_archivio.add_separator()
     menu_archivio.add_command(label="❌ Chiudi (ESC)", command=chiudi_finestra)
+
+    def apri_menu_popup(widget):
+        try:
+            menu_popup.tk_popup(widget.winfo_rootx(), widget.winfo_rooty() + widget.winfo_height())
+        finally:
+            menu_popup.grab_release()
+
+    def _chiudi_menu_popup_sicuro():
+        try:
+            menu_popup.unpost()
+            menu_popup.grab_release()
+        except tk.TclError:
+            pass
+
+    _timer_menu_popup = {"id": None}
+
+    def _avvia_timer_chiusura_popup(event=None):
+        _timer_menu_popup["id"] = pdf_window.after(400, _chiudi_menu_popup_sicuro)
+
+    def _annulla_timer_chiusura_popup(event=None):
+        if _timer_menu_popup["id"] is not None:
+            pdf_window.after_cancel(_timer_menu_popup["id"])
+            _timer_menu_popup["id"] = None
+
+    menu_popup.bind("<Leave>", _avvia_timer_chiusura_popup)
+    menu_popup.bind("<Enter>", _annulla_timer_chiusura_popup)
+    menu_archivio.bind("<Leave>", _avvia_timer_chiusura_popup)
+    menu_archivio.bind("<Enter>", _annulla_timer_chiusura_popup)
+
+    def _chiudi_popup_su_spostamento(event=None):
+        _chiudi_menu_popup_sicuro()
+    pdf_window.bind("<Configure>", _chiudi_popup_su_spostamento, add="+")
     self.pdf_window = pdf_window
     pdf_window.title("Archivio Documenti Contabili")
     pdf_window.withdraw()
@@ -764,6 +794,12 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
     pdf_window.deiconify()
     pdf_window.protocol("WM_DELETE_WINDOW", chiudi_finestra)
     pdf_window.bind('<Escape>', lambda e: chiudi_finestra())
+    header_pdf = tk.Frame(pdf_window, bg=self.COLOR_TOPLEVEL)
+    header_pdf.pack(side="top", fill="x")
+    img_menu_top = self.icone_gui.get("tools")
+    btn_menu_top = ttk.Label(header_pdf, compound="left", image=img_menu_top, text=" Menu" if img_menu_top else "☰ Menu", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
+    btn_menu_top.pack(side=tk.LEFT, padx=(10, 0), pady=(6, 0))
+    btn_menu_top.bind("<Button-1>", lambda e: apri_menu_popup(btn_menu_top))
     frame_input = ttk.Frame(pdf_window, padding="10") 
     frame_input.pack(fill='x', padx=10, pady=(10, 5))
     data_default = data_iniziale if data_iniziale else datetime.now().strftime("%d-%m-%Y")

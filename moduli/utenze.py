@@ -233,17 +233,48 @@ def utenze(self):
         guida_win.grab_set()
         guida_win.bind("<Escape>", lambda e: guida_win.destroy())
 
-    menu_win = tk.Menu(win, background=self.MENU_BG_DARK, foreground=self.MENU_FG_LIGHT, activebackground=self.MENU_ACT_BG_COLOR, activeforeground=self.MENU_ACT_FG_COLOR)
-    menu_database = tk.Menu(menu_win, tearoff=0, bg=self.MENU_BG, fg=self.MENU_FG_LIGHT, activebackground=self.MENU_ACT_BG_COLOR, activeforeground=self.MENU_ACT_FG_COLOR)
+    menu_popup = tk.Menu(win, tearoff=0, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT, activebackground=self.MENU_ACT_BG_COLOR, activeforeground=self.MENU_ACT_FG_COLOR)
+    menu_database = tk.Menu(menu_popup, tearoff=0, bg=self.MENU_BG, fg=self.MENU_FG_LIGHT, activebackground=self.MENU_ACT_BG_COLOR, activeforeground=self.MENU_ACT_FG_COLOR)
     menu_database.add_command(label="📤 Esporta Consumi", command=lambda: esporta_letture_data(UTENZE_DB))
     menu_database.add_command(label="📥 Importa Consumi", command=lambda: importa_letture_data(letture_salvate, anagrafiche))
     menu_database.add_separator()
     menu_database.add_command(label="🗑️ Azzera Consumi", command=lambda: reset_utenze_letture())
     menu_database.add_separator()
     menu_database.add_command(label="📊 Scarica Tabella Consumi", command=lambda: self.scarica_tabella())
-    menu_win.add_cascade(label="🗄️ Database", menu=menu_database)
-    menu_win.add_command(label="❓ Guida", command=mostra_guida_utenze)
-    win.config(menu=menu_win)
+    menu_popup.add_cascade(label="🗄️ Database", menu=menu_database)
+    menu_popup.add_command(label="❓ Guida", command=mostra_guida_utenze)
+
+    def apri_menu_popup(widget):
+        try:
+            menu_popup.tk_popup(widget.winfo_rootx(), widget.winfo_rooty() + widget.winfo_height())
+        finally:
+            menu_popup.grab_release()
+
+    def _chiudi_menu_popup_sicuro():
+        try:
+            menu_popup.unpost()
+            menu_popup.grab_release()
+        except tk.TclError:
+            pass
+
+    _timer_menu_popup = {"id": None}
+
+    def _avvia_timer_chiusura_popup(event=None):
+        _timer_menu_popup["id"] = win.after(400, _chiudi_menu_popup_sicuro)
+
+    def _annulla_timer_chiusura_popup(event=None):
+        if _timer_menu_popup["id"] is not None:
+            win.after_cancel(_timer_menu_popup["id"])
+            _timer_menu_popup["id"] = None
+
+    menu_popup.bind("<Leave>", _avvia_timer_chiusura_popup)
+    menu_popup.bind("<Enter>", _annulla_timer_chiusura_popup)
+    menu_database.bind("<Leave>", _avvia_timer_chiusura_popup)
+    menu_database.bind("<Enter>", _annulla_timer_chiusura_popup)
+
+    def _chiudi_popup_su_spostamento(event=None):
+        _chiudi_menu_popup_sicuro()
+    win.bind("<Configure>", _chiudi_popup_su_spostamento, add="+")
 
     def chiudi():
         chiudi_viewer_tabella()
@@ -582,25 +613,35 @@ def utenze(self):
             pass
 
     top_controls = tk.Frame(win, bg=self.COLOR_TOPLEVEL)
-    top_controls.pack(pady=(0, 6))
-    tk.Label(top_controls, text="Gestione Consumi Utenze", bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR, font=("Arial", 14, "bold")).pack(side=tk.LEFT, padx=(0, 25))
-    tk.Label(top_controls, text="Anno: ", bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR).pack(side=tk.LEFT)
+    top_controls.pack(fill="x", pady=(0, 6))
+    img_menu_top = self.icone_gui.get("tools")
+    btn_menu_top = ttk.Label(top_controls, compound="left", image=img_menu_top, text=" Menu" if img_menu_top else "☰ Menu", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
+    btn_menu_top.pack(side=tk.LEFT, padx=(10, 0))
+    btn_menu_top.bind("<Button-1>", lambda e: apri_menu_popup(btn_menu_top))
+
+    centro_controls = tk.Frame(top_controls, bg=self.COLOR_TOPLEVEL)
+    centro_controls.pack(side=tk.LEFT, expand=True, fill="both")
+    contenuto_controls = tk.Frame(centro_controls, bg=self.COLOR_TOPLEVEL)
+    contenuto_controls.pack()
+
+    tk.Label(contenuto_controls, text="Gestione Consumi Utenze", bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR, font=("Arial", 14, "bold")).pack(side=tk.LEFT, padx=(0, 25))
+    tk.Label(contenuto_controls, text="Anno: ", bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR).pack(side=tk.LEFT)
     anno_var = tk.StringVar(value=anno_corrente)
-    anno_cb = ttk.Combobox(top_controls, values=["Tutti"] + anni, textvariable=anno_var, style="Border.TCombobox", state="readonly", width=8)
+    anno_cb = ttk.Combobox(contenuto_controls, values=["Tutti"] + anni, textvariable=anno_var, style="Border.TCombobox", state="readonly", width=8)
     anno_cb.pack(side=tk.LEFT)
     def reset_anno():
         anno_var.set(anno_corrente)
     img_reset_anno = self.icone_gui.get("reset")
-    btn_reset_anno = ttk.Label(top_controls, compound="left", image=img_reset_anno, text=" 🔄" if not img_reset_anno else "", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(5, 5))
+    btn_reset_anno = ttk.Label(contenuto_controls, compound="left", image=img_reset_anno, text=" 🔄" if not img_reset_anno else "", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(5, 5))
     btn_reset_anno.pack(side=tk.LEFT, padx=2)
     btn_reset_anno.bind("<Button-1>", lambda e: reset_anno())
-    tk.Frame(top_controls, bg=self.COLOR_TOPLEVEL, width=20).pack(side=tk.LEFT)
+    tk.Frame(contenuto_controls, bg=self.COLOR_TOPLEVEL, width=20).pack(side=tk.LEFT)
     img_esporta_top = self.icone_gui.get("salva")
-    btn_esporta_top = ttk.Label(top_controls, compound="left", image=img_esporta_top, text=" Esporta" if img_esporta_top else "💾 Esporta", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
+    btn_esporta_top = ttk.Label(contenuto_controls, compound="left", image=img_esporta_top, text=" Esporta" if img_esporta_top else "💾 Esporta", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
     btn_esporta_top.pack(side=tk.LEFT, padx=4)
     btn_esporta_top.bind("<Button-1>", lambda e: esporta_preview())
     img_chiudi_top = self.icone_gui.get("chiudi")
-    btn_chiudi_top = ttk.Label(top_controls, compound="left", image=img_chiudi_top, text=" Chiudi" if img_chiudi_top else "Chiudi", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
+    btn_chiudi_top = ttk.Label(contenuto_controls, compound="left", image=img_chiudi_top, text=" Chiudi" if img_chiudi_top else "Chiudi", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
     btn_chiudi_top.pack(side=tk.LEFT, padx=7)
     btn_chiudi_top.bind("<Button-1>", lambda e: chiudi())
     anno_var.trace_add("write", cambia_anno)

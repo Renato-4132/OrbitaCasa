@@ -1123,11 +1123,9 @@ def spesa_supermercato(self):
     _carica_dati_interno()
     self.after(200, _controlla_scadenza_promo)
     popup = tk.Toplevel(self.master, bg=self.COLOR_TOPLEVEL)
-    barra_menu_popup = tk.Menu(popup, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT, activebackground=self.MENU_ACT_BG_COLOR, activeforeground=self.MENU_ACT_FG_COLOR)
-    barra_menu_popup.config(bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT)
-    popup.config(menu=barra_menu_popup) 
-    menu_db = tk.Menu(barra_menu_popup, tearoff=0,bg=self.MENU_BG, fg=self.MENU_FG_LIGHT, activebackground=self.MENU_ACT_BG_COLOR, activeforeground=self.MENU_ACT_FG_COLOR)
-    barra_menu_popup.add_cascade(label="💾 Database", menu=menu_db)       
+    menu_popup = tk.Menu(popup, tearoff=0, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT, activebackground=self.MENU_ACT_BG_COLOR, activeforeground=self.MENU_ACT_FG_COLOR)
+    menu_db = tk.Menu(menu_popup, tearoff=0, bg=self.MENU_BG, fg=self.MENU_FG_LIGHT, activebackground=self.MENU_ACT_BG_COLOR, activeforeground=self.MENU_ACT_FG_COLOR)
+    menu_popup.add_cascade(label="💾 Database", menu=menu_db)
     menu_db.add_command(label="📤 Esporta Supermercati", command=export_supermercati_db)
     menu_db.add_command(label="📥 Importa Supermercati", command=import_supermercati_db)
     menu_db.add_separator()
@@ -1136,6 +1134,46 @@ def spesa_supermercato(self):
     menu_db.add_command(label="⬇️ Rimuovi Completamente Editor Scontrini", command=self._rimuovi_editor_esterno)
     menu_db.add_separator()
     menu_db.add_command(label="❌ Chiudi (ESC)", command=lambda: (self.deiconify(), self.after(0, self.imp_entry.focus_set), popup.destroy()))
+
+    def apri_menu_popup(widget):
+        try:
+            menu_popup.tk_popup(widget.winfo_rootx(), widget.winfo_rooty() + widget.winfo_height())
+        finally:
+            menu_popup.grab_release()
+
+    def _chiudi_menu_popup_sicuro():
+        try:
+            menu_popup.unpost()
+            menu_popup.grab_release()
+        except tk.TclError:
+            pass
+
+    _timer_menu_popup = {"id": None}
+
+    def _avvia_timer_chiusura_popup(event=None):
+        _timer_menu_popup["id"] = popup.after(400, _chiudi_menu_popup_sicuro)
+
+    def _annulla_timer_chiusura_popup(event=None):
+        if _timer_menu_popup["id"] is not None:
+            popup.after_cancel(_timer_menu_popup["id"])
+            _timer_menu_popup["id"] = None
+
+    menu_popup.bind("<Leave>", _avvia_timer_chiusura_popup)
+    menu_popup.bind("<Enter>", _annulla_timer_chiusura_popup)
+    menu_db.bind("<Leave>", _avvia_timer_chiusura_popup)
+    menu_db.bind("<Enter>", _annulla_timer_chiusura_popup)
+
+    def _chiudi_popup_su_spostamento(event=None):
+        _chiudi_menu_popup_sicuro()
+    popup.bind("<Configure>", _chiudi_popup_su_spostamento, add="+")
+
+    header_popup = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
+    header_popup.pack(fill="x")
+    img_menu_top = self.icone_gui.get("tools")
+    btn_menu_top = ttk.Label(header_popup, compound="left", image=img_menu_top, text=" Menu" if img_menu_top else "☰ Menu", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
+    btn_menu_top.pack(side=tk.LEFT, padx=(10, 0), pady=(6, 0))
+    btn_menu_top.bind("<Button-1>", lambda e: apri_menu_popup(btn_menu_top))
+
     self._popup_spesa_active = popup
     popup.title("Gestione e Confronto Spesa")
     popup.geometry("1300x630")

@@ -88,15 +88,54 @@ def gestisci_documenti_personali(self):
         win.destroy()
     win.protocol("WM_DELETE_WINDOW", chiudi_win)
     win.bind("<Escape>", lambda e: chiudi_win())
-    barra_menu = tk.Menu(win, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,
+    menu_popup = tk.Menu(win, tearoff=0, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,
                          activebackground=self.MENU_ACT_BG_COLOR,
                          activeforeground=self.MENU_ACT_FG_COLOR)
-    win.config(menu=barra_menu)
-    menu_arch = tk.Menu(barra_menu, tearoff=0,
+    menu_arch = tk.Menu(menu_popup, tearoff=0,
                         bg=self.MENU_BG, fg=self.MENU_FG_LIGHT,
                         activebackground=self.MENU_ACT_BG_COLOR,
                         activeforeground=self.MENU_ACT_FG_COLOR)
-    barra_menu.add_cascade(label="📂 Archivio", menu=menu_arch)
+    menu_popup.add_cascade(label="📂 Archivio", menu=menu_arch)
+
+    def apri_menu_popup(widget):
+        try:
+            menu_popup.tk_popup(widget.winfo_rootx(), widget.winfo_rooty() + widget.winfo_height())
+        finally:
+            menu_popup.grab_release()
+
+    def _chiudi_menu_popup_sicuro():
+        try:
+            menu_popup.unpost()
+            menu_popup.grab_release()
+        except tk.TclError:
+            pass
+
+    _timer_menu_popup = {"id": None}
+
+    def _avvia_timer_chiusura_popup(event=None):
+        _timer_menu_popup["id"] = win.after(400, _chiudi_menu_popup_sicuro)
+
+    def _annulla_timer_chiusura_popup(event=None):
+        if _timer_menu_popup["id"] is not None:
+            win.after_cancel(_timer_menu_popup["id"])
+            _timer_menu_popup["id"] = None
+
+    menu_popup.bind("<Leave>", _avvia_timer_chiusura_popup)
+    menu_popup.bind("<Enter>", _annulla_timer_chiusura_popup)
+    menu_arch.bind("<Leave>", _avvia_timer_chiusura_popup)
+    menu_arch.bind("<Enter>", _annulla_timer_chiusura_popup)
+
+    def _chiudi_popup_su_spostamento(event=None):
+        _chiudi_menu_popup_sicuro()
+    win.bind("<Configure>", _chiudi_popup_su_spostamento, add="+")
+
+    header_doc_pers = tk.Frame(win, bg=self.COLOR_TOPLEVEL)
+    header_doc_pers.pack(fill="x")
+    img_menu_top = self.icone_gui.get("tools")
+    btn_menu_top = ttk.Label(header_doc_pers, compound="left", image=img_menu_top, text=" Menu" if img_menu_top else "☰ Menu", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
+    btn_menu_top.pack(side=tk.LEFT, padx=(10, 0), pady=(6, 0))
+    btn_menu_top.bind("<Button-1>", lambda e: apri_menu_popup(btn_menu_top))
+
     nb = ttk.Notebook(win)
     nb.pack(fill="both", expand=True, padx=6, pady=6)
     def _add_tab(frame, ico_key, testo):

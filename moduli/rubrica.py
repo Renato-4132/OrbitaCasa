@@ -35,12 +35,10 @@ def rubrica_app(self):
     root.resizable(True, True)
     root.configure(bg=self.COLOR_TOPLEVEL)
     root.columnconfigure(0, weight=1)
-    root.rowconfigure(2, weight=1)
-    barra_menu_popup = tk.Menu(root, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT, activebackground=self.MENU_ACT_BG_COLOR, activeforeground=self.MENU_ACT_FG_COLOR)
-    barra_menu_popup.config(bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT)
-    root.config(menu=barra_menu_popup)
-    menu_db = tk.Menu(barra_menu_popup, tearoff=0, bg=self.MENU_BG, fg=self.MENU_FG_LIGHT, activebackground=self.MENU_ACT_BG_COLOR, activeforeground=self.MENU_ACT_FG_COLOR)
-    barra_menu_popup.add_cascade(label="💾 Database", menu=menu_db)
+    root.rowconfigure(3, weight=1)
+    menu_popup = tk.Menu(root, tearoff=0, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT, activebackground=self.MENU_ACT_BG_COLOR, activeforeground=self.MENU_ACT_FG_COLOR)
+    menu_db = tk.Menu(menu_popup, tearoff=0, bg=self.MENU_BG, fg=self.MENU_FG_LIGHT, activebackground=self.MENU_ACT_BG_COLOR, activeforeground=self.MENU_ACT_FG_COLOR)
+    menu_popup.add_cascade(label="💾 Database", menu=menu_db)
     menu_db.add_command(label="📤 Esporta DataBase", command=lambda: esporta_rubrica())
     menu_db.add_command(label="📥 Importa Database", command=lambda: importa_rubrica())
     menu_db.add_separator()
@@ -49,6 +47,45 @@ def rubrica_app(self):
     menu_db.add_command(label="📥 Reset DataBase", command=lambda: reset_rubrica())
     menu_db.add_separator()
     menu_db.add_command(label="❌ Chiudi", command=lambda: on_rubrica_close())
+
+    def apri_menu_popup(widget):
+        try:
+            menu_popup.tk_popup(widget.winfo_rootx(), widget.winfo_rooty() + widget.winfo_height())
+        finally:
+            menu_popup.grab_release()
+
+    def _chiudi_menu_popup_sicuro():
+        try:
+            menu_popup.unpost()
+            menu_popup.grab_release()
+        except tk.TclError:
+            pass
+
+    _timer_menu_popup = {"id": None}
+
+    def _avvia_timer_chiusura_popup(event=None):
+        _timer_menu_popup["id"] = root.after(400, _chiudi_menu_popup_sicuro)
+
+    def _annulla_timer_chiusura_popup(event=None):
+        if _timer_menu_popup["id"] is not None:
+            root.after_cancel(_timer_menu_popup["id"])
+            _timer_menu_popup["id"] = None
+
+    menu_popup.bind("<Leave>", _avvia_timer_chiusura_popup)
+    menu_popup.bind("<Enter>", _annulla_timer_chiusura_popup)
+    menu_db.bind("<Leave>", _avvia_timer_chiusura_popup)
+    menu_db.bind("<Enter>", _annulla_timer_chiusura_popup)
+
+    def _chiudi_popup_su_spostamento(event=None):
+        _chiudi_menu_popup_sicuro()
+    root.bind("<Configure>", _chiudi_popup_su_spostamento, add="+")
+
+    header_rubrica = tk.Frame(root, bg=self.COLOR_TOPLEVEL)
+    header_rubrica.grid(row=0, column=0, sticky="ew")
+    img_menu_top = self.icone_gui.get("tools")
+    btn_menu_top = ttk.Label(header_rubrica, compound="left", image=img_menu_top, text=" Menu" if img_menu_top else "☰ Menu", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
+    btn_menu_top.pack(side=tk.LEFT, padx=(10, 0), pady=(6, 0))
+    btn_menu_top.bind("<Button-1>", lambda e: apri_menu_popup(btn_menu_top))
     contatti = []
     def ordina_contatti():
         contatti.sort(key=lambda c: c["nome"].lower())
@@ -412,7 +449,7 @@ def rubrica_app(self):
         except Exception as e:
             self.show_custom_warning("Errore Apertura", f"Errore nell'apertura dell'anteprima: {e}")
     frame_input = ttk.Frame(root)
-    frame_input.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+    frame_input.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
     frame_input.columnconfigure(1, weight=1)
     ttk.Label(frame_input, text="Nome:").grid(row=0, column=0, sticky="e")
     entry_nome = ttk.Entry(frame_input)
@@ -439,7 +476,7 @@ def rubrica_app(self):
     )
     entry_note.pack(fill=tk.BOTH, expand=True)
     frame_cerca = ttk.Frame(root)
-    frame_cerca.grid(row=1, column=0, padx=10, pady=(5, 10), sticky="ew")
+    frame_cerca.grid(row=2, column=0, padx=10, pady=(5, 10), sticky="ew")
     frame_cerca.columnconfigure(1, weight=1)
     ttk.Label(frame_cerca, text="Cerca:").grid(row=0, column=0, sticky="e", padx=(0, 5))
     entry_cerca = ttk.Entry(frame_cerca)
@@ -447,7 +484,7 @@ def rubrica_app(self):
     entry_cerca.bind("<Return>", cerca_contatto)
     entry_cerca.bind("<KP_Enter>", cerca_contatto)
     tree_frame = ttk.Frame(root)
-    tree_frame.grid(row=2, column=0, padx=10, pady=10, sticky="nsew")
+    tree_frame.grid(row=3, column=0, padx=10, pady=10, sticky="nsew")
     tree_frame.columnconfigure(0, weight=1)
     tree_frame.rowconfigure(0, weight=1)
     vsb = ttk.Scrollbar(tree_frame, orient="vertical", style="Vertical.TScrollbar")
@@ -470,7 +507,7 @@ def rubrica_app(self):
     tree_contatti.column("Note", width=250, anchor=tk.W)
     tree_contatti.bind("<<TreeviewSelect>>", seleziona_contatto)
     frame_btn = ttk.Frame(root)
-    frame_btn.grid(row=3, column=0, pady=10)
+    frame_btn.grid(row=4, column=0, pady=10)
     img_agg_cont = self.icone_gui.get("aggiungi")
     btn_agg_cont = ttk.Label(frame_btn, compound="left", image=img_agg_cont, text=" Aggiungi" if img_agg_cont else "Aggiungi", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
     btn_agg_cont.pack(side=tk.LEFT, padx=4)
