@@ -887,13 +887,13 @@ def aggiorna_librerie_pip(self):
     w, h = 1200, 620
     sw, sh = popup.winfo_screenwidth(), popup.winfo_screenheight()
     popup.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
-    header = tk.Frame(popup, bg=self.COLOR_HEADER_BG, height=40)
+    header = tk.Frame(popup, bg=self.COLOR_BACKGROUND, height=40)
     header.pack(fill=tk.X)
     header.pack_propagate(False)
     img_h = self.icone_gui.get("sync")
     tk.Label(header, compound="left", image=img_h,
              text="  Aggiornamento Librerie Python",
-             bg=self.COLOR_HEADER_BG, fg=self.COLOR_HEADER,
+             bg=self.COLOR_BACKGROUND, fg=self.COLOR_HEADER,
              font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=14, pady=10)
     body = tk.Frame(popup, bg=self.COLOR_BACKGROUND, padx=20, pady=12)
     body.pack(fill=tk.BOTH, expand=True)
@@ -903,13 +903,20 @@ def aggiorna_librerie_pip(self):
     tk.Label(frame_top, text="Seleziona le librerie da aggiornare:",
              bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
              font=("Segoe UI", 9)).pack(side=tk.LEFT)
-    var_tutti = tk.BooleanVar(value=True)
-    chk_tutti = ttk.Checkbutton(frame_top, variable=var_tutti, style="TCheckbutton")
+    var_tutti = tk.BooleanVar(value=False)
+    chk_tutti = ttk.Checkbutton(frame_top, variable=var_tutti, style="TCheckbutton", takefocus=0)
     chk_tutti.pack(side=tk.LEFT, padx=(16, 4))
     lbl_tutti = tk.Label(frame_top, text="Tutto / Nessuno",
                          bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
                          font=("Segoe UI", 8), cursor="hand2")
     lbl_tutti.pack(side=tk.LEFT)
+    var_solo_agg = tk.BooleanVar(value=False)
+    chk_solo_agg = ttk.Checkbutton(frame_top, variable=var_solo_agg, style="TCheckbutton", takefocus=0)
+    chk_solo_agg.pack(side=tk.LEFT, padx=(16, 4))
+    lbl_solo_agg = tk.Label(frame_top, text="Solo da aggiornare",
+                            bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
+                            font=("Segoe UI", 8), cursor="hand2")
+    lbl_solo_agg.pack(side=tk.LEFT)
     lbl_check_ver = tk.Label(frame_top, text="🔄 Verifica versioni PyPI...",
                              bg=self.COLOR_BACKGROUND, fg="gray60",
                              font=("Segoe UI", 8, "italic"))
@@ -966,12 +973,12 @@ def aggiorna_librerie_pip(self):
     col_sx.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=6)
     col_dx.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=6)
     for i, (pkg, desc) in enumerate(LIBRERIE):
-        var = tk.BooleanVar(value=True)
+        var = tk.BooleanVar(value=False)
         vars_lib.append((pkg, var))
         parent = col_sx if i < meta else col_dx
         row = tk.Frame(parent, bg=self.COLOR_WIDGET_BG)
         row.pack(fill=tk.X, pady=2)
-        ttk.Checkbutton(row, variable=var, style="TCheckbutton").pack(side=tk.LEFT)
+        ttk.Checkbutton(row, variable=var, style="TCheckbutton", takefocus=0).pack(side=tk.LEFT)
         tk.Label(row, text=pkg, bg=self.COLOR_WIDGET_BG,
                  fg=self.COLOR_HIGHLIGHT, font=("Consolas", 8, "bold"),
                  width=18, anchor="w").pack(side=tk.LEFT)
@@ -988,26 +995,55 @@ def aggiorna_librerie_pip(self):
         righe_ver[pkg] = (lbl_inst, lbl_disp, ver_installata)
         tk.Label(row, text=f"— {desc}", bg=self.COLOR_WIDGET_BG,
                  fg=self.TEXT_COLOR, font=("Segoe UI", 8)).pack(side=tk.LEFT)
-    def _toggle_tutti():
+    _guard = {"attivo": False}
+    def _imposta_silenzioso(var, valore):
+        _guard["attivo"] = True
+        var.set(valore)
+        _guard["attivo"] = False
+    def _toggle_tutti(*_):
+        if _guard["attivo"]:
+            return
         stato = var_tutti.get()
         for _, v in vars_lib:
             v.set(stato)
-    var_tutti.trace_add("write", lambda *_: _toggle_tutti())
+        _imposta_silenzioso(var_solo_agg, False)
+    var_tutti.trace_add("write", _toggle_tutti)
     lbl_tutti.bind("<Button-1>", lambda e: var_tutti.set(not var_tutti.get()))
+    lib_da_aggiornare = {}
+    def _seleziona_solo_da_aggiornare(*_):
+        if _guard["attivo"]:
+            return
+        if not var_solo_agg.get():
+            for _, v in vars_lib:
+                v.set(False)
+            return
+        if not lib_da_aggiornare:
+            _log("⚠️ Verifica versioni non ancora completata, riprova tra poco.")
+            _imposta_silenzioso(var_solo_agg, False)
+            return
+        for pkg, v in vars_lib:
+            v.set(lib_da_aggiornare.get(pkg, False))
+        _imposta_silenzioso(var_tutti, False)
+    var_solo_agg.trace_add("write", _seleziona_solo_da_aggiornare)
+    lbl_solo_agg.bind("<Button-1>", lambda e: var_solo_agg.set(not var_solo_agg.get()))
     def _carica_versioni_disponibili():
         for pkg, (lbl_inst, lbl_disp, ver_inst) in righe_ver.items():
             ver_pypi = _versione_disponibile(pkg)
-            def _aggiorna_lbl(lbl=lbl_disp, v=ver_pypi, vi=ver_inst):
+            def _aggiorna_lbl(lbl=lbl_disp, v=ver_pypi, vi=ver_inst, pkg=pkg):
                 if not popup.winfo_exists():
                     return
                 if v is None:
                     lbl.config(text="n/d", fg="gray50")
+                    lib_da_aggiornare[pkg] = False
                 elif vi is not None and v != vi:
                     lbl.config(text=f"v{v}", fg="#E65100")
+                    lib_da_aggiornare[pkg] = True
                 elif vi is not None:
                     lbl.config(text=f"v{v}", fg="#2E7D32")
+                    lib_da_aggiornare[pkg] = False
                 else:
                     lbl.config(text=f"v{v}", fg="gray60")
+                    lib_da_aggiornare[pkg] = True
             self.after(0, _aggiorna_lbl)
         self.after(0, lambda: lbl_check_ver.config(text="✓ Versioni verificate") if popup.winfo_exists() else None)
     threading.Thread(target=_carica_versioni_disponibili, daemon=True).start()
@@ -1144,13 +1180,20 @@ def verifica_moduli_git(self):
     tk.Label(frame_top, text="Seleziona i moduli da aggiornare:",
              bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
              font=("Segoe UI", 9)).pack(side=tk.LEFT)
-    var_tutti = tk.BooleanVar(value=True)
-    chk_tutti = ttk.Checkbutton(frame_top, variable=var_tutti, style="TCheckbutton")
+    var_tutti = tk.BooleanVar(value=False)
+    chk_tutti = ttk.Checkbutton(frame_top, variable=var_tutti, style="TCheckbutton", takefocus=0)
     chk_tutti.pack(side=tk.LEFT, padx=(16, 4))
     lbl_tutti = tk.Label(frame_top, text="Tutto / Nessuno",
                          bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
                          font=("Segoe UI", 8), cursor="hand2")
     lbl_tutti.pack(side=tk.LEFT)
+    var_solo_agg = tk.BooleanVar(value=False)
+    chk_solo_agg = ttk.Checkbutton(frame_top, variable=var_solo_agg, style="TCheckbutton", takefocus=0)
+    chk_solo_agg.pack(side=tk.LEFT, padx=(16, 4))
+    lbl_solo_agg = tk.Label(frame_top, text="Solo da aggiornare",
+                            bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
+                            font=("Segoe UI", 8), cursor="hand2")
+    lbl_solo_agg.pack(side=tk.LEFT)
     lbl_check_stato = tk.Label(frame_top, text="🔄 Recupero elenco dal repository...",
                                bg=self.COLOR_BACKGROUND, fg="gray60",
                                font=("Segoe UI", 8, "italic"))
@@ -1226,18 +1269,44 @@ def verifica_moduli_git(self):
         txt.insert(tk.END, msg + "\n")
         txt.see(tk.END)
         txt.config(state=tk.DISABLED)
-    def _toggle_tutti():
+    _guard = {"attivo": False}
+    def _imposta_silenzioso(var, valore):
+        _guard["attivo"] = True
+        var.set(valore)
+        _guard["attivo"] = False
+    def _toggle_tutti(*_):
+        if _guard["attivo"]:
+            return
         stato = var_tutti.get()
         for _, v in vars_moduli:
             v.set(stato)
-    var_tutti.trace_add("write", lambda *_: _toggle_tutti())
+        _imposta_silenzioso(var_solo_agg, False)
+    var_tutti.trace_add("write", _toggle_tutti)
     lbl_tutti.bind("<Button-1>", lambda e: var_tutti.set(not var_tutti.get()))
-    def _aggiungi_riga(parent, nome, stato_testo, colore, data_testo="", size_testo=""):
-        var = tk.BooleanVar(value=True)
+    moduli_da_aggiornare = {}
+    def _seleziona_solo_da_aggiornare(*_):
+        if _guard["attivo"]:
+            return
+        if not var_solo_agg.get():
+            for _, v in vars_moduli:
+                v.set(False)
+            return
+        if not moduli_da_aggiornare:
+            _log("⚠️ Elenco moduli non ancora disponibile, riprova tra poco.")
+            _imposta_silenzioso(var_solo_agg, False)
+            return
+        for nome, v in vars_moduli:
+            v.set(moduli_da_aggiornare.get(nome, False))
+        _imposta_silenzioso(var_tutti, False)
+    var_solo_agg.trace_add("write", _seleziona_solo_da_aggiornare)
+    lbl_solo_agg.bind("<Button-1>", lambda e: var_solo_agg.set(not var_solo_agg.get()))
+    def _aggiungi_riga(parent, nome, stato_testo, colore, data_testo="", size_testo="", da_aggiornare=False):
+        var = tk.BooleanVar(value=False)
         vars_moduli.append((nome, var))
+        moduli_da_aggiornare[nome] = da_aggiornare
         row = tk.Frame(parent, bg=self.COLOR_WIDGET_BG)
         row.pack(fill=tk.X, pady=2)
-        ttk.Checkbutton(row, variable=var, style="TCheckbutton").pack(side=tk.LEFT)
+        ttk.Checkbutton(row, variable=var, style="TCheckbutton", takefocus=0).pack(side=tk.LEFT)
         tk.Label(row, text=nome, bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HIGHLIGHT,
                  font=("Consolas", 8, "bold"), width=39, anchor="w").pack(side=tk.LEFT)
         lbl_data = tk.Label(row, text=data_testo, bg=self.COLOR_WIDGET_BG, fg="gray60",
@@ -1289,7 +1358,7 @@ def verifica_moduli_git(self):
                 sha_remoto = voce.get("sha", "")
                 parent = col_sx if i < meta else col_dx
                 if not os.path.isfile(dest):
-                    _aggiungi_riga(parent, nome, "✖ mancante", "#C62828", "-", "-")
+                    _aggiungi_riga(parent, nome, "✖ mancante", "#C62828", "-", "-", da_aggiornare=True)
                     diversi += 1
                     continue
                 dimensione_kb = os.path.getsize(dest) / 1024
@@ -1297,9 +1366,9 @@ def verifica_moduli_git(self):
                 size_testo = f"{dimensione_kb:.1f} KB"
                 sha_locale = _boot_git_blob_sha1(dest)
                 if sha_locale == sha_remoto:
-                    _aggiungi_riga(parent, nome, "✓ aggiornato", "#2E7D32", data_mod, size_testo)
+                    _aggiungi_riga(parent, nome, "✓ aggiornato", "#2E7D32", data_mod, size_testo, da_aggiornare=False)
                 else:
-                    _aggiungi_riga(parent, nome, "⟳ da aggiornare", "#E65100", data_mod, size_testo)
+                    _aggiungi_riga(parent, nome, "⟳ da aggiornare", "#E65100", data_mod, size_testo, da_aggiornare=True)
                     diversi += 1
             lbl_check_stato.config(text="✓ Elenco verificato")
             _log(f"Verifica completata: {len(elenco_ord)} moduli controllati, {diversi} da aggiornare.")
