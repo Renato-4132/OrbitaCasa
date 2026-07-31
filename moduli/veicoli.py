@@ -121,6 +121,172 @@ def _veicoli_consumo_medio(self, v):
         return None
     return sum(valori) / len(valori)
 
+def _veicoli_importa_da_spese(self, db, win, nb):
+    if not db.get("veicoli"):
+        self.show_toast("Crea prima almeno un veicolo.")
+        return
+
+    candidate = []
+    for data_key, lista in self.spese.items():
+        for entry in lista:
+            if getattr(entry, "tipo", "") != "Uscita":
+                continue
+            if "#veicoli" in getattr(entry, "hashtag", []):
+                continue
+            candidate.append((data_key, entry))
+    candidate.sort(key=lambda t: t[0], reverse=True)
+
+    popup = tk.Toplevel(win, bg=self.COLOR_TOPLEVEL)
+    popup.title("Importa spese in Veicoli")
+    popup.transient(win)
+    popup.withdraw()
+    win.update_idletasks()
+    W, H = 760, 560
+    x = win.winfo_rootx() + (win.winfo_width() // 2) - (W // 2)
+    y = win.winfo_rooty() + (win.winfo_height() // 2) - (H // 2)
+    popup.geometry(f"{W}x{H}+{max(0,x)}+{max(0,y)}")
+    popup.deiconify()
+    popup.lift()
+    popup.focus_force()
+    popup.bind("<Escape>", lambda e: popup.destroy())
+
+    top_f = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
+    top_f.pack(fill=tk.X, padx=10, pady=(10, 4))
+    tk.Label(top_f, text="Veicolo destinazione:", bg=self.COLOR_TOPLEVEL,
+             fg=self.TEXT_COLOR, font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=(0, 6))
+    nomi_v = [x.get("nome", "Veicolo") for x in db["veicoli"]]
+    v_dest = tk.StringVar(value=nomi_v[0])
+    cb_dest = ttk.Combobox(top_f, textvariable=v_dest, values=nomi_v,
+                           state="readonly", style="Border.TCombobox", width=20)
+    cb_dest.pack(side=tk.LEFT, padx=(0, 12))
+
+    tk.Label(top_f, text="Categoria veicolo:", bg=self.COLOR_TOPLEVEL,
+             fg=self.TEXT_COLOR, font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=(0, 6))
+    v_catdest = tk.StringVar()
+    cb_catdest = ttk.Combobox(top_f, textvariable=v_catdest, state="readonly",
+                              style="Border.TCombobox", width=18)
+    cb_catdest.pack(side=tk.LEFT)
+
+    def _aggiorna_catdest(*_a):
+        veicolo_sel = next((x for x in db["veicoli"] if x.get("nome") == v_dest.get()), None)
+        cat_v_dest = (veicolo_sel or {}).get("categorie") or list(CATEGORIE_VEICOLO_DEFAULT)
+        cb_catdest["values"] = cat_v_dest
+        if cat_v_dest:
+            v_catdest.set(cat_v_dest[0])
+    cb_dest.bind("<<ComboboxSelected>>", _aggiorna_catdest)
+    _aggiorna_catdest()
+
+    filtro_f = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
+    filtro_f.pack(fill=tk.X, padx=10, pady=(4, 0))
+    tk.Label(filtro_f, text="Filtra per categoria spesa originale:", bg=self.COLOR_TOPLEVEL,
+             fg=self.TEXT_COLOR, font=("Arial", 9)).pack(side=tk.LEFT, padx=(0, 6))
+    cats_presenti = sorted({e.categoria for _, e in candidate})
+    v_catf = tk.StringVar(value="Tutte")
+    cb_catf = ttk.Combobox(filtro_f, textvariable=v_catf, values=["Tutte"] + cats_presenti,
+                           state="readonly", style="Border.TCombobox", width=18)
+    cb_catf.pack(side=tk.LEFT)
+
+    cols = ("Data", "Categoria originale", "Descrizione", "Importo")
+    tree_f = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
+    tree_f.pack(fill=tk.BOTH, expand=True, padx=10, pady=6)
+    tree = ttk.Treeview(tree_f, columns=cols, show="headings", selectmode="extended")
+    vsb = ttk.Scrollbar(tree_f, orient="vertical", command=tree.yview)
+    tree.configure(yscrollcommand=vsb.set)
+    vsb.pack(side=tk.RIGHT, fill=tk.Y)
+    tree.pack(fill=tk.BOTH, expand=True)
+    wcfg = {"Data": (90, "w"), "Categoria originale": (150, "w"),
+            "Descrizione": (280, "w"), "Importo": (90, "e")}
+    for c in cols:
+        w, anc = wcfg[c]
+        tree.heading(c, text=c)
+        tree.column(c, width=w, anchor=anc)
+
+    riga_map = {}
+
+    def _popola():
+        tree.delete(*tree.get_children())
+        riga_map.clear()
+        fc = v_catf.get()
+        for i, (data_key, entry) in enumerate(candidate):
+            if fc != "Tutte" and entry.categoria != fc:
+                continue
+            iid = str(i)
+            riga_map[iid] = (data_key, entry)
+            tree.insert("", "end", iid=iid, values=(
+                data_key.strftime("%d-%m-%Y"), entry.categoria,
+                entry.descrizione, f"{entry.importo:.2f} €"
+            ))
+    cb_catf.bind("<<ComboboxSelected>>", lambda e: _popola())
+    _popola()
+
+    def _importa():
+        sel = tree.selection()
+        if not sel:
+            self.show_toast("Seleziona almeno una spesa da importare.")
+            return
+        veicolo = next((x for x in db["veicoli"] if x.get("nome") == v_dest.get()), None)
+        if veicolo is None:
+            self.show_toast("Veicolo non trovato.")
+            return
+        cat_dest = v_catdest.get().strip()
+        if not cat_dest:
+            self.show_toast("Seleziona una categoria di destinazione.")
+            return
+        n = 0
+        for iid in sel:
+            data_key, entry = riga_map.get(iid, (None, None))
+            if entry is None:
+                continue
+            nuovo_mov = {
+                "id": str(uuid.uuid4()),
+                "data": data_key.strftime("%d-%m-%Y"),
+                "categoria": cat_dest,
+                "km": "", "litri": "",
+                "importo": entry.importo,
+                "descrizione": entry.descrizione,
+            }
+            veicolo.setdefault("movimenti", []).append(nuovo_mov)
+            entry.hashtag = list(getattr(entry, "hashtag", [])) + ["#veicoli"]
+            n += 1
+        self._veicoli_salva(db)
+        self.save_db()
+        self.refresh_gui()
+
+        nome_dest = veicolo.get("nome")
+        for tab_id in list(nb.tabs()):
+            nb.forget(tab_id)
+        for vv in db["veicoli"]:
+            self._veicoli_crea_tab(nb, vv, db, win)
+        for i, vv in enumerate(db["veicoli"]):
+            if vv.get("nome") == nome_dest:
+                nb.select(i)
+                break
+
+        self.show_toast(f"Importate {n} spese in {veicolo.get('nome')} (categoria: {cat_dest}).")
+        popup.destroy()
+
+    btn_f = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
+    btn_f.pack(fill=tk.X, padx=10, pady=(0, 10))
+    img_imp = self.icone_gui.get("aggiungi")
+    b_imp = ttk.Label(btn_f, compound="left", image=img_imp,
+                      text=" Importa selezionate" if img_imp else "📥 Importa selezionate",
+                      background=self.COLOR_TOPLEVEL, foreground=self.TEXT_COLOR, cursor="hand2")
+    b_imp.image = img_imp
+    b_imp.pack(side=tk.LEFT, padx=4)
+    b_imp.bind("<Button-1>", lambda e: _importa())
+    img_ch = self.icone_gui.get("chiudi")
+    b_ch = ttk.Label(btn_f, compound="left", image=img_ch,
+                     text=" Chiudi" if img_ch else "Chiudi",
+                     background=self.COLOR_TOPLEVEL, foreground=self.TEXT_COLOR, cursor="hand2")
+    b_ch.image = img_ch
+    b_ch.pack(side=tk.LEFT, padx=4)
+    b_ch.bind("<Button-1>", lambda e: popup.destroy())
+
+    if not candidate:
+        tk.Label(popup, text="Nessuna spesa da importare: tutte le spese sono già collegate,\n"
+                             "oppure non ci sono ancora spese registrate.",
+                bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR, font=("Arial", 10)).pack(pady=20)
+
 def veicoli(self):
     if hasattr(self, "_veicoli_win") and self._veicoli_win and self._veicoli_win.winfo_exists():
         self._veicoli_win.lift()
@@ -162,6 +328,7 @@ def veicoli(self):
     _btn(toolbar, " Nuovo Veicolo",   lambda: self._veicoli_nuovo(db, nb, win),   "veicoli")
     _btn(toolbar, " Elimina Veicolo", lambda: self._veicoli_elimina(db, nb, win), "delete")
     _btn(toolbar, " Grafici",         lambda: self._veicoli_grafici(db),          "report")
+    _btn(toolbar, " Importa da Spese", lambda: self._veicoli_importa_da_spese(db, win, nb), "aggiungi")
 
     def _get_vars():
         try:
@@ -170,8 +337,8 @@ def veicoli(self):
         except Exception:
             return (None, None)
 
-    _btn(toolbar, " Estratto",        lambda: self._veicoli_estratto(db, nb, *_get_vars()),        "descrizione")
-    _btn(toolbar, " Estratto Totale", lambda: self._veicoli_estratto_totale(db, *_get_vars()),      "report")
+    _btn(toolbar, " Estratto Veicolo",        lambda: self._veicoli_estratto(db, nb, *_get_vars()),        "descrizione")
+    _btn(toolbar, " Estratto Parco Veicoli", lambda: self._veicoli_estratto_totale(db, *_get_vars()),      "report")
     _btn(toolbar, " Salva",           lambda: (self._veicoli_salva(db), self.show_toast("Veicoli salvati.")), "salva")
     _btn(toolbar, " Chiudi",          lambda: win.destroy(),                       "chiudi")
 
@@ -388,7 +555,7 @@ def _veicoli_crea_tab(self, nb, v, db, win):
     tk.Label(form_lf, text="Categoria:", bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HEADER,
              font=("Arial", 9, "bold")).grid(row=r, column=0, sticky="w", padx=6, pady=3)
     v_cat = tk.StringVar(value=cat_v[0] if cat_v else "Varie")
-    cb_cat = ttk.Combobox(form_lf, textvariable=v_cat, values=cat_v, width=25, style="Border.TCombobox")
+    cb_cat = ttk.Combobox(form_lf, textvariable=v_cat, values=cat_v, width=25, style="Border.TCombobox", state="readonly")
     cb_cat.grid(row=r, column=1, sticky="ew", padx=6, pady=3)
     r += 1
 
@@ -513,10 +680,20 @@ def _veicoli_crea_tab(self, nb, v, db, win):
         v_fcat.set("Tutte")
         _popola_tree()
 
+    def _tutti_filtri():
+        v_fmese.set("Tutti")
+        v_fanno.set("Tutti")
+        _popola_tree()
+
     btn_reset = tk.Label(filtri_tree_f, text="↺ Reset", bg=self.COLOR_WIDGET_BG,
                           fg=self.COLOR_HIGHLIGHT, font=("Arial", 8, "bold"), cursor="hand2")
     btn_reset.pack(side=tk.LEFT, padx=(4, 0))
     btn_reset.bind("<Button-1>", lambda e: _reset_filtri())
+
+    btn_tutti = tk.Label(filtri_tree_f, text="∞ Tutti", bg=self.COLOR_WIDGET_BG,
+                          fg=self.COLOR_HIGHLIGHT, font=("Arial", 8, "bold"), cursor="hand2")
+    btn_tutti.pack(side=tk.LEFT, padx=(4, 0))
+    btn_tutti.bind("<Button-1>", lambda e: _tutti_filtri())
 
     if not hasattr(self, "_veicoli_vars"):
         self._veicoli_vars = {}
@@ -675,15 +852,29 @@ def _veicoli_crea_tab(self, nb, v, db, win):
         _popola_tree()
 
     def _esporta_in_spesedb():
+        for m in v.get("movimenti", []):
+            exp_id = m.get("esportato")
+            if not exp_id:
+                continue
+            tag = f"#vexp:{exp_id}"
+            esiste = any(
+                tag in getattr(entry, "hashtag", [])
+                for lista in self.spese.values() for entry in lista
+            )
+            if not esiste:
+                m["esportato"] = None
+
         fc = v_fcat.get()
         movimenti_filtrati = [
             m for m in v.get("movimenti", [])
             if _match_f(m.get("data", ""))
             and (fc == "Tutte" or m.get("categoria", "") == fc)
+            and not m.get("esportato")
         ]
         tot = sum(float(m.get("importo", 0) or 0) for m in movimenti_filtrati)
         if tot == 0:
-            self.show_toast("Nessuna spesa da esportare per il periodo selezionato.")
+            self.show_toast("Nessuna spesa nuova da esportare per il periodo selezionato "
+                             "(già tutto esportato in precedenza, o nessun movimento).")
             return
         nome = v.get("nome", "Veicolo")
         cat_export = "AutoPark"
@@ -694,14 +885,18 @@ def _veicoli_crea_tab(self, nb, v, db, win):
         if oggi not in self.spese:
             self.spese[oggi] = []
         nome_conto = widgets_combo_ana["conto_bancario"].get().strip() if "conto_bancario" in widgets_combo_ana else v.get("conto_bancario", "")
+        export_id = str(uuid.uuid4())
         self.spese[oggi].append(SpesaEntry.nuova(
             cat_export, f"Veicoli: {nome}", tot, "Uscita",
             conto=(nome_conto if nome_conto and nome_conto != "(nessuno)" else ""),
-            hashtag=["#veicoli"]
+            hashtag=["#veicoli", f"#vexp:{export_id}"]
         ))
+        for m in movimenti_filtrati:
+            m["esportato"] = export_id
+        self._veicoli_salva(db)
         self.save_db()
         self.refresh_gui()
-        self.show_toast(f"Spesa {nome} ({tot:.2f}€) esportata in SpesaDB.")
+        self.show_toast(f"Spesa {nome} ({tot:.2f}€, {len(movimenti_filtrati)} movimenti) esportata in SpesaDB.")
 
     img_add = self.icone_gui.get("aggiungi")
     btn_add = ttk.Label(btn_frame, compound="left", image=img_add,
@@ -738,7 +933,7 @@ def _veicoli_crea_tab(self, nb, v, db, win):
     btn_export.image = img_export
     btn_export.pack(side=tk.LEFT, padx=4)
     btn_export.bind("<Button-1>", lambda e: _esporta_in_spesedb())
-    tk.Label(btn_frame2, text="(esporta spesa periodo visualizzato)",
+    tk.Label(btn_frame2, text="(esporta solo i movimenti non ancora esportati, del periodo visualizzato)",
              bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR,
              font=("Arial", 8, "italic")).pack(side=tk.LEFT, padx=(4, 0))
 
@@ -837,7 +1032,10 @@ def _veicoli_elimina(self, db, nb, win):
         return
     db["veicoli"].pop(idx)
     self._veicoli_salva(db)
-    nb.forget(idx)
+
+    for tab_id in list(nb.tabs()):
+        nb.forget(tab_id)
+    self._veicoli_vars = {}
     if not db["veicoli"]:
         ph = ttk.Frame(nb)
         img_ph = self.icone_gui.get("veicoli")
@@ -847,6 +1045,9 @@ def _veicoli_elimina(self, db, nb, win):
             nb.add(ph, text="  (nessun veicolo)  ")
         tk.Label(ph, text="Clicca '🚗 Nuovo Veicolo' per iniziare",
                  font=("Arial", 12), bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HEADER).pack(expand=True)
+    else:
+        for vv in db["veicoli"]:
+            self._veicoli_crea_tab(nb, vv, db, win)
     self.show_toast("Veicolo eliminato.")
 
 def _veicoli_grafici(self, db):
