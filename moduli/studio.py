@@ -752,7 +752,7 @@ def apri_studio(self):
                               show="headings", height=16,
                               displaycolumns=("ora","cliente","prestazione","stato"))
         for col, lbl, w in [("data","Data",70),("ora","Ora",50),("cliente","Cliente",120),
-                             ("prestazione","Prestazione",120),("stato","Stato",90)]:
+                             ("prestazione","Prestazione",120),("stato","Stato",120)]:
             tv_det.heading(col, text=lbl, anchor="w")
             tv_det.column(col, width=w, anchor="w")
         vsb_d = ttk.Scrollbar(det_frame, orient="vertical",
