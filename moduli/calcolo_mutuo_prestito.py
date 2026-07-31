@@ -44,20 +44,20 @@ def calcolo_mutuo_prestito(self):
             totale_interessi += interessi_rata
             tree_widget.insert("", "end", values=(
                label_periodo,
-               f"{rata_base_nuova + spese_mensili:.2f} €",
-               f"{capitale_rata:.2f} €",
-               f"{interessi_rata:.2f} €",
-               f"{debito_res if debito_res > 0.005 else 0.0:.2f} €"
+               f"{rata_base_nuova + spese_mensili:,.2f} €",
+               f"{capitale_rata:,.2f} €",
+               f"{interessi_rata:,.2f} €",
+               f"{debito_res if debito_res > 0.005 else 0.0:,.2f} €"
             ))
         totale_rata_pagata = totale_capitale + totale_interessi + (spese_mensili * mesi)
         riepilogo_text = (
-            f"Capitale: {capitale_iniziale:.2f} €\n"
+            f"Capitale: {capitale_iniziale:,.2f} €\n"
             f"Durata: {anni} anni ({mesi} mesi)\n"
-            f"Tasso: {tasso_mensile * 100 * 12:.2f} %\n"
+            f"Tasso: {tasso_mensile * 100 * 12:,.2f} %\n"
             f"Metodo: Ammortamento Francese (Rata Costante)\n"
-            f"Ammortamento Extra: {ammortamento_extra:.2f} €\n"
-            f"Importo Totale Restituito: {totale_rata_pagata:.2f} €\n"
-            f"Interessi Totali: {totale_interessi:.2f} €"
+            f"Ammortamento Extra: {ammortamento_extra:,.2f} €\n"
+            f"Importo Totale Restituito: {totale_rata_pagata:,.2f} €\n"
+            f"Interessi Totali: {totale_interessi:,.2f} €"
         )
         title_label.config(text=riepilogo_text, wraplength=1000)
         tree_widget.insert("", "end", values=("TOTALE", f"{totale_rata_pagata:,.2f} €", f"{totale_capitale:,.2f} €", f"{totale_interessi:,.2f} €", "-"), tags=('total_row',))
@@ -171,14 +171,14 @@ def calcolo_mutuo_prestito(self):
                 risultati_principali = self.tutti_i_risultati[0]
                 lbl_scenari_risultati[i][0].config(text=f"{risultati_scenario['mesi']}")
                 lbl_scenari_risultati[i][1].config(text=f"{risultati_scenario['tasso_mensile'] * 100:.4f} %")
-                lbl_scenari_risultati[i][2].config(text=f"{risultati_scenario['rata_mensile_totale']:.2f} €")
-                lbl_scenari_risultati[i][3].config(text=f"{risultati_scenario['interessi_totali']:.2f} €")
+                lbl_scenari_risultati[i][2].config(text=f"{risultati_scenario['rata_mensile_totale']:,.2f} €")
+                lbl_scenari_risultati[i][3].config(text=f"{risultati_scenario['interessi_totali']:,.2f} €")
                 costo_totale_cap_int = risultati_scenario['capitale'] + risultati_scenario['interessi_totali']
-                lbl_scenari_risultati[i][4].config(text=f"{costo_totale_cap_int:.2f} €")
+                lbl_scenari_risultati[i][4].config(text=f"{costo_totale_cap_int:,.2f} €")
                 if risultati_principali:
                     risparmio = risultati_principali["interessi_totali"] - risultati_scenario["interessi_totali"]
                     lbl_scenari_risultati[i][5].config(
-                        text=f"{risparmio:.2f} €", 
+                        text=f"{risparmio:,.2f} €", 
                         foreground='green' if risparmio > 0 else ('#E53935' if risparmio < 0 else self.TEXT_COLOR)
                     )
                 else:
@@ -244,9 +244,27 @@ def calcolo_mutuo_prestito(self):
                 return
         has_sim = hasattr(self, 'tutti_i_risultati') and any(self.tutti_i_risultati)
         has_killer = hasattr(self, 'killer_stats') and self.killer_stats
-        if not has_sim and not has_killer:
-            self.show_custom_warning("Dati mancanti", "Esegui una simulazione o un Piano Killer per esportare i dati.")
+        has_rata_sost = hasattr(self, 'rata_sostenibile_risultato') and self.rata_sostenibile_risultato is not None
+        idx_rata_sost_tab = notebook.index(rata_sost_frame)
+        if not has_sim and not has_killer and not has_rata_sost:
+            self.show_custom_warning("Dati mancanti", "Esegui una simulazione, un Piano Killer o calcola la Rata Sostenibile per esportare i dati.")
             return
+        idx_piano_start = notebook.index(analisi_frame) + 1
+        idx_piano_end   = idx_piano_start + 5
+        idx_killer_tab  = notebook.index(killer_frame)
+        if idx_notebook == idx_rata_sost_tab:
+                titolo_report = "REPORT FINANZIARIO - CALCOLO RATA SOSTENIBILE"
+                prefix_file = "Rata_Sostenibile"
+        elif idx_notebook == idx_killer_tab:
+                titolo_report = "REPORT FINANZIARIO - PIANO DI ESTINZIONE STRATEGICA (KILLER)"
+                prefix_file = "Piano_Killer"
+        elif idx_piano_start <= idx_notebook <= idx_piano_end:
+                num_sim = idx_notebook - idx_piano_start + 1
+                titolo_report = f"REPORT FINANZIARIO - PIANO DI AMMORTAMENTO (SIMULAZIONE {num_sim})"
+                prefix_file = f"Piano_Ammortamento_Sim{num_sim}"
+        else:
+                titolo_report = "REPORT FINANZIARIO - RIEPILOGO SIMULAZIONI E PROIEZIONI"
+                prefix_file = "Riepilogo_Simulazioni"
         preview_window = tk.Toplevel(root, bg=self.COLOR_TOPLEVEL)
         preview_window.title("Report di Analisi e Proiezione Finanziaria")
         window_width, window_height = 1100, 630
@@ -255,13 +273,13 @@ def calcolo_mutuo_prestito(self):
         preview_window.bind("<Escape>", lambda e: preview_window.destroy())
         preview_window.transient(root)
         preview_window.focus_set()
+        linea_sep = "═" * 117
         contenuto_testo = (
-            "═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════\n"
-            "            REPORT FINANZIARIO COMPLETO - RIEPILOGO STATISTICHE E PIANO KILLER (AMMORTAMENTO FRANCESE)\n"
-            "═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════\n"
+                f"{linea_sep}\n"
+                f"{titolo_report:^117}\n"
+                f"{linea_sep}\n"
         )
-
-        if has_sim:
+        if has_sim and idx_notebook not in (idx_rata_sost_tab, idx_killer_tab):
             contenuto_testo += "Categoria            | Simulazione 1 | Simulazione 2 | Simulazione 3 | Simulazione 4 | Simulazione 5 | Simulazione 6\n"
             contenuto_testo += "─────────────────────┼───────────────┼───────────────┼───────────────┼───────────────┼───────────────┼───────────────\n"
             
@@ -278,18 +296,18 @@ def calcolo_mutuo_prestito(self):
                     mesi_res = int(res['mesi'])
                     target_date = oggi + datetime.timedelta(days=int(mesi_res * 30.44))
                     data_stringa = target_date.strftime('%m/%Y')
-                    sim_data["Capitale (€)"].append(f"{res['capitale']:.2f}")
+                    sim_data["Capitale (€)"].append(f"{res['capitale']:,.2f}")
                     sim_data["Durata (anni)"].append(f"{res['anni']}")
                     sim_data["N° Rate"].append(f"{res['mesi']}")
                     sim_data["Scadenza Prevista"].append(data_stringa)
-                    sim_data["Tasso (%)"].append(f"{res['tasso_annuo']:.2f}")
-                    sim_data["Spese Incasso (€)"].append(f"{res['spese_mensili']:.2f}")
-                    sim_data["Ammort. Extra (€)"].append(f"{res['ammortamento_extra']:.2f}")
-                    sim_data["Rata Mensile (€)"].append(f"{res['rata_mensile_totale']:.2f}")
-                    sim_data["Interessi Totali (€)"].append(f"{res['interessi_totali']:.2f}")
-                    sim_data["Costo Totale (€)"].append(f"{res['capitale'] + res['interessi_totali']:.2f}")
+                    sim_data["Tasso (%)"].append(f"{res['tasso_annuo']:,.2f}")
+                    sim_data["Spese Incasso (€)"].append(f"{res['spese_mensili']:,.2f}")
+                    sim_data["Ammort. Extra (€)"].append(f"{res['ammortamento_extra']:,.2f}")
+                    sim_data["Rata Mensile (€)"].append(f"{res['rata_mensile_totale']:,.2f}")
+                    sim_data["Interessi Totali (€)"].append(f"{res['interessi_totali']:,.2f}")
+                    sim_data["Costo Totale (€)"].append(f"{res['capitale'] + res['interessi_totali']:,.2f}")
                     risparmio = risultati_principali["interessi_totali"] - res["interessi_totali"] if risultati_principali and i > 0 else 0.0
-                    sim_data["Risparmio Int. (€)"].append(f"{risparmio:.2f}")
+                    sim_data["Risparmio Int. (€)"].append(f"{risparmio:,.2f}")
                 else:
                     for key in sim_data: sim_data[key].append("")
             max_len_cat = max(len(cat) for cat in sim_data.keys())
@@ -300,8 +318,36 @@ def calcolo_mutuo_prestito(self):
                 if cat in ["Ammort. Extra (€)", "Costo Totale (€)", "Risparmio Int. (€)"]:
                     contenuto_testo += "─────────────────────┴───────────────┴───────────────┴───────────────┴───────────────┴───────────────┴───────────────\n"
 
-        if 2 <= idx_notebook <= 5:
-            idx_sim = idx_notebook - 2
+        idx_piano_start = notebook.index(analisi_frame) + 1
+        idx_piano_end   = idx_piano_start + 5
+        idx_killer_tab  = notebook.index(killer_frame)
+        if idx_notebook == idx_rata_sost_tab:
+            if has_rata_sost:
+                rs = self.rata_sostenibile_risultato
+                contenuto_testo += "\n📋 RATA SOSTENIBILE - CAPITALE MASSIMO FINANZIABILE\n"
+                linea = "─" * 117
+                contenuto_testo += linea + "\n"
+                contenuto_testo += (
+                    f"{'Rata Sostenibile (€)':<25} | {'Durata (anni)':>13} | "
+                    f"{'Tasso Annuo (%)':>15} | {'Spese Mensili (€)':>17} | {'Capitale Massimo (€)':>21}\n"
+                )
+                contenuto_testo += linea + "\n"
+                contenuto_testo += (
+                    f"{rs['rata_disp']:<25,.2f} | {rs['anni']:>13} | "
+                    f"{rs['tasso']:>15,.2f} | {rs['spese']:>17,.2f} | {rs['capitale_max']:>21,.2f}\n"
+                )
+                contenuto_testo += linea + "\n"
+                contenuto_testo += f"{'Periodo':<30} | {'Rata (€)':>12} | {'Cap. (€)':>12} | {'Int. (€)':>12} | {'Residuo (€)':>15}\n"
+                contenuto_testo += linea + "\n"
+                for item_id in tree_rs_piano.get_children():
+                    vals = tree_rs_piano.item(item_id, "values")
+                    contenuto_testo += (
+                        f"{str(vals[0]):<30} | {str(vals[1]):>12} | "
+                        f"{str(vals[2]):>12} | {str(vals[3]):>12} | {str(vals[4]):>15}\n"
+                    )
+                contenuto_testo += linea + "\n"
+        elif idx_piano_start <= idx_notebook <= idx_piano_end:
+            idx_sim = idx_notebook - idx_piano_start
             res_sel = self.tutti_i_risultati[idx_sim]
             if res_sel:
                 contenuto_testo += f"\n📋 PIANO AMMORTAMENTO DETTAGLIATO: SIMULAZIONE {idx_sim + 1}\n"
@@ -324,14 +370,14 @@ def calcolo_mutuo_prestito(self):
                     etichetta = f"Rata {m:>3} ({data_corrente})"
                     contenuto_testo += (
                         f"{etichetta:<30} | "
-                        f"{rata_tot:>12.2f} | "
-                        f"{q_c:>12.2f} | "
-                        f"{q_i:>12.2f} | "
-                        f"{max(0, res_p):>15.2f}\n"
+                        f"{rata_tot:>12,.2f} | "
+                        f"{q_c:>12,.2f} | "
+                        f"{q_i:>12,.2f} | "
+                        f"{max(0, res_p):>15,.2f}\n"
                     )
                 contenuto_testo += linea + "\n"
                 
-        elif idx_notebook >= 6:
+        elif idx_notebook == idx_killer_tab:
             if has_killer:
                 import datetime
                 try:
@@ -367,32 +413,32 @@ def calcolo_mutuo_prestito(self):
                 contenuto_testo += f"{'─'*117}\n"
                 contenuto_testo += " SITUAZIONE ATTUALE (DATI INSERITI)\n"
                 contenuto_testo += f"{'─'*117}\n"
-                contenuto_testo += f"{' > Debito Residuo Iniziale:':<45} {capitale_input:>20.2f} €\n"
+                contenuto_testo += f"{' > Debito Residuo Iniziale:':<45} {capitale_input:>20,.2f} €\n"
                 if extra_s_input > 0:
-                    contenuto_testo += f"{' > Abbattimento Immediato:':<45} {extra_s_input:>20.2f} €\n"
-                contenuto_testo += f"{' > Rata Mensile Attuale:':<45} {rata_input:>20.2f} €\n"
+                    contenuto_testo += f"{' > Abbattimento Immediato:':<45} {extra_s_input:>20,.2f} €\n"
+                contenuto_testo += f"{' > Rata Mensile Attuale:':<45} {rata_input:>20,.2f} €\n"
                 contenuto_testo += f"{' > Durata Residua Dichiarata:':<45} {mesi_input:>20} rate\n"
-                contenuto_testo += f"{' > Tasso Applicato:':<45} {tasso_input:>20.2f} %\n"
+                contenuto_testo += f"{' > Tasso Applicato:':<45} {tasso_input:>20,.2f} %\n"
                 contenuto_testo += f"{'─'*117}\n"
                 contenuto_testo += " PROIEZIONE SENZA INTERVENTO (PIANO ORIGINARIO)\n"
                 contenuto_testo += f"{'─'*117}\n"
                 contenuto_testo += f"{' > Scadenza Prevista:':<45} {d_fine_std:>20}\n"
-                contenuto_testo += f"{' > Interessi Totali Previsti:':<45} {int_senza_k:>20.2f} €\n"
-                contenuto_testo += f"{' > Totale Montante (Cap+Int):':<45} {totale_senza_k:>20.2f} €\n"
+                contenuto_testo += f"{' > Interessi Totali Previsti:':<45} {int_senza_k:>20,.2f} €\n"
+                contenuto_testo += f"{' > Totale Montante (Cap+Int):':<45} {totale_senza_k:>20,.2f} €\n"
                 contenuto_testo += f"{'─'*117}\n"
                 contenuto_testo += " RISULTATI DOPO IL PIANO KILLER\n"
                 contenuto_testo += f"{'─'*117}\n"
                 contenuto_testo += f" Metodo: Ricalcolo interessi su debito residuo (Ammortamento Francese)\n"
                 contenuto_testo += f"{' > Strategia Selezionata:':<45} {strat.upper():>20}\n"
                 contenuto_testo += f"{'─'*117}\n"
-                contenuto_testo += f"{' > Risparmio Interessi Netto:':<45} {risparmio_k:>20.2f} €\n"
-                contenuto_testo += f"{' > Totale Interessi da Pagare:':<45} {total_int_k:>20.2f} €\n"
+                contenuto_testo += f"{' > Risparmio Interessi Netto:':<45} {risparmio_k:>20,.2f} €\n"
+                contenuto_testo += f"{' > Totale Interessi da Pagare:':<45} {total_int_k:>20,.2f} €\n"
                 contenuto_testo += f"{'─'*117}\n"
                 contenuto_testo += f"{' > Nuova Scadenza (Killer):':<45} {d_fine_k:>20}\n"
                 contenuto_testo += f"{' > Numero Rate Residue:':<45} {durata_effettiva:>20} rate\n"
                 contenuto_testo += f"{' > Anticipo su Estinzione:':<45} {mesi_risp:>20} mesi\n"
                 contenuto_testo += f"{'─'*117}\n"
-                contenuto_testo += f"{' > TOTALE VERSATO FINALE:':<45} {total_vers_k:>20.2f} €\n"
+                contenuto_testo += f"{' > TOTALE VERSATO FINALE:':<45} {total_vers_k:>20,.2f} €\n"
                 contenuto_testo += f"{'═'*117}\n"
                 if hasattr(self, 'killer_annuali') and self.killer_annuali:
                     import datetime
@@ -408,9 +454,9 @@ def calcolo_mutuo_prestito(self):
                         contenuto_testo += (
                             f"{'ANTICIPO':<10} | "
                             f"{oggi.year:<12} | "
-                            f"{anticipo_val:>18.2f} | "
-                            f"{0.0:>18.2f} | "
-                            f"{anticipo_val:>20.2f}\n"
+                            f"{anticipo_val:>18,.2f} | "
+                            f"{0.0:>18,.2f} | "
+                            f"{anticipo_val:>20,.2f}\n"
                         )
                     try:
                         val_extra_ricorrente = float(ent_k_extra_annuo.get().replace(",", "."))
@@ -425,9 +471,9 @@ def calcolo_mutuo_prestito(self):
                         contenuto_testo += (
                             f"Anno {ann['anno']:<5} | "
                             f"{anno_solare:<12} | "
-                            f"{extra_anno:>18.2f} | "
-                            f"{risparmio:>18.2f} | "
-                            f"{impatto_reale:>20.2f}\n"
+                            f"{extra_anno:>18,.2f} | "
+                            f"{risparmio:>18,.2f} | "
+                            f"{impatto_reale:>20,.2f}\n"
                         )
                     if self.killer_stats:
                         ultima_r = self.killer_stats[-1]
@@ -436,9 +482,9 @@ def calcolo_mutuo_prestito(self):
                         contenuto_testo += (
                             f"{'CHIUSURA':<10} | "
                             f"{data_fine.year:<12} | "
-                            f"{ultima_r['versato']:>18.2f} | "
+                            f"{ultima_r['versato']:>18,.2f} | "
                             f"{'---':>18} | "
-                            f"{ultima_r['versato']:>20.2f} (Saldo Finale)\n"
+                            f"{ultima_r['versato']:>20,.2f} (Saldo Finale)\n"
                         )
                     contenuto_testo += "─"*117 + "\n"
                     contenuto_testo += "* ANTICIPO: Versamento una tantum effettuato oggi per abbattere il capitale.\n"
@@ -451,10 +497,10 @@ def calcolo_mutuo_prestito(self):
                 for row in self.killer_stats:
                     contenuto_testo += (
                         f"{str(row['mese']):<30} | "
-                        f"{row['versato']:>15.2f} | "
-                        f"{row['quota_cap']:>15.2f} | "
-                        f"{row['quota_int']:>15.2f} | "
-                        f"{row['residuo']:>15.2f}\n"
+                        f"{row['versato']:>15,.2f} | "
+                        f"{row['quota_cap']:>15,.2f} | "
+                        f"{row['quota_int']:>15,.2f} | "
+                        f"{row['residuo']:>15,.2f}\n"
                     )
                 contenuto_testo += "═"*117 + "\n"
         contenuto_testo += f"\nReport generato il: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n"
@@ -558,10 +604,10 @@ def calcolo_mutuo_prestito(self):
                 tot_versato_killer += abbattimento
                 tree_k_piano.insert("", "end", values=(
                     f"Anticipo ({data_subito})",
-                    f"{abbattimento:.2f} €", 
-                    f"{abbattimento:.2f} €", 
+                    f"{abbattimento:,.2f} €", 
+                    f"{abbattimento:,.2f} €", 
                     "0.00 €", 
-                    f"{debito:.2f} €"
+                    f"{debito:,.2f} €"
                 ), tags=('extra_row',))
                 self.killer_stats.append({
                 'mese': f"Anticipo ({data_subito})", 
@@ -613,10 +659,10 @@ def calcolo_mutuo_prestito(self):
                 label_periodo = f"Rata {mese_corrente:>3} ({data_str})"
                 tree_k_piano.insert("", "end", values=(
                     label_periodo,
-                    f"{versato_reale:.2f} €", 
-                    f"{abb_eff:.2f} €", 
-                    f"{interessi_mese:.2f} €", 
-                    f"{max(debito,0):.2f} €"
+                    f"{versato_reale:,.2f} €", 
+                    f"{abb_eff:,.2f} €", 
+                    f"{interessi_mese:,.2f} €", 
+                    f"{max(debito,0):,.2f} €"
                 ), tags=('extra_row' if versamento_extra > 0 else ''))
                 self.killer_stats.append({
                     'mese': label_periodo,
@@ -653,7 +699,7 @@ def calcolo_mutuo_prestito(self):
             testo_risultato = (
                 f"Strategia: {strategia}  📅 Termine: {freedom_date.upper()}\n"
                 f"🎯 Estinzione in {mese_corrente} Mesi (Risparmiati {self.killer_totali['mesi_risparmiati']} mesi)\n"
-                f"💰 Tot. Versato: {tot_versato_killer:.2f} €  📉 Interessi: {tot_interessi_killer:.2f} €  🚀 Risparmio: {max(0, risparmio_interessi):.2f} €"
+                f"💰 Tot. Versato: {tot_versato_killer:,.2f} €  📉 Interessi: {tot_interessi_killer:,.2f} €  🚀 Risparmio: {max(0, risparmio_interessi):,.2f} €"
             )
             lbl_k_risultato.config(text=testo_risultato, foreground="#2e7d32")
             dati_per_pop = self.killer_annuali.copy()
@@ -684,16 +730,16 @@ def calcolo_mutuo_prestito(self):
                     tree.column("s", width=140, anchor="e")
                     oggi = datetime.date.today()
                     if ex_s > 0:
-                            tree.insert("", "end", values=("ANTICIPO", f"{oggi.year}", f"{ex_s:.2f} €", "0.00 €", f"{ex_s:.2f} €"), tags=("evidenza",))
+                            tree.insert("", "end", values=("ANTICIPO", f"{oggi.year}", f"{ex_s:,.2f} €", "0.00 €", f"{ex_s:,.2f} €"), tags=("evidenza",))
                     for r in lista_dati:
                             data_target = oggi + datetime.timedelta(days=int(r['anno'] * 12 * 30.44))
-                            tree.insert("", "end", values=(f"Anno {r['anno']}", f"{data_target.year}", f"{ex_val:.2f} €", f"{r['risparmio_rate']:.2f} €", f"{r['sforzo_netto']:.2f} €"))
+                            tree.insert("", "end", values=(f"Anno {r['anno']}", f"{data_target.year}", f"{ex_val:,.2f} €", f"{r['risparmio_rate']:,.2f} €", f"{r['sforzo_netto']:,.2f} €"))
                     if self.killer_stats:
                             ultima_riga = self.killer_stats[-1]
                             data_fine = oggi + datetime.timedelta(days=int(len(self.killer_stats) * 30.44))
                             tree.tag_configure("saldo", background="#D4EDDA", foreground="#155724")
                             tree.tag_configure("evidenza", background="#FFF9C4", foreground="#856404")
-                            tree.insert("", "end", values=("ESTINZIONE", f"{data_fine.year}", f"{ultima_riga['versato']:.2f} €", "---", f"{ultima_riga['versato']:.2f} €"), tags=("saldo",))
+                            tree.insert("", "end", values=("ESTINZIONE", f"{data_fine.year}", f"{ultima_riga['versato']:,.2f} €", "---", f"{ultima_riga['versato']:,.2f} €"), tags=("saldo",))
                     sb = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
                     tree.configure(yscrollcommand=sb.set)
                     tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -721,7 +767,8 @@ def calcolo_mutuo_prestito(self):
         lbl_k_risultato.config(text="Pronto per il calcolo")
         self.killer_stats = []
         self.killer_annuali = []
-        btn_vidi_sforzo.config(state="disabled", command=None)            
+        btn_vidi_sforzo.config(foreground="gray", cursor="arrow")
+        btn_vidi_sforzo.unbind("<Button-1>")
     self.killer_stats = []
     root = tk.Toplevel(bg=self.COLOR_TOPLEVEL)
     root.title("Gestore Finanziario - Calcolo Finanziamento e Simulazioni - Ammortamento Francese")
@@ -734,12 +781,16 @@ def calcolo_mutuo_prestito(self):
     position_right = int(screen_width / 2 - window_width / 2)
     root.geometry(f'{window_width}x{window_height}+{position_right}+{position_top}')
     root.minsize(window_width, window_height)
+    root.grid_rowconfigure(0, weight=1)
+    root.grid_rowconfigure(1, weight=0)
+    root.grid_columnconfigure(0, weight=1)
     root.protocol("WM_DELETE_WINDOW", lambda: (self.deiconify(), self.after(0, self.imp_entry.focus_set), root.destroy()))
     root.bind("<Escape>", lambda e: (self.deiconify(), self.after(0, self.imp_entry.focus_set), root.destroy()))
     self.withdraw()
     self.tutti_i_risultati = [None] * 6
+    self.rata_sostenibile_risultato = None
     notebook = ttk.Notebook(root)
-    notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+    notebook.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
     simulazioni_frame = ttk.Frame(notebook, padding=10)
     img_tab_simulazioni = self.icone_gui.get("calcolatrice")
     if img_tab_simulazioni:
@@ -790,6 +841,89 @@ def calcolo_mutuo_prestito(self):
     for i in range(6):
         tree, label = crea_tab_piano_ammortamento(notebook, f"Simulazione {i+1}")
         trees_piani.append(tree); labels_piani.append(label)
+    rata_sost_frame = ttk.Frame(notebook, padding=10)
+    img_tab_rata_sost = self.icone_gui.get("calcolatrice")
+    if img_tab_rata_sost:
+        notebook.add(rata_sost_frame, image=img_tab_rata_sost, text="  Rata Sostenibile  ", compound="left")
+    else:
+        notebook.add(rata_sost_frame, text="Rata Sostenibile")
+    rs_input_frame = ttk.LabelFrame(rata_sost_frame, text=" Parti dalla rata che puoi sostenere ", padding=10)
+    rs_input_frame.pack(fill=tk.X, pady=5)
+    ttk.Label(rs_input_frame, text="Rata Mensile Sostenibile (€):").grid(row=0, column=0, padx=5, sticky="w")
+    ent_rs_rata = ttk.Entry(rs_input_frame, width=12); ent_rs_rata.grid(row=0, column=1, padx=5, pady=2)
+    ttk.Label(rs_input_frame, text="Durata (anni):").grid(row=0, column=2, padx=5, sticky="w")
+    ent_rs_anni = ttk.Entry(rs_input_frame, width=8); ent_rs_anni.grid(row=0, column=3, padx=5, pady=2)
+    ttk.Label(rs_input_frame, text="Tasso Annuo (%):").grid(row=0, column=4, padx=5, sticky="w")
+    ent_rs_tasso = ttk.Entry(rs_input_frame, width=8); ent_rs_tasso.grid(row=0, column=5, padx=5, pady=2)
+    ttk.Label(rs_input_frame, text="Spese Mensili incluse nella rata (€):").grid(row=1, column=0, padx=5, sticky="w")
+    ent_rs_spese = ttk.Entry(rs_input_frame, width=12); ent_rs_spese.grid(row=1, column=1, padx=5, pady=2)
+    img_rs_calcola = self.icone_gui.get("aggiungi")
+    btn_rs_calcola = ttk.Label(rs_input_frame, compound="left", image=img_rs_calcola, text=" Calcola Capitale Massimo" if img_rs_calcola else "🏠 Calcola Capitale Massimo", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
+    btn_rs_calcola.grid(row=2, column=0, columnspan=4, pady=10)
+    img_rs_reset = self.icone_gui.get("cancella")
+    btn_rs_reset = ttk.Label(rs_input_frame, compound="left", image=img_rs_reset, text=" Reset" if img_rs_reset else "🔄 Reset", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
+    btn_rs_reset.grid(row=2, column=4, columnspan=2, pady=10, padx=2)
+    lbl_rs_risultato = ttk.Label(rata_sost_frame, text="Inserisci i dati e calcola", style="Verde.TLabel")
+    lbl_rs_risultato.pack(pady=5)
+    lbl_rs_dettaglio = ttk.Label(rata_sost_frame, text="", font=("Arial", 9, "bold"))
+    lbl_rs_dettaglio.pack(pady=(0,5), fill=tk.X)
+    tree_rs_frame = ttk.Frame(rata_sost_frame)
+    tree_rs_frame.pack(fill=tk.BOTH, expand=True)
+    tree_rs_piano = ttk.Treeview(tree_rs_frame, columns=("Rata", "Rata Mensile", "Quota Capitale", "Quota Interessi", "Debito Residuo"), show="headings")
+    tree_rs_piano.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    for col in tree_rs_piano["columns"]:
+        tree_rs_piano.heading(col, text=col)
+        tree_rs_piano.column(col, width=120, anchor="center")
+    sb_rs = ttk.Scrollbar(tree_rs_frame, orient="vertical", command=tree_rs_piano.yview, style="Vertical.TScrollbar")
+    sb_rs.pack(side=tk.RIGHT, fill=tk.Y)
+    tree_rs_piano.configure(yscrollcommand=sb_rs.set)
+    def calcola_rata_sostenibile():
+        try:
+            rata_disp = float(ent_rs_rata.get().replace(",", ".").strip() or 0)
+            anni_rs   = int(ent_rs_anni.get().replace(",", ".").strip() or 0)
+            tasso_rs  = float(ent_rs_tasso.get().replace(",", ".").strip() or 0)
+            spese_rs  = float(ent_rs_spese.get().replace(",", ".").strip() or 0)
+            if rata_disp <= 0 or anni_rs <= 0 or tasso_rs < 0:
+                self.show_custom_warning("Attenzione", "Rata, durata e tasso devono essere valori positivi.")
+                return
+            rata_capitale = rata_disp - spese_rs
+            if rata_capitale <= 0:
+                self.show_custom_warning("Attenzione", "La rata sostenibile deve essere maggiore delle spese mensili.")
+                return
+            mesi_rs = anni_rs * 12
+            tasso_mensile_rs = tasso_rs / 100 / 12
+            if tasso_mensile_rs > 0:
+                capitale_max = rata_capitale * (1 - (1 + tasso_mensile_rs) ** -mesi_rs) / tasso_mensile_rs
+            else:
+                capitale_max = rata_capitale * mesi_rs
+            lbl_rs_risultato.config(
+                text=f"💰 Capitale Massimo Finanziabile: {capitale_max:,.2f} €   "
+                     f"(rata {rata_disp:,.2f} € su {anni_rs} anni al {tasso_rs:,.2f} %)"
+            )
+            popola_piano(tree_rs_piano, capitale_max, anni_rs, mesi_rs, rata_capitale,
+                         spese_rs, tasso_mensile_rs, lbl_rs_dettaglio)
+            self.rata_sostenibile_risultato = {
+                'rata_disp': rata_disp,
+                'anni': anni_rs,
+                'mesi': mesi_rs,
+                'tasso': tasso_rs,
+                'spese': spese_rs,
+                'capitale_max': capitale_max,
+            }
+        except (ValueError, OverflowError, ZeroDivisionError):
+            self.show_custom_warning("Errore", "Controlla i dati inseriti.")
+    def reset_rata_sostenibile():
+        ent_rs_rata.delete(0, tk.END)
+        ent_rs_anni.delete(0, tk.END)
+        ent_rs_tasso.delete(0, tk.END)
+        ent_rs_spese.delete(0, tk.END)
+        for row in tree_rs_piano.get_children():
+            tree_rs_piano.delete(row)
+        lbl_rs_risultato.config(text="Inserisci i dati e calcola")
+        lbl_rs_dettaglio.config(text="")
+        self.rata_sostenibile_risultato = None
+    btn_rs_calcola.bind("<Button-1>", lambda e: calcola_rata_sostenibile())
+    btn_rs_reset.bind("<Button-1>", lambda e: reset_rata_sostenibile())
     killer_frame = ttk.Frame(notebook, padding=10)
     img_tab_killer = self.icone_gui.get("tools")
     if img_tab_killer:
@@ -840,7 +974,7 @@ def calcolo_mutuo_prestito(self):
     tree_k_piano.configure(yscrollcommand=sb_k.set)
 
     common_button_frame = tk.Frame(root,bg=self.COLOR_TOPLEVEL, padx=10, pady=10)
-    common_button_frame.pack()  
+    common_button_frame.grid(row=1, column=0, sticky="ew")
     img_esp_riep = self.icone_gui.get("stampa")
     btn_esp_riep = ttk.Label(common_button_frame, compound="left", image=img_esp_riep, text=" Esporta Riepilogo" if img_esp_riep else "Esporta Riepilogo", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
     btn_esp_riep.pack(side=tk.LEFT, padx=5)
