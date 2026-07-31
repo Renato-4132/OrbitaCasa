@@ -52,6 +52,32 @@ def apri_studio(self):
             return f"€ {float(val):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
         except Exception:
             return "€ 0,00"
+    def _parsa_indirizzo(indirizzo):
+        import re as _re
+        indirizzo = indirizzo or ""
+        cap_m  = _re.search(r'\b(\d{5})\b', indirizzo)
+        prov_m = _re.search(r'\(([A-Za-z]{2})\)', indirizzo)
+        cap       = cap_m.group(1) if cap_m else "00000"
+        provincia = prov_m.group(1).upper() if prov_m else "XX"
+        resto = indirizzo
+        if cap_m:  resto = resto.replace(cap_m.group(0), "")
+        if prov_m: resto = resto.replace(prov_m.group(0), "")
+        parti = [p.strip() for p in resto.split(",") if p.strip()]
+        via    = parti[0] if parti else "DA COMPLETARE"
+        comune = parti[1] if len(parti) > 1 else "DA COMPLETARE"
+        return via, cap, comune, provincia
+    def _prossimo_progressivo_sdi():
+        path = os.path.join(DB_DIR, "studio_sdi_progressivo.json")
+        dati = _load(path, {"ultimo": 0})
+        if not isinstance(dati, dict): dati = {"ultimo": 0}
+        dati["ultimo"] = int(dati.get("ultimo", 0) or 0) + 1
+        _save(path, dati)
+        return dati["ultimo"]
+    def _peek_progressivo_sdi():
+        path = os.path.join(DB_DIR, "studio_sdi_progressivo.json")
+        dati = _load(path, {"ultimo": 0})
+        if not isinstance(dati, dict): dati = {"ultimo": 0}
+        return int(dati.get("ultimo", 0) or 0) + 1
     clienti      = _load(STUDIO_CLIENTI)
     appuntamenti = _load(STUDIO_APPUNTAMENTI)
     prestazioni  = _load(STUDIO_PRESTAZIONI)
@@ -285,6 +311,82 @@ def apri_studio(self):
                   str(len(sotto_soglia)),
                   self.COLOR_RED if sotto_soglia else self.COLOR_GREEN,
                   "voci sotto soglia")
+        if emittente.get("regime_fiscale") == "Forfettario":
+            soglia = float(emittente.get("soglia_forfettario", 85000) or 85000)
+            perc = (fat_anno / soglia) if soglia else 0
+            colore_sog = self.COLOR_GREEN if perc < 0.7 else \
+                         (self.COLOR_ORANGE if perc < 0.9 else self.COLOR_RED)
+            frm_sog = tk.Frame(tab_dash, bg=self.COLOR_WIDGET_BG,
+                               highlightthickness=1,
+                               highlightbackground=self.COLOR_HIGHLIGHT)
+            frm_sog.pack(fill="x", padx=10, pady=(0, 6))
+            tk.Label(frm_sog,
+                     text=f"Soglia regime forfettario:  {_fmt_eur(fat_anno)}  /  "
+                          f"{_fmt_eur(soglia)}   ({perc*100:.0f}%)",
+                     font=("Arial", 9, "bold"), bg=self.COLOR_WIDGET_BG,
+                     fg=colore_sog).pack(anchor="w", padx=8, pady=(4, 2))
+            bar_bg = tk.Frame(frm_sog, bg=self.COLOR_BACKGROUND, height=10)
+            bar_bg.pack(fill="x", padx=8, pady=(0, 6))
+            bar_bg.pack_propagate(False)
+            bar_fg = tk.Frame(bar_bg, bg=colore_sog)
+            bar_fg.place(relx=0, rely=0, relwidth=min(max(perc, 0), 1.0), relheight=1)
+
+            try:
+                coeff = float(str(emittente.get("coefficiente_redditivita","78")).replace(",",".") or 78) / 100
+            except Exception:
+                coeff = 0.78
+            reddito_imponibile = fat_anno * coeff
+            aliq_sost_str = emittente.get("aliquota_sostitutiva","15% (ordinaria)")
+            aliq_sost = 0.05 if aliq_sost_str.startswith("5") else 0.15
+            imposta_sostitutiva = reddito_imponibile * aliq_sost
+            aliq_inps_str = emittente.get("aliquota_inps","26,07% (Gestione Separata)")
+            if aliq_inps_str.startswith("26"):
+                aliq_inps = 0.2607
+            elif aliq_inps_str.startswith("24"):
+                aliq_inps = 0.24
+            else:
+                aliq_inps = None
+            contributi_inps = reddito_imponibile * aliq_inps if aliq_inps is not None else None
+
+            frm_tax = tk.Frame(tab_dash, bg=self.COLOR_WIDGET_BG,
+                               highlightthickness=1,
+                               highlightbackground=self.COLOR_HIGHLIGHT)
+            frm_tax.pack(fill="x", padx=10, pady=(0, 6))
+            tk.Label(frm_tax, text="STIMA TASSE E CONTRIBUTI DA ACCANTONARE (anno corrente)",
+                     font=("Arial", 8, "bold"), bg=self.COLOR_WIDGET_BG,
+                     fg=self.COLOR_HIGHLIGHT).pack(anchor="w", padx=8, pady=(4, 0))
+            righe_tax = [
+                (f"Reddito imponibile ({coeff*100:.0f}% di {_fmt_eur(fat_anno)})",
+                 _fmt_eur(reddito_imponibile)),
+                (f"Imposta sostitutiva stimata ({aliq_sost*100:.0f}%)",
+                 _fmt_eur(imposta_sostitutiva)),
+            ]
+            if contributi_inps is not None:
+                righe_tax.append((f"Contributi INPS stimati ({aliq_inps*100:.2f}%)".replace(".", ","),
+                                   _fmt_eur(contributi_inps)))
+                totale_tax = imposta_sostitutiva + contributi_inps
+            else:
+                righe_tax.append(("Contributi previdenziali (altra cassa)", "da calcolare a parte"))
+                totale_tax = imposta_sostitutiva
+            for etichetta, valore in righe_tax:
+                riga_f = tk.Frame(frm_tax, bg=self.COLOR_WIDGET_BG)
+                riga_f.pack(fill="x", padx=8)
+                tk.Label(riga_f, text=etichetta, font=("Arial", 8),
+                         bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR).pack(side="left")
+                tk.Label(riga_f, text=valore, font=("Arial", 8, "bold"),
+                         bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR).pack(side="right")
+            riga_tot = tk.Frame(frm_tax, bg=self.COLOR_WIDGET_BG)
+            riga_tot.pack(fill="x", padx=8, pady=(2, 6))
+            tk.Label(riga_tot, text="Totale stimato da accantonare",
+                     font=("Arial", 9, "bold"), bg=self.COLOR_WIDGET_BG,
+                     fg=self.COLOR_ORANGE).pack(side="left")
+            tk.Label(riga_tot, text=_fmt_eur(totale_tax),
+                     font=("Arial", 9, "bold"), bg=self.COLOR_WIDGET_BG,
+                     fg=self.COLOR_ORANGE).pack(side="right")
+            tk.Label(frm_tax,
+                     text="Stima indicativa, non sostituisce il calcolo del tuo commercialista.",
+                     font=("Arial", 7, "italic"), bg=self.COLOR_WIDGET_BG,
+                     fg=self.COLOR_HIGHLIGHT).pack(anchor="w", padx=8, pady=(0, 4))
         _sep(tab_dash)
         body = tk.Frame(tab_dash, bg=self.COLOR_BACKGROUND)
         body.pack(fill="both", expand=True, padx=6, pady=4)
@@ -468,7 +570,7 @@ def apri_studio(self):
             fw.withdraw()
             fw.columnconfigure(1, weight=1)
             _titolo(fw, "Modifica" if prefill else "➕ Nuovo cliente")
-            W, H = 440, 330
+            W, H = 440, 380
             win.update_idletasks()
             fx = win.winfo_rootx() + win.winfo_width()  // 2 - W // 2
             fy = win.winfo_rooty() + win.winfo_height() // 2 - H // 2
@@ -481,7 +583,9 @@ def apri_studio(self):
             _row(fw, "Email",       5); e_eml  = _ent(fw, 5)
             _row(fw, "CF / P.IVA", 6); e_cf   = _ent(fw, 6)
             _row(fw, "Indirizzo",  7); e_ind  = _ent(fw, 7)
-            _row(fw, "Note",       8); e_note = _ent(fw, 8)
+            _row(fw, "Cod. Destinatario SDI", 8); e_dest = _ent(fw, 8)
+            _row(fw, "PEC",        9); e_pec  = _ent(fw, 9)
+            _row(fw, "Note",       10); e_note = _ent(fw, 10)
             def _limit(entry, maxlen):
                 vcmd = (fw.register(
                     lambda P: len(P) <= maxlen), "%P")
@@ -493,11 +597,14 @@ def apri_studio(self):
             _limit(e_eml,  35)
             _limit(e_cf,   16)
             _limit(e_ind,  50)
+            _limit(e_dest, 7)
+            _limit(e_pec,  50)
             _limit(e_note, 30)
             if prefill:
                 for e, k in [(e_n,"nome"),(e_cog,"cognome"),(e_az,"azienda"),
                              (e_tel,"telefono"),(e_eml,"email"),(e_cf,"cf_piva"),
-                             (e_ind,"indirizzo"),(e_note,"note")]:
+                             (e_ind,"indirizzo"),(e_dest,"cod_destinatario"),
+                             (e_pec,"pec"),(e_note,"note")]:
                     e.insert(0, prefill.get(k,""))
             def _salva():
                 nome = e_n.get().strip()
@@ -512,6 +619,8 @@ def apri_studio(self):
                     "email":     e_eml.get().strip(),
                     "cf_piva":   e_cf.get().strip(),
                     "indirizzo": e_ind.get().strip(),
+                    "cod_destinatario": e_dest.get().strip().upper(),
+                    "pec":       e_pec.get().strip(),
                     "note":      e_note.get().strip(),
                 }
                 if prefill:
@@ -526,7 +635,7 @@ def apri_studio(self):
                 self.show_toast("Cliente salvato.")
             fw.bind("<Escape>", lambda e: fw.destroy())
             bot = tk.Frame(fw, bg=self.COLOR_BACKGROUND)
-            bot.grid(row=9, column=0, columnspan=4, pady=8)
+            bot.grid(row=11, column=0, columnspan=4, pady=8)
             _mk_btn(bot, "salva",  "Salva",  _salva)
             _mk_btn(bot, "chiudi", "Chiudi", fw.destroy)
         def _modifica():
@@ -572,6 +681,16 @@ def apri_studio(self):
                                  width=12, state="readonly",
                                  style="Border.TCombobox")
         cb_filtro.pack(side="right", padx=4)
+        vista_var = tk.StringVar(value="Giorno")
+        cb_vista = ttk.Combobox(top_row, textvariable=vista_var,
+                                 values=["Giorno","Mese"],
+                                 width=8, state="readonly",
+                                 style="Border.TCombobox")
+        cb_vista.pack(side="right", padx=4)
+        cb_vista.bind("<<ComboboxSelected>>",
+                      lambda e: _aggiorna_dettaglio(sel_giorno[0]))
+        tk.Label(top_row, text="Vista:", bg=self.COLOR_BACKGROUND,
+                 fg=self.TEXT_COLOR, font=("Arial", 9)).pack(side="right", padx=(12,4))
         body = tk.Frame(tab_app, bg=self.COLOR_BACKGROUND)
         body.pack(fill="both", expand=True, padx=6, pady=4)
         det_frame = tk.LabelFrame(body, text=" Appuntamenti del giorno ",
@@ -581,18 +700,58 @@ def apri_studio(self):
                                   width=500)
         det_frame.pack(side="right", fill="y")
         det_frame.pack_propagate(False)
-        cal_frame = tk.Frame(body, bg=self.COLOR_WIDGET_BG,
+        cal_outer = tk.Frame(body, bg=self.COLOR_BACKGROUND)
+        cal_outer.pack(side="left", fill="both", expand=True, padx=(0,4))
+        frm_scad = tk.LabelFrame(cal_outer, text=" Prossime Scadenze Fiscali ",
+                                 bg=self.COLOR_WIDGET_BG,
+                                 fg=self.COLOR_ORANGE,
+                                 font=("Arial", 9, "bold"))
+        frm_scad.pack(fill="x", pady=(0,4))
+        cal_frame = tk.Frame(cal_outer, bg=self.COLOR_WIDGET_BG,
                              highlightthickness=1,
                              highlightbackground=self.COLOR_HIGHLIGHT)
-        cal_frame.pack(side="left", fill="both", expand=True, padx=(0,4))
+        cal_frame.pack(fill="both", expand=True)
         cal_cv = tk.Canvas(cal_frame, bg=self.COLOR_WIDGET_BG,
                            highlightthickness=0)
         cal_cv.pack(fill="both", expand=True)
-        sel_giorno = [None]
+        def _aggiorna_prossime_scadenze():
+            for w in frm_scad.winfo_children(): w.destroy()
+            prossime = sorted(
+                [a for a in appuntamenti
+                 if a.get("cliente_nome") == "Scadenza Fiscale"
+                 and a.get("data","") >= oggi.strftime("%Y-%m-%d")],
+                key=lambda a: a.get("data","")
+            )[:6]
+            if not prossime:
+                tk.Label(frm_scad,
+                         text="Nessuna scadenza generata. Usa \"Scadenze Fiscali\" qui sotto.",
+                         font=("Arial", 8, "italic"), bg=self.COLOR_WIDGET_BG,
+                         fg=self.TEXT_COLOR).pack(anchor="w", padx=8, pady=4)
+                return
+            for a in prossime:
+                try:
+                    d = datetime.datetime.strptime(a["data"], "%Y-%m-%d").date()
+                    giorni = (d - oggi).days
+                    data_fmt = d.strftime("%d/%m/%Y")
+                except Exception:
+                    giorni, data_fmt = 999, a.get("data","")
+                colore = self.COLOR_RED if giorni <= 7 else \
+                         (self.COLOR_ORANGE if giorni <= 30 else self.TEXT_COLOR)
+                testo_gg = "oggi" if giorni == 0 else \
+                           (f"tra {giorni} giorni" if giorni > 0 else "scaduta")
+                riga = tk.Frame(frm_scad, bg=self.COLOR_WIDGET_BG)
+                riga.pack(fill="x", padx=8, pady=1)
+                tk.Label(riga, text=f"{data_fmt}  —  {a.get('prestazione','')}",
+                         font=("Arial", 8), bg=self.COLOR_WIDGET_BG,
+                         fg=colore).pack(side="left")
+                tk.Label(riga, text=testo_gg, font=("Arial", 8, "bold"),
+                         bg=self.COLOR_WIDGET_BG, fg=colore).pack(side="right")
+        sel_giorno = [oggi.strftime("%Y-%m-%d")]
         tv_det = ttk.Treeview(det_frame,
-                              columns=("ora","cliente","prestazione","stato"),
-                              show="headings", height=16)
-        for col, lbl, w in [("ora","Ora",50),("cliente","Cliente",120),
+                              columns=("data","ora","cliente","prestazione","stato"),
+                              show="headings", height=16,
+                              displaycolumns=("ora","cliente","prestazione","stato"))
+        for col, lbl, w in [("data","Data",70),("ora","Ora",50),("cliente","Cliente",120),
                              ("prestazione","Prestazione",120),("stato","Stato",90)]:
             tv_det.heading(col, text=lbl, anchor="w")
             tv_det.column(col, width=w, anchor="w")
@@ -604,19 +763,36 @@ def apri_studio(self):
         vsb_d.pack(side="right", fill="y")
         def _aggiorna_dettaglio(giorno_str):
             tv_det.delete(*tv_det.get_children())
-            if not giorno_str: return
             filtro = filtro_var.get()
-            for a in sorted(
-                [x for x in appuntamenti
-                 if x.get("data","") == giorno_str
-                 and (filtro == "Tutti" or x.get("stato","") == filtro)],
-                key=lambda x: x.get("ora","")
-            ):
+            vista  = vista_var.get()
+            if vista == "Mese":
+                mese_str = nav_date[0].strftime("%Y-%m")
+                det_frame.config(text=f" Appuntamenti di {MESI_IT[nav_date[0].month]} ")
+                tv_det["displaycolumns"] = ("data","ora","cliente","prestazione","stato")
+                righe = [x for x in appuntamenti
+                         if x.get("data","")[:7] == mese_str
+                         and (filtro == "Tutti" or x.get("stato","") == filtro)]
+                key = lambda x: (x.get("data",""), x.get("ora",""))
+            else:
+                det_frame.config(text=" Appuntamenti del giorno ")
+                tv_det["displaycolumns"] = ("ora","cliente","prestazione","stato")
+                if not giorno_str: return
+                righe = [x for x in appuntamenti
+                         if x.get("data","") == giorno_str
+                         and (filtro == "Tutti" or x.get("stato","") == filtro)]
+                key = lambda x: x.get("ora","")
+            for a in sorted(righe, key=key):
                 stato = a.get("stato","")
                 tag = "verde" if stato=="Completato" else \
                       ("rosso" if stato=="Annullato" else "")
+                data_fmt = a.get("data","")
+                try:
+                    data_fmt = datetime.datetime.strptime(a.get("data",""), "%Y-%m-%d") \
+                                       .strftime("%d/%m")
+                except Exception:
+                    pass
                 tv_det.insert("", "end", iid=a["id"], tags=(tag,),
-                              values=(a.get("ora",""), a.get("cliente_nome",""),
+                              values=(data_fmt, a.get("ora",""), a.get("cliente_nome",""),
                                       a.get("prestazione",""), stato))
             tv_det.tag_configure("verde", foreground=self.COLOR_GREEN)
             tv_det.tag_configure("rosso", foreground=self.COLOR_RED)
@@ -643,7 +819,9 @@ def apri_studio(self):
             righe      = math.ceil((start_dow + num_giorni) / 7)
             cell_h     = max(30, (ch - head_h) / righe)
             app_giorni = {a.get("data","") for a in appuntamenti
-                          if a.get("data","")[:7] == primo.strftime("%Y-%m")}
+                          if a.get("data","")[:7] == primo.strftime("%Y-%m")
+                          and (filtro_var.get() == "Tutti"
+                               or a.get("stato","") == filtro_var.get())}
             for g in range(num_giorni):
                 d       = primo + datetime.timedelta(days=g)
                 ds      = d.strftime("%Y-%m-%d")
@@ -679,7 +857,9 @@ def apri_studio(self):
                                    fill=txt_fg)
                 if has_app:
                     n_app = sum(1 for a in appuntamenti
-                                if a.get("data","") == ds)
+                                if a.get("data","") == ds
+                                and (filtro_var.get() == "Tutti"
+                                     or a.get("stato","") == filtro_var.get()))
                     cal_cv.create_oval(x1-14, y0+4, x1-4, y0+14,
                                        fill=self.COLOR_GREEN, outline="")
                     cal_cv.create_text(x1-9, y0+9, text=str(n_app),
@@ -693,6 +873,14 @@ def apri_studio(self):
                     sel_giorno[0] = ds
                     _draw_cal()
                     _aggiorna_dettaglio(ds)
+                    if vista_var.get() == "Mese":
+                        ids = [a["id"] for a in appuntamenti
+                               if a.get("data","") == ds and tv_det.exists(a["id"])]
+                        if ids:
+                            tv_det.selection_set(*ids)
+                            tv_det.see(ids[0])
+                        else:
+                            tv_det.selection_remove(*tv_det.selection())
                     return
         cal_cv.bind("<Configure>", _draw_cal)
         cal_cv.bind("<Button-1>",  _on_cal_click)
@@ -702,19 +890,23 @@ def apri_studio(self):
             y = p.year - (1 if p.month == 1 else 0)
             nav_date[0] = p.replace(year=y, month=m, day=1)
             _draw_cal()
+            _aggiorna_dettaglio(sel_giorno[0])
         def _next_mese():
             p = nav_date[0]
             m = p.month % 12 + 1
             y = p.year + (1 if p.month == 12 else 0)
             nav_date[0] = p.replace(year=y, month=m, day=1)
             _draw_cal()
+            _aggiorna_dettaglio(sel_giorno[0])
         def _vai_oggi():
             nav_date[0] = oggi.replace(day=1)
             sel_giorno[0] = oggi.strftime("%Y-%m-%d")
             _draw_cal()
             _aggiorna_dettaglio(sel_giorno[0])
-        cb_filtro.bind("<<ComboboxSelected>>",
-                       lambda e: _aggiorna_dettaglio(sel_giorno[0]))
+        def _on_filtro_change(e=None):
+            _draw_cal()
+            _aggiorna_dettaglio(sel_giorno[0])
+        cb_filtro.bind("<<ComboboxSelected>>", _on_filtro_change)
         def _form_app(prefill=None):
             fw = _form_win("Appuntamento", 440)
             fw.withdraw()
@@ -783,6 +975,7 @@ def apri_studio(self):
                 _save(STUDIO_APPUNTAMENTI, appuntamenti)
                 _draw_cal()
                 _aggiorna_dettaglio(sel_giorno[0])
+                _aggiorna_prossime_scadenze()
                 fw.destroy()
                 self.show_toast("Appuntamento salvato.")
             fw.bind("<Escape>", lambda e: fw.destroy())
@@ -806,8 +999,59 @@ def apri_studio(self):
                 _save(STUDIO_APPUNTAMENTI, appuntamenti)
                 _draw_cal()
                 _aggiorna_dettaglio(sel_giorno[0])
+                _aggiorna_prossime_scadenze()
                 self.show_toast("Eliminato.")
         tv_det.bind("<Double-1>", lambda e: _modifica_app())
+        def _genera_scadenze_fiscali():
+            nonlocal appuntamenti
+            anno = oggi.year
+            regime = emittente.get("regime_fiscale", "Ordinario")
+            if regime == "Forfettario":
+                scadenze = [
+                    (30, 6,  "FORF-SALDO",
+                     "Saldo Imposta Sostitutiva/INPS anno prec. + 1° acconto"),
+                    (30, 11, "FORF-2ACC",
+                     "2° acconto Imposta Sostitutiva e INPS"),
+                ]
+            else:
+                scadenze = [
+                    (16, 3,  "ORD-IVA-Q4", "Liquidazione IVA IV trimestre anno prec."),
+                    (16, 5,  "ORD-IVA-Q1", "Liquidazione IVA I trimestre"),
+                    (20, 8,  "ORD-IVA-Q2", "Liquidazione IVA II trimestre"),
+                    (16, 11, "ORD-IVA-Q3", "Liquidazione IVA III trimestre"),
+                    (30, 6,  "ORD-IRPEF-SALDO", "Saldo IRPEF anno prec. + 1° acconto"),
+                    (30, 11, "ORD-IRPEF-2ACC",  "2° acconto IRPEF"),
+                    (27, 12, "ORD-IVA-ACC", "Acconto IVA"),
+                ]
+            aggiunte = 0
+            for giorno, mese, codice, titolo in scadenze:
+                tag = f"[FISC-{codice}-{anno}]"
+                if any(tag in (a.get("note") or "") for a in appuntamenti
+                       if a.get("cliente_nome") == "Scadenza Fiscale"):
+                    continue
+                try:
+                    data = datetime.date(anno, mese, giorno).strftime("%Y-%m-%d")
+                except ValueError:
+                    continue
+                appuntamenti.append({
+                    "id": _new_id(),
+                    "data": data,
+                    "ora": "09:00",
+                    "cliente_nome": "Scadenza Fiscale",
+                    "prestazione": titolo,
+                    "stato": "Confermato",
+                    "note": f"{tag} Vedi Dashboard > Stima Tasse per l'importo aggiornato.",
+                })
+                aggiunte += 1
+            if aggiunte:
+                _save(STUDIO_APPUNTAMENTI, appuntamenti)
+                _draw_cal()
+                _aggiorna_dettaglio(sel_giorno[0])
+                _aggiorna_prossime_scadenze()
+                self.show_toast(f"Aggiunte {aggiunte} scadenze fiscali per il {anno} "
+                                 f"({regime}).")
+            else:
+                self.show_toast(f"Scadenze fiscali {anno} già presenti in agenda.")
         nav_bar = tk.Frame(tab_app, bg=self.COLOR_WIDGET_BG,
                            highlightthickness=1,
                            highlightbackground=self.COLOR_HIGHLIGHT)
@@ -818,7 +1062,10 @@ def apri_studio(self):
         _mk_btn(nav_bar, "aggiungi", "Nuovo",         lambda: _form_app(), self.COLOR_GREEN)
         _mk_btn(nav_bar, "modifica", "Modifica",      _modifica_app, self.COLOR_HIGHLIGHT)
         _mk_btn(nav_bar, "delete",   "Elimina",       _elimina_app,  self.COLOR_RED)
+        _mk_btn(nav_bar, "calendario", "Scadenze Fiscali", _genera_scadenze_fiscali, self.COLOR_ORANGE)
         cal_cv.after(100, _draw_cal)
+        _aggiorna_prossime_scadenze()
+        _aggiorna_dettaglio(sel_giorno[0])
     def _build_prestazioni():
         for w in tab_pre.winfo_children(): w.destroy()
         cols   = ["Nome", "Categoria", "Prezzo €", "Durata (min)", "IVA %", "Note"]
@@ -928,9 +1175,24 @@ def apri_studio(self):
         _refresh()
     def _build_fatture():
         for w in tab_fat.winfo_children(): w.destroy()
+        top_fat = tk.Frame(tab_fat, bg=self.COLOR_BACKGROUND)
+        top_fat.pack(fill="x", padx=6, pady=(4,0))
+        tk.Label(top_fat, text="Mostra:", bg=self.COLOR_BACKGROUND,
+                 fg=self.TEXT_COLOR, font=("Arial", 9)).pack(side="left", padx=(2,4))
+        filtro_fat_var = tk.StringVar(value="Tutti")
+        cb_filtro_fat = ttk.Combobox(top_fat, textvariable=filtro_fat_var,
+                                     values=["Tutti","Bozza","Emessa","Pagata",
+                                             "Scaduta","Annullata"],
+                                     width=12, state="readonly",
+                                     style="Border.TCombobox")
+        cb_filtro_fat.pack(side="left")
         cols   = ["N°","Tipo","Data","Cliente","Imponibile €","IVA €","Totale €","Stato"]
         widths = [55, 85, 90, 170, 100, 80, 100, 90]
         tv = _tree(tab_fat, cols, widths)
+        cb_filtro_fat.bind("<<ComboboxSelected>>", lambda e: _refresh())
+        def _numeri_fatture():
+            return [f.get("numero","") for f in fatture
+                    if f.get("tipo_doc","Fattura") == "Fattura"]
         def _next_num(tipo):
             anno = datetime.date.today().year
             filtrati = [f for f in fatture
@@ -949,7 +1211,11 @@ def apri_studio(self):
             return imponibile, iva_tot, imponibile+iva_tot
         def _refresh(sel_id=None):
             tv.delete(*tv.get_children())
-            for f in sorted(fatture, key=lambda x: x.get("data",""), reverse=True):
+            filtro = filtro_fat_var.get()
+            for f in sorted(
+                [x for x in fatture
+                 if filtro == "Tutti" or x.get("stato","Bozza") == filtro],
+                key=lambda x: x.get("data",""), reverse=True):
                 imp, iva_t, tot = _totali_doc(f.get("righe",[]))
                 stato = f.get("stato","Bozza")
                 tag   = "verde" if stato=="Pagata" else \
@@ -1015,15 +1281,25 @@ def apri_studio(self):
             e_stato.grid(row=4, column=1, sticky="w", padx=10, pady=3)
             _row(fw,"Note",4,2)
             e_note = _ent(fw,4,col=3,width=22)
+            _row(fw,"Modalità Pagamento",5,0)
+            e_pag = ttk.Combobox(fw,
+                    values=["Bonifico","Contanti","Assegno","Carta"],
+                    width=14, state="readonly", style="Border.TCombobox")
+            e_pag.grid(row=5, column=1, sticky="w", padx=10, pady=3)
+            e_pag.set("Bonifico")
+            _row(fw,"Fattura Collegata (per Nota Credito)",5,2)
+            e_coll = ttk.Combobox(fw, values=_numeri_fatture(),
+                                   width=22, style="Border.TCombobox")
+            e_coll.grid(row=5, column=3, sticky="w", padx=10, pady=3)
             tk.Frame(fw, bg=self.COLOR_HIGHLIGHT, height=1).grid(
-                    row=5, column=0, columnspan=4, sticky="ew", padx=10, pady=6)
+                    row=6, column=0, columnspan=4, sticky="ew", padx=10, pady=6)
             tk.Label(fw, text="Righe documento",
                              bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR,
                              font=("Arial",9,"bold")).grid(
-                    row=6, column=0, columnspan=4, sticky="w", padx=10)
+                    row=7, column=0, columnspan=4, sticky="w", padx=10)
             rig_outer = tk.Frame(fw, bg=self.COLOR_WIDGET_BG)
-            rig_outer.grid(row=7, column=0, columnspan=4, sticky="nsew", padx=10, pady=4)
-            fw.rowconfigure(7, weight=1)
+            rig_outer.grid(row=8, column=0, columnspan=4, sticky="nsew", padx=10, pady=4)
+            fw.rowconfigure(8, weight=1)
             rig_canvas = tk.Canvas(rig_outer, bg=self.COLOR_WIDGET_BG, highlightthickness=0, height=200)
             vsb_r = ttk.Scrollbar(rig_outer, orient="vertical", command=rig_canvas.yview)
             rig_canvas.configure(yscrollcommand=vsb_r.set)
@@ -1051,8 +1327,8 @@ def apri_studio(self):
                 r = len(righe_vars) + 1
                 rig_frame.columnconfigure(0, weight=1)
                 dv = tk.StringVar(value=str(desc))
-                qv = tk.StringVar(value=str(qty))
-                pv = tk.StringVar(value=str(prezzo))
+                qv = tk.StringVar(value=f"{float(qty or 0):g}")
+                pv = tk.StringVar(value=f"{float(prezzo or 0):.2f}")
                 iv = tk.StringVar(value=str(iva))
                 sv = tk.StringVar(value="0.00")
                 for var in (dv, qv, pv, iv):
@@ -1064,6 +1340,9 @@ def apri_studio(self):
                 cb_i = ttk.Combobox(rig_frame, textvariable=iv, values=["0","4","10","22"],
                                     width=5, state="readonly", style="Border.TCombobox")
                 cb_i.grid(row=r, column=3, padx=2, pady=1)
+                if emittente.get("regime_fiscale") == "Forfettario":
+                    iv.set("0")
+                    cb_i.configure(state="disabled")
                 ttk.Entry(rig_frame, textvariable=sv, width=12, state="readonly").grid(row=r, column=4, padx=2, pady=1)
                 img_d = self.icone_gui.get("delete")
                 lbl_d = ttk.Label(rig_frame, image=img_d, cursor="hand2", background=self.COLOR_WIDGET_BG)
@@ -1115,7 +1394,7 @@ def apri_studio(self):
                         sel = risultati[idx[0]]
                         dvar.set(sel["nome"])
                         pvar.set(f"{sel['prezzo']:.2f}")
-                        ivar.set(str(sel["iva"]))
+                        ivar.set("0" if emittente.get("regime_fiscale") == "Forfettario" else str(sel["iva"]))
                         _chiudi_ac()
                         entry.focus_set()
                     def _click_fuori(e):
@@ -1231,9 +1510,11 @@ def apri_studio(self):
             e_cli.set((prefill or {}).get("cliente_nome",""))
             e_stato.set((prefill or {}).get("stato","Bozza"))
             e_note.insert(0,(prefill or {}).get("note",""))
+            e_pag.set((prefill or {}).get("modalita_pagamento","Bonifico"))
+            e_coll.set((prefill or {}).get("fattura_collegata_numero",""))
             e_tipo.bind("<<ComboboxSelected>>", lambda e: (e_num.delete(0,"end"), e_num.insert(0, _next_num(tipo_var.get()))) if not prefill else None)
             bot = tk.Frame(fw, bg=self.COLOR_WIDGET_BG)
-            bot.grid(row=8, column=0, columnspan=4, pady=6)
+            bot.grid(row=9, column=0, columnspan=4, pady=6)
             b_add = ttk.Label(bot, text=" Riga", image=self.icone_gui.get("aggiungi"), compound="left", background=self.COLOR_WIDGET_BG, cursor="hand2", font=("Arial",9,"bold"), padding=(6,3))
             b_add.pack(side="left", padx=8); b_add.bind("<Button-1>", lambda e: _add_riga())
             img_mag = self.icone_gui.get("studio") or self.icone_gui.get("box")
@@ -1288,7 +1569,37 @@ def apri_studio(self):
                     "righe":        righe,
                     "stato":        e_stato.get().strip() or "Bozza",
                     "note":         e_note.get().strip(),
+                    "modalita_pagamento":       e_pag.get().strip() or "Bonifico",
+                    "fattura_collegata_numero": e_coll.get().strip(),
                 }
+                if (emittente.get("regime_fiscale") == "Forfettario"
+                        and record["tipo_doc"] == "Fattura" and record["data"]):
+                    soglia = float(emittente.get("soglia_forfettario", 85000) or 85000)
+                    tot_questa = sum(float(r.get("qty",1) or 1) * float(r.get("prezzo",0) or 0)
+                                      for r in righe)
+                    anno_doc = record["data"][:4]
+                    altre = sum(
+                        sum(float(r.get("qty",1) or 1) * float(r.get("prezzo",0) or 0)
+                            for r in f.get("righe", []))
+                        for f in fatture
+                        if f.get("tipo_doc","Fattura") == "Fattura"
+                        and f.get("data","").startswith(anno_doc)
+                        and (not prefill or f["id"] != prefill["id"])
+                    )
+                    tot_anno_con_questa = altre + tot_questa
+                    perc = (tot_anno_con_questa / soglia) if soglia else 0
+                    if perc >= 1.0:
+                        if not self.show_custom_askyesno(
+                            "Soglia forfettario superata",
+                            f"Con questa fattura il fatturato {anno_doc} arriverebbe a "
+                            f"{_fmt_eur(tot_anno_con_questa)},\noltre la soglia di "
+                            f"{_fmt_eur(soglia)} del regime forfettario.\n\nSalvare comunque?"
+                        ):
+                            return
+                    elif perc >= 0.9:
+                        self.show_toast(
+                            f"Attenzione: con questa fattura sei al {perc*100:.0f}% "
+                            f"della soglia forfettario {anno_doc}.")
                 if prefill:
                     idx = next((i for i, f in enumerate(fatture) if f["id"] == prefill["id"]), None)
                     if idx is not None: fatture[idx] = record
@@ -1490,7 +1801,7 @@ def apri_studio(self):
                     _line(page, MARG, y+ROW_H, COL_R, y+ROW_H, color=GREY_M, lw=0.3)
                     desc_s = (desc[:52]+"…") if len(desc)>52 else desc
                     _txt(page, CX["desc_l"], y+10, desc_s,           size=8)
-                    _txt(page, CX["qty_r"],  y+10, str(qty),          size=8, align="right")
+                    _txt(page, CX["qty_r"],  y+10, f"{float(qty):g}",  size=8, align="right")
                     _txt(page, CX["prez_r"], y+10, f"{prez:.2f}",     size=8, align="right")
                     _txt(page, CX["iva_r"],  y+10, f"{iva_r:.0f}%",   size=8, align="right")
                     _txt(page, CX["imp_r"],  y+10, f"{sub:.2f}",      size=8, align="right")
@@ -1514,12 +1825,39 @@ def apri_studio(self):
 
                 _riepilogo_row(page, y, "Imponibile", tot_imponibile)
                 y += 16
-                for al, v in sorted(tot_iva_map.items()):
-                    _riepilogo_row(page, y, f"IVA {al:.0f}%", v)
-                    y += 16
+                is_forfettario = emittente.get("regime_fiscale") == "Forfettario"
+                if not is_forfettario:
+                    for al, v in sorted(tot_iva_map.items()):
+                        _riepilogo_row(page, y, f"IVA {al:.0f}%", v)
+                        y += 16
                 y += 2
                 _riepilogo_row(page, y, "TOTALE DOCUMENTO", tot_totale, highlight=True)
                 y += 22
+                if is_forfettario:
+                    dicitura = ("Operazione effettuata ai sensi dell'art. 1, commi 54-89, "
+                                "L. 190/2014 (regime forfettario). Operazione senza applicazione "
+                                "dell'IVA, non soggetta a ritenuta d'acconto ai sensi dell'art. 1, "
+                                "comma 67, L. 190/2014.")
+                    _rect(page, MARG, y, COL_R, y+10, fill=GREY_L)
+                    _txt(page, MARG+4, y+8, "REGIME FORFETTARIO", size=7, color=BLU_L, bold=True)
+                    y += 14
+                    parole_f = dicitura.split()
+                    riga_f = ""
+                    for p in parole_f:
+                        if len(riga_f) + len(p) + 1 > 95:
+                            _txt(page, MARG+4, y, riga_f, size=7.5, color=GREY_D)
+                            y += 11; riga_f = p
+                        else:
+                            riga_f += (" "+p) if riga_f else p
+                    if riga_f:
+                        _txt(page, MARG+4, y, riga_f, size=7.5, color=GREY_D)
+                        y += 12
+                    if tot_totale > 77.47:
+                        _txt(page, MARG+4, y,
+                             "Imposta di bollo assolta in modo virtuale ove dovuta "
+                             "(art. 15 DPR 642/1972).", size=7, color=GREY_D)
+                        y += 12
+                    y += 4
                 stato = doc.get("stato","")
                 if stato:
                     col_s = GREEN if stato=="Pagata" else \
@@ -1584,6 +1922,226 @@ def apri_studio(self):
                     pass
             except Exception as e:
                 self.show_custom_warning("Errore PDF", str(e))
+        def _esporta_xml_fatturapa(doc=None):
+            from xml.sax.saxutils import escape as _esc
+            os.makedirs(EXPORT_FATTURE_DIR, exist_ok=True)
+            if doc is None:
+                sel = tv.selection()
+                if not sel:
+                    self.show_toast("Seleziona un documento."); return
+                doc = next((f for f in fatture if f["id"]==sel[0]), None)
+                if not doc: return
+            if doc.get("tipo_doc", "Fattura") not in ("Fattura", "Nota Credito"):
+                self.show_custom_warning("Non applicabile",
+                    "L'XML FatturaPA si genera solo per Fatture e Note di Credito,\n"
+                    "non per i Preventivi (che non hanno rilevanza fiscale).")
+                return
+            nome_cli = doc.get("cliente_nome", "")
+            cli_rec  = next((c for c in clienti
+                             if f"{c.get('nome','')} {c.get('cognome','')}".strip() == nome_cli
+                             or c.get("azienda","") == nome_cli), {})
+            piva_digits_peek = "".join(ch for ch in emittente.get("cf_piva","") if ch.isdigit())[:11] or "00000000000"
+            progressivo_peek = _peek_progressivo_sdi()
+            path_out = filedialog.asksaveasfilename(
+                parent=win,
+                initialdir=EXPORT_FATTURE_DIR,
+                defaultextension=".xml",
+                filetypes=[("XML FatturaPA", "*.xml")],
+                initialfile=f"IT{piva_digits_peek}_{progressivo_peek:05d}.xml",
+                confirmoverwrite=False
+            )
+            if not path_out: return
+            if os.path.exists(path_out):
+                if not self.show_custom_askyesno(
+                    "Sovrascrivere file?",
+                    f"Il file '{os.path.basename(path_out)}' \nesiste già. Vuoi sovrascriverlo?"
+                ):
+                    return
+            try:
+                is_forf = emittente.get("regime_fiscale") == "Forfettario"
+                piva_raw     = emittente.get("cf_piva", "").strip()
+                piva_digits  = "".join(ch for ch in piva_raw if ch.isdigit())[:11] or "00000000000"
+                cf_emit      = piva_raw or piva_digits
+                rag_soc      = emittente.get("ragione_sociale", "").strip() or "DA COMPLETARE"
+                via_e        = emittente.get("indirizzo", "").strip() or "DA COMPLETARE"
+                cap_e        = emittente.get("cap", "").strip() or "00000"
+                comune_e     = emittente.get("comune", "").strip() or "DA COMPLETARE"
+                prov_e       = (emittente.get("provincia", "").strip() or "XX").upper()
+                regime_cod   = "RF19" if is_forf else "RF01"
+
+                cod_dest = (cli_rec.get("cod_destinatario", "") or "").strip().upper()
+                pec_dest = (cli_rec.get("pec", "") or "").strip()
+                if cod_dest:
+                    pec_dest = ""
+                else:
+                    cod_dest = "0000000"
+                cli_piva_digits = "".join(ch for ch in cli_rec.get("cf_piva","") if ch.isdigit())
+                via_c, cap_c, comune_c, prov_c = _parsa_indirizzo(cli_rec.get("indirizzo", ""))
+                cli_nome, cli_cognome = cli_rec.get("nome","").strip(), cli_rec.get("cognome","").strip()
+                cli_azienda = cli_rec.get("azienda","").strip()
+                persona_fisica = bool(cli_nome or cli_cognome) and not cli_azienda
+                cli_denom = cli_azienda or f"{cli_nome} {cli_cognome}".strip() or nome_cli or "DA COMPLETARE"
+
+                righe = doc.get("righe", [])
+                tot_per_aliquota = {}
+                dettaglio_xml = []
+                for i, rig in enumerate(righe, start=1):
+                    desc  = rig.get("desc","") or "Prestazione"
+                    qty   = float(rig.get("qty",1) or 1)
+                    prez  = float(rig.get("prezzo",0) or 0)
+                    iva_r = 0.0 if is_forf else float(rig.get("iva",22) or 0)
+                    imp   = qty * prez
+                    d = tot_per_aliquota.setdefault(iva_r, {"imponibile":0.0,"imposta":0.0})
+                    d["imponibile"] += imp
+                    d["imposta"]    += imp * iva_r / 100
+                    natura = "\n        <Natura>N2.2</Natura>" if (is_forf and iva_r == 0) else ""
+                    dettaglio_xml.append(f"""      <DettaglioLinee>
+        <NumeroLinea>{i}</NumeroLinea>
+        <Descrizione>{_esc(desc)}</Descrizione>
+        <Quantita>{qty:.2f}</Quantita>
+        <PrezzoUnitario>{prez:.2f}</PrezzoUnitario>
+        <PrezzoTotale>{imp:.2f}</PrezzoTotale>
+        <AliquotaIVA>{iva_r:.2f}</AliquotaIVA>{natura}
+      </DettaglioLinee>""")
+                riepilogo_xml = []
+                for al, v in sorted(tot_per_aliquota.items()):
+                    natura_r = "\n        <Natura>N2.2</Natura>" if (is_forf and al == 0) else ""
+                    esigibilita = "" if is_forf else "\n        <EsigibilitaIVA>I</EsigibilitaIVA>"
+                    riepilogo_xml.append(f"""      <DatiRiepilogo>
+        <AliquotaIVA>{al:.2f}</AliquotaIVA>{natura_r}
+        <ImponibileImporto>{v['imponibile']:.2f}</ImponibileImporto>
+        <Imposta>{v['imposta']:.2f}</Imposta>{esigibilita}
+      </DatiRiepilogo>""")
+                tot_imponibile = sum(v["imponibile"] for v in tot_per_aliquota.values())
+                tot_imposta    = sum(v["imposta"] for v in tot_per_aliquota.values())
+                tot_totale     = tot_imponibile + tot_imposta
+
+                progressivo = _prossimo_progressivo_sdi()
+                tipo_doc_cod = "TD04" if doc.get("tipo_doc") == "Nota Credito" else "TD01"
+                data_doc = doc.get("data","") or datetime.date.today().isoformat()
+
+                bollo_xml = ""
+                if is_forf and tot_totale > 77.47:
+                    bollo_xml = "\n        <DatiBollo><BolloVirtuale>SI</BolloVirtuale><ImportoBollo>2.00</ImportoBollo></DatiBollo>"
+
+                note_doc = (doc.get("note","") or "").strip()
+                causale_xml = ""
+                if note_doc:
+                    chunk = [note_doc[i:i+200] for i in range(0, len(note_doc), 200)]
+                    causale_xml = "\n        " + "\n        ".join(
+                        f"<Causale>{_esc(c)}</Causale>" for c in chunk)
+
+                fatture_collegate_xml = ""
+                if doc.get("tipo_doc") == "Nota Credito" and doc.get("fattura_collegata_numero"):
+                    orig = next((f for f in fatture
+                                 if f.get("numero","") == doc.get("fattura_collegata_numero")
+                                 and f.get("tipo_doc","Fattura") == "Fattura"), None)
+                    if orig:
+                        fatture_collegate_xml = f"""
+      <DatiFattureCollegate>
+        <IdDocumento>{_esc(orig.get('numero',''))}</IdDocumento>
+        <Data>{orig.get('data','') or data_doc}</Data>
+      </DatiFattureCollegate>"""
+
+                iban_e = emittente.get("iban","").strip()
+                cod_pag_map = {"Bonifico":"MP05", "Contanti":"MP01",
+                               "Assegno":"MP02", "Carta":"MP08"}
+                cod_pag = cod_pag_map.get(doc.get("modalita_pagamento","Bonifico"), "MP05")
+                iban_tag = f"\n        <IBAN>{_esc(iban_e)}</IBAN>" if (cod_pag == "MP05" and iban_e) else ""
+                dati_pagamento_xml = f"""
+    <DatiPagamento>
+      <CondizioniPagamento>TP02</CondizioniPagamento>
+      <DettaglioPagamento>
+        <ModalitaPagamento>{cod_pag}</ModalitaPagamento>
+        <ImportoPagamento>{tot_totale:.2f}</ImportoPagamento>{iban_tag}
+      </DettaglioPagamento>
+    </DatiPagamento>"""
+
+                cessionario_anagrafica = (
+                    f"""<Anagrafica>
+              <Nome>{_esc(cli_nome or 'DA')}</Nome>
+              <Cognome>{_esc(cli_cognome or 'COMPLETARE')}</Cognome>
+            </Anagrafica>""" if persona_fisica else
+                    f"""<Anagrafica>
+              <Denominazione>{_esc(cli_denom)}</Denominazione>
+            </Anagrafica>"""
+                )
+                cessionario_fiscale = (
+                    f"<IdFiscaleIVA><IdPaese>IT</IdPaese><IdCodice>{_esc(cli_piva_digits)}</IdCodice></IdFiscaleIVA>"
+                    if cli_piva_digits else
+                    f"<CodiceFiscale>{_esc(cli_rec.get('cf_piva','') or 'DACOMPLETARE')}</CodiceFiscale>"
+                )
+                pec_tag = f"\n      <PECDestinatario>{_esc(pec_dest)}</PECDestinatario>" if pec_dest else ""
+
+                xml_str = f"""<?xml version="1.0" encoding="UTF-8"?>
+<p:FatturaElettronica versione="FPR12"
+  xmlns:p="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <FatturaElettronicaHeader>
+    <DatiTrasmissione>
+      <IdTrasmittente><IdPaese>IT</IdPaese><IdCodice>{_esc(piva_digits)}</IdCodice></IdTrasmittente>
+      <ProgressivoInvio>{progressivo}</ProgressivoInvio>
+      <FormatoTrasmissione>FPR12</FormatoTrasmissione>
+      <CodiceDestinatario>{_esc(cod_dest)}</CodiceDestinatario>{pec_tag}
+    </DatiTrasmissione>
+    <CedentePrestatore>
+      <DatiAnagrafici>
+        <IdFiscaleIVA><IdPaese>IT</IdPaese><IdCodice>{_esc(piva_digits)}</IdCodice></IdFiscaleIVA>
+        <CodiceFiscale>{_esc(cf_emit)}</CodiceFiscale>
+        <Anagrafica><Denominazione>{_esc(rag_soc)}</Denominazione></Anagrafica>
+        <RegimeFiscale>{regime_cod}</RegimeFiscale>
+      </DatiAnagrafici>
+      <Sede>
+        <Indirizzo>{_esc(via_e)}</Indirizzo>
+        <CAP>{_esc(cap_e)}</CAP>
+        <Comune>{_esc(comune_e)}</Comune>
+        <Provincia>{_esc(prov_e)}</Provincia>
+        <Nazione>IT</Nazione>
+      </Sede>
+    </CedentePrestatore>
+    <CessionarioCommittente>
+      <DatiAnagrafici>
+        {cessionario_fiscale}
+        {cessionario_anagrafica}
+      </DatiAnagrafici>
+      <Sede>
+        <Indirizzo>{_esc(via_c)}</Indirizzo>
+        <CAP>{_esc(cap_c)}</CAP>
+        <Comune>{_esc(comune_c)}</Comune>
+        <Provincia>{_esc(prov_c)}</Provincia>
+        <Nazione>IT</Nazione>
+      </Sede>
+    </CessionarioCommittente>
+  </FatturaElettronicaHeader>
+  <FatturaElettronicaBody>
+    <DatiGenerali>
+      <DatiGeneraliDocumento>
+        <TipoDocumento>{tipo_doc_cod}</TipoDocumento>
+        <Divisa>EUR</Divisa>
+        <Data>{data_doc}</Data>
+        <Numero>{_esc(doc.get('numero','1'))}</Numero>{bollo_xml}{causale_xml}
+      </DatiGeneraliDocumento>{fatture_collegate_xml}
+    </DatiGenerali>
+    <DatiBeniServizi>
+{chr(10).join(dettaglio_xml)}
+{chr(10).join(riepilogo_xml)}
+    </DatiBeniServizi>{dati_pagamento_xml}
+  </FatturaElettronicaBody>
+</p:FatturaElettronica>
+"""
+                with open(path_out, "w", encoding="utf-8") as fx:
+                    fx.write(xml_str)
+                self.show_toast("XML FatturaPA (bozza) esportato.")
+                self.show_custom_warning("Bozza XML generata",
+                    "Questo XML è una BOZZA nel formato FatturaPA.\n\n"
+                    "Prima di poterlo inviare allo SdI devi:\n"
+                    "• firmarlo digitalmente (SPID/CNS/token)\n"
+                    "• verificare/completare i campi segnati 'DA COMPLETARE'\n"
+                    "  (CAP/Comune/Provincia del cliente, se non li avevi inseriti)\n\n"
+                    "Usa il software gratuito dell'Agenzia delle Entrate o quello\n"
+                    "del tuo commercialista per firma e invio.")
+            except Exception as e:
+                self.show_custom_warning("Errore XML", str(e))
         def _stampa_diretta():
             sel = tv.selection()
             if not sel:
@@ -1601,6 +2159,86 @@ def apri_studio(self):
                 _genera_pdf(doc=doc)
             except Exception:
                 pass
+        def _incassa():
+            sel = tv.selection()
+            if not sel:
+                self.show_toast("Seleziona un documento."); return
+            f = next((x for x in fatture if x["id"]==sel[0]), None)
+            if not f: return
+            if f.get("tipo_doc","Fattura") != "Fattura":
+                self.show_toast("Puoi incassare solo le Fatture."); return
+            if f.get("stato","Bozza") == "Pagata":
+                self.show_toast("Documento già segnato come Pagato."); return
+            imp, iva_t, tot = _totali_doc(f.get("righe", []))
+            popup = tk.Toplevel(win, bg=self.COLOR_TOPLEVEL)
+            popup.title("Incassa in Cassa")
+            popup.resizable(False, False)
+            popup.transient(win)
+            popup.withdraw()
+            fr = tk.Frame(popup, bg=self.COLOR_TOPLEVEL, padx=16, pady=14)
+            fr.pack(fill="both", expand=True)
+            def _lbl(row, testo):
+                tk.Label(fr, text=testo, bg=self.COLOR_TOPLEVEL,
+                         fg=self.TEXT_COLOR, anchor="e", width=14
+                         ).grid(row=row, column=0, sticky="e", pady=4, padx=(0,6))
+            _lbl(0, "Fattura:")
+            tk.Label(fr, text=f"N° {f.get('numero','')} — {f.get('cliente_nome','')}",
+                     bg=self.COLOR_TOPLEVEL, fg=self.COLOR_HIGHLIGHT,
+                     font=("Arial",9,"bold")).grid(row=0, column=1, sticky="w")
+            _lbl(1, "Data incasso:")
+            frm_d = tk.Frame(fr, bg=self.COLOR_TOPLEVEL)
+            frm_d.grid(row=1, column=1, sticky="w", pady=4)
+            e_data = ttk.Entry(frm_d, width=12)
+            e_data.pack(side="left")
+            e_data.insert(0, datetime.date.today().strftime("%d/%m/%Y"))
+            _mk_cal_btn(frm_d, e_data)
+            _lbl(2, "Importo:")
+            tk.Label(fr, text=_fmt_eur(tot), bg=self.COLOR_TOPLEVEL,
+                     fg=self.COLOR_GREEN, font=("Arial",9,"bold")
+                     ).grid(row=2, column=1, sticky="w")
+            _lbl(3, "Metodo:")
+            metodo_var = tk.StringVar(value="")
+            cbo_metodo = ttk.Combobox(fr, textvariable=metodo_var,
+                                      values=[""] + METODI_PAGAMENTO,
+                                      state="readonly", width=20,
+                                      style="Border.TCombobox")
+            cbo_metodo.grid(row=3, column=1, sticky="w", pady=4)
+            def _conferma():
+                try:
+                    data_obj = datetime.datetime.strptime(
+                        e_data.get().strip(), "%d/%m/%Y").strftime("%Y-%m-%d")
+                except ValueError:
+                    self.show_toast("Data non valida (GG/MM/AAAA)."); return
+                cassa.append({
+                    "id":        _new_id(),
+                    "data":      data_obj,
+                    "tipo":      "Entrata",
+                    "importo":   tot,
+                    "categoria": "Fatture",
+                    "metodo":    metodo_var.get().strip(),
+                    "note":      f"Incasso Fattura N° {f.get('numero','')} — "
+                                 f"{f.get('cliente_nome','')}",
+                })
+                _save(STUDIO_CASSA, cassa)
+                if tab_cas.winfo_exists():
+                    _build_cassa()
+                idx = next((i for i,x in enumerate(fatture) if x["id"]==f["id"]), None)
+                if idx is not None:
+                    fatture[idx]["stato"] = "Pagata"
+                _save(STUDIO_FATTURE, fatture)
+                _refresh(f["id"])
+                popup.destroy()
+                self.show_toast("Fattura incassata e movimento aggiunto in Cassa.")
+            bot = tk.Frame(fr, bg=self.COLOR_TOPLEVEL)
+            bot.grid(row=4, column=0, columnspan=2, pady=10)
+            _mk_btn(bot, "salva", "Conferma", _conferma, fg=self.COLOR_GREEN)
+            _mk_btn(bot, "chiudi",   "Annulla",  popup.destroy)
+            popup.bind("<Escape>", lambda e: popup.destroy())
+            popup.update_idletasks()
+            cx = win.winfo_rootx() + (win.winfo_width()  - popup.winfo_reqwidth())  // 2
+            cy = win.winfo_rooty() + (win.winfo_height() - popup.winfo_reqheight()) // 2
+            popup.geometry(f"+{cx}+{cy}")
+            popup.deiconify()
         def _modifica():
             sel = tv.selection()
             if not sel: self.show_toast("Seleziona un documento."); return
@@ -1621,6 +2259,8 @@ def apri_studio(self):
             ("modifica", "Modifica",     _modifica,        self.COLOR_HIGHLIGHT),
             ("report",   "Salva PDF",    _genera_pdf,      self.TEXT_COLOR),
             ("stampa",   "Stampa",       lambda: _genera_pdf(), self.TEXT_COLOR),
+            ("file_xml", "Esporta XML",  _esporta_xml_fatturapa, self.COLOR_HIGHLIGHT),
+            ("sync",     "Incassa in Cassa", _incassa,      self.COLOR_GREEN),
             ("delete",   "Elimina",      _elimina,         self.COLOR_RED),
             ("link",     "Portale AE",   lambda: webbrowser.open("https://ivaservizi.agenziaentrate.gov.it/portale/"), self.COLOR_HIGHLIGHT),
         ])
@@ -1643,6 +2283,14 @@ def apri_studio(self):
                            bg=self.COLOR_BACKGROUND,
                            fg=self.COLOR_RED)
         lbl_out.pack(side="left")
+        tk.Label(top, text="Mostra:", bg=self.COLOR_BACKGROUND,
+                 fg=self.TEXT_COLOR, font=("Arial", 9)).pack(side="right", padx=(4,4))
+        filtro_cas_var = tk.StringVar(value="Tutti")
+        cb_filtro_cas = ttk.Combobox(top, textvariable=filtro_cas_var,
+                                     values=["Tutti","Entrata","Uscita"],
+                                     width=12, state="readonly",
+                                     style="Border.TCombobox")
+        cb_filtro_cas.pack(side="right")
         cols   = ["Data","Tipo","Importo €","Categoria","Metodo Pag.","Note"]
         widths = [90, 80, 90, 140, 110, 300]
         tv = _tree(tab_cas, cols, widths)
@@ -1743,7 +2391,7 @@ def apri_studio(self):
                     self.show_toast("Movimento aggiunto al DB principale.")
             bot = tk.Frame(f, bg=self.COLOR_TOPLEVEL)
             bot.grid(row=6, column=0, columnspan=2, pady=10)
-            _mk_btn(bot, "conferma", "Aggiungi", _conferma, fg=self.COLOR_GREEN)
+            _mk_btn(bot, "salva", "Aggiungi", _conferma, fg=self.COLOR_GREEN)
             _mk_btn(bot, "chiudi",   "Annulla",  popup.destroy)
             popup.bind("<Escape>", lambda e: popup.destroy())
             popup.update_idletasks()
@@ -1754,6 +2402,7 @@ def apri_studio(self):
         def _refresh(sel_id=None):
             tv.delete(*tv.get_children())
             saldo = entrate = uscite = 0.0
+            filtro = filtro_cas_var.get()
             for m in sorted(cassa, key=lambda x: x.get("data","")):
                 imp  = m.get("importo",0.0)
                 tipo = m.get("tipo","Entrata")
@@ -1761,6 +2410,8 @@ def apri_studio(self):
                     saldo += imp; entrate += imp
                 else:
                     saldo -= imp; uscite  += imp
+                if filtro != "Tutti" and tipo != filtro:
+                    continue
                 tag = "verde" if tipo=="Entrata" else "rosso"
                 try: df = datetime.date.fromisoformat(m["data"]).strftime("%d/%m/%Y")
                 except: df = m.get("data","")
@@ -1778,6 +2429,7 @@ def apri_studio(self):
             if sel_id:
                 try: tv.selection_set(sel_id); tv.see(sel_id)
                 except Exception: pass
+        cb_filtro_cas.bind("<<ComboboxSelected>>", lambda e: _refresh())
         def _form(prefill=None):
             fw = _form_win("Movimento Cassa", 400)
             fw.withdraw()
@@ -2106,9 +2758,9 @@ def apri_studio(self):
                     col_qty = RED if sotto else BLACK
                     _txt(page, CX["nome_l"], y+10, nome_s,              size=8)
                     _txt(page, CX["cat_l"],  y+10, cat_s,               size=8, color=GREY_D)
-                    _txt(page, CX["qty_r"],  y+10, str(qty),             size=8, color=col_qty, align="right", bold=sotto)
+                    _txt(page, CX["qty_r"],  y+10, f"{float(qty):g}",   size=8, color=col_qty, align="right", bold=sotto)
                     _txt(page, CX["unit_l"], y+10, m.get("unita","pz"), size=8, color=GREY_D)
-                    _txt(page, CX["sog_r"],  y+10, str(soglia),          size=8, color=GREY_D, align="right")
+                    _txt(page, CX["sog_r"],  y+10, f"{float(soglia):g}", size=8, color=GREY_D, align="right")
                     _txt(page, CX["val_r"],  y+10, f"{valore:.2f}",      size=8, align="right")
                     _txt(page, CX["note_l"], y+10, note_s,               size=7, color=GREY_D)
                     y += ROW_H
@@ -2166,17 +2818,25 @@ def apri_studio(self):
                                                          sticky="w", pady=(0, 12))
         campi_emi = [
             ("ragione_sociale", "Ragione Sociale / Nome:"),
-            ("indirizzo",       "Indirizzo:"),
+            ("indirizzo",       "Indirizzo (via e civico):"),
+            ("cap",             "CAP:"),
+            ("comune",          "Comune:"),
+            ("provincia",       "Provincia (sigla):"),
             ("cf_piva",         "P.IVA / C.F.:"),
             ("telefono",        "Telefono:"),
             ("email",           "Email:"),
+            ("iban",            "IBAN:"),
         ]
         _limiti_emi = {
             "ragione_sociale": 40,
             "indirizzo":       50,
+            "cap":             5,
+            "comune":          40,
+            "provincia":       2,
             "cf_piva":         16,
             "telefono":        35,
             "email":           50,
+            "iban":            34,
         }
         entries_emi = {}
         for r, (key, lbl) in enumerate(campi_emi, start=1):
@@ -2190,15 +2850,58 @@ def apri_studio(self):
             e.config(validate="key", validatecommand=vcmd)
             e.grid(row=r, column=1, sticky="w", pady=4)
             entries_emi[key] = var
-        ttk.Label(f, text="Logo aziendale (PNG/JPG):",
+        ttk.Label(f, text="Regime Fiscale:",
                   background=self.COLOR_BACKGROUND,
                   foreground=self.TEXT_COLOR, width=28,
                   anchor="e").grid(row=len(campi_emi)+1, column=0, sticky="e", pady=4, padx=(0, 6))
+        var_regime = tk.StringVar(value=emittente.get("regime_fiscale", "Ordinario"))
+        cbo_regime = ttk.Combobox(f, textvariable=var_regime,
+                                   values=["Ordinario", "Forfettario"],
+                                   width=20, state="readonly", style="Border.TCombobox")
+        cbo_regime.grid(row=len(campi_emi)+1, column=1, sticky="w", pady=4)
+        ttk.Label(f, text="Codice ATECO:",
+                  background=self.COLOR_BACKGROUND,
+                  foreground=self.TEXT_COLOR, width=28,
+                  anchor="e").grid(row=len(campi_emi)+2, column=0, sticky="e", pady=4, padx=(0, 6))
+        var_ateco = tk.StringVar(value=emittente.get("ateco", ""))
+        e_ateco = ttk.Entry(f, textvariable=var_ateco, width=20)
+        e_ateco.grid(row=len(campi_emi)+2, column=1, sticky="w", pady=4)
+        ttk.Label(f, text="Coefficiente redditività %:",
+                  background=self.COLOR_BACKGROUND,
+                  foreground=self.TEXT_COLOR, width=28,
+                  anchor="e").grid(row=len(campi_emi)+2, column=2, sticky="e", pady=4, padx=(0, 6))
+        var_coeff = tk.StringVar(value=emittente.get("coefficiente_redditivita", "78"))
+        e_coeff = ttk.Entry(f, textvariable=var_coeff, width=10)
+        e_coeff.grid(row=len(campi_emi)+2, column=3, sticky="w", pady=4)
+        ttk.Label(f, text="Aliquota Imposta Sostitutiva:",
+                  background=self.COLOR_BACKGROUND,
+                  foreground=self.TEXT_COLOR, width=28,
+                  anchor="e").grid(row=len(campi_emi)+3, column=0, sticky="e", pady=4, padx=(0, 6))
+        var_aliq_sost = tk.StringVar(value=emittente.get("aliquota_sostitutiva", "15%"))
+        cbo_aliq_sost = ttk.Combobox(f, textvariable=var_aliq_sost,
+                                      values=["5% (primi 5 anni)", "15% (ordinaria)"],
+                                      width=20, state="readonly", style="Border.TCombobox")
+        cbo_aliq_sost.grid(row=len(campi_emi)+3, column=1, sticky="w", pady=4)
+        ttk.Label(f, text="Aliquota INPS:",
+                  background=self.COLOR_BACKGROUND,
+                  foreground=self.TEXT_COLOR, width=28,
+                  anchor="e").grid(row=len(campi_emi)+3, column=2, sticky="e", pady=4, padx=(0, 6))
+        var_aliq_inps = tk.StringVar(value=emittente.get("aliquota_inps", "26,07% (Gestione Separata)"))
+        cbo_aliq_inps = ttk.Combobox(f, textvariable=var_aliq_inps,
+                                      values=["26,07% (Gestione Separata)",
+                                              "24% (Gestione Separata, altra copertura)",
+                                              "Altra Cassa (non calcolato)"],
+                                      width=32, state="readonly", style="Border.TCombobox")
+        cbo_aliq_inps.grid(row=len(campi_emi)+3, column=3, sticky="w", pady=4)
+        ttk.Label(f, text="Logo aziendale (PNG/JPG):",
+                  background=self.COLOR_BACKGROUND,
+                  foreground=self.TEXT_COLOR, width=28,
+                  anchor="e").grid(row=len(campi_emi)+4, column=0, sticky="e", pady=4, padx=(0, 6))
         frm_logo_outer = tk.LabelFrame(f, text=" Logo aziendale (PNG/JPG) ",
                                        bg=self.COLOR_BACKGROUND,
                                        fg=self.COLOR_HIGHLIGHT,
                                        font=("Arial", 9))
-        frm_logo_outer.grid(row=len(campi_emi)+1, column=0, columnspan=2,
+        frm_logo_outer.grid(row=len(campi_emi)+4, column=0, columnspan=2,
                              sticky="ew", pady=(10, 4), padx=2)
         var_logo = tk.StringVar(value=emittente.get("logo_path", ""))
         lbl_logo_path = ttk.Label(frm_logo_outer,
@@ -2213,6 +2916,38 @@ def apri_studio(self):
         _aggiorna_lbl_logo()
         frm_logo_btns = tk.Frame(frm_logo_outer, bg=self.COLOR_BACKGROUND)
         frm_logo_btns.pack(side="right", padx=8, pady=4)
+        frm_preview = tk.LabelFrame(f, text=" Anteprima logo ",
+                                    bg=self.COLOR_BACKGROUND,
+                                    fg=self.COLOR_HIGHLIGHT,
+                                    font=("Arial", 9))
+        frm_preview.grid(row=1, column=2, rowspan=len(campi_emi)+1,
+                          sticky="ne", padx=(20, 0), pady=(0, 4))
+        box_preview = tk.Frame(frm_preview, bg=self.COLOR_BACKGROUND,
+                               width=260, height=260)
+        box_preview.pack(padx=8, pady=8)
+        box_preview.pack_propagate(False)
+        lbl_preview = tk.Label(box_preview, bg=self.COLOR_BACKGROUND,
+                               fg=self.TEXT_COLOR, text="(nessun logo)",
+                               font=("Arial", 9), wraplength=230, justify="center")
+        lbl_preview.pack(fill="both", expand=True)
+        def _aggiorna_preview_logo(*_):
+            p = var_logo.get()
+            if p and os.path.isfile(p):
+                try:
+                    from PIL import Image, ImageTk
+                    img = Image.open(p)
+                    img.thumbnail((250, 250))
+                    photo = ImageTk.PhotoImage(img)
+                    lbl_preview.config(image=photo, text="")
+                    lbl_preview.image = photo
+                except Exception:
+                    lbl_preview.config(image="", text="(anteprima non disponibile)")
+                    lbl_preview.image = None
+            else:
+                lbl_preview.config(image="", text="(nessun logo)")
+                lbl_preview.image = None
+        var_logo.trace_add("write", _aggiorna_preview_logo)
+        _aggiorna_preview_logo()
         def _scegli_logo():
             p = filedialog.askopenfilename(
                 parent=win,
@@ -2228,11 +2963,16 @@ def apri_studio(self):
         def _salva_emittente():
             dati = {k: v.get().strip() for k, v in entries_emi.items()}
             dati["logo_path"] = var_logo.get().strip()
+            dati["regime_fiscale"] = var_regime.get().strip() or "Ordinario"
+            dati["ateco"] = var_ateco.get().strip()
+            dati["coefficiente_redditivita"] = var_coeff.get().strip()
+            dati["aliquota_sostitutiva"] = var_aliq_sost.get().strip()
+            dati["aliquota_inps"] = var_aliq_inps.get().strip()
             _save(STUDIO_EMITTENTE, dati)
             emittente.update(dati)
             self.show_toast("Dati azienda salvati.")
         bar_emi = tk.Frame(f, bg=self.COLOR_BACKGROUND)
-        bar_emi.grid(row=len(campi_emi)+2, column=0, columnspan=2, pady=16, sticky="w")
+        bar_emi.grid(row=len(campi_emi)+5, column=0, columnspan=2, pady=16, sticky="w")
         _mk_btn(bar_emi, "salva", "Salva", _salva_emittente,
                 fg=self.COLOR_GREEN)
     _build_emittente()
