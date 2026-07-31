@@ -772,10 +772,10 @@ def calcolo_mutuo_prestito(self):
     self.killer_stats = []
     root = tk.Toplevel(bg=self.COLOR_TOPLEVEL)
     root.title("Gestore Finanziario - Calcolo Finanziamento e Simulazioni - Ammortamento Francese")
-    root.geometry("1250x650")
+    root.geometry("1300x650")
     screen_width = root.winfo_screenwidth()
     screen_height = root.winfo_screenheight()
-    window_width = 1250
+    window_width = 1300
     window_height = 650
     position_top = int(screen_height / 2 - window_height / 2)
     position_right = int(screen_width / 2 - window_width / 2)
