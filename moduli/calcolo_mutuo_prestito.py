@@ -844,7 +844,7 @@ def calcolo_mutuo_prestito(self):
     rata_sost_frame = ttk.Frame(notebook, padding=10)
     img_tab_rata_sost = self.icone_gui.get("calcolatrice")
     if img_tab_rata_sost:
-        notebook.add(rata_sost_frame, image=img_tab_rata_sost, text="  Rata Sostenibile  ", compound="left")
+        notebook.add(rata_sost_frame, image=img_tab_rata_sost, text="Rata Sostenibile", compound="left")
     else:
         notebook.add(rata_sost_frame, text="Rata Sostenibile")
     rs_input_frame = ttk.LabelFrame(rata_sost_frame, text=" Parti dalla rata che puoi sostenere ", padding=10)
