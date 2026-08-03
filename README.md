@@ -31,6 +31,8 @@
 ### 🚀 L'ESSENZA DEL SOFTWARE
 **Orbita Casa** è un ecosistema progettato per chi vuole il controllo totale sulle proprie finanze senza rinunciare alla **Privacy**. Unisce la potenza di un software gestionale alla semplicità di un'app domestica.
 
+* 🏅 **Licenza Viva**: più usi l'app, più guadagni punti e badge, più si allunga la tua licenza gratuita.
+
 Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2) per proteggere la privacy dell'utente ed evitare i costi di sottoscrizione che renderebbero il progetto a pagamento. Crediamo in un software libero da canoni e da occhi indiscreti.
 
 * 🛡️ **Zero Cloud**: I tuoi dati risiedono solo sul tuo PC.
@@ -116,7 +118,7 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 48. **Auto-Iconizza** — Riduzione a icona per inattività
 49. **Notifiche Auto-chiudenti** — Avvisi che scompaiono dopo tempo prestabilito
 50. **Aggiornamento Librerie Python** — Manutenzione automatica delle dipendenze
-
+51. Licenza a Punti (Gamification) — Usa l'app, sali di livello, allunghi la licenza gratuita
        
 ### 📺 [Guarda il Video](https://github.com/Renato-4132/OrbitaCasa/raw/main/OrbitaCasa.mp4)
 
