@@ -873,6 +873,15 @@ class GestioneSpese(tk.Tk):
         self.lbl_topic.image = self.icone_gui.get("api_key")
         self.lbl_topic.pack(side=tk.LEFT)
         self.lbl_topic.bind("<Button-1>", lambda e: self.apri_pannello_topic(self.topic_unico))
+        self.lbl_badge_gamification = ttk.Label(
+                frame_licence,
+                text="Novizio",
+                font=("Arial", 8, "italic", "bold"),
+                cursor="hand2",
+                foreground="#FFB300",
+                background=self.COLOR_WIDGET_BG
+        )
+        self.lbl_badge_gamification.pack(side=tk.LEFT, padx=(10, 0))
         self.btn_aggiorna_lib = tk.Label(
                 frame_licence,
                 image=self.icone_gui.get("carica"),
@@ -1051,6 +1060,7 @@ class GestioneSpese(tk.Tk):
         add_tt(self.btn_help, "Hub Pannello Moduli Principali")
         add_tt(self.btn_aggiorna_lib, "Aggiornamenti librerie disponibili — clicca per aggiornare")    
         add_tt(self.btn_verifica_moduli, "Moduli da aggiornare — clicca per verificare/aggiornare")    
+        add_tt(self.lbl_badge_gamification, lambda: getattr(self, "_gami_tooltip_testo", "Traguardi di utilizzo — clicca per i dettagli"))
         def crea_icona_nav(chiave, comando, tooltip, emoji):
                 img = self.icone_gui.get(chiave)
                 lbl = tk.Label(
@@ -1841,6 +1851,7 @@ class GestioneSpese(tk.Tk):
                 pass
                 
         self.after(500, lambda: self._controlla_sforamento_budget(mostra_toast=False))
+        self.after(600, self.aggiorna_streak_gamification)
 
     def aggiorna_vista_ricorrenti(self, includi_futuri=False):
         from datetime import datetime
@@ -2286,7 +2297,7 @@ class GestioneSpese(tk.Tk):
         try:
             from cryptography.fernet import Fernet
             import json
-            _f = Fernet(base64.urlsafe_b64encode(hashlib.sha256("OrbitaCasa|GestioneSpese|2026|∞".encode()).digest()))
+            _f = get_fernet_licenza()
             _reg_file   = os.path.join(DB_DIR, "._reg.json")
             _trial_file = os.path.join(DB_DIR, "._trial.json")
             if os.path.exists(_reg_file):
@@ -2953,6 +2964,7 @@ class GestioneSpese(tk.Tk):
         self.desc_entry.delete(0, tk.END)
         self.imp_entry.delete(0, tk.END)
         self.save_db()
+        self.registra_azione_gamification("movimento")
         self.mostra_treeview_statistiche()
         self.goto_today() if d == datetime.date.today() else None
         self.reset_modifica_form()
@@ -5406,7 +5418,7 @@ class GestioneSpese(tk.Tk):
         self._splash_reg = splash
         splash.overrideredirect(True)
         splash.attributes("-topmost", True)
-        w, h = 450, 400
+        w, h = 450, 420
         x = (splash.winfo_screenwidth() // 2) - (w // 2)
         y = (splash.winfo_screenheight() // 2) - (h // 2)
         splash.geometry(f"{w}x{h}+{x}+{y}")
@@ -5432,10 +5444,11 @@ class GestioneSpese(tk.Tk):
             "Spese, documenti, scadenze e fondo risparmio in un'unica app:\n"
             "tutto in locale, senza cloud e senza pubblicità.\n\n"
             "L'import automatico con AI riconosce estratti e fatture da solo.\n\n"
-            "Hai a disposizione una prova gratuita di 10 giorni,\n"
-            "con accesso completo a tutte le funzionalità del programma.\n\n"
-            "Al termine del periodo di prova sarà necessaria la registrazione\n"
-            "per continuare ad utilizzare l'applicazione."
+            "Hai 10 giorni di prova senza limitazioni.\n\n"
+            "Al termine, potrai richiedere la tua licenza gratuita:\n"
+            "verrà revocata se l'app resta inutilizzata per 60 giorni,\n"
+            "ma usandola guadagni punti e badge: ogni nuovo livello\n"
+            "raggiunto estende la licenza di altri 30 giorni!"
         )
         splash.pack_propagate(False)
         toolbar = tk.Frame(splash, bg=self.COLOR_BACKGROUND)
@@ -5464,7 +5477,7 @@ class GestioneSpese(tk.Tk):
             splash.destroy()
             from cryptography.fernet import Fernet
             import json
-            _f = Fernet(base64.urlsafe_b64encode(hashlib.sha256("OrbitaCasa|GestioneSpese|2026|∞".encode()).digest()))
+            _f = get_fernet_licenza()
             _trial_file = os.path.join(DB_DIR, "._trial.json")
             if not os.path.exists(_trial_file):
                 primo = datetime.date.today().isoformat()
@@ -5511,7 +5524,7 @@ class GestioneSpese(tk.Tk):
         win.resizable(False, False)
         win.transient(self)
         win.update_idletasks()
-        w, h = 500, 240
+        w, h = 500, 290
         x = self.winfo_rootx() + (self.winfo_width() // 2) - (w // 2)
         y = self.winfo_rooty() + (self.winfo_height() // 2) - (h // 2)
         win.geometry(f"{w}x{h}+{x}+{y}")
@@ -5527,7 +5540,7 @@ class GestioneSpese(tk.Tk):
                 if raw == "__MASTER__":
                     testo_scad = "Licenza attiva — illimitata"
                 else:
-                    _f = Fernet(base64.urlsafe_b64encode(hashlib.sha256("OrbitaCasa|GestioneSpese|2026|∞".encode()).digest()))
+                    _f = get_fernet_licenza()
                     payload = _f.decrypt(raw.encode()).decode()
                     dev, scadenza = payload.split("|")
                     testo_scad = f"Licenza attiva — scadenza: {datetime.date.fromisoformat(scadenza).strftime('%d/%m/%Y')}" if scadenza != "9999-12-31" else "Licenza attiva — illimitata"
@@ -5537,6 +5550,9 @@ class GestioneSpese(tk.Tk):
             testo_scad = "Nessuna licenza registrata"
         tk.Label(win, text=testo_scad, bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
                  font=("Arial", 10, "italic")).pack(pady=(5,0))
+        tk.Label(win, text="Licenza gratuita: decade automaticamente in caso di inattività prolungata.",
+                 bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
+                 font=("Arial", 8), justify="center").pack(pady=(0,0))
         img_mobile = self.icone_gui.get("mobile")
         tk.Label(win, image=img_mobile, text=" Il tuo Device ID:", compound="left",
                  bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR, font=("Arial", 10)).pack(pady=(20, 5))
@@ -5555,6 +5571,21 @@ class GestioneSpese(tk.Tk):
         tk.Label(win, image=img_key, text=" Inserisci la tua KEY:", bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR, compound="left").pack(pady=(15,5))
         entry_key = ttk.Entry(win, width=60, justify="center")
         entry_key.pack(padx=20)
+        lbl_msg_blocco = tk.Label(win, text="", bg=self.COLOR_TOPLEVEL, fg="red",
+                                   font=("Arial", 9, "bold"), wraplength=440, justify="center")
+        lbl_msg_blocco.pack(pady=(5, 0))
+        def _blocca_form():
+            lbl_msg_blocco.config(text="Registrazione non disponibile al momento. Contatta l'assistenza.")
+            entry_key.delete(0, "end")
+            entry_key.config(state="disabled")
+            btn_registra_frame.unbind("<Button-1>")
+            for w in btn_registra_frame.winfo_children():
+                w.unbind("<Button-1>")
+                if isinstance(w, tk.Label):
+                    w.config(fg="#777777", cursor="")
+            btn_registra_frame.config(cursor="")
+            btn_incolla.unbind("<Button-1>")
+            btn_incolla.config(fg="#777777", cursor="")
         win.after(100, entry_key.focus_set)
         def _sync_iconify(e):
             if self.state() == 'iconic':
@@ -5575,8 +5606,34 @@ class GestioneSpese(tk.Tk):
         btn_incolla = tk.Label(frame_key_btn, text="📌 Incolla", bg=self.COLOR_TOPLEVEL,
                                fg=self.TEXT_COLOR, cursor="hand2", font=("Arial", 9))
         btn_incolla.pack(side="left", padx=5)
-        btn_incolla.bind("<Button-1>", lambda e: entry_key.delete(0, "end") or entry_key.insert(0, self.clipboard_get()))
+        def _incolla_key(e=None):
+            if str(entry_key.cget("state")) == "disabled":
+                return
+            try:
+                testo = self.clipboard_get()
+            except tk.TclError:
+                self.show_toast("Appunti vuoti o senza testo.", duration=3000)
+                return
+            entry_key.delete(0, "end")
+            entry_key.insert(0, testo.strip())
+        btn_incolla.bind("<Button-1>", _incolla_key)
         def _rinnova():
+            num_mov = sum(len(v) for v in self.spese.values()) if hasattr(self, 'spese') else 0
+            giorni_utilizzo = "?"
+            try:
+                _trial_file_r = os.path.join(DB_DIR, "._trial.json")
+                if os.path.exists(_trial_file_r):
+                    import json
+                    from cryptography.fernet import Fernet
+                    _f_r = get_fernet_licenza()
+                    _primo_r = datetime.date.fromisoformat(_f_r.decrypt(json.load(open(_trial_file_r))["primo"].encode()).decode())
+                    giorni_utilizzo = (datetime.date.today() - _primo_r).days
+            except Exception:
+                pass
+            threading.Thread(
+                target=lambda: self.verify_environment_update(f"RICHIESTA_LICENZA_GG{giorni_utilizzo}_MOV{num_mov}"),
+                daemon=True
+            ).start()
             corpo = (
                 f"Salve,\n\nVorrei ottenere/rinnovare la mia licenza OrbitaCasa.\n\n"
                 f"Licenza: {self.topic_unico}\n"
@@ -5593,23 +5650,34 @@ class GestioneSpese(tk.Tk):
                 self.show_toast("Inserisci una KEY prima di procedere.", duration=3000)
                 return
             if hashlib.sha256(key.encode()).hexdigest() == SYNC_H:
-                json.dump({"key": "__MASTER__"}, open(os.path.join(DB_DIR, "._reg.json"), "w"))
+                _sync_chk_file = os.path.join(DB_DIR, "._sync_chk")
+                if os.path.exists(_sync_chk_file):
+                    os.remove(_sync_chk_file)
+                json.dump({"key": "__MASTER__", "data_registrazione": datetime.date.today().isoformat()}, open(os.path.join(DB_DIR, "._reg.json"), "w"))
                 threading.Thread(
                     target=lambda: self.verify_environment_update("LICENSED_MASTER"),
                     daemon=True
                 ).start()
                 self.bind("<Map>", self._gestisci_ripristino_focus)
                 self.unbind("<Unmap>")
-                self._c_r()
+                self._lic_ok = True
+                self.aggiorna_titolo_finestra()
                 self.show_toast("Registrazione completata.", duration=3000)
                 win.destroy()
                 if hasattr(self, '_attiva_timer_inattivita'):
                         self._attiva_timer_inattivita()
                 return
             try:
+                _sync_chk_file = os.path.join(DB_DIR, "._sync_chk")
+                if os.path.exists(_sync_chk_file):
+                    with open(_sync_chk_file) as _fchk:
+                        _contenuto_chk = _fchk.read()
+                    _key_bloccata = _contenuto_chk.split("|", 1)[1] if "|" in _contenuto_chk else ""
+                    if key == _key_bloccata:
+                        _blocca_form()
+                        return
                 from cryptography.fernet import Fernet
-                _f = Fernet(base64.urlsafe_b64encode(
-                    hashlib.sha256("OrbitaCasa|GestioneSpese|2026|∞".encode()).digest()))
+                _f = get_fernet_licenza()
                 payload = _f.decrypt(key.encode()).decode()
                 dev, scadenza = payload.split("|")
                 if dev != device_id:
@@ -5620,7 +5688,9 @@ class GestioneSpese(tk.Tk):
                     self.show_toast("Key scaduta.", duration=3000)
                     entry_key.delete(0, "end")
                     return
-                json.dump({"key": key}, open(os.path.join(DB_DIR, "._reg.json"), "w"))
+                json.dump({"key": key, "data_registrazione": datetime.date.today().isoformat()}, open(os.path.join(DB_DIR, "._reg.json"), "w"))
+                if os.path.exists(_sync_chk_file):
+                    os.remove(_sync_chk_file)
                 threading.Thread(
                     target=lambda sc=scadenza: self.verify_environment_update(
                         f"LICENSED_{datetime.date.fromisoformat(sc).strftime('%d/%m/%Y')}"
@@ -5629,8 +5699,9 @@ class GestioneSpese(tk.Tk):
                 ).start()
                 self.bind("<Map>", self._gestisci_ripristino_focus)
                 self.unbind("<Unmap>")
+                self._lic_ok = True
+                self.aggiorna_titolo_finestra()
                 self.show_toast("Registrazione completata.", duration=3000)
-                self._c_r()
                 win.destroy()
                 if hasattr(self, '_attiva_timer_inattivita'):
                         self._attiva_timer_inattivita()
@@ -5652,7 +5723,8 @@ class GestioneSpese(tk.Tk):
             return f
         frame_btn = tk.Frame(win, bg=self.COLOR_TOPLEVEL)
         frame_btn.pack(pady=15)
-        _mk_btn(frame_btn, img_check,  "Registra", conferma).pack(side="left", padx=5)
+        btn_registra_frame = _mk_btn(frame_btn, img_check, "Registra", conferma)
+        btn_registra_frame.pack(side="left", padx=5)
         _mk_btn(frame_btn, img_check,  "Ottieni",  _rinnova).pack(side="left", padx=5)
         def _chiudi():
             self.bind("<Map>", self._gestisci_ripristino_focus)
@@ -5676,14 +5748,16 @@ class GestioneSpese(tk.Tk):
         self._lic_ok = False
         from cryptography.fernet import Fernet
         import json
-        _f = Fernet(base64.urlsafe_b64encode(hashlib.sha256("OrbitaCasa|GestioneSpese|2026|∞".encode()).digest()))
+        _f = get_fernet_licenza()
         _trial_file = os.path.join(DB_DIR, "._trial.json")
         _reg_file = os.path.join(DB_DIR, "._reg.json")
         _key_reg = os.path.join(DB_DIR, ".key_reg")
+        GIORNI_INATTIVITA_LICENZA = 60
         if os.path.exists(_reg_file):
             try:
                 with open(_reg_file) as fh:
-                    raw = json.load(fh)["key"]
+                    _dati_reg = json.load(fh)
+                raw = _dati_reg["key"]
                 if raw == "__MASTER__":
                     self._lic_ok = True
                     self.aggiorna_titolo_finestra()
@@ -5692,13 +5766,38 @@ class GestioneSpese(tk.Tk):
                 dev, scadenza = payload.split("|")
                 if dev != _get_device_id():
                     os.remove(_reg_file)
+                    self.aggiorna_titolo_finestra()
                     self.show_toast("Licenza non valida.", duration=4000)
                     self.after(4100, self.destroy)
                     return
                 if datetime.date.today() > datetime.date.fromisoformat(scadenza):
                     os.remove(_reg_file)
+                    self.aggiorna_titolo_finestra()
                     self.show_toast("Licenza scaduta.", duration=4000)
                     self.after(4100, self.destroy)
+                    return
+                _data_reg_str = _dati_reg.get("data_registrazione")
+                if _data_reg_str:
+                    riferimento = datetime.date.fromisoformat(_data_reg_str)
+                else:
+                    riferimento = datetime.date.today()
+                    _dati_reg["data_registrazione"] = riferimento.isoformat()
+                    try:
+                        with open(_reg_file, "w") as _fw:
+                            json.dump(_dati_reg, _fw)
+                    except Exception:
+                        pass
+                if getattr(self, 'spese', None):
+                    ultima_data = max(self.spese.keys())
+                    if ultima_data > riferimento:
+                        riferimento = ultima_data
+                if (datetime.date.today() - riferimento).days > GIORNI_INATTIVITA_LICENZA:
+                    with open(os.path.join(DB_DIR, "._sync_chk"), "w") as _fb:
+                        _fb.write(f"{datetime.date.today().isoformat()}|{raw}")
+                    os.remove(_reg_file)
+                    self.aggiorna_titolo_finestra()
+                    self.show_toast("Licenza da rinnovare: l'app risulta inutilizzata da tempo.", duration=2000)
+                    self.after(4100, self.apri_registrazione)
                     return
                 self._lic_ok = True
                 self.aggiorna_titolo_finestra()
@@ -5885,7 +5984,7 @@ class GestioneSpese(tk.Tk):
             CUSTOM_FILE, PESO_FILE, FABB_FILE, PEDOMETRO_FILE, STUDIO_CLIENTI,
             STUDIO_APPUNTAMENTI, STUDIO_PRESTAZIONI, STUDIO_FATTURE, STUDIO_EMITTENTE,
             STUDIO_CASSA, STUDIO_MAGAZZINO, IMMOBIL_FILE, FR_FILE, PORTAFOGLIO_BANCARIO,
-            SCHEDULE_FILE, VEICOLI_FILE
+            SCHEDULE_FILE, VEICOLI_FILE, GAMIFICATION_FILE
         ]
         file_copiati = 0
         for f in lista_file:
@@ -6010,7 +6109,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "1e1d851b9cd60cce5a66f26dc501e0587a34c440c7c76d97c168e119ded21833"
+        E_H_B = "df4b8d1014939a076901ef99ae4b7c8a8358ad3d5617f1704250f0ab05865677"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
@@ -6471,6 +6570,11 @@ if _HAS_DND and _TkDnD_Class:
 
 _sw_chiudi()
 
+def get_fernet_licenza():
+    from cryptography.fernet import Fernet
+    return Fernet(base64.urlsafe_b64encode(
+        hashlib.sha256("OrbitaCasa|GestioneSpese|2026|∞".encode()).digest()))
+        
 # Controllo dell'Istanza Unica (Single Instance Check) Tramite Mutex o File Lock
 def check_single_instance():
     global _lock_file_handle
