@@ -322,6 +322,8 @@ def apri_inserimento_rapido(self, event):
             del self._cache_tutti_tag
         self.save_db()
         self.refresh_gui()
+        if hasattr(self, 'registra_azione_gamification'):
+            self.registra_azione_gamification("movimento")
         chiudi_rapido()
         self.show_toast(f"Spesa salvata in data {data_sel.strftime('%d/%m/%Y')}!")
     def chiudi_rapido(e=None):

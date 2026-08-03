@@ -895,6 +895,8 @@ def _veicoli_crea_tab(self, nb, v, db, win):
             m["esportato"] = export_id
         self._veicoli_salva(db)
         self.save_db()
+        if hasattr(self, 'registra_azione_gamification'):
+            self.registra_azione_gamification("movimento")
         self.refresh_gui()
         self.show_toast(f"Spesa {nome} ({tot:.2f}€, {len(movimenti_filtrati)} movimenti) esportata in SpesaDB.")
 

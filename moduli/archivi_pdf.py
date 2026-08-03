@@ -415,6 +415,8 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                     nuova_lista.append(s)
               if not trovato:
                   nuova_lista.append(SpesaEntry.nuova(categoria_esatta, desc_icona, imp_float, tipo_esatto, conto=_conto_per_doc, metodo_pagamento=_metodo_sel_doc, hashtag=_tags_doc))
+                  if hasattr(self, 'registra_azione_gamification'):
+                      self.registra_azione_gamification("movimento")
               self.spese[data_obj] = nuova_lista
             self.save_db()
           registry = load_document_registry()
@@ -484,6 +486,8 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                                 if not cancella_anche_spesa:
                                     nuova_lista.append([s[0], desc_db, s[2], s[3]])
                                 else:
+                                    if hasattr(self, 'annulla_azione_gamification'):
+                                        self.annulla_azione_gamification("movimento")
                                     continue 
                             else:
                                 nuova_lista.append(s)

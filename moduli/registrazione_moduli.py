@@ -391,8 +391,8 @@ def registra_tutti_i_moduli(GestioneSpese):
 
     from moduli.gamification import (
         _gami_carica, _gami_salva, _gami_estendi_licenza, aggiorna_streak_gamification, registra_azione_gamification,
-        aggiorna_badge_header,
+        annulla_azione_gamification, aggiorna_badge_header, mostra_dettaglio_gamification,
         _gami_nome_scope, _gami_mostra_notifiche_badge,)
     _registra(_gami_carica, _gami_salva, _gami_estendi_licenza, aggiorna_streak_gamification, registra_azione_gamification,
-        aggiorna_badge_header,
-        _gami_nome_scope, _gami_mostra_notifiche_badge)
+        annulla_azione_gamification, aggiorna_badge_header,
+        _gami_nome_scope, _gami_mostra_notifiche_badge, mostra_dettaglio_gamification)

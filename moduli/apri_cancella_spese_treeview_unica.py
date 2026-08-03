@@ -117,6 +117,10 @@ def apri_cancella_spese_treeview_unica(self):
         popola_treeview_spese()
         if hasattr(self, 'refresh_gui'): self.refresh_gui()
         if hasattr(self, 'save_db'): self.save_db()
+        if hasattr(self, 'annulla_azione_gamification'):
+            for lista_voci_canc in self.spese_cancellate_tmp.values():
+                for _voce in lista_voci_canc:
+                    self.annulla_azione_gamification("movimento")
         self._sync_fairshare_e_aggiorna()
         self.show_custom_warning("Successo", f"✓ {num_selezionate} spese sono state cancellate.")
     def popola_treeview_spese():

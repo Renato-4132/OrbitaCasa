@@ -2386,6 +2386,8 @@ def apri_studio(self):
                         hashtag=tag_lista
                     ))
                     self.save_db()
+                    if hasattr(self, 'registra_azione_gamification'):
+                        self.registra_azione_gamification("movimento")
                     self.refresh_gui()
                     popup.destroy()
                     self.show_toast("Movimento aggiunto al DB principale.")

@@ -320,6 +320,8 @@ def apri_finestra_revisione_universale(self, movimenti):
         self.refresh_gui()
         if count > 0:
             self.riproduci_beep()
+            if hasattr(self, 'registra_azione_gamification'):
+                self.registra_azione_gamification("movimento")
         win.destroy()
         msg = f"{count} importati, {duplicati} duplicati ignorati."
         if errori:

@@ -7450,6 +7450,7 @@ def cancella_voce_web(self, giorno_str, idx):
         if data_obj in self.spese:
             if 0 <= idx < len(self.spese[data_obj]):
                 voce_rimossa = self.spese[data_obj].pop(idx)
+                self.annulla_azione_gamification("movimento")
                 if not self.spese[data_obj]:
                     del self.spese[data_obj]
                 self.save_db()

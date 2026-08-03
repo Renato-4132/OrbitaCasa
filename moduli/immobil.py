@@ -581,6 +581,8 @@ def _immobil_crea_tab(self, nb, imm, db, win):
             hashtag=["#immobili"]
         ))
         self.save_db()
+        if hasattr(self, 'registra_azione_gamification'):
+            self.registra_azione_gamification("movimento")
         self.refresh_gui()
         self.show_toast(f"Saldo {nome} ({tipo_mov} {imp_mov:.2f}€) esportato in SpesaDB.")
     img_add = self.icone_gui.get("aggiungi")
