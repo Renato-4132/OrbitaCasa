@@ -3343,6 +3343,7 @@ class GestioneSpese(tk.Tk):
                                     json.dump(r, f, indent=4, ensure_ascii=False)
                     except Exception as e: self.show_custom_warning("Errore", f"Registro: {e}")
             del self.spese[old_dt][idx]
+            self.annulla_azione_gamification("movimento")
             if hasattr(self, '_cache_tutti_tag'):
                 del self._cache_tutti_tag
             if not self.spese[old_dt]: del self.spese[old_dt]
@@ -6109,7 +6110,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "df4b8d1014939a076901ef99ae4b7c8a8358ad3d5617f1704250f0ab05865677"
+        E_H_B = "b24be11b9e021313e5c63c39aaa62bfbfd75626769469a8b74f1690bfafd5b41"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
