@@ -81,7 +81,7 @@ def _mostra_popup_changelog(self, changelog_text):
     win.title(f"Storico Modifiche: {NOME_FILE}")
     win.configure(bd=0)
     win.bind('<Escape>', lambda e: win.destroy())
-    header = tk.Frame(win, bg=self.COLOR_HEADER_BG, height=42)
+    header = tk.Frame(win, bg=self.COLOR_BACKGROUND, height=42)
     header.pack(fill="x")
     header.pack_propagate(False)
     dot_canvas = tk.Canvas(header, width=10, height=10,
@@ -89,7 +89,7 @@ def _mostra_popup_changelog(self, changelog_text):
     dot_canvas.create_oval(0, 0, 10, 10, fill=self.COLOR_HIGHLIGHT, outline="")
     dot_canvas.pack(side="left", padx=(16, 8), pady=16)
     tk.Label(header, text="STORICO MODIFICHE",
-             bg=self.COLOR_HEADER_BG, fg=self.COLOR_HEADER,
+             bg=self.COLOR_BACKGROUND, fg=self.COLOR_HEADER,
              font=("Segoe UI", 8, "bold")).pack(side="left")
     tk.Frame(win, bg=self.COLOR_BACKGROUND, height=1).pack(fill="x")
     cl_header = tk.Frame(win, bg=self.COLOR_BACKGROUND)

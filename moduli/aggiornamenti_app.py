@@ -350,7 +350,7 @@ def _mostra_popup_aggiornamento(self, remote_time, local_time, changelog_text):
     win.title("Aggiornamento Disponibile")
     win.configure(bd=0)
     win.bind('<Escape>', lambda e: win.destroy())
-    header = tk.Frame(win, bg=self.COLOR_HEADER_BG, height=42)
+    header = tk.Frame(win, bg=self.COLOR_BACKGROUND, height=42)
     header.pack(fill="x")
     header.pack_propagate(False)
     dot_canvas = tk.Canvas(header, width=10, height=10,
@@ -358,7 +358,7 @@ def _mostra_popup_aggiornamento(self, remote_time, local_time, changelog_text):
     dot_canvas.create_oval(0, 0, 10, 10, fill=self.COLOR_HIGHLIGHT, outline="")
     dot_canvas.pack(side="left", padx=(16, 8), pady=16)
     tk.Label(header, text="AGGIORNAMENTO DISPONIBILE",
-             bg=self.COLOR_HEADER_BG, fg=self.COLOR_HEADER,
+             bg=self.COLOR_BACKGROUND, fg=self.COLOR_HEADER,
              font=("Segoe UI", 8, "bold")).pack(side="left")
     make_separator(win)
     frame_timer = tk.Frame(win, bg=self.COLOR_WIDGET_BG)
@@ -675,7 +675,7 @@ def _mostra_popup_forza_aggiornamento(self, remote_time, local_time, changelog_t
     win.title("Aggiornamento Disponibile")
     win.configure(bd=0)
     win.bind('<Escape>', lambda e: win.destroy())
-    header = tk.Frame(win, bg=self.COLOR_HEADER_BG, height=42)
+    header = tk.Frame(win, bg=self.COLOR_BACKGROUND, height=42)
     header.pack(fill="x")
     header.pack_propagate(False)
     dot_canvas = tk.Canvas(header, width=10, height=10,
@@ -683,7 +683,7 @@ def _mostra_popup_forza_aggiornamento(self, remote_time, local_time, changelog_t
     dot_canvas.create_oval(0, 0, 10, 10, fill=self.COLOR_HIGHLIGHT, outline="")
     dot_canvas.pack(side="left", padx=(16, 8), pady=16)
     tk.Label(header, text="AGGIORNAMENTO DISPONIBILE",
-             bg=self.COLOR_HEADER_BG, fg=self.COLOR_HEADER,
+             bg=self.COLOR_BACKGROUND, fg=self.COLOR_HEADER,
              font=("Segoe UI", 8, "bold")).pack(side="left")
     make_separator(win)
     frame_timer = tk.Frame(win, bg=self.COLOR_WIDGET_BG)
