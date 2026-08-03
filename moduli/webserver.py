@@ -7507,6 +7507,7 @@ def aggiungi_voce_web(self, voce):
     with open(DB_FILE, "w", encoding="utf-8") as f:
         json.dump(dati, f, indent=2, ensure_ascii=False)
     self.carica_db_web()
+    self.registra_azione_gamification("movimento")
     self.refresh_gui()
  
 def carica_db_web(self):

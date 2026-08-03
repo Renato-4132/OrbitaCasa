@@ -94,6 +94,8 @@ def apri_fondo_risparmio(self):
             "n_mesi":      n_mesi,
             "mesi_dati":   mesi_dati,
         }
+        
+    SOGLIA_MESI_PROIEZIONE = 3
     def _calcola_proiezione_anno(stats):
         today      = datetime.date.today()
         anno       = today.year
@@ -125,8 +127,10 @@ def apri_fondo_risparmio(self):
                 if m in mesi_anno_prec:
                     e = mesi_anno_prec[m]["e"]
                     u = mesi_anno_prec[m]["u"]
-                else:
+                elif stats["n_mesi"] >= SOGLIA_MESI_PROIEZIONE:
                     e, u = stats["media_e"], stats["media_u"]
+                else:
+                    e, u = 0.0, 0.0
                 futuro = True
             proiezione.append({"m": m, "e": e, "u": u, "r": e - u, "futuro": futuro})
             entrate_tot += e

@@ -26,6 +26,7 @@ def _elenco_file_variabili(_app):
         ("Prezzi Supermercati",               "Prezzi salvati dal modulo Supermercati (supermercati.json)", "SUPERMERCATI_DB", False),
         ("Memoria Categorie IA (SmartCat)",   "Associazioni descrizione → categoria apprese (memoria_categorie.json)", "MEM_CAT", False),
         ("Promemoria",                        "Promemoria e scadenze impostate (promemoria.json)", "PROMEMORIA_FILE", False),
+        ("Traguardi e Badge (Gamification)",  "Streak, punti e badge sbloccati (gamification.json)", "GAMIFICATION_FILE", False),
         ("Aggiornamenti Rimandati",           "Notifiche di aggiornamento posticipate (update.json)", "RIMANDA_FILE", False),
         ("Chiave API Salvata",                "Chiave API (Gemini) salvata in locale (api.json)", "DEFAULT_API", False),
         ("Controllo Fine Mese",               "Stato dei controlli automatici di fine mese (controllo_fm.json)", "CONTROLLO_F_M", False),

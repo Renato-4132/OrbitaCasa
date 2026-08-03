@@ -19,6 +19,7 @@ def gestisci_backup_popup(self):
     CONFIG_FILE = _app.CONFIG_FILE
     RIMANDA_FILE = _app.RIMANDA_FILE
     PROMEMORIA_FILE = _app.PROMEMORIA_FILE
+    GAMIFICATION_FILE = _app.GAMIFICATION_FILE
     SUPERMERCATI_DB = _app.SUPERMERCATI_DB
     DEFAULT_API = _app.DEFAULT_API
     CONTROLLO_F_M = _app.CONTROLLO_F_M
@@ -60,6 +61,7 @@ def gestisci_backup_popup(self):
         "config.json":                    "Configurazione",
         "update.json":                    "Aggiornamenti",
         "promemoria.json":                "Promemoria",
+        "gamification.json":              "Traguardi (Gamification)",
         "memoria_categorie.json":         "SmartCat",
         "api.json":                       "API Key",
         "controllo_fm.json":              "Controllo FM",
@@ -284,7 +286,7 @@ def gestisci_backup_popup(self):
                 CUSTOM_FILE, PESO_FILE, FABB_FILE, PEDOMETRO_FILE, STUDIO_CLIENTI,
                 STUDIO_APPUNTAMENTI, STUDIO_PRESTAZIONI, STUDIO_FATTURE, STUDIO_EMITTENTE,
                 STUDIO_CASSA, STUDIO_MAGAZZINO, IMMOBIL_FILE, FR_FILE, PORTAFOGLIO_BANCARIO,
-                SCHEDULE_FILE, VEICOLI_FILE
+                SCHEDULE_FILE, VEICOLI_FILE, GAMIFICATION_FILE
             ]
             for s in selezione:
                 nome_bak = tree.set(s, "File")

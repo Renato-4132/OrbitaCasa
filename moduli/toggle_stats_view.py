@@ -52,6 +52,7 @@ def toggle_stats_view(self, tipo="grafico"):
                     else:
                         uscite_tot_pf += imp_pf; mesi_dati_pf[key_pf]["u"] += imp_pf
         n_mesi_pf  = len(mesi_dati_pf) if mesi_dati_pf else 1
+        SOGLIA_MESI_PROIEZIONE_PF = 3
         media_e_pf = entrate_tot_pf / n_mesi_pf
         media_u_pf = uscite_tot_pf  / n_mesi_pf
         mesi_reali_pf = {m: v for (y, m), v in mesi_dati_pf.items() if y == anno_c_pf}
@@ -71,8 +72,13 @@ def toggle_stats_view(self, tipo="grafico"):
             if m in mesi_reali_pf:
                 e_pf, u_pf, futuro_pf = mesi_reali_pf[m]["e"], mesi_reali_pf[m]["u"], False
             else:
-                e_pf = mesi_prec_pf[m]["e"] if m in mesi_prec_pf else media_e_pf
-                u_pf = mesi_prec_pf[m]["u"] if m in mesi_prec_pf else media_u_pf
+                if m in mesi_prec_pf:
+                    e_pf = mesi_prec_pf[m]["e"]
+                    u_pf = mesi_prec_pf[m]["u"]
+                elif n_mesi_pf >= SOGLIA_MESI_PROIEZIONE_PF:
+                    e_pf, u_pf = media_e_pf, media_u_pf
+                else:
+                    e_pf, u_pf = 0.0, 0.0
                 futuro_pf = True
             proj_pf.append({"m": m, "e": e_pf, "u": u_pf, "r": e_pf - u_pf, "futuro": futuro_pf})
         self.stats_pf_container = tk.Frame(parent_frame, bg=self.COLOR_BACKGROUND)
