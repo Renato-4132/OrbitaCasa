@@ -92,6 +92,7 @@ def _gami_carica(self):
         "azioni_totali": 0,
         "azioni_per_tipo": {},
         "livello_corrente": 0,
+        "livello_massimo_raggiunto": 0,
         "mese_chiave": _gami_chiave_mese(),
         "mese_giorni": [],
         "mese_azioni": 0,
@@ -107,6 +108,8 @@ def _gami_carica(self):
                 dati = json.load(f)
             for k, v in default.items():
                 dati.setdefault(k, v)
+            dati["livello_massimo_raggiunto"] = max(
+                dati.get("livello_massimo_raggiunto", 0), dati.get("livello_corrente", 0))
             return dati
         except Exception:
             pass
@@ -272,10 +275,12 @@ def registra_azione_gamification(self, tipo="generico"):
     dati["azioni_totali"] = dati.get("azioni_totali", 0) + 1
     dati.setdefault("azioni_per_tipo", {})
     dati["azioni_per_tipo"][tipo] = dati["azioni_per_tipo"].get(tipo, 0) + 1
-    livello_prima = dati.get("livello_corrente", 0)
+    livello_massimo_prima = dati.get("livello_massimo_raggiunto", 0)
     punti = _gami_punteggio(dati)
     livello_ora = _gami_livello_da_punti(punti)[0]
     dati["livello_corrente"] = livello_ora
+    if livello_ora > livello_massimo_prima:
+        dati["livello_massimo_raggiunto"] = livello_ora
 
     _gami_aggiorna_periodo_giorno(dati, "mese_chiave", "mese_giorni", "mese_azioni", _gami_chiave_mese(), oggi_iso)
     _gami_aggiorna_periodo_giorno(dati, "anno_chiave", "anno_giorni", "anno_azioni", _gami_chiave_anno(), oggi_iso)
@@ -290,7 +295,7 @@ def registra_azione_gamification(self, tipo="generico"):
     self.aggiorna_badge_header()
 
     eventi = []
-    if livello_ora > livello_prima:
+    if livello_ora > livello_massimo_prima:
         eventi.append(("vita", livello_ora))
     if dati["mese_livello"] > mese_livello_prima:
         eventi.append(("mese", dati["mese_livello"]))
