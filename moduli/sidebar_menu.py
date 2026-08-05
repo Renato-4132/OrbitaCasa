@@ -26,6 +26,7 @@ def setup_sidebar(self):
         pady=10
     )
     self.lbl_logo.pack(fill="x")
+    self.lbl_logo.bind("<Button-1>", lambda e: self.mostra_piramide())
     self._search_var = tk.StringVar()
     self._search_entry = tk.Entry(
         self.sidebar, textvariable=self._search_var,
@@ -385,6 +386,7 @@ def _filtra_sidebar(self, *_):
         ("Impostazioni App",                      self.gestisci_configurazione),
         ("Cambia Password",                       self.apri_cambio_password),
         ("Registra Prodotto",                     self.apri_registrazione),
+        ("Gamification",                          self.mostra_dettaglio_gamification),
         ("Controlla Aggiornamenti",               self.forza_check_aggiornamento_con_api),
         ("Forza Aggiornamento",                   self.forza_aggiorna),
         ("Annulla Ultimo Aggiornamento",          self.ripristina_da_backup),
