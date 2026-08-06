@@ -477,14 +477,15 @@ def mostra_dettaglio_gamification(self):
     self._win_gami_dettaglio = win
     win.transient(self)
     win.overrideredirect(True)
-    win.attributes("-topmost", True)
     win.resizable(False, False)
     win.bind("<Escape>", lambda e: win.destroy())
     w, h = 980, 480
     x = self.winfo_rootx() + (self.winfo_width() // 2) - (w // 2)
     y = self.winfo_rooty() + (self.winfo_height() // 2) - (h // 2)
     win.geometry(f"{w}x{h}+{x}+{y}")
-    win.focus_force()
+    win.after(50, win.lift)
+    win.after(50, lambda: win.attributes("-topmost", True))
+    win.after(50, win.focus_force)
 
     tk.Label(win, text="I Tuoi Traguardi", bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
              font=("Arial", 12, "bold")).pack(pady=(14, 6))
