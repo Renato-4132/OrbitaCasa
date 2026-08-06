@@ -477,6 +477,7 @@ def mostra_dettaglio_gamification(self):
     self._win_gami_dettaglio = win
     win.transient(self)
     win.overrideredirect(True)
+    win.attributes("-topmost", True)
     win.resizable(False, False)
     win.bind("<Escape>", lambda e: win.destroy())
     w, h = 980, 480
