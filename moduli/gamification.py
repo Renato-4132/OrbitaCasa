@@ -475,6 +475,7 @@ def mostra_dettaglio_gamification(self):
 
     win = tk.Toplevel(self, bg=self.COLOR_BACKGROUND)
     self._win_gami_dettaglio = win
+    win.withdraw()
     win.transient(self)
     win.overrideredirect(True)
     win.resizable(False, False)
@@ -483,9 +484,7 @@ def mostra_dettaglio_gamification(self):
     x = self.winfo_rootx() + (self.winfo_width() // 2) - (w // 2)
     y = self.winfo_rooty() + (self.winfo_height() // 2) - (h // 2)
     win.geometry(f"{w}x{h}+{x}+{y}")
-    win.after(50, win.lift)
-    win.after(50, lambda: win.attributes("-topmost", True))
-    win.after(50, win.focus_force)
+
 
     tk.Label(win, text="I Tuoi Traguardi", bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
              font=("Arial", 12, "bold")).pack(pady=(14, 6))
@@ -544,4 +543,8 @@ def mostra_dettaglio_gamification(self):
         tab_labels[chiave] = lbl
 
     _mostra_scheda("vita")
-    win.focus_set()
+    win.deiconify()
+    win.lift()
+    win.attributes("-topmost", True)
+    win.after(100, lambda: win.attributes("-topmost", False))
+    win.focus_force()
