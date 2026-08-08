@@ -35,7 +35,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
     types                = _app.types
     Image                = _app.Image
     ImageTk              = _app.ImageTk
-    fitz                 = _app.fitz
+    import pymupdf as fitz
     if importo_iniziale and isinstance(importo_iniziale, str):
         if "," in importo_iniziale:
            importo_iniziale = importo_iniziale.replace(".", "").replace(",", ".")
@@ -1373,7 +1373,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                     direzione_ia = dati_drop.get("direzione", "Uscita")
                     _testo_dp = ""
                     try:
-                        import fitz as _fitz_dp
+                        import pymupdf as _fitz_dp
                         _doc_dp = _fitz_dp.open(pdf_path)
                         _testo_dp = "".join(p.get_text() for p in _doc_dp).lower()
                         _doc_dp.close()
