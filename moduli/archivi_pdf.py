@@ -34,8 +34,8 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
     GEMINI               = _app.GEMINI
     types                = _app.types
     Image                = _app.Image
-    ImageTk               = _app.ImageTk
-    import pymupdf as fitz  # __main__ espone solo 'pymupdf', mai 'fitz': import diretto, come negli altri moduli
+    ImageTk              = _app.ImageTk
+    fitz                 = _app.fitz
     if importo_iniziale and isinstance(importo_iniziale, str):
         if "," in importo_iniziale:
            importo_iniziale = importo_iniziale.replace(".", "").replace(",", ".")
