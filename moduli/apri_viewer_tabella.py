@@ -6,7 +6,7 @@ import os
 import tempfile
 
 import requests
-import fitz
+import pymupdf as fitz
 import tkinter as tk
 from tkinter import ttk
 

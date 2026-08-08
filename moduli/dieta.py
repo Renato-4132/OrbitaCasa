@@ -461,7 +461,7 @@ def apri_dieta(self):
         self.show_toast("Piano ripristinato.")
     def _genera_pdf(dest=None):
         try:
-            import fitz
+            import pymupdf as fitz
         except ImportError:
             self.show_custom_warning("Libreria mancante",
                 "PyMuPDF non è installato.\nVai in Sistema → Aggiorna Librerie Python.")

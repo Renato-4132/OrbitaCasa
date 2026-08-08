@@ -181,7 +181,7 @@ def confronta_bollette_ia(self):
             initialfile="Analisi_Bollette.pdf", parent=popup)
         if f:
             try:
-                import fitz
+                import pymupdf as fitz
                 import textwrap
                 font_size   = 10
                 line_height = font_size * 1.3

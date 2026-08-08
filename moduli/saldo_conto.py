@@ -310,7 +310,7 @@ def open_saldo_conto(self):
                         initialfile=f"{fn_base}.pdf", parent=prev_win)
                     if f:
                         try:
-                            import fitz
+                            import pymupdf as fitz
                             doc  = fitz.open()
                             page = doc.new_page(width=595, height=842)
                             page.insert_text((40, 40), contenuto, fontname="cour", fontsize=9)
@@ -967,7 +967,7 @@ def open_saldo_conto(self):
                         initialfile=f"Estratto_{anno_f}_{mese_f}.pdf", parent=prev_win)
                     if f:
                         try:
-                            import fitz
+                            import pymupdf as fitz
                             doc  = fitz.open()
                             page = doc.new_page(width=842, height=595)
                             page.insert_text((40, 40), contenuto, fontname="cour", fontsize=9)

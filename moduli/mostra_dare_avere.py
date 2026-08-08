@@ -387,7 +387,7 @@ def mostra_dare_avere(self):
                 confirmoverwrite=False, parent=prev_win)
             if f_path:
                 try:
-                    import fitz
+                    import pymupdf as fitz
                     doc = fitz.open()
                     page = doc.new_page(width=842, height=595)
                     page.insert_text((30, 30), testo, fontname="cour", fontsize=7)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import fitz
+import pymupdf as fitz
 import tkinter as tk
 from tkinter import ttk
 from moduli.modello_spesa import campo

@@ -564,7 +564,7 @@ def cerca_operazioni(self):
                     self.show_custom_warning("Errore", f"❌ Salvataggio fallito:\n{e}")
         def _salva_come_pdf(content_text, preview_popup):
             preview_popup.destroy()
-            import fitz
+            import pymupdf as fitz
             nome_file = f"Risultati_Ricerca_{datetime.date.today():%d_%m_%Y}.pdf"
             file = filedialog.asksaveasfilename(
                 defaultextension=".pdf",

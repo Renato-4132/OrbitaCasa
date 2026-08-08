@@ -8,7 +8,7 @@ import datetime
 import threading
 import tkinter as tk
 from tkinter import ttk, filedialog
-import fitz
+import pymupdf as fitz
 
 def utenze(self):
     import __main__ as _app

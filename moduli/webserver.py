@@ -7597,7 +7597,7 @@ def analizza_pdf_web(self, pdf_bytes, filename_originale="documento.pdf"):
     data_str_ia = dati.get("data")
     _testo_web = ""
     try:
-        import fitz as _fitz_web
+        import pymupdf as _fitz_web
         _doc_web = _fitz_web.open(stream=pdf_bytes, filetype="pdf")
         _testo_web = "".join(p.get_text() for p in _doc_web).lower()
         _doc_web.close()

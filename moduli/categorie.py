@@ -1203,7 +1203,7 @@ def open_analisi_categoria(self):
                 except Exception as e:
                     self.show_custom_warning("Errore", f"❌ Salvataggio fallito:\n{e}")
         def do_save_pdf():
-            import fitz
+            import pymupdf as fitz
             now = datetime.date.today()
             default_filename = f"Analisi_Export_{now.day:02d}-{now.month:02d}-{now.year}.pdf"
             file = filedialog.asksaveasfilename(
@@ -1495,7 +1495,7 @@ def gruppo_categorie(self):
                 except Exception as e:
                     self.show_custom_warning("Errore", f"❌ Salvataggio fallito:\n{e}")
         def do_save_pdf():
-            import fitz
+            import pymupdf as fitz
             now = datetime.date.today()
             default_filename = f"Analisi_Categorie_{now:%d_%m_%Y}.pdf"
             file = filedialog.asksaveasfilename(

@@ -414,7 +414,7 @@ def gestisci_documenti_personali(self):
             if not os.path.exists(fpath):
                 return self.show_custom_warning("Errore", f"File non trovato:\n{fname}")
             try:
-                import fitz
+                import pymupdf as fitz
                 from PIL import Image, ImageTk
                 pwin = tk.Toplevel(win)
                 pwin.title(fname)

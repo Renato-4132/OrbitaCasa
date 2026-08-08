@@ -1627,7 +1627,7 @@ def apri_studio(self):
                              if f"{c.get('nome','')} {c.get('cognome','')}".strip() == nome_cli
                              or c.get("azienda","") == nome_cli), {})
             try:
-                import fitz
+                import pymupdf as fitz
             except ImportError:
                 self.show_custom_warning("Errore",
                     "PyMuPDF (fitz) non installato.\n"
@@ -2154,7 +2154,7 @@ def apri_studio(self):
             _genera_pdf_path(doc, tmp.name)
         def _genera_pdf_path(doc, path_out):
             try:
-                import fitz
+                import pymupdf as fitz
                 sel_orig = tv.selection()
                 _genera_pdf(doc=doc)
             except Exception:
@@ -2645,7 +2645,7 @@ def apri_studio(self):
             if not magazzino:
                 self.show_toast("Magazzino vuoto."); return
             try:
-                import fitz
+                import pymupdf as fitz
             except ImportError:
                 self.show_custom_warning("Errore",
                     "PyMuPDF non installato.\npip install pymupdf"); return

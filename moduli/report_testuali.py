@@ -382,7 +382,7 @@ def show_export_preview(self, content, default_filename=None):
     EXPORT_FILES = _app.EXPORT_FILES
 
     def save_as_pdf():
-        import fitz
+        import pymupdf as fitz
         now = datetime.date.today()
         filename = (default_filename or f"Riepilogo_Export_{now.day:02d}-{now.month:02d}-{now.year}").replace(".txt", ".pdf")
         if not filename.endswith(".pdf"):

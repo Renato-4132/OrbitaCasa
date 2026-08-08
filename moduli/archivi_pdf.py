@@ -1373,7 +1373,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                     direzione_ia = dati_drop.get("direzione", "Uscita")
                     _testo_dp = ""
                     try:
-                        import fitz as _fitz_dp
+                        import pymupdf as _fitz_dp
                         _doc_dp = _fitz_dp.open(pdf_path)
                         _testo_dp = "".join(p.get_text() for p in _doc_dp).lower()
                         _doc_dp.close()

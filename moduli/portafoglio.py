@@ -1563,7 +1563,7 @@ def apri_portafoglio(self):
                 if not path:
                     return
                 try:
-                    import fitz
+                    import pymupdf as fitz
                     doc = fitz.open()
                     page_w, page_h = 842, 595
                     margin = 40

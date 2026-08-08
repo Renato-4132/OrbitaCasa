@@ -13,7 +13,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog
 
 import requests
-import fitz
+import pymupdf as fitz
 
 # Cambio Password Manuale
 def apri_cambio_password(self):

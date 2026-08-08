@@ -251,7 +251,7 @@ def time_machine(self):
                 except Exception as e:
                     self.show_custom_warning("Errore", f"❌ Salvataggio fallito:\n{e}")
         def do_save_pdf():
-            import fitz
+            import pymupdf as fitz
             now = datetime.date.today()
             default_filename = f"Time_Machine_{now.day:02d}_{now.month:02d}_{now.year}.pdf"
             file = filedialog.asksaveasfilename(

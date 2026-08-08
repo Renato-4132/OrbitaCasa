@@ -10,7 +10,7 @@ def mostra_log_importazioni(self):
     import __main__ as _app
     LOG_IMPORTAZIONI = _app.LOG_IMPORTAZIONI
     EXPORT_FILES = _app.EXPORT_FILES
-    import fitz
+    import pymupdf as fitz
     from datetime import datetime
     popup = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
     popup.transient(self)

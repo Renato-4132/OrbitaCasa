@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
-import fitz
+import pymupdf as fitz
 import tkinter as tk
 from tkinter import ttk
 

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 def _patch_fitz_glifi_pdf():
-    import fitz
+    import pymupdf as fitz
     import os
     import datetime
      

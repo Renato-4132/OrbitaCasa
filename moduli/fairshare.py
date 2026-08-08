@@ -826,7 +826,7 @@ def popup_personali(self):
                 initialfile=f"Personali_{mese_sel}_{anno_sel}.pdf", parent=prev_win)
             if f:
                 try:
-                    import fitz
+                    import pymupdf as fitz
                     doc  = fitz.open()
                     page = doc.new_page(width=842, height=595)
                     page.insert_text((40, 40), contenuto, fontname="cour", fontsize=10)

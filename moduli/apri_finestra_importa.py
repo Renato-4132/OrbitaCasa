@@ -229,7 +229,7 @@ def apri_finestra_importa(self, path=None):
                 direzione = "Uscita"
                 _testo_self = ""
                 try:
-                    import fitz as _fitz_self
+                    import pymupdf as _fitz_self
                     _doc_self = _fitz_self.open(path)
                     _testo_self = "".join(p.get_text() for p in _doc_self).lower()
                     _doc_self.close()
