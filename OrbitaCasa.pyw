@@ -6110,7 +6110,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "b24be11b9e021313e5c63c39aaa62bfbfd75626769469a8b74f1690bfafd5b41"
+        E_H_B = "a220013c7fb8b4415320fdd7b46a1e7714c82df5369cce2e4e1b71625adee1ed"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
@@ -6416,23 +6416,23 @@ Image, ImageTk = install_pillow()
 
 def install_pymupdf():
     try:
-        import fitz
-        return fitz
+        import pymupdf
+        return pymupdf
     except ImportError:
         _sw_avanza("PyMuPDF")
         print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] 'PyMuPDF' non trovato. Installazione in corso...")
         try:
             _pip_install("pymupdf")
             print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] 'PyMuPDF' installato con successo.")
-            import fitz
-            return fitz
+            import pymupdf
+            return pymupdf
         except subprocess.CalledProcessError as e:
             print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] ERRORE: 'PyMuPDF' fallito: {e}")
             sys.exit(1)
         except ImportError:
-            print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] ERRORE: Impossibile importare 'fitz' dopo l'installazione.")
+            print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] ERRORE: Impossibile importare 'pymupdf' dopo l'installazione.")
             sys.exit(1)
-fitz = install_pymupdf()
+pymupdf = install_pymupdf()
 
 def install_pystray():
     if platform.system() != "Windows":
