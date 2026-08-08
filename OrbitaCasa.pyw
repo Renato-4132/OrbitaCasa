@@ -6110,7 +6110,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "a220013c7fb8b4415320fdd7b46a1e7714c82df5369cce2e4e1b71625adee1ed"
+        E_H_B = "bf3c4b2f99b2790214aa43b9d741e82172a3def81dd6998bcbc50c2790fc3148"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
@@ -6172,7 +6172,7 @@ def _sw_crea():
     inner = tk.Frame(win, bg="#1E1E2E")
     inner.place(x=2, y=2, width=W-4, height=H-4)
     tk.Label(win,
-             text=f"{NAME} – Setup",
+             text=f"Librerie – Setup",
              font=("Arial", 13, "bold"),
              fg="#FFFFFF", bg="#1E1E2E").pack(pady=(18, 2))
     tk.Label(win,
