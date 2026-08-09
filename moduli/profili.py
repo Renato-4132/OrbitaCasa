@@ -445,10 +445,14 @@ def mostra_selettore_profilo(self):
         sel = lb.curselection()
         if not sel:
             return
-        nome = profili[sel[0]]
+        idx = sel[0]
+        nome = profili[idx]
         if cancella_profilo(self, nome):
             profili.remove(nome)
-            lb.delete(sel[0])
+            lb.delete(idx)
+            if profili:
+                lb.selection_set(min(idx, len(profili) - 1))
+            _aggiorna_info()
 
     def _esporta():
         sel = lb.curselection()
