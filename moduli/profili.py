@@ -255,8 +255,12 @@ def importa_profilo(self):
     win.configure(bg=self.COLOR_BACKGROUND)
     win.transient(self)
     win.resizable(False, False)
+    w, h = 320, 100
+    x = self.winfo_rootx() + (self.winfo_width() // 2) - (w // 2)
+    y = self.winfo_rooty() + (self.winfo_height() // 2) - (h // 2)
+    win.geometry(f"{w}x{h}+{x}+{y}")
     win.bind("<Escape>", lambda e: win.destroy())
-
+    
     tk.Label(win, text="Nome del profilo da creare:", bg=self.COLOR_BACKGROUND,
              fg=self.TEXT_COLOR, font=("Arial", 9)).pack(padx=14, pady=(14, 4))
     entry = ttk.Entry(win, font=("Arial", 10))
