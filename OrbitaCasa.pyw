@@ -2316,7 +2316,7 @@ class GestioneSpese(tk.Tk):
                 scad_str = f" — 🕐 Trial: {max(0, giorni)} gg rimasti"
         except Exception:
             pass
-        self.title(f"💰 {NAME} v.{VERSION} — {stato_db} S-ID: {self.SESSION_ID} — Email: helporbitacasa@gmail.com —  Utente:► {current_folder}{scad_str}")
+        self.title(f"💰 {NAME} v.{VERSION} — {stato_db} S-ID: {self.SESSION_ID} — Email: helporbitacasa@gmail.com —  Utente:► {PROFILO_ATTIVO if PROFILO_ATTIVO != 'Principale' else current_folder}{scad_str}")
     
     # Bottone Movimenti Simili
     def aggiorna_bottone_spese_simili(self, visibile=True):
@@ -5639,7 +5639,7 @@ class GestioneSpese(tk.Tk):
                 f"Salve,\n\nVorrei ottenere/rinnovare la mia licenza OrbitaCasa.\n\n"
                 f"Licenza: {self.topic_unico}\n"
                 f"Versione: {VERSION}\n"
-                f"Utente: {self.current_folder}\n\n"
+                f"Utente: {PROFILO_ATTIVO if PROFILO_ATTIVO != 'Principale' else self.current_folder}\n\n"
                 f"In attesa di istruzioni.\n\nGrazie"
             )
             url = "mailto:helporbitacasa@gmail.com?subject=" + urllib.parse.quote("Licenza OrbitaCasa") + "&body=" + urllib.parse.quote(corpo)
@@ -6110,7 +6110,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "bf3c4b2f99b2790214aa43b9d741e82172a3def81dd6998bcbc50c2790fc3148"
+        E_H_B = "c19ed66462855ea05861b725a8231b58118f1b3a216060924994619bc41cf36a"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
