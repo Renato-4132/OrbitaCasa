@@ -255,12 +255,12 @@ def importa_profilo(self):
     win.configure(bg=self.COLOR_BACKGROUND)
     win.transient(self)
     win.resizable(False, False)
-    w, h = 320, 100
+    w, h = 420, 190
     x = self.winfo_rootx() + (self.winfo_width() // 2) - (w // 2)
     y = self.winfo_rooty() + (self.winfo_height() // 2) - (h // 2)
     win.geometry(f"{w}x{h}+{x}+{y}")
     win.bind("<Escape>", lambda e: win.destroy())
-    
+
     tk.Label(win, text="Nome del profilo da creare:", bg=self.COLOR_BACKGROUND,
              fg=self.TEXT_COLOR, font=("Arial", 9)).pack(padx=14, pady=(14, 4))
     entry = ttk.Entry(win, font=("Arial", 10))
@@ -315,7 +315,7 @@ def mostra_selettore_profilo(self):
     win.configure(bg=self.COLOR_BACKGROUND)
     win.transient(self)
     win.resizable(False, False)
-    w, h = 640, 410
+    w, h = 640, 440
     x = self.winfo_rootx() + (self.winfo_width() // 2) - (w // 2)
     y = self.winfo_rooty() + (self.winfo_height() // 2) - (h // 2)
     win.geometry(f"{w}x{h}+{x}+{y}")
@@ -342,6 +342,28 @@ def mostra_selettore_profilo(self):
         lb.insert("end", etichetta)
     if _app.PROFILO_ATTIVO in profili:
         lb.selection_set(profili.index(_app.PROFILO_ATTIVO))
+
+    info_frame = tk.Frame(win, bg=self.COLOR_BACKGROUND)
+    info_frame.pack(fill="x", padx=14, pady=(6, 0))
+    lbl_info_utente = tk.Label(info_frame, text="", bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
+                                font=("Arial", 8), anchor="w", justify="left")
+    lbl_info_utente.pack(fill="x")
+    lbl_info_cartella = tk.Label(info_frame, text="", bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
+                                  font=("Arial", 8), anchor="w", justify="left", wraplength=600)
+    lbl_info_cartella.pack(fill="x")
+
+    def _aggiorna_info(event=None):
+        sel = lb.curselection()
+        if not sel:
+            lbl_info_utente.config(text="")
+            lbl_info_cartella.config(text="")
+            return
+        nome = profili[sel[0]]
+        lbl_info_utente.config(text=f"Utente: {_etichetta_profilo(self, nome)}")
+        lbl_info_cartella.config(text=f"Cartella: {_percorso_db_profilo(nome)}")
+
+    lb.bind("<<ListboxSelect>>", _aggiorna_info)
+    _aggiorna_info()
 
     def _switch():
         sel = lb.curselection()
