@@ -6,8 +6,10 @@ import sys
 import json
 import shutil
 import subprocess
+import zipfile
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog
+from datetime import datetime
 
 
 def _restart_application():
@@ -172,6 +174,127 @@ def cancella_profilo(self, nome_profilo):
         self.show_toast(f"Errore durante l'eliminazione del profilo: {e}")
         return False
 
+
+# Export / Import profili
+
+_FILE_ESCLUSI_EXPORT = ("cert.pem", "key.pem", "._reg.json", "._trial.json", ".key_reg", "._sync_chk")
+_PATTERN_ESCLUSI_EXPORT = (".lock", "-journal", ".db-wal", ".tmp")
+_CARTELLE_ESCLUSE_EXPORT = ("resources",)
+
+
+def _percorso_db_profilo(nome_profilo):
+    import __main__ as _app
+    if nome_profilo == "Principale":
+        radice_dati = os.path.dirname(_app.PROFILI_DIR)
+        return os.path.join(radice_dati, "db")
+    return os.path.join(_app.PROFILI_DIR, nome_profilo, "db")
+
+
+def esporta_profilo(self, nome_profilo):
+    db_sorgente = _percorso_db_profilo(nome_profilo)
+    if not os.path.isdir(db_sorgente):
+        self.show_toast("Nessun dato da esportare per questo profilo")
+        return
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    nome_pulito = "".join(c if c.isalnum() else "_" for c in nome_profilo)
+    percorso_output = filedialog.asksaveasfilename(
+        title=f"Esporta profilo '{_etichetta_profilo(self, nome_profilo)}'",
+        initialdir=os.path.expanduser('~'),
+        initialfile=f"OrbitaCasa_{nome_pulito}_{timestamp}.zip",
+        defaultextension=".zip",
+        filetypes=[("Archivio Profilo OrbitaCasa", "*.zip")]
+    )
+    if not percorso_output:
+        return
+
+    try:
+        with zipfile.ZipFile(percorso_output, "w", zipfile.ZIP_DEFLATED) as zf:
+            for radice, cartelle, file_list in os.walk(db_sorgente):
+                cartelle[:] = [c for c in cartelle if c not in _CARTELLE_ESCLUSE_EXPORT]
+                for nome_file in file_list:
+                    if nome_file in _FILE_ESCLUSI_EXPORT:
+                        continue
+                    if any(p in nome_file for p in _PATTERN_ESCLUSI_EXPORT):
+                        continue
+                    percorso_assoluto = os.path.join(radice, nome_file)
+                    arcname = os.path.relpath(percorso_assoluto, db_sorgente)
+                    zf.write(percorso_assoluto, arcname)
+        self.show_custom_warning("Esporta Profilo",
+            f"Profilo '{_etichetta_profilo(self, nome_profilo)}' esportato con successo!")
+    except Exception as e:
+        self.show_custom_warning("Errore", f"Errore durante l'esportazione:\n{e}")
+
+
+def _estrai_zip_sicuro(percorso_zip, cartella_destinazione):
+    cartella_destinazione = os.path.normpath(cartella_destinazione)
+    with zipfile.ZipFile(percorso_zip, "r") as zf:
+        for member in zf.namelist():
+            dest = os.path.normpath(os.path.join(cartella_destinazione, member))
+            if dest != cartella_destinazione and not dest.startswith(cartella_destinazione + os.sep):
+                raise ValueError(f"Percorso non sicuro nell'archivio: {member}")
+        zf.extractall(cartella_destinazione)
+
+
+def importa_profilo(self):
+    import __main__ as _app
+
+    percorso_zip = filedialog.askopenfilename(
+        title="Seleziona archivio profilo da importare",
+        initialdir=os.path.expanduser('~'),
+        filetypes=[("Archivio Profilo OrbitaCasa", "*.zip")]
+    )
+    if not percorso_zip:
+        return
+    if not zipfile.is_zipfile(percorso_zip):
+        self.show_toast("Il file selezionato non è un archivio valido")
+        return
+
+    win = tk.Toplevel(self)
+    win.title("Importa Profilo")
+    win.configure(bg=self.COLOR_BACKGROUND)
+    win.transient(self)
+    win.resizable(False, False)
+    win.bind("<Escape>", lambda e: win.destroy())
+
+    tk.Label(win, text="Nome del profilo da creare:", bg=self.COLOR_BACKGROUND,
+             fg=self.TEXT_COLOR, font=("Arial", 9)).pack(padx=14, pady=(14, 4))
+    entry = ttk.Entry(win, font=("Arial", 10))
+    entry.pack(padx=14, pady=(0, 10), fill="x")
+    entry.focus_set()
+
+    def _conferma():
+        nome = _nome_profilo_valido(entry.get())
+        if not nome:
+            self.show_toast("Nome profilo non valido")
+            return
+        if nome in elenco_profili(self):
+            self.show_toast("Esiste già un profilo con questo nome")
+            return
+
+        cartella = os.path.join(_app.PROFILI_DIR, nome)
+        db_profilo = os.path.join(cartella, "db")
+        try:
+            os.makedirs(db_profilo, exist_ok=True)
+            _estrai_zip_sicuro(percorso_zip, db_profilo)
+            _copia_certificati_e_licenza(_app.DB_DIR, db_profilo)
+            _propaga_config_webserver(_app.DB_DIR, db_profilo)
+        except Exception as e:
+            self.show_toast(f"Errore durante l'importazione: {e}")
+            return
+
+        win.destroy()
+        if self.show_custom_askyesno("Importa Profilo",
+                f"Profilo '{nome}' importato con successo.\n\nPassare subito al nuovo profilo?"):
+            cambia_profilo(self, nome)
+
+    entry.bind("<Return>", lambda e: _conferma())
+    btnf = tk.Frame(win, bg=self.COLOR_BACKGROUND)
+    btnf.pack(pady=(0, 14))
+    _crea_bottone_icona(self, btnf, "check", "Importa", _conferma).pack(side="left", padx=6)
+    _crea_bottone_icona(self, btnf, "chiudi", "Annulla", win.destroy).pack(side="left", padx=6)
+
+
 def _crea_bottone_icona(self, parent, icon_key, testo, comando):
     img = self.icone_gui.get(icon_key)
     lbl = tk.Label(parent, compound="left", image=img, text=f" {testo}",
@@ -188,7 +311,7 @@ def mostra_selettore_profilo(self):
     win.configure(bg=self.COLOR_BACKGROUND)
     win.transient(self)
     win.resizable(False, False)
-    w, h = 640, 370
+    w, h = 640, 410
     x = self.winfo_rootx() + (self.winfo_width() // 2) - (w // 2)
     y = self.winfo_rooty() + (self.winfo_height() // 2) - (h // 2)
     win.geometry(f"{w}x{h}+{x}+{y}")
@@ -301,8 +424,18 @@ def mostra_selettore_profilo(self):
             profili.remove(nome)
             lb.delete(sel[0])
 
+    def _esporta():
+        sel = lb.curselection()
+        if not sel:
+            return
+        esporta_profilo(self, profili[sel[0]])
+
+    def _importa():
+        win.destroy()
+        importa_profilo(self)
+
     btn_frame = tk.Frame(win, bg=self.COLOR_BACKGROUND)
-    btn_frame.pack(fill="x", padx=14, pady=14)
+    btn_frame.pack(fill="x", padx=14, pady=(14, 6))
     btn_frame.columnconfigure((0, 1, 2, 3, 4), weight=1)
 
     _crea_bottone_icona(self, btn_frame, "sync",      "Attiva",    _switch).grid(row=0, column=0, padx=(0, 3), sticky="ew")
@@ -310,3 +443,10 @@ def mostra_selettore_profilo(self):
     _crea_bottone_icona(self, btn_frame, "modifica",  "Rinomina",  _rinomina).grid(row=0, column=2, padx=3, sticky="ew")
     _crea_bottone_icona(self, btn_frame, "delete",    "Elimina",   _elimina).grid(row=0, column=3, padx=(3, 0), sticky="ew")
     _crea_bottone_icona(self, btn_frame, "chiudi",    "Chiudi",    win.destroy).grid(row=0, column=4, padx=(3, 0), sticky="ew")
+
+    btn_frame2 = tk.Frame(win, bg=self.COLOR_BACKGROUND)
+    btn_frame2.pack(fill="x", padx=14, pady=(0, 14))
+    btn_frame2.columnconfigure((0, 1), weight=1)
+
+    _crea_bottone_icona(self, btn_frame2, "documenti", "Esporta", _esporta).grid(row=0, column=0, padx=(0, 3), sticky="ew")
+    _crea_bottone_icona(self, btn_frame2, "carica",    "Importa", _importa).grid(row=0, column=1, padx=(3, 0), sticky="ew")

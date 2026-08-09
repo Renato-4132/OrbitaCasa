@@ -223,7 +223,7 @@ def pop_opzioni(self):
                 activebackground=self.MENU_ACT_BG_COLOR, font=("Arial", 9))
     self._add_m_item(m, "Impostazioni App", "filtri", self.gestisci_configurazione)
     m.add_separator()
-    self._add_m_item(m, "Cambia Profilo Utente", "api_key", self.mostra_selettore_profilo)
+    self._add_m_item(m, "Gestisci Profili Utenti", "api_key", self.mostra_selettore_profilo)
     m.add_separator()
     self._add_m_item(m, "Cambia Password", "api_key", self.apri_cambio_password)
     m.add_separator()
@@ -348,7 +348,7 @@ def _filtra_sidebar(self, *_):
         ("Promemoria",                            self.gestisci_promemoria),
         ("GCalendar",                             self.launch_qr_svg_generator),
         ("Piano Dieta",                           self.apri_dieta),
-        ("Studio Professionale",                  self.apri_studio),
+        ("MyBuisness",                            self.apri_studio),
         ("Portafoglio Bancario",                  self.open_saldo_conto),
         ("Stampa",                                self.anteprima_e_stampa_txt),
         ("Pannello Controllo",                    self.calcola_mancanti),
@@ -389,7 +389,7 @@ def _filtra_sidebar(self, *_):
         ("Cambia Password",                       self.apri_cambio_password),
         ("Registra Prodotto",                     self.apri_registrazione),
         ("Gamification",                          self.mostra_dettaglio_gamification),
-        ("Cambia Profilo Utente",                 self.mostra_selettore_profilo),
+        ("Gestisci Profili Utenti",               self.mostra_selettore_profilo),
         ("Controlla Aggiornamenti",               self.forza_check_aggiornamento_con_api),
         ("Forza Aggiornamento",                   self.forza_aggiorna),
         ("Annulla Ultimo Aggiornamento",          self.ripristina_da_backup),
