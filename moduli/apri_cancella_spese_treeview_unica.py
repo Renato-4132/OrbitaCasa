@@ -291,7 +291,8 @@ def apri_cancella_spese_treeview_unica(self):
         filtro_win.update_idletasks()
         filtro_win.grab_set()
         filtro_win.bind("<Escape>", lambda e: filtro_win.destroy())
-        _gestore_nome_canc = os.path.basename(os.getcwd())
+        _profilo_attivo_ac = getattr(_app, "PROFILO_ATTIVO", "Principale")
+        _gestore_nome_canc = _profilo_attivo_ac if _profilo_attivo_ac != "Principale" else os.path.basename(os.getcwd())
         _nomi_reg_canc = [(p.get("nome", "") if isinstance(p, dict) else p) for p in self.nomi_partecipanti]
         nomi_p = ["—"]
         if self._gestore_partecipa() and _gestore_nome_canc not in _nomi_reg_canc:

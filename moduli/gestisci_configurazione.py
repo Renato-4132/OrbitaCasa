@@ -326,6 +326,14 @@ def gestisci_configurazione(self):
                 "sync_intervallo_min": int(self.var_sync_intervallo.get() or 720),
                 "close_behavior": self.var_close_behavior.get(),
             }
+            try:
+                with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                    _cfg_precedente = json.load(f)
+                if "profilo_attivo" in _cfg_precedente:
+                    nuova_config["profilo_attivo"] = _cfg_precedente["profilo_attivo"]
+            except Exception:
+                pass
+
             if not os.path.exists(DB_DIR):
                 os.makedirs(DB_DIR)
             with open(CONFIG_FILE, 'w', encoding='utf-8') as f:

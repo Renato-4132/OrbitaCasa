@@ -38,7 +38,9 @@ def mostra_grafici_fairshare(self, anno_sel="Tutti", mese_sel="Tutti"):
     anni_db = sorted({d.year for d in self.spese if isinstance(d, datetime.date)}, reverse=True)
     nomi_p_raw = {p["nome"]: p.get("tipo","persona") for p in self.nomi_partecipanti
                   if p.get("tipo") in ("persona","contenitore")}
-    _gestore = os.path.basename(os.getcwd())
+    import __main__ as _app
+    _profilo_attivo_gf = getattr(_app, "PROFILO_ATTIVO", "Principale")
+    _gestore = _profilo_attivo_gf if _profilo_attivo_gf != "Principale" else os.path.basename(os.getcwd())
     if self._gestore_partecipa() and _gestore not in nomi_p_raw:
         nomi_p_raw[_gestore] = "persona"
     def _ico_g(nome):

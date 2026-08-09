@@ -39,7 +39,8 @@ def mostra_dare_avere(self):
     anni_db = sorted({d.year for d in self.spese if isinstance(d, datetime.date)}, reverse=True)
     if oggi.year not in anni_db:
         anni_db.insert(0, oggi.year)
-    _gestore   = os.path.basename(os.getcwd())
+    _profilo_attivo_da = getattr(_app, "PROFILO_ATTIVO", "Principale")
+    _gestore = _profilo_attivo_da if _profilo_attivo_da != "Principale" else os.path.basename(os.getcwd())
     _nomi_ico  = {}
     for p in self.nomi_partecipanti:
         if p.get("tipo") not in ("persona", "contenitore"):

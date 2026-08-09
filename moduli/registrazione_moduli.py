@@ -83,6 +83,9 @@ def registra_tutti_i_moduli(GestioneSpese):
     from moduli.temi import applica_temi
     _registra(applica_temi)
 
+    from moduli.profili import mostra_selettore_profilo, elenco_profili, cambia_profilo
+    _registra(mostra_selettore_profilo, elenco_profili, cambia_profilo)
+
     from moduli.dashboard_grafici_estratti import (
         _mostra_tip_safe, _nascondi_tip_safe, draw_estratto_metodo, draw_estratto_conto,
         draw_heatmap_mese, draw_spark_mese,)
@@ -361,7 +364,8 @@ def registra_tutti_i_moduli(GestioneSpese):
         stats_mensili_html, modifica_voce_form, cancella_voce_web, aggiungi_voce_web, carica_db_web, analizza_pdf_web,
         ricalcola_operazioni_web, notifica_modifica_web, web_info, pianifica_sincro_web,
         manda_push, get_dati_entrate_uscite_tutti_gli_anni_json, get_dati_saldo_annuale_json,
-        get_dati_entrate_uscite_json, get_dati_saldo_json,)
+        get_dati_entrate_uscite_json, get_dati_saldo_json, esegui_switch_profilo_web, pagina_cambia_profilo_web,
+        pagina_switch_in_corso_web,)
     _registra(apri_webserver, _crea_flask_app, start_web_server, html_login, 
     html_cambia_pw_web, html_log_web, pagina_risultati_avanzati, html_info_sys, 
     html_form, html_saluto, html_fairshare_web, documenti_pdf_web, documenti_personali_web, 
@@ -371,7 +375,8 @@ def registra_tutti_i_moduli(GestioneSpese):
     modifica_voce_form, cancella_voce_web, aggiungi_voce_web, carica_db_web, analizza_pdf_web, 
     ricalcola_operazioni_web, notifica_modifica_web, web_info, pianifica_sincro_web,
     manda_push, get_dati_entrate_uscite_tutti_gli_anni_json, get_dati_saldo_annuale_json,
-    get_dati_entrate_uscite_json, get_dati_saldo_json)
+    get_dati_entrate_uscite_json, get_dati_saldo_json, esegui_switch_profilo_web, pagina_cambia_profilo_web,
+    pagina_switch_in_corso_web)
 
     from moduli.sicurezza_rete import (
         apri_cambio_password, scarica_manuale_ssl, _apri_viewer_ssl, start_watchdog_server, genera_certificati_auto,

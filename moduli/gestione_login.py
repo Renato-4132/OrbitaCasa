@@ -15,6 +15,8 @@ def gestione_login(self):
     NAME = _app.NAME
     VERSION = _app.VERSION
     PW_FILE = _app.PW_FILE
+    PROFILO_ATTIVO = _app.PROFILO_ATTIVO
+    DB_DIR = _app.DB_DIR
     LOGIN_LCL = _app.LOGIN_LCL
     AUTO_ICONIZE_STARTUP = getattr(_app, "AUTO_ICONIZE_STARTUP", False)
     ABILITA_WEBSERVER = getattr(_app, "ABILITA_WEBSERVER", False)
@@ -270,7 +272,7 @@ def gestione_login(self):
                      font=("Arial", 10), bg=BG, fg=FG, justify="center").pack(pady=5)
         else:
             tk.Label(login, text="AREA RISERVATA", font=("Arial", 16, "bold"), bg=BG, fg=FG_ERR).pack(pady=(10, 0))
-            tk.Label(login, text=f"Utente: {current_folder}", font=("Arial", 11), bg=BG, fg=FG_DIM).pack()
+            tk.Label(login, text=f"Utente: {PROFILO_ATTIVO if PROFILO_ATTIVO != 'Principale' else current_folder}", font=("Arial", 11), bg=BG, fg=FG_DIM).pack()
             tk.Label(login, text=f"Ultimo accesso: {ultimo_login_str}", font=("Arial", 9, "italic"),
                      bg=BG, fg=FG_WARN).pack(pady=5)
             tk.Label(login, text=f"S-ID: {self.SESSION_ID}", font=("Arial", 8),
@@ -400,11 +402,18 @@ def gestione_login(self):
         aggiorna_blocco()
         login.wait_window()
 
-    if not os.path.exists(PW_FILE):
-        mostra_finestra_login()
-    elif AUTO_ICONIZE_STARTUP:
+    _web_switch_marker = os.path.join(DB_DIR, ".web_switch_pending")
+    _da_switch_web = os.path.exists(_web_switch_marker)
+    if _da_switch_web:
+        try:
+            os.remove(_web_switch_marker)
+        except Exception:
+            pass
+
+    if AUTO_ICONIZE_STARTUP or _da_switch_web:
         login_riuscito[0] = True
-        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Login bypassato (AUTO_ICONIZE_STARTUP).")
+        motivo = "AUTO_ICONIZE_STARTUP" if AUTO_ICONIZE_STARTUP else "switch profilo da web"
+        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Login bypassato ({motivo}).")
     if not login_riuscito[0]:
         mostra_finestra_login()
     if login_riuscito[0]:

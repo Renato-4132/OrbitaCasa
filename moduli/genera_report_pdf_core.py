@@ -10,7 +10,8 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
     import __main__ as _app
     PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
     import os
-    current_folder = os.path.basename(os.getcwd())
+    _profilo_attivo_rep = getattr(_app, "PROFILO_ATTIVO", "Principale")
+    current_folder = _profilo_attivo_rep if _profilo_attivo_rep != "Principale" else os.path.basename(os.getcwd())
     import datetime, tempfile, os, json
     from collections import defaultdict
     if sezioni is None:
@@ -501,7 +502,8 @@ def _apri_viewer_report(self, pdf_path):
     import __main__ as _app
     EXPORT_FILES = _app.EXPORT_FILES
     import os
-    current_folder = os.path.basename(os.getcwd())
+    _profilo_attivo_rep2 = getattr(_app, "PROFILO_ATTIVO", "Principale")
+    current_folder = _profilo_attivo_rep2 if _profilo_attivo_rep2 != "Principale" else os.path.basename(os.getcwd())
 
     import os, datetime
     oggi = datetime.date.today()

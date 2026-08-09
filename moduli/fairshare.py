@@ -47,7 +47,9 @@ def _aggiorna_descrizione_con_partecipante(self, scelta_combo, target_var=None):
                     desc = desc[len(s):].strip()
                     break
     icone_possibili = ["CNT·", "PER·", "CTP·"]
-    _gestore_n = os.path.basename(os.getcwd())
+    import __main__ as _app
+    _profilo_attivo_fs = getattr(_app, "PROFILO_ATTIVO", "Principale")
+    _gestore_n = _profilo_attivo_fs if _profilo_attivo_fs != "Principale" else os.path.basename(os.getcwd())
     nomi_noti = sorted([_gn(p) for p in self.nomi_partecipanti] + [_gestore_n], key=len, reverse=True)
     blocco_trovato = False
     for ico_v in icone_possibili:
@@ -109,7 +111,9 @@ def _aggiorna_descrizione_con_ric_partecipante(self, scelta_combo, target_var=No
             desc = desc[len(s):].strip()
             break
     icone_possibili = ["CNT·", "PER·", "CTP·"]
-    _gestore_n = os.path.basename(os.getcwd())
+    import __main__ as _app
+    _profilo_attivo_fs = getattr(_app, "PROFILO_ATTIVO", "Principale")
+    _gestore_n = _profilo_attivo_fs if _profilo_attivo_fs != "Principale" else os.path.basename(os.getcwd())
     nomi_noti = sorted([_gn(p) for p in self.nomi_partecipanti] + [_gestore_n], key=len, reverse=True)
     blocco_trovato = False
     for ico_v in icone_possibili:
@@ -175,7 +179,9 @@ def _sync_fairshare_e_aggiorna(self):
             pass
     self.after(50, _aggiorna_se_aperta)
 def sincronizza_fairshare_state(self):
-    NOME_GESTORE = os.path.basename(os.getcwd())
+    import __main__ as _app
+    _profilo_attivo_fs = getattr(_app, "PROFILO_ATTIVO", "Principale")
+    NOME_GESTORE = _profilo_attivo_fs if _profilo_attivo_fs != "Principale" else os.path.basename(os.getcwd())
     debiti_esistenti = self.carica_fairshare_state()
     idx = {}
     for d in debiti_esistenti:
@@ -366,7 +372,9 @@ def mostra_riepilogo_fairshare_periodo(self):
         anni_db.insert(0, oggi.year)
     nomi_p_raw = {p["nome"]: p.get("tipo","persona") for p in self.nomi_partecipanti
                   if p.get("tipo") in ("persona","contenitore")}
-    _gestore = os.path.basename(os.getcwd())
+    import __main__ as _app
+    _profilo_attivo_fs = getattr(_app, "PROFILO_ATTIVO", "Principale")
+    _gestore = _profilo_attivo_fs if _profilo_attivo_fs != "Principale" else os.path.basename(os.getcwd())
     if self._gestore_partecipa() and _gestore not in nomi_p_raw:
         nomi_p_raw[_gestore] = "persona"
     def _ico_p(nome):
@@ -1176,7 +1184,9 @@ def mostra_guida_dare_avere(self, popup=None):
     guida_win.bind("<Escape>", lambda e: guida_win.destroy())
     guida_win.bind("<Destroy>", lambda e: setattr(self, '_guida_popup', None))
     guida_win.transient(popup)
-    NOME_GESTORE = os.path.basename(os.getcwd())
+    import __main__ as _app
+    _profilo_attivo_fs = getattr(_app, "PROFILO_ATTIVO", "Principale")
+    NOME_GESTORE = _profilo_attivo_fs if _profilo_attivo_fs != "Principale" else os.path.basename(os.getcwd())
     testo_guida = (
         "1. LOGICA DI BASE\n"
         "   La quota di ogni Persona = totale uscite (incluse quelle dei Gruppi) / numero Persone.\n"

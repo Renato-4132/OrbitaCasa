@@ -15,6 +15,15 @@ def leggi_configurazione_globale(path_locale):
         pass
     return {}
 
+def salva_profilo_attivo(path_locale, nome_profilo):
+    c_dir = os.path.join(path_locale, "db")
+    os.makedirs(c_dir, exist_ok=True)
+    c_file = os.path.join(c_dir, "config.json")
+    cfg = leggi_configurazione_globale(path_locale)
+    cfg["profilo_attivo"] = nome_profilo
+    with open(c_file, 'w', encoding='utf-8') as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+
 def carica_costanti(path_locale):
     g = {}
     app_config_globale = leggi_configurazione_globale(path_locale)
@@ -29,6 +38,17 @@ def carica_costanti(path_locale):
     else:
         BASE_DIR = path_locale
         print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] 🏠 Modalità Locale Attiva")
+
+    # Profili utente
+    RADICE_DATI = BASE_DIR
+    PROFILI_DIR = os.path.join(RADICE_DATI, "profili")
+    PROFILO_ATTIVO = app_config_globale.get("profilo_attivo", "Principale")
+    if PROFILO_ATTIVO and PROFILO_ATTIVO != "Principale":
+        BASE_DIR = os.path.join(PROFILI_DIR, PROFILO_ATTIVO)
+        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] 👤 Profilo Attivo: {PROFILO_ATTIVO}")
+    g['RADICE_DATI'] = RADICE_DATI
+    g['PROFILI_DIR'] = PROFILI_DIR
+    g['PROFILO_ATTIVO'] = PROFILO_ATTIVO
     g['BASE_DIR'] = BASE_DIR
 
     g['URL_PDF'] = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/refs/heads/main/resources/OrbitaCasa.pdf"
@@ -62,7 +82,7 @@ def carica_costanti(path_locale):
     g['EXP_DB'] = os.path.join(DB_DIR, g['EXPORTDB_DIR'])
     g['PW_FILE'] = os.path.join(DB_DIR, "password.json")
     g['MEM_CAT'] = os.path.join(DB_DIR, "memoria_categorie.json")
-    g['CONFIG_FILE'] = os.path.join(path_locale, "db", "config.json")
+    g['CONFIG_FILE'] = os.path.join(DB_DIR, "config.json")
     g['RIMANDA_FILE'] = os.path.join(DB_DIR, "update.json")
     g['PROMEMORIA_FILE'] = os.path.join(DB_DIR, "promemoria.json")
     g['PORTAFOGLIO_AZIONI'] = os.path.join(DB_DIR, "portafoglio.json")

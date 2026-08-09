@@ -387,7 +387,8 @@ def mostra_ricorrenza_popup(self):
             (2 if x.get("tipo") == "personale" else 1),
             x.get("nome", "").lower()
     ))
-    _gestore_init = os.path.basename(os.getcwd())
+    _profilo_attivo_rp = getattr(_app, "PROFILO_ATTIVO", "Principale")
+    _gestore_init = _profilo_attivo_rp if _profilo_attivo_rp != "Principale" else os.path.basename(os.getcwd())
     _nomi_init    = [p.get("nome", "") for p in self.nomi_partecipanti]
     if self._gestore_partecipa() and _gestore_init not in _nomi_init:
         self.nomi_con_icone.append(f"PER· {_gestore_init}")

@@ -188,6 +188,7 @@ def mostra_piramide(self):
                 "moduli": [
                     ("Impostazioni",      "Configurazione app",  _g("gestisci_configurazione")),
                     ("Password",          "Sicurezza account",   _g("apri_cambio_password")),
+                    ("Profili",           "Cambia profilo",      _g("mostra_selettore_profilo")),
                     ("Registra",          "Attivazione licenza", _g("apri_registrazione")),
                     ("Assistenza",        "Supporto",           (lambda: self.apri_pannello_topic(self.topic_unico)) if _g("apri_pannello_topic") else None),
                 ],

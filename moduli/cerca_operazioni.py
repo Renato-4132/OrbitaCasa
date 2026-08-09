@@ -208,7 +208,8 @@ def cerca_operazioni(self):
         except Exception:
             _agganci_cerca = {}
         _uso_ordinale_cerca = {}
-        _gestore_nome_cerca_owner = os.path.basename(os.getcwd())
+        _profilo_attivo_co = getattr(_app, "PROFILO_ATTIVO", "Principale")
+        _gestore_nome_cerca_owner = _profilo_attivo_co if _profilo_attivo_co != "Principale" else os.path.basename(os.getcwd())
         _candidati_owner = list(self.nomi_partecipanti) if hasattr(self, "nomi_partecipanti") and self.nomi_partecipanti else []
         if self._gestore_partecipa() and not any(
                 (p.get("nome", "") if isinstance(p, dict) else p) == _gestore_nome_cerca_owner
@@ -428,8 +429,8 @@ def cerca_operazioni(self):
         ), reverse=True)
         mesi_nomi = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
                      "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
-        _gestore_nome_cerca = os.path.basename(os.getcwd())
-        _nomi_esistenti_cerca = [p.get("nome", "") for p in self.nomi_partecipanti] if hasattr(self, "nomi_partecipanti") and self.nomi_partecipanti else []
+        _profilo_attivo_co2 = getattr(_app, "PROFILO_ATTIVO", "Principale")
+        _gestore_nome_cerca = _profilo_attivo_co2 if _profilo_attivo_co2 != "Principale" else os.path.basename(os.getcwd())
         lista_partecipanti = ["—"]
         if self._gestore_partecipa() and _gestore_nome_cerca not in _nomi_esistenti_cerca:
             lista_partecipanti.append(f"PER· {_gestore_nome_cerca}")

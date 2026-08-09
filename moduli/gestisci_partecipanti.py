@@ -68,7 +68,8 @@ def gestisci_partecipanti(self, target_popup=None):
     def _get_nome(p):
         return p.get("nome", p) if isinstance(p, dict) else p
     def aggiorna_lista():
-        NOME_GESTORE = os.path.basename(os.getcwd())
+        _profilo_attivo_gp = getattr(_app, "PROFILO_ATTIVO", "Principale")
+        NOME_GESTORE = _profilo_attivo_gp if _profilo_attivo_gp != "Principale" else os.path.basename(os.getcwd())
         self.nomi_partecipanti.sort(key=lambda x: (
             0 if (isinstance(x, dict) and x.get("tipo") == "contenitore") else
             (2 if (isinstance(x, dict) and x.get("tipo") == "personale") else 1),
@@ -158,7 +159,8 @@ def gestisci_partecipanti(self, target_popup=None):
         for w in soci_container.winfo_children():
             w.destroy()
         check_vars.clear()
-        NOME_GESTORE = os.path.basename(os.getcwd())
+        _profilo_attivo_gp = getattr(_app, "PROFILO_ATTIVO", "Principale")
+        NOME_GESTORE = _profilo_attivo_gp if _profilo_attivo_gp != "Principale" else os.path.basename(os.getcwd())
         persone = [p for p in self.nomi_partecipanti
                    if (isinstance(p, dict) and p.get("tipo") == "persona") or isinstance(p, str)]
         gestore_partecipa = self._gestore_partecipa()
@@ -306,7 +308,8 @@ def gestisci_partecipanti(self, target_popup=None):
     aggiorna_lista()
     btn_frame = ttk.Frame(f)
     btn_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=(4, 0))
-    _nome_gest = os.path.basename(os.getcwd())
+    _profilo_attivo_gp = getattr(_app, "PROFILO_ATTIVO", "Principale")
+    _nome_gest = _profilo_attivo_gp if _profilo_attivo_gp != "Principale" else os.path.basename(os.getcwd())
     var_gest_part = tk.BooleanVar(value=_leggi_gestore_partecipa())
     def _salva_gestore_e_chiudi():
         _scrivi_gestore_partecipa(var_gest_part.get())
