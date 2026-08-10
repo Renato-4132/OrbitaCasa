@@ -12,6 +12,7 @@ from tkinter import ttk, filedialog
 from datetime import datetime
 
 MAX_LUNGHEZZA_NOME_PROFILO = 30
+MAX_PROFILI = 8
 
 def _restart_application():
     script_path = os.path.abspath(sys.argv[0])
@@ -257,7 +258,7 @@ def importa_profilo(self):
     win.configure(bg=self.COLOR_BACKGROUND)
     win.transient(self)
     win.resizable(False, False)
-    w, h = 420, 190
+    w, h = 300, 110
     x = self.winfo_rootx() + (self.winfo_width() // 2) - (w // 2)
     y = self.winfo_rooty() + (self.winfo_height() // 2) - (h // 2)
     win.geometry(f"{w}x{h}+{x}+{y}")
@@ -265,7 +266,9 @@ def importa_profilo(self):
 
     tk.Label(win, text="Nome del profilo da creare:", bg=self.COLOR_BACKGROUND,
              fg=self.TEXT_COLOR, font=("Arial", 9)).pack(padx=14, pady=(14, 4))
-    entry = ttk.Entry(win, font=("Arial", 10))
+    vcmd_nome_profilo_imp = (win.register(lambda P: len(P) <= 30), '%P')
+    entry = ttk.Entry(win, font=("Arial", 10), width=32,
+                       validate="key", validatecommand=vcmd_nome_profilo_imp)
     entry.pack(padx=14, pady=(0, 10), fill="x")
     entry.focus_set()
 
@@ -274,8 +277,12 @@ def importa_profilo(self):
         if not nome:
             self.show_toast("Nome profilo non valido")
             return
-        if nome in elenco_profili(self):
+        profili_esistenti = elenco_profili(self)
+        if nome in profili_esistenti:
             self.show_toast("Esiste già un profilo con questo nome")
+            return
+        if len(profili_esistenti) >= MAX_PROFILI:
+            self.show_toast(f"Limite massimo di {MAX_PROFILI} profili raggiunto")
             return
 
         cartella = os.path.join(_app.PROFILI_DIR, nome)
@@ -379,11 +386,17 @@ def mostra_selettore_profilo(self):
         popup.configure(bg=self.COLOR_BACKGROUND)
         popup.transient(win)
         popup.resizable(False, False)
+        w, h = 300, 110
+        x = win.winfo_rootx() + (win.winfo_width() // 2) - (w // 2)
+        y = win.winfo_rooty() + (win.winfo_height() // 2) - (h // 2)
+        popup.geometry(f"{w}x{h}+{x}+{y}")
         popup.bind("<Escape>", lambda e: popup.destroy())
         
         tk.Label(popup, text="Nome del nuovo profilo:", bg=self.COLOR_BACKGROUND,
                  fg=self.TEXT_COLOR, font=("Arial", 9)).pack(padx=14, pady=(14, 4))
-        entry = ttk.Entry(popup, font=("Arial", 10))
+        vcmd_nome_profilo = (popup.register(lambda P: len(P) <= 30), '%P')
+        entry = ttk.Entry(popup, font=("Arial", 10), width=32,
+                           validate="key", validatecommand=vcmd_nome_profilo)
         entry.pack(padx=14, pady=(0, 10), fill="x")
         entry.focus_set()
 
@@ -394,6 +407,9 @@ def mostra_selettore_profilo(self):
                 return
             if nome in profili:
                 self.show_toast("Esiste già un profilo con questo nome")
+                return
+            if len(profili) >= MAX_PROFILI:
+                self.show_toast(f"Limite massimo di {MAX_PROFILI} profili raggiunto")
                 return
             popup.destroy()
             win.destroy()
