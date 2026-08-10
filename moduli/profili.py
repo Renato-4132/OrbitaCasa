@@ -11,6 +11,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog
 from datetime import datetime
 
+MAX_LUNGHEZZA_NOME_PROFILO = 30
 
 def _restart_application():
     script_path = os.path.abspath(sys.argv[0])
@@ -62,6 +63,8 @@ def _nome_profilo_valido(nome):
     nome = (nome or "").strip()
     if not nome or nome.lower() == "principale":
         return None
+    if len(nome) > MAX_LUNGHEZZA_NOME_PROFILO:
+        return None
     caratteri_ok = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_- ")
     if any(c not in caratteri_ok for c in nome):
         return None
@@ -72,7 +75,6 @@ def _etichetta_profilo(self, nome_profilo):
     if nome_profilo == "Principale":
         return getattr(_app, "current_folder", "Principale")
     return nome_profilo
-
 
 def cambia_profilo(self, nome_profilo, nuovo=False):
     import __main__ as _app
