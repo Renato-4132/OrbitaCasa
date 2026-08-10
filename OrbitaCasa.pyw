@@ -882,6 +882,7 @@ class GestioneSpese(tk.Tk):
                 background=self.COLOR_WIDGET_BG
         )
         self.lbl_badge_gamification.pack(side=tk.LEFT, padx=(10, 0))
+        self.lbl_badge_gamification.bind("<Button-1>", lambda e: self.mostra_dettaglio_gamification())
         self.btn_aggiorna_lib = tk.Label(
                 frame_licence,
                 image=self.icone_gui.get("carica"),
@@ -6113,7 +6114,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "5d5baf12675bc757057c26cd3b6cb6cbb1ebd6bb368644cdfecf6e123ea688fa"
+        E_H_B = "5455163f8316b3d5d1fcfcb4ae9ee0975c8724c47a3daf0f8a211c69cd6ef632"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
