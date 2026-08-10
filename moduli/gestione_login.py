@@ -199,6 +199,23 @@ def gestione_login(self):
         btn_conferma.pack(side="right", expand=True)
         btn_conferma.bind("<Button-1>", lambda e: esegui_conferma_cambio())
 
+    def _cambia_profilo_da_login(nome_profilo, login_win):
+        import __main__ as _app
+        from moduli.costanti import salva_profilo_attivo
+        from moduli.profili import _restart_application
+        if nome_profilo != "Principale":
+            os.makedirs(os.path.join(_app.PROFILI_DIR, nome_profilo, "db"), exist_ok=True)
+        salva_profilo_attivo(_app.PATH_LOCALE, nome_profilo)
+        try:
+            login_win.destroy()
+        except Exception:
+            pass
+        try:
+            self._on_close_lock()
+        except Exception:
+            pass
+        _restart_application()
+
     def mostra_finestra_login():
         tentativi_falliti = 0
         MAX_TENTATIVI = 3
@@ -272,11 +289,41 @@ def gestione_login(self):
                      font=("Arial", 10), bg=BG, fg=FG, justify="center").pack(pady=5)
         else:
             tk.Label(login, text="AREA RISERVATA", font=("Arial", 16, "bold"), bg=BG, fg=FG_ERR).pack(pady=(10, 0))
-            tk.Label(login, text=f"Utente: {PROFILO_ATTIVO if PROFILO_ATTIVO != 'Principale' else current_folder}", font=("Arial", 11), bg=BG, fg=FG_DIM).pack()
             tk.Label(login, text=f"Ultimo accesso: {ultimo_login_str}", font=("Arial", 9, "italic"),
                      bg=BG, fg=FG_WARN).pack(pady=5)
             tk.Label(login, text=f"S-ID: {self.SESSION_ID}", font=("Arial", 8),
                      bg=BG, fg=FG_WARN).place(x=290, y=20)
+
+        from moduli.profili import elenco_profili, _etichetta_profilo
+        profili_disponibili = elenco_profili(self)
+        if len(profili_disponibili) > 1:
+            mappa_etichette = {_etichetta_profilo(self, nome): nome for nome in profili_disponibili}
+            etichetta_corrente = _etichetta_profilo(self, PROFILO_ATTIVO)
+            frame_sel = tk.Frame(login, bg=BG)
+            frame_sel.pack(pady=(0, 4))
+            tk.Label(frame_sel, text="Profilo:", font=("Arial", 9, "bold"), bg=BG, fg=FG_DIM).pack(side="left", padx=(0, 6))
+
+            img_profilo_icon = self.icone_gui.get("promemoria")
+
+            var_profilo = tk.StringVar(value=etichetta_corrente)
+
+            def _on_profilo_selezionato(etichetta_scelta):
+                nome_scelto = mappa_etichette.get(etichetta_scelta)
+                if nome_scelto and nome_scelto != PROFILO_ATTIVO:
+                    _cambia_profilo_da_login(nome_scelto, login)
+
+            menu_profilo = tk.OptionMenu(frame_sel, var_profilo, *mappa_etichette.keys(),
+                              command=_on_profilo_selezionato)
+            menu_profilo.config(bg=BG_W, fg=FG, activebackground=ACCENT, activeforeground=BG_W,
+                     highlightthickness=1, highlightbackground=ACCENT, highlightcolor=ACCENT,
+                     bd=0, relief="flat", font=("Arial", 9), cursor="hand2",
+                     padx=10, pady=4, indicatoron=0,
+                     compound="left", image=img_profilo_icon if img_profilo_icon else "")
+            menu_profilo["menu"].config(bg=BG_W, fg=FG, activebackground=ACCENT, activeforeground=BG_W,
+                             font=("Arial", 9))
+            menu_profilo.pack(side="left")
+        elif not is_primo_accesso:
+            tk.Label(login, text=f"Utente: {PROFILO_ATTIVO if PROFILO_ATTIVO != 'Principale' else current_folder}", font=("Arial", 11), bg=BG, fg=FG_DIM).pack()
         entry_pw = crea_campo_password_moderno(login, "Inserisci Password")
         login.update_idletasks()
         login.after(200, lambda: entry_pw.focus_force())
