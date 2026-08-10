@@ -3452,7 +3452,10 @@ class GestioneSpese(tk.Tk):
     # Reconfigurazione Dinamica della Tabella Statistiche per Modalità di Visualizzazione
     def set_stats_mode(self, mode):
         if hasattr(self, 'btn_modifica_sel'):
-            self.reset_modifica_form()
+            fw = self.focus_get()
+            campo_attivo = fw is not None and fw.winfo_class() in ("Entry", "TEntry", "TCombobox", "Text", "TSpinbox", "Spinbox")
+            if not campo_attivo:
+                self.reset_modifica_form()
         if not hasattr(self, 'stats_table') or not self.stats_table.winfo_exists():
             return 
         if hasattr(self, 'stats_mode'):
@@ -6110,7 +6113,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "c19ed66462855ea05861b725a8231b58118f1b3a216060924994619bc41cf36a"
+        E_H_B = "5d5baf12675bc757057c26cd3b6cb6cbb1ebd6bb368644cdfecf6e123ea688fa"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
