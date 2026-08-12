@@ -2,13 +2,13 @@
 # -*- coding: utf-8 -*-
 
 import os
+import math
 import threading
 import tkinter as tk
 from tkinter import ttk
 
 from __main__ import API_KEY, GEMINI, PATH_LOCALE, genai_client
 from moduli.modello_spesa import campo
-from moduli.spinner_animato import crea_spinner_animato
 
 # Analisi AI Gemini: invia entrate/uscite/categorie degli ultimi 365gg e mostra proiezione e consigli strategici a fine anno
 def analizza_andamento_ia(self):
@@ -85,11 +85,29 @@ def analizza_andamento_ia(self):
     frame_s.pack(expand=True, fill='both')
     inner = tk.Frame(frame_s, bg=self.COLOR_WIDGET_BG)
     inner.pack(expand=True)
-    cvs, _ = crea_spinner_animato(inner, self.COLOR_WIDGET_BG, size=28, tick_ms=30)
+    gemini_colors = ["#0055FF", "#AA00FF", "#FF0055", "#00C853"]
+    cvs_size = 28
+    cvs = tk.Canvas(inner, width=cvs_size, height=cvs_size,
+                    bg=self.COLOR_WIDGET_BG, highlightthickness=0, bd=0)
     cvs.pack(side="left", padx=(0, 8))
     tk.Label(inner, text="Analisi AI in corso...",
              font=("Segoe UI", 9, "bold"),
              bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HIGHLIGHT).pack(side="left")
+    state = {"angle": 0, "color_step": 0}
+    def animate_splash():
+        if not splash.winfo_exists(): return
+        cvs.delete("all")
+        state["angle"] = (state["angle"] + 15) % 360
+        state["color_step"] += 1
+        color = gemini_colors[(state["color_step"] // 5) % len(gemini_colors)]
+        c = cvs_size // 2; r = 8
+        cvs.create_oval(c-r, c-r, c+r, c+r, outline="#e0e0e0", width=1)
+        rad = math.radians(state["angle"])
+        cvs.create_arc(c-r, c-r, c+r, c+r, start=state["angle"]-40, extent=40, outline=color, width=3, style="arc")
+        cvs.create_oval(c + r*math.cos(rad)-3, c + r*math.sin(rad)-3,
+                        c + r*math.cos(rad)+3, c + r*math.sin(rad)+3, fill=color, outline=color)
+        splash.after(20, animate_splash)
+    animate_splash()
     splash.update()
     def _on_iconify(event):
         if splash.winfo_exists():

@@ -5,8 +5,6 @@ import math
 import tkinter as tk
 from tkinter import ttk
 
-from moduli.spinner_animato import crea_spinner_animato
-
 # Popup Messaggi di Sistema
 def show_custom_warning(self, title, message):
     self._show_toast_dialog(title, message, bg="yellow", fg="black", kind="ok")
@@ -41,10 +39,9 @@ def _show_toast_dialog(self, title, message, bg, fg, kind="ok"):
     outer.pack(fill="both", expand=True)
     tk.Label(outer, text=title, font=("Arial", 10, "bold"), bg=bg, fg=fg, anchor="center").pack(fill="x")
     tk.Label(outer, text=message, font=("Arial", 10), bg=bg, fg=fg, justify="center", anchor="center", wraplength=400).pack(fill="x", pady=(4, 10))
-    RAGGIERA_SIZE = 36
-    bar_cvs = tk.Canvas(outer, width=RAGGIERA_SIZE, height=RAGGIERA_SIZE, bg=bg, highlightthickness=0, bd=0)
+    bar_cvs = tk.Canvas(outer, height=16, bg=bg, highlightthickness=0, bd=0)
     if not USE_WAIT_WINDOW:
-        bar_cvs.pack(pady=(0, 10))
+        bar_cvs.pack(fill="x", pady=(0, 10))
     btn_frame = tk.Frame(outer, bg=bg)
     btn_frame.pack(fill="x")
     def close_clean(value):
@@ -73,19 +70,10 @@ def _show_toast_dialog(self, title, message, bg, fg, kind="ok"):
     dialog.wait_visibility()
     dialog.grab_set()
     if not USE_WAIT_WINDOW:
-        N_RAGGI = 10
-        R_EST = RAGGIERA_SIZE * 0.46
-        R_INT = RAGGIERA_SIZE * 0.20
-        SPESSORE = max(2, int(RAGGIERA_SIZE * 0.11))
-        centro = RAGGIERA_SIZE / 2
-        angoli = [math.radians(360 * i / N_RAGGI - 90) for i in range(N_RAGGI)]
-        raggiera = [
-            bar_cvs.create_line(
-                centro + R_INT * math.cos(a), centro + R_INT * math.sin(a),
-                centro + R_EST * math.cos(a), centro + R_EST * math.sin(a),
-                fill=fg, width=SPESSORE, capstyle="round"
-            ) for a in angoli
-        ]
+        N_PART = 16
+        RADIUS = 3
+        BAR_H = 16
+        particelle = [bar_cvs.create_oval(0, 0, 0, 0, fill=fg, outline="") for _ in range(N_PART)]
         elapsed = [0]
         TICK_MS = 20
         COLOR_WARN = self.COLOR_RED
@@ -99,14 +87,19 @@ def _show_toast_dialog(self, title, message, bg, fg, kind="ok"):
         def tick_bar():
             elapsed[0] += TICK_MS
             ratio = max(0.0, 1.0 - elapsed[0] / WARN_TIMEOUT)
+            total_w = bar_cvs.winfo_width()
             if ratio > 0:
                 current_color = get_fade_color(fg, COLOR_WARN, ratio)
-                n_spenti = int((1 - ratio) * N_RAGGI)
-                for i, seg_id in enumerate(raggiera):
-                    if i < n_spenti:
-                        bar_cvs.itemconfig(seg_id, state="hidden")
-                    else:
-                        bar_cvs.itemconfig(seg_id, state="normal", fill=current_color)
+                center_x = total_w / 2
+                center_y = BAR_H / 2
+                for i in range(N_PART):
+                    base_x = (i / (N_PART - 1)) * total_w if N_PART > 1 else center_x
+                    dist = base_x - center_x
+                    x = center_x + dist * ratio
+                    wobble = math.sin(elapsed[0] * 0.006 + i) * (BAR_H * 0.25) * ratio
+                    y = center_y + wobble
+                    bar_cvs.coords(particelle[i], x - RADIUS, y - RADIUS, x + RADIUS, y + RADIUS)
+                    bar_cvs.itemconfig(particelle[i], fill=current_color)
                 timer_data["bar_id"] = dialog.after(TICK_MS, tick_bar)
             else:
                 close_clean(False if kind == "yesno" else None)
@@ -125,6 +118,7 @@ def show_toast(self, message, duration=1500, parent=None):
         try: self._toast_win.destroy()
         except: pass
     bg, fg = self.COLOR_ORANGE, self.COLOR_BLACK
+    gemini_colors = ["#0055FF", "#AA00FF", "#FF0055", "#00C853"]
     toast = tk.Toplevel(self)
     self._toast_win = toast
     toast.withdraw()
@@ -133,7 +127,8 @@ def show_toast(self, message, duration=1500, parent=None):
     toast.config(bg=self.COLOR_HIGHLIGHT)
     inner = tk.Frame(toast, bg=bg, padx=15, pady=10, highlightbackground=self.COLOR_HIGHLIGHT, highlightthickness=1)
     inner.pack(expand=True, fill="both")
-    cvs, _ = crea_spinner_animato(inner, bg, size=28, tick_ms=30)
+    cvs_size = 28
+    cvs = tk.Canvas(inner, width=cvs_size, height=cvs_size, bg=bg, highlightthickness=0, bd=0)
     cvs.pack(side="left", padx=(0, 10))
     tk.Label(inner, text=message, font=("Arial", 10, "bold"), bg=bg, fg=fg).pack(side="left")
     toast.update_idletasks()
@@ -141,4 +136,22 @@ def show_toast(self, message, duration=1500, parent=None):
     px, py, pw, ph = parent.winfo_rootx(), parent.winfo_rooty(), parent.winfo_width(), parent.winfo_height()
     toast.geometry(f"+{px+(pw//2)-(w//2)}+{py+(ph//2)-(h//2)}")
     toast.deiconify()
+    state = {"angle": 0, "color_step": 0}
+    def animate():
+        if not toast.winfo_exists(): return
+        cvs.delete("all")
+        state["angle"] = (state["angle"] + 15) % 360
+        state["color_step"] += 1
+        c_idx = (state["color_step"] // 5) % len(gemini_colors)
+        color = gemini_colors[c_idx]
+        center = cvs_size // 2
+        r = 8
+        cvs.create_oval(center-r, center-r, center+r, center+r, outline="#e0e0e0", width=1)
+        rad = math.radians(state["angle"])
+        x = center + r * math.cos(rad)
+        y = center + r * math.sin(rad)
+        cvs.create_arc(center-r, center-r, center+r, center+r, start=state["angle"]-40, extent=40, outline=color, width=3, style="arc")
+        cvs.create_oval(x-3, y-3, x+3, y+3, fill=color, outline=color)
+        self._toast_after_id = toast.after(20, animate)
+    animate()
     self.after(duration, lambda: toast.destroy() if toast.winfo_exists() else None)

@@ -2,13 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import json
+import math
 import os
 import re
 import threading
 import tkinter as tk
 from tkinter import filedialog
-
-from moduli.spinner_animato import crea_spinner_animato
 
 # Importazione universale IA: invia CSV o PDF a Gemini che estrae i movimenti e apre la finestra di revisione
 def apri_finestra_importa(self, path=None):
@@ -50,11 +49,35 @@ def apri_finestra_importa(self, path=None):
     frame_a.pack(expand=True, fill="both")
     inner = tk.Frame(frame_a, bg=self.COLOR_WIDGET_BG)
     inner.pack(expand=True)
-    cvs, _ = crea_spinner_animato(inner, self.COLOR_WIDGET_BG, size=28, tick_ms=30)
+    gemini_colors = ["#0055FF", "#AA00FF", "#FF0055", "#00C853"]
+    cvs_size = 28
+    cvs = tk.Canvas(inner, width=cvs_size, height=cvs_size,
+                    bg=self.COLOR_WIDGET_BG, highlightthickness=0, bd=0)
     cvs.pack(side="left", padx=(0, 8))
     tk.Label(inner, text="Gemini sta analizzando...",
              font=("Segoe UI", 9, "bold"),
              bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HIGHLIGHT).pack(side="left")
+    state = {"angle": 0, "color_step": 0}
+    def animate_attesa():
+        try:
+            if not attesa.winfo_exists(): return
+            if not cvs.winfo_exists(): return
+            cvs.delete("all")
+        except tk.TclError:
+            return
+        state["angle"] = (state["angle"] + 15) % 360
+        state["color_step"] += 1
+        color = gemini_colors[(state["color_step"] // 5) % len(gemini_colors)]
+        c = cvs_size // 2; r = 8
+        cvs.create_oval(c-r, c-r, c+r, c+r, outline=self.COLOR_HIGHLIGHT, width=1)
+        rad = math.radians(state["angle"])
+        cvs.create_arc(c-r, c-r, c+r, c+r, start=state["angle"]-40, extent=40,
+                       outline=color, width=3, style="arc")
+        cvs.create_oval(c+r*math.cos(rad)-3, c+r*math.sin(rad)-3,
+                        c+r*math.cos(rad)+3, c+r*math.sin(rad)+3,
+                        fill=color, outline=color)
+        attesa.after(20, animate_attesa)
+    animate_attesa()
     def elabora_ia():
         try:
             client = genai.Client(api_key=API_KEY)
