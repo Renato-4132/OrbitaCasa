@@ -47,6 +47,26 @@ import urllib.request
 import tkinter as tk
 from tkinter import ttk, filedialog
 
+_PATH_LOCALE_BOOT = os.path.dirname(os.path.abspath(__file__))
+_MODULI_DIR_BOOT = os.path.join(_PATH_LOCALE_BOOT, "moduli")
+_SPINNER_PATH_BOOT = os.path.join(_MODULI_DIR_BOOT, "spinner_animato.py")
+if not os.path.isfile(_SPINNER_PATH_BOOT):
+    print(f"[{time.strftime('%H:%M:%S')}] Prima esecuzione: scarico spinner_animato.py da GitHub...")
+    os.makedirs(_MODULI_DIR_BOOT, exist_ok=True)
+    try:
+        _url_boot = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/main/moduli/spinner_animato.py"
+        _req_boot = urllib.request.Request(_url_boot, headers={"User-Agent": "OrbitaCasa-Bootstrap"})
+        with urllib.request.urlopen(_req_boot, timeout=20) as _resp_boot:
+            _dati_boot = _resp_boot.read()
+        with open(_SPINNER_PATH_BOOT, "wb") as _f_boot:
+            _f_boot.write(_dati_boot)
+        print(f"[{time.strftime('%H:%M:%S')}] spinner_animato.py scaricato.")
+    except Exception as _e_boot:
+        print(f"[{time.strftime('%H:%M:%S')}] Errore durante il download di spinner_animato.py: {_e_boot}")
+        sys.exit(1)
+
+from moduli.spinner_animato import crea_spinner_animato
+
 current_folder = os.path.basename(os.getcwd())   
 def show_warning_popup(titolo=None, titolo_fg="#FF3333",
                         corpo=None, corpo_fg="#AAAAAA", corpo_font_size=9, corpo_expand=False,
@@ -62,11 +82,9 @@ def show_warning_popup(titolo=None, titolo_fg="#FF3333",
     splash.geometry(f"{width}x{height}+{x}+{y}")
     splash.configure(bg=bg, highlightthickness=2, highlightbackground=accent)
     if spinner:
-        gemini_colors = ["#0055FF", "#AA00FF", "#FF0055", "#00C853"]
         container = tk.Frame(splash, bg=bg)
         container.pack(expand=True)
-        cvs_size = 40
-        cvs = tk.Canvas(container, width=cvs_size, height=cvs_size, bg=bg, highlightthickness=0, bd=0)
+        cvs, _ = crea_spinner_animato(container, bg, size=40, tick_ms=30)
         cvs.pack(side="left", padx=15)
         tk.Label(
             container,
@@ -76,27 +94,6 @@ def show_warning_popup(titolo=None, titolo_fg="#FF3333",
             bg=bg,
             justify="left"
         ).pack(side="left")
-        state = {"angle": 0, "color_step": 0}
-        def animate():
-            if not splash.winfo_exists():
-                return
-            cvs.delete("all")
-            state["angle"] = (state["angle"] + 10) % 360
-            state["color_step"] += 1
-            c_idx = (state["color_step"] // 10) % len(gemini_colors)
-            color = gemini_colors[c_idx]
-            center = cvs_size // 2
-            r = 12
-            rad = math.radians(state["angle"])
-            px = center + r * math.cos(rad)
-            py = center + r * math.sin(rad)
-            cvs.create_oval(center-r, center-r, center+r, center+r, outline="#333333", width=1)
-            cvs.create_arc(center-r, center-r, center+r, center+r,
-                           start=state["angle"]-60, extent=60,
-                           outline=color, width=3, style="arc")
-            cvs.create_oval(px-3, py-3, px+3, py+3, fill=color, outline=color)
-            splash.after(30, animate)
-        animate()
         splash.after(1000, splash.destroy)
     else:
         if titolo:
@@ -165,7 +162,6 @@ check_network_connection()
 PATH_LOCALE = os.path.dirname(os.path.abspath(__file__))
 current_folder = os.path.basename(os.getcwd())
 
-# BOOTSTRAP
 MODULI_DIR = os.path.join(PATH_LOCALE, "moduli")
 _COSTANTI_PATH = os.path.join(MODULI_DIR, "costanti.py")
 _MODELLO_SPESA_PATH = os.path.join(MODULI_DIR, "modello_spesa.py")
@@ -2472,32 +2468,8 @@ class GestioneSpese(tk.Tk):
             fg=self.COLOR_HIGHLIGHT,
             bg=self.COLOR_BACKGROUND
         ).pack(pady=5)
-        cvs_size = 36
-        cvs = tk.Canvas(splash, width=cvs_size, height=cvs_size, bg=self.COLOR_BACKGROUND, highlightthickness=0, bd=0)
+        cvs, _ = crea_spinner_animato(splash, self.COLOR_BACKGROUND, size=36, tick_ms=35)
         cvs.pack(pady=5)
-        gemini_colors = ["#0055FF", "#AA00FF", "#FF0055", "#00C853"]
-        state = {"angle": 0, "color_step": 0}
-        def animate():
-            if not splash.winfo_exists():
-                return
-            cvs.delete("all")
-            state["angle"] = (state["angle"] + 15) % 360
-            state["color_step"] += 1
-            c_idx = (state["color_step"] // 4) % len(gemini_colors)
-            color = gemini_colors[c_idx]
-            center = cvs_size // 2
-            r = 10
-            rad = math.radians(state["angle"])
-            px = center + r * math.cos(rad)
-            py = center + r * math.sin(rad)
-            cvs.create_arc(
-                center-r, center-r, center+r, center+r, 
-                start=state["angle"]-50, extent=50, 
-                outline=color, width=3, style="arc"
-            )
-            cvs.create_oval(px-2, py-2, px+2, py+2, fill=color, outline=color)
-            splash.after(40, animate)
-        animate()
         return splash
                 
     # Memoria Categorie per importazione Estratto
@@ -4725,39 +4697,8 @@ class GestioneSpese(tk.Tk):
             justify="center"
         )
         label.pack(expand=True, fill="x")
-        cvs_size = 36
-        cvs = tk.Canvas(
-            container, 
-            width=cvs_size, 
-            height=cvs_size, 
-            bg=self.COLOR_WIDGET_BG, 
-            highlightthickness=0, 
-            bd=0
-        )
+        cvs, _ = crea_spinner_animato(container, self.COLOR_WIDGET_BG, size=36, tick_ms=30)
         cvs.pack(side="top", pady=(5, 0))
-        gemini_colors = ["#0055FF", "#AA00FF", "#FF0055", "#00C853"]
-        state = {"angle": 0, "color_step": 0}
-        def animate():
-            if not splash.winfo_exists():
-                return
-            cvs.delete("all")
-            state["angle"] = (state["angle"] + 12) % 360
-            state["color_step"] += 1
-            c_idx = (state["color_step"] // 8) % len(gemini_colors)
-            color = gemini_colors[c_idx]
-            center = cvs_size // 2
-            r = 10
-            rad = math.radians(state["angle"])
-            x = center + r * math.cos(rad)
-            y = center + r * math.sin(rad)
-            cvs.create_arc(
-                center-r, center-r, center+r, center+r, 
-                start=state["angle"]-50, extent=50, 
-                outline=color, width=3, style="arc"
-            )
-            cvs.create_oval(x-2, y-2, x+2, y+2, fill=color, outline=color)
-            splash.after(25, animate)
-        animate()
         splash.update()
         splash.after(1000, splash.destroy)
     def _mostra_avviso_countdown(self):
@@ -4796,37 +4737,11 @@ class GestioneSpese(tk.Tk):
             justify="center"
         )
         label.pack(expand=True, fill="x")
-        cvs_size = 32
-        cvs = tk.Canvas(container, width=cvs_size, height=cvs_size, bg=self.COLOR_WIDGET_BG, highlightthickness=0, bd=0)
-        cvs.pack(side="top", pady=(5, 0))
-        gemini_colors = ["#0055FF", "#AA00FF", "#FF0055", "#00C853"]
-        state = {"angle": 0, "color_step": 0}
-        def animate():
-            if not splash.winfo_exists():
-                return
-            cvs.delete("all")
-            state["angle"] = (state["angle"] + 12) % 360
-            state["color_step"] += 1
-            c_idx = (state["color_step"] // 8) % len(gemini_colors)
-            color = gemini_colors[c_idx]
-            center = cvs_size // 2
-            r = 10
-            rad = math.radians(state["angle"])
-            x = center + r * math.cos(rad)
-            y = center + r * math.sin(rad)
-            cvs.create_arc(
-                center-r, center-r, center+r, center+r, 
-                start=state["angle"]-50, extent=50, 
-                outline=color, width=3, style="arc"
-            )
-            cvs.create_oval(x-2, y-2, x+2, y+2, fill=color, outline=color)
-            splash.after(25, animate)
-        animate()
         splash.update()
         self._countdown_splash = splash
         self._countdown_label = label
         
-        for widget in (splash, container, label, cvs):
+        for widget in (splash, container, label):
             widget.bind("<Motion>", lambda e: self._reset_inattivita(cancel_countdown=True))
         self._aggiorna_countdown(self._countdown_delay)
 
@@ -4924,32 +4839,8 @@ class GestioneSpese(tk.Tk):
             bg=self.COLOR_WIDGET_BG,
             justify="center"
         ).pack(side="top")
-        cvs_size = 36
-        cvs = tk.Canvas(container, width=cvs_size, height=cvs_size, bg=self.COLOR_WIDGET_BG, highlightthickness=0, bd=0)
+        cvs, _ = crea_spinner_animato(container, self.COLOR_WIDGET_BG, size=36, tick_ms=30)
         cvs.pack(side="top", pady=(10, 0))
-        gemini_colors = ["#0055FF", "#AA00FF", "#FF0055", "#00C853"]
-        state = {"angle": 0, "color_step": 0}
-        def animate():
-            if not splash.winfo_exists():
-                return
-            cvs.delete("all")
-            state["angle"] = (state["angle"] + 12) % 360
-            state["color_step"] += 1
-            c_idx = (state["color_step"] // 8) % len(gemini_colors)
-            color = gemini_colors[c_idx]
-            center = cvs_size // 2
-            r = 10
-            rad = math.radians(state["angle"])
-            x = center + r * math.cos(rad)
-            y = center + r * math.sin(rad)
-            cvs.create_arc(
-                center-r, center-r, center+r, center+r, 
-                start=state["angle"]-50, extent=50, 
-                outline=color, width=3, style="arc"
-            )
-            cvs.create_oval(x-2, y-2, x+2, y+2, fill=color, outline=color)
-            splash.after(25, animate)
-        animate()
         splash.update()
         splash.after(1000, splash.destroy)
 
@@ -6114,7 +6005,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "5455163f8316b3d5d1fcfcb4ae9ee0975c8724c47a3daf0f8a211c69cd6ef632"
+        E_H_B = "d5b851ef4098a67317f95c1d03ae8ec13f13dd3f8fe71cb155f5ea021b7a909e"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
