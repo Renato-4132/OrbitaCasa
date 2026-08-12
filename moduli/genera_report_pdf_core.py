@@ -64,7 +64,7 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
     conto_anno_out      = defaultdict(float)
     conto_st_in         = defaultdict(float)
     conto_st_out        = defaultdict(float)
-    movimenti_per_conto = defaultdict(list)
+    movimenti_per_conto_periodo = defaultdict(list)
     giorni_ordinati = sorted(self.spese.keys(), reverse=True)
     for giorno in giorni_ordinati:
         entries = self.spese[giorno]
@@ -85,20 +85,17 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
             metodo   = campo(entry, "metodo_pagamento", "")
             ora_val  = campo(entry, "ora", "")
             tag_val  = " ".join(campo(entry, "hashtag", []))
-            riga     = (data_str, cat, desc, val, t_tipo, conto, metodo, ora_val, tag_val)
+            riga     = (data_str, cat, desc, val, t_tipo, conto, metodo, ora_val, tag_val, giorno)
             tot_st[suffix] += val
             data_punti[f"st_a_{anno}_{suffix}"] += val
             if t_tipo == "uscita":
                 cat_st_val[cat]   += val
                 cat_st_count[cat] += 1
-                movimenti_per_id[f"st_cat_{cat}"].append(riga)
-            movimenti_per_id[f"st_a_{anno}_{suffix}"].append(riga)
             if conto:
                 if t_tipo == "entrata":
                     conto_st_in[conto] += val
                 else:
                     conto_st_out[conto] += val
-                movimenti_per_conto[conto].append(riga)
             if anno_da <= anno <= anno_curr and (mese_filtro == 0 or mese == mese_filtro):
                 tot_anno[suffix] += val
                 data_punti[f"curr_m_{mese}_{suffix}"] += val
@@ -112,6 +109,7 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
                         conto_anno_in[conto] += val
                     else:
                         conto_anno_out[conto] += val
+                    movimenti_per_conto_periodo[conto].append(riga)
     anni_lista   = sorted(set(int(k.split('_')[2]) for k in data_punti if k.startswith('st_a_')))
     mesi_attivi  = sorted(m for m in range(1, 13)
                           if data_punti[f"curr_m_{m}_in"] > 0 or data_punti[f"curr_m_{m}_out"] > 0)
@@ -249,7 +247,10 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
         if not righe:
             return
         from datetime import datetime as _dt
-        righe_ord = sorted(righe, key=lambda r: _dt.strptime(r[0], '%d/%m/%Y'))
+        righe_ord = sorted(
+            righe,
+            key=lambda r: r[9] if len(r) > 9 else _dt.strptime(r[0], '%d/%m/%Y')
+        )
         page      = nuova_pagina()
         header_pagina(page, titolo, sottotitolo)
         cy = 68
@@ -464,18 +465,9 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
                     f"{cat_anno_count[cat]} movimenti  |  Totale € {tot_cat:,.2f}",
                     righe
                 )
-        for cat in cat_s_alfa:
-            righe = movimenti_per_id.get(f"st_cat_{cat}", [])
-            if righe:
-                tot_cat = sum(r[3] for r in righe)
-                pagina_movimenti(
-                    f"Storico Categoria: {cat}",
-                    f"{cat_st_count[cat]} movimenti  |  Totale € {tot_cat:,.2f}",
-                    righe
-                )
     if sezioni.get("portafoglio", True):
-        for nome_c in sorted(movimenti_per_conto.keys()):
-            righe = movimenti_per_conto[nome_c]
+        for nome_c in sorted(movimenti_per_conto_periodo.keys()):
+            righe = movimenti_per_conto_periodo[nome_c]
             if righe:
                 tot_c_in  = sum(r[3] for r in righe if r[4] == "entrata")
                 tot_c_out = sum(r[3] for r in righe if r[4] == "uscita")
