@@ -14,6 +14,8 @@ import requests
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, Toplevel, Label, Button, TclError
 
+from moduli.spinner_animato import crea_spinner_animato
+
 def apri_dieta(self):
 
     import __main__ as _app
@@ -902,24 +904,11 @@ def apri_dieta(self):
         fr_s.pack(expand=True, fill='both')
         inner = tk.Frame(fr_s, bg=self.COLOR_WIDGET_BG)
         inner.pack(expand=True)
-        gc = ["#0055FF","#AA00FF","#FF0055","#00C853"]
-        cvs = tk.Canvas(inner, width=28, height=28, bg=self.COLOR_WIDGET_BG, highlightthickness=0)
+        cvs, _ = crea_spinner_animato(inner, self.COLOR_WIDGET_BG, size=28, tick_ms=30)
         cvs.pack(side="left", padx=(0,8))
         tk.Label(inner, text="Analisi AI in corso...", font=("Segoe UI",9,"bold"),
                  bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HIGHLIGHT).pack(side="left")
-        state = {"angle":0,"step":0}
-        def anim():
-            if not splash.winfo_exists(): return
-            cvs.delete("all")
-            state["angle"] = (state["angle"]+15)%360
-            state["step"]  += 1
-            col = gc[(state["step"]//5)%4]
-            c=14; r=8
-            cvs.create_oval(c-r,c-r,c+r,c+r, outline="#e0e0e0", width=1)
-            cvs.create_arc(c-r,c-r,c+r,c+r, start=state["angle"]-40, extent=40,
-                           outline=col, width=3, style="arc")
-            splash.after(20, anim)
-        anim(); splash.update()
+        splash.update()
         def _mostra_risposta(testo):
             if splash.winfo_exists(): splash.destroy()
             ai_pop = tk.Toplevel(self, bg=self.COLOR_WIDGET_BG)

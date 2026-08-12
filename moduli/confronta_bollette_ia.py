@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import os
-import math
 import threading
 import tkinter as tk
 from tkinter import ttk, filedialog
+
+from moduli.spinner_animato import crea_spinner_animato
 
 # Analisi e Confronto Bollette/Documenti con Gemini AI
 def confronta_bollette_ia(self):
@@ -242,33 +243,12 @@ def confronta_bollette_ia(self):
         frm_s.pack(expand=True, fill="both")
         inn = tk.Frame(frm_s, bg=self.COLOR_WIDGET_BG)
         inn.pack(expand=True)
-        gemini_colors = ["#0055FF", "#AA00FF", "#FF0055", "#00C853"]
-        cvs_sz = 28
-        cvs2 = tk.Canvas(inn, width=cvs_sz, height=cvs_sz,
-                         bg=self.COLOR_WIDGET_BG, highlightthickness=0)
+        cvs2, _ = crea_spinner_animato(inn, self.COLOR_WIDGET_BG, size=28, tick_ms=30)
         cvs2.pack(side="left", padx=(0, 8))
         n_doc = len(file_paths)
         tk.Label(inn, text=f"Gemini sta analizzando {n_doc} document{'o' if n_doc==1 else 'i'}...",
                  font=("Segoe UI", 9, "bold"),
                  bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HIGHLIGHT).pack(side="left")
-        anim_st = {"angle": 0, "cs": 0}
-        def _anim():
-            if not splash.winfo_exists(): return
-            cvs2.delete("all")
-            anim_st["angle"] = (anim_st["angle"] + 15) % 360
-            anim_st["cs"] += 1
-            col = gemini_colors[(anim_st["cs"] // 5) % len(gemini_colors)]
-            c = cvs_sz // 2; r = 8
-            cvs2.create_oval(c-r, c-r, c+r, c+r, outline=self.COLOR_HIGHLIGHT, width=1)
-            rad = math.radians(anim_st["angle"])
-            cvs2.create_arc(c-r, c-r, c+r, c+r,
-                            start=anim_st["angle"]-40, extent=40,
-                            outline=col, width=3, style="arc")
-            cvs2.create_oval(c+r*math.cos(rad)-3, c+r*math.sin(rad)-3,
-                             c+r*math.cos(rad)+3, c+r*math.sin(rad)+3,
-                             fill=col, outline=col)
-            splash.after(20, _anim)
-        _anim()
         splash.update()
         def _run():
             try:
