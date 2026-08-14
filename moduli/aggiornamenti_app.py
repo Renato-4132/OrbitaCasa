@@ -1123,8 +1123,16 @@ def aggiorna_librerie_pip(self):
                     nuova_ver = _versione_installata(pkg)
                     self.after(0, lambda l=pkg, v=nuova_ver: _log(f"✓ {l} aggiornato → v{v}" if v else f"✓ {l} aggiornato"))
                     if pkg in righe_ver:
-                        lbl_inst_w = righe_ver[pkg][0]
-                        self.after(0, lambda lbl=lbl_inst_w, v=nuova_ver: lbl.config(text=f"v{v}" if v else "n/d", fg="#2E7D32"))
+                        lbl_inst_w, lbl_disp_w, _ = righe_ver[pkg]
+                        def _aggiorna_riga_lib(lbl_i=lbl_inst_w, lbl_d=lbl_disp_w, v=nuova_ver, p=pkg):
+                            lbl_i.config(text=f"v{v}" if v else "n/d", fg="#2E7D32")
+                            lbl_d.config(text=f"v{v}" if v else "n/d", fg="#2E7D32")
+                            lib_da_aggiornare[p] = False
+                        self.after(0, _aggiorna_riga_lib)
+                    for p, v_ in vars_lib:
+                        if p == pkg:
+                            self.after(0, lambda vv=v_: vv.set(False))
+                            break
                 else:
                     errori += 1
                     err = result.stderr.strip().splitlines()[-1] if result.stderr.strip() else "errore"
@@ -1422,6 +1430,10 @@ def verifica_moduli_git(self):
                         lbl_s.config(text="✓ aggiornato", fg="#2E7D32")
                         lbl_d.config(text=d)
                         lbl_k.config(text=s)
+                        for nm, v in vars_moduli:
+                            if nm == n:
+                                v.set(False)
+                                break
                     self.after(0, _aggiorna_riga)
             except Exception as e:
                 errori += 1
