@@ -58,6 +58,8 @@ def apri_andamento_risparmio(self):
 
     def _calcola_tutti_anni(includi_futuri):
         anni = _anni_presenti()
+        if not includi_futuri:
+            anni = [a for a in anni if a <= anno_corrente]
         entrate_a, uscite_a, saldi_a = [], [], []
         for a in anni:
             e, u, s = _calcola_anno_totale(a, includi_futuri)
@@ -67,6 +69,8 @@ def apri_andamento_risparmio(self):
 
     def _calcola_tutti_mensile(includi_futuri):
         anni = _anni_presenti()
+        if not includi_futuri:
+            anni = [a for a in anni if a <= anno_corrente]
         etichette, entrate_t, uscite_t, saldi_t = [], [], [], []
         for a in anni:
             e, u, s = _calcola_mese(a, includi_futuri)
@@ -128,11 +132,18 @@ def apri_andamento_risparmio(self):
             except: pass
             _tip_win[0] = None
 
+    def _debounce(job_holder, widget, callback, delay=150):
+        if job_holder[0]:
+            try: widget.after_cancel(job_holder[0])
+            except: pass
+        job_holder[0] = widget.after(delay, callback)
+
     win = tk.Toplevel(self)
     self.win_risparmio = win
     win.withdraw()
     win.title("Andamento Risparmio")
     win.configure(bg=self.COLOR_TOPLEVEL)
+    _pronto = [False]
     W_WIN, H_WIN = 1400, 680
     self.update_idletasks()
     px = self.winfo_rootx() + (self.winfo_width()  - W_WIN) // 2
@@ -303,7 +314,8 @@ def apri_andamento_risparmio(self):
             _disegna_barre(MESI_ABBR, e, u, s, ctx_annuale=False, anno_ctx=anno)
 
     combo_anno1.bind("<<ComboboxSelected>>", _aggiorna_tab1)
-    canvas1.bind("<Configure>", lambda e: _aggiorna_tab1())
+    _resize_job1 = [None]
+    canvas1.bind("<Configure>", lambda e: _pronto[0] and _debounce(_resize_job1, canvas1, _aggiorna_tab1))
 
     top2 = tk.Frame(tab2, bg=self.COLOR_TOPLEVEL)
     top2.pack(fill="x", padx=4, pady=(6, 2))
@@ -334,7 +346,7 @@ def apri_andamento_risparmio(self):
     lbl_tot_s2 = tk.Label(footer2, text="", bg=self.COLOR_TOPLEVEL, font=("Arial", 9, "bold"))
     lbl_tot_s2.pack(side="left", padx=16)
 
-    def _disegna_linea(categorie, entrate_v, uscite_v, saldi_v):
+    def _disegna_linea(categorie, entrate_v, uscite_v, saldi_v, righe_ctx=None):
         if _tip_win[0]:
             try: _tip_win[0].destroy()
             except: pass
@@ -344,7 +356,7 @@ def apri_andamento_risparmio(self):
         W = canvas2.winfo_width()
         H = canvas2.winfo_height()
         if W < 10:
-            canvas2.after(80, lambda: _disegna_linea(categorie, entrate_v, uscite_v, saldi_v))
+            canvas2.after(80, lambda: _disegna_linea(categorie, entrate_v, uscite_v, saldi_v, righe_ctx))
             return
         n = len(categorie)
         MARG_L, MARG_R, MARG_T, MARG_B = 60, 20, 20, 55
@@ -376,11 +388,11 @@ def apri_andamento_risparmio(self):
                                      font=("Arial", 7), fill=self.TEXT_COLOR, angle=45 if n > 12 else 0)
 
         serie = [
-            (entrate_v, self.COLOR_GREEN_SMOOTH, "Entrate"),
-            (uscite_v,  self.COLOR_RED_SMOOTH,  "Uscite"),
-            (saldi_v,   self.COLOR_HIGHLIGHT,   "Saldo"),
+            (entrate_v, self.COLOR_GREEN_SMOOTH, "Entrate", "Entrata"),
+            (uscite_v,  self.COLOR_RED_SMOOTH,  "Uscite", "Uscita"),
+            (saldi_v,   self.COLOR_HIGHLIGHT,   "Saldo", None),
         ]
-        for valori, colore, nome in serie:
+        for valori, colore, nome, tipo_click in serie:
             punti = []
             for i in range(n):
                 cx = MARG_L + slot_w * i
@@ -397,6 +409,11 @@ def apri_andamento_risparmio(self):
                        f"Saldo:    {formatta_italiano(saldi_v[i], segno=True)} €")
                 canvas2.tag_bind(rid, "<Enter>", lambda e, t=tip: _tooltip_show(e, t))
                 canvas2.tag_bind(rid, "<Leave>", _tooltip_hide)
+                if righe_ctx:
+                    anno_i, mese_i, titolo_ctx = righe_ctx[i]
+                    canvas2.tag_bind(rid, "<Double-Button-1>",
+                                      lambda e, a=anno_i, m=mese_i, t=tipo_click, tt=titolo_ctx, nm=nome:
+                                      _apri_dettaglio(a, m, t, f"Dettaglio {nm} - {tt}"))
 
         tot_e, tot_u = sum(entrate_v), sum(uscite_v)
         tot_s = tot_e - tot_u
@@ -413,21 +430,29 @@ def apri_andamento_risparmio(self):
             combo_anno2.pack(side="left", padx=8)
             anno = int(combo_anno2.get())
             e, u, s = _calcola_mese(anno, futuri)
-            _disegna_linea(MESI_ABBR, e, u, s)
+            righe_ctx = [(anno, i + 1, f"{MESI_FULL[i]} {anno}") for i in range(12)]
+            _disegna_linea(MESI_ABBR, e, u, s, righe_ctx)
         elif vista == "Anno":
             lbl_anno2.pack_forget()
             combo_anno2.pack_forget()
             etichette, e, u, s = _calcola_tutti_anni(futuri)
-            _disegna_linea(etichette, e, u, s)
+            righe_ctx = [(int(a), None, f"Anno {a}") for a in etichette]
+            _disegna_linea(etichette, e, u, s, righe_ctx)
         else:  # Tutti
             lbl_anno2.pack_forget()
             combo_anno2.pack_forget()
             etichette, e, u, s = _calcola_tutti_mensile(futuri)
-            _disegna_linea(etichette, e, u, s)
+            righe_ctx = []
+            for et in etichette:
+                nome_mese, anno_str = et.split(" ")
+                mese_idx = MESI_ABBR.index(nome_mese) + 1
+                righe_ctx.append((int(anno_str), mese_idx, et))
+            _disegna_linea(etichette, e, u, s, righe_ctx)
 
     combo_vista2.bind("<<ComboboxSelected>>", _aggiorna_tab2)
     combo_anno2.bind("<<ComboboxSelected>>", _aggiorna_tab2)
-    canvas2.bind("<Configure>", lambda e: _aggiorna_tab2())
+    _resize_job2 = [None]
+    canvas2.bind("<Configure>", lambda e: _pronto[0] and _debounce(_resize_job2, canvas2, _aggiorna_tab2))
 
     top3 = tk.Frame(tab3, bg=self.COLOR_TOPLEVEL)
     top3.pack(fill="x", padx=4, pady=(6, 2))
@@ -545,4 +570,7 @@ def apri_andamento_risparmio(self):
     btn_chiudi.bind("<Button-1>", lambda e: win.destroy())
 
     win.deiconify()
-    win.after(80, _aggiorna_tutto)
+    def _avvio():
+        _aggiorna_tutto()
+        _pronto[0] = True
+    win.after(80, _avvio)
