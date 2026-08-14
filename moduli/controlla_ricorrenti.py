@@ -168,7 +168,7 @@ def _salva_dismiss_fm(self, data_da_salvare):
             f"L'avviso delle ricorrenti ricomparirà al prossimo avvio.\n"
             f"Dettagli: {e}"
         )
-        if hasattr(self, 'show_custom_error'):
+        if hasattr(self, 'show_custom_warning'):
             self.show_custom_warning("⚠️ Errore di Persistenza", errore_messaggio)
         else:
             print(errore_messaggio)
