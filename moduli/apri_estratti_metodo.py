@@ -273,9 +273,13 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
                     continue
                 _key_em = (data_obj.strftime("%d-%m-%Y"), round(importo, 2), tipo)
                 _lista_c_em = _agganci_em.get(_key_em, [])
-                _ord_em = _uso_ordinale_em.get(_key_em, 0)
-                nome_conto_em = campo(voce, "conto", "") or (_lista_c_em[_ord_em] if _ord_em < len(_lista_c_em) else "")
-                _uso_ordinale_em[_key_em] = _ord_em + 1
+                _conto_espl_em = campo(voce, "conto", "")
+                if _conto_espl_em:
+                    nome_conto_em = _conto_espl_em
+                else:
+                    _ord_em = _uso_ordinale_em.get(_key_em, 0)
+                    nome_conto_em = _lista_c_em[_ord_em] if _ord_em < len(_lista_c_em) else ""
+                    _uso_ordinale_em[_key_em] = _ord_em + 1
                 if conto_f != "Tutti" and nome_conto_em != conto_f:
                     continue
                 data_str = data_obj.strftime("%d-%m-%Y")
@@ -331,6 +335,8 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
         var_metodo.set(metodo)
     if anno:
         var_anno.set(str(anno))
+        if not mese:
+            var_periodo.set("anno")
     if mese:
         var_mese.set(f"{int(mese):02d}")
         var_periodo.set("mese")
@@ -385,8 +391,8 @@ def _esporta_estratti_metodo(self, tree, var_metodo, var_periodo, var_anno, var_
         desc = str(v[2])[:C_DESC]
         e_str = str(v[3]).strip()
         u_str = str(v[4]).strip()
-        conto = str(v[5]).strip() if len(v) > 5 else ""
-        met   = str(v[6]).strip() if len(v) > 6 else ""
+        conto = str(v[5]).strip()[:C_CNT] if len(v) > 5 else ""
+        met   = str(v[6]).strip()[:C_MET] if len(v) > 6 else ""
         righe.append(
             f"{data:<{C_DATA}} {cat:<{C_CAT}} {desc:<{C_DESC}} {e_str:>{C_IMP}} {u_str:>{C_IMP}} {conto:<{C_CNT}} {met:<{C_MET}}"
         )
@@ -398,8 +404,8 @@ def _esporta_estratti_metodo(self, tree, var_metodo, var_periodo, var_anno, var_
     saldo = tot_e - tot_u
     righe.append(SEP)
     righe.append(f"{'Totale Entrate:':>{C_DATA+C_CAT+C_DESC+2}} {f'+{tot_e:.2f} €':>{C_IMP}} {'':>{C_IMP}}")
-    righe.append(f"{'Totale Uscite:':{C_DATA+C_CAT+C_DESC+2}} {'':>{C_IMP}} {f'-{tot_u:.2f} €':>{C_IMP}}")
-    righe.append(f"{'Saldo:':{C_DATA+C_CAT+C_DESC+2}} {f'{saldo:+.2f} €':>{C_IMP}} {'':>{C_IMP}}")
+    righe.append(f"{'Totale Uscite:':>{C_DATA+C_CAT+C_DESC+2}} {'':>{C_IMP}} {f'-{tot_u:.2f} €':>{C_IMP}}")
+    righe.append(f"{'Saldo:':>{C_DATA+C_CAT+C_DESC+2}} {f'{saldo:+.2f} €':>{C_IMP}} {'':>{C_IMP}}")
     contenuto = "\n".join(righe)
     oggi = datetime.date.today()
     nome_file = f"Estratti_{metodo_pagamento_pulito(metodo) if metodo != 'Tutti i metodi' else 'tutti'}_{oggi.strftime('%d-%m-%Y')}.txt"
