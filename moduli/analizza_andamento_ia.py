@@ -25,10 +25,11 @@ def analizza_andamento_ia(self):
     limite_365 = oggi - timedelta(days=365)
     e_tot, u_tot = 0.0, 0.0
     dettaglio_categories = {}
+    data_piu_vecchia = None
     for data_op, lista_movimenti in self.spese.items():
         if isinstance(data_op, str):
             try:
-                d_obj = datetime.strptime(data_op, "%Y-%m-%d").date()
+                d_obj = datetime.strptime(data_op, "%d-%m-%Y").date()
             except: continue
         elif isinstance(data_op, (datetime, dt_mod.date)):
             d_obj = data_op if isinstance(data_op, dt_mod.date) else data_op.date()
@@ -44,12 +45,19 @@ def analizza_andamento_ia(self):
                     else:
                         u_tot += importo
                         dettaglio_categories[cat] = dettaglio_categories.get(cat, 0) + importo
+                    if data_piu_vecchia is None or d_obj < data_piu_vecchia:
+                        data_piu_vecchia = d_obj
                 except Exception as err_mov:
                     print(f"[analizza_andamento_ia] Voce scartata: {err_mov}")
                     continue
     if not dettaglio_categories and e_tot == 0:
         self.show_custom_warning("Nessun Dato", "Dati insufficienti negli ultimi 365 giorni.")
         return
+    if data_piu_vecchia:
+        giorni_coperti = (oggi - data_piu_vecchia).days + 1
+        mesi_coperti = max(1, round(giorni_coperti / 30.44))
+    else:
+        mesi_coperti = 1
     cat_ordinate = dict(sorted(dettaglio_categories.items(), key=lambda item: item[1], reverse=True))
     stringa_categorie = "\n".join([f"   - {c:.<25} {v:>10.2f}€" for c, v in cat_ordinate.items()])
     anno_corrente = oggi.year
@@ -60,7 +68,7 @@ def analizza_andamento_ia(self):
     DATI STORICI (Ultimi 365 giorni):
     - Entrate Totali: {e_tot:.2f}€
     - Uscite Totali: {u_tot:.2f}€
-    - Media Uscite Mensile: {u_tot/12:.2f}€
+    - Media Uscite Mensile: {u_tot/mesi_coperti:.2f}€ (calcolata su {mesi_coperti} mesi di dati disponibili)
     - Categorie: {stringa_categorie}
     SITUAZIONE ATTUALE:
     - Oggi è il: {oggi.strftime('%d/%m/%Y')}
@@ -97,11 +105,11 @@ def analizza_andamento_ia(self):
     def _on_deiconify(event):
         if splash.winfo_exists():
             splash.deiconify()
-    self.bind("<Unmap>", _on_iconify)
-    self.bind("<Map>",   _on_deiconify)
+    _funcid_unmap = self.bind("<Unmap>", _on_iconify, add="+")
+    _funcid_map   = self.bind("<Map>",   _on_deiconify, add="+")
     def _mostra_risultato(testo):
-        self.unbind("<Unmap>")
-        self.unbind("<Map>")
+        self.unbind("<Unmap>", _funcid_unmap)
+        self.unbind("<Map>", _funcid_map)
         if splash.winfo_exists():
             splash.destroy()
         popup = tk.Toplevel(self, bg=self.COLOR_WIDGET_BG)
