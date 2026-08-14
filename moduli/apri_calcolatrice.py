@@ -3,8 +3,13 @@
 
 import tkinter as tk
 from tkinter import ttk
+import re
+import math
 
 # Calcolatrice Interattiva
+ERRORE_TIMEOUT_MS = 1500
+LIMITE_CIFRE_RISULTATO = 15
+
 def apri_calcolatrice(self):
     if hasattr(self, '_calcolatrice_popup') and self._calcolatrice_popup and self._calcolatrice_popup.winfo_exists():
         self._calcolatrice_popup.lift()
@@ -13,16 +18,17 @@ def apri_calcolatrice(self):
         calcolatrice.destroy()
         self._calcolatrice_popup = None
     def inserisci(valore):
+        if entry_var.get() == "Errore":
+            entry_var.set("")
         entry_var.set(entry_var.get() + valore)
-    def cancella():
-        entry_var.set("")
-        cronologia_text.config(state="normal")
-        cronologia_text.delete("1.0", tk.END)
-        cronologia_text.config(state="disabled")
+    def pulisci_dopo_errore():
+        if entry_var.get() == "Errore":
+            entry_var.set("")
     def calcola(event=None):
         try:
             import ast, operator
-            espressione = entry_var.get().replace('%', '/100')
+            espressione_originale = entry_var.get()
+            espressione = re.sub(r'(\d+\.?\d*)%', r'(\1/100)', espressione_originale)
             operatori = {
                 ast.Add: operator.add,
                 ast.Sub: operator.sub,
@@ -35,7 +41,13 @@ def apri_calcolatrice(self):
                 if isinstance(nodo, ast.Constant):
                     return nodo.value
                 elif isinstance(nodo, ast.BinOp):
-                    return operatori[type(nodo.op)](valuta(nodo.left), valuta(nodo.right))
+                    sinistra = valuta(nodo.left)
+                    destra = valuta(nodo.right)
+                    if isinstance(nodo.op, ast.Pow):
+                        stima_cifre = abs(destra * math.log10(abs(sinistra) + 1e-12))
+                        if stima_cifre > LIMITE_CIFRE_RISULTATO:
+                            raise OverflowError("Risultato troppo grande")
+                    return operatori[type(nodo.op)](sinistra, destra)
                 elif isinstance(nodo, ast.UnaryOp):
                     return operatori[type(nodo.op)](valuta(nodo.operand))
                 else:
@@ -43,25 +55,38 @@ def apri_calcolatrice(self):
             risultato = valuta(ast.parse(espressione, mode='eval').body)
             risultato = round(risultato, 10)
             cronologia_text.config(state="normal")
-            cronologia_text.insert(tk.END, f"  {espressione} = {risultato}\n")
+            cronologia_text.insert(tk.END, f"  {espressione_originale} = {risultato}\n")
             cronologia_text.see(tk.END)
             cronologia_text.config(state="disabled")
             entry_var.set(str(risultato))
         except Exception:
             entry_var.set("Errore")
+            calcolatrice.after(ERRORE_TIMEOUT_MS, pulisci_dopo_errore)
+    def cancella():
+        entry_var.set("")
+        cronologia_text.config(state="normal")
+        cronologia_text.delete("1.0", tk.END)
+        cronologia_text.config(state="disabled")
     def usa_risultato_ricorrenze():
+        valore = entry_var.get()
         try:
-            self.ricorrenza_imp.set(entry_var.get())
-            chiudi_calcolatrice()
-        except Exception:
+            float(valore.replace(",", "."))
+        except ValueError:
             entry_var.set("Errore")
+            return
+        self.ricorrenza_imp.set(valore)
+        chiudi_calcolatrice()
     def usa_risultato_principale():
+        valore = entry_var.get()
         try:
-            self.imp_entry.delete(0, tk.END)
-            self.imp_entry.insert(0, entry_var.get())
-            chiudi_calcolatrice()
-        except Exception:
+            float(valore.replace(",", "."))
+        except ValueError:
             entry_var.set("Errore")
+            return
+        self.imp_entry.delete(0, tk.END)
+        self.imp_entry.insert(0, valore)
+        chiudi_calcolatrice()
+        
     calcolatrice = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
     calcolatrice.transient(self)
     self._calcolatrice_popup = calcolatrice
