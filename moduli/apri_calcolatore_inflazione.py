@@ -50,19 +50,27 @@ def apri_calcolatore_inflazione(self):
     pos_x = self.winfo_rootx() + (self.winfo_width()  // 2) - (W // 2)
     pos_y = self.winfo_rooty() + (self.winfo_height() // 2) - (H // 2)
     win.geometry(f"{W}x{H}+{max(0, pos_x)}+{max(0, pos_y)}")
-    def _chiudi():
-        self.unbind("<Map>")
-        self.unbind("<Unmap>")
-        win.destroy()
-    win.bind("<Escape>", lambda e: _chiudi())
-    win.protocol("WM_DELETE_WINDOW", _chiudi)
     def _on_iconify(e):
         if self.state() == "iconic":
             win.withdraw()
         else:
             win.deiconify()
-    self.bind("<Map>",   _on_iconify)
-    self.bind("<Unmap>", _on_iconify)
+    _funcid_map   = self.bind("<Map>",   _on_iconify, add="+")
+    _funcid_unmap = self.bind("<Unmap>", _on_iconify, add="+")
+    _job_calcola_iniziale = [None]
+    _job_grafico = [None]
+    def _chiudi():
+        self.unbind("<Map>", _funcid_map)
+        self.unbind("<Unmap>", _funcid_unmap)
+        if _job_calcola_iniziale[0]:
+            try: win.after_cancel(_job_calcola_iniziale[0])
+            except: pass
+        if _job_grafico[0]:
+            try: win.after_cancel(_job_grafico[0])
+            except: pass
+        win.destroy()
+    win.bind("<Escape>", lambda e: _chiudi())
+    win.protocol("WM_DELETE_WINDOW", _chiudi)
     def fmt_eur(v):
         return f"€ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     def fmt_pct(v):
@@ -188,7 +196,9 @@ def apri_calcolatore_inflazione(self):
                                font=("Arial", 8), fill=label_color, anchor="center")
     def _calcola(*_):
         try:
-            imp = float(var_imp.get().replace(",", ".").replace("€", "").strip())
+            testo = var_imp.get().replace("€", "").strip()
+            testo = testo.replace(".", "").replace(",", ".")
+            imp = float(testo)
         except ValueError:
             return
         if imp <= 0:
@@ -225,7 +235,7 @@ def apri_calcolatore_inflazione(self):
         else:
             lbl_badge.config(text="✔  Inflazione moderata nel periodo", fg=self.COLOR_GREEN)
         _dati_grafico[0] = (labels, valori)
-        win.after(50, lambda: _disegna_grafico(labels, valori))
+        _job_grafico[0] = win.after(50, lambda: _disegna_grafico(labels, valori))
     var_imp.trace_add("write", _calcola)
     cb_da.bind("<<ComboboxSelected>>", _calcola)
     cb_a.bind("<<ComboboxSelected>>",  _calcola)
@@ -255,5 +265,5 @@ def apri_calcolatore_inflazione(self):
     win.deiconify()
     win.lift()
     win.focus_force()
-    win.after(100, _calcola)
+    _job_calcola_iniziale[0] = win.after(100, _calcola)
 
