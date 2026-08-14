@@ -1219,12 +1219,15 @@ def verifica_moduli_git(self):
                 canvas_lista.yview_scroll(-1, "units")
         except Exception:
             pass
-    canvas_lista.bind("<Enter>", lambda e: (canvas_lista.bind_all("<MouseWheel>", _on_mousewheel),
-                                            canvas_lista.bind_all("<Button-4>", _on_mousewheel),
-                                            canvas_lista.bind_all("<Button-5>", _on_mousewheel)))
-    canvas_lista.bind("<Leave>", lambda e: (canvas_lista.unbind_all("<MouseWheel>"),
-                                            canvas_lista.unbind_all("<Button-4>"),
-                                            canvas_lista.unbind_all("<Button-5>")))
+    canvas_lista.bind_all("<MouseWheel>", _on_mousewheel)
+    canvas_lista.bind_all("<Button-4>", _on_mousewheel)
+    canvas_lista.bind_all("<Button-5>", _on_mousewheel)
+    def _rimuovi_binding_scroll(event):
+        if event.widget is popup:
+            canvas_lista.unbind_all("<MouseWheel>")
+            canvas_lista.unbind_all("<Button-4>")
+            canvas_lista.unbind_all("<Button-5>")
+    popup.bind("<Destroy>", _rimuovi_binding_scroll, add="+")
     col_sx = tk.Frame(frame_checks, bg=self.COLOR_WIDGET_BG)
     col_dx = tk.Frame(frame_checks, bg=self.COLOR_WIDGET_BG)
     col_sx.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=6)
