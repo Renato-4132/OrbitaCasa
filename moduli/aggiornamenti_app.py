@@ -878,6 +878,14 @@ def aggiorna_librerie_pip(self):
                 return data.get("info", {}).get("version")
         except Exception:
             return None
+    def _connessione_pypi_disponibile():
+        try:
+            req = urllib.request.Request("https://pypi.org", method="HEAD",
+                                          headers={"User-Agent": "OrbitaCasa-Sync"})
+            urllib.request.urlopen(req, timeout=4)
+            return True
+        except Exception:
+            return False
     popup = tk.Toplevel(self)
     popup.title("Aggiornamento Librerie Python")
     popup.configure(bg=self.COLOR_BACKGROUND)
@@ -1059,6 +1067,10 @@ def aggiorna_librerie_pip(self):
                   yscrollcommand=sb.set, state=tk.DISABLED)
     txt.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
     sb.config(command=txt.yview)
+    txt.tag_configure("log_ok", foreground="#2E7D32")
+    txt.tag_configure("log_warn", foreground="#E65100")
+    txt.tag_configure("log_err", foreground="#C62828")
+    txt.tag_configure("log_info", foreground="gray60")
     frame_btn = tk.Frame(popup, bg=self.COLOR_BACKGROUND, pady=10)
     frame_btn.pack(fill=tk.X, padx=20)
     img_avvia   = self.icone_gui.get("sync")
@@ -1079,7 +1091,21 @@ def aggiorna_librerie_pip(self):
     btn_chiudi_l.bind("<Button-1>", lambda e: popup.destroy())
     def _log(msg):
         txt.config(state=tk.NORMAL)
-        txt.insert(tk.END, msg + "\n")
+        testo = msg.lstrip()
+        if testo.startswith("✓") or testo.startswith("✅"):
+            tag = "log_ok"
+        elif testo.startswith("⚠️"):
+            tag = "log_warn"
+        elif testo.startswith("❌"):
+            tag = "log_err"
+        elif testo.startswith("⏳") or testo.startswith("🔄"):
+            tag = "log_info"
+        else:
+            tag = None
+        if tag:
+            txt.insert(tk.END, msg + "\n", tag)
+        else:
+            txt.insert(tk.END, msg + "\n")
         txt.see(tk.END)
         txt.config(state=tk.DISABLED)
     def _riavvia(e=None):
@@ -1111,6 +1137,12 @@ def aggiorna_librerie_pip(self):
             self.after(0, lambda: btn_avvia.bind("<Button-1>", _avvia_click))
             return
         self.after(0, lambda: _log(f"Avvio aggiornamento {len(selezionate)} librerie...\n"))
+        if not _connessione_pypi_disponibile():
+            self.after(0, lambda: _log("❌ Nessuna connessione a Internet: impossibile contattare PyPI. Aggiornamento annullato."))
+            self.after(0, lambda: btn_avvia.config(cursor="hand2", fg=self.TEXT_COLOR))
+            self.after(0, lambda: btn_avvia.bind("<Button-1>", _avvia_click))
+            return
+        aggiornati = 0
         errori = 0
         for pkg, _ in selezionate:
             self.after(0, lambda l=pkg: _log(f"⏳ {l}..."))
@@ -1120,6 +1152,7 @@ def aggiorna_librerie_pip(self):
                     capture_output=True, text=True, timeout=120
                 )
                 if result.returncode == 0:
+                    aggiornati += 1
                     nuova_ver = _versione_installata(pkg)
                     self.after(0, lambda l=pkg, v=nuova_ver: _log(f"✓ {l} aggiornato → v{v}" if v else f"✓ {l} aggiornato"))
                     if pkg in righe_ver:
@@ -1145,7 +1178,11 @@ def aggiorna_librerie_pip(self):
                 self.after(0, lambda l=pkg, e=str(ex): _log(f"❌ {l}: {e}"))
         msg = f"\n✅ Completato. {len(selezionate)-errori} ok, {errori} errori." if errori else "\n✅ Completato. Tutte le librerie aggiornate."
         self.after(0, lambda: _log(msg))
-        self.after(0, _abilita_riavvia)
+        if aggiornati:
+            self.after(0, _abilita_riavvia)
+        else:
+            self.after(0, lambda: btn_avvia.config(cursor="hand2", fg=self.TEXT_COLOR))
+            self.after(0, lambda: btn_avvia.bind("<Button-1>", _avvia_click))
     def _avvia_click(e=None):
         btn_avvia.config(cursor="X_cursor")
         btn_avvia.unbind("<Button-1>")
@@ -1257,6 +1294,10 @@ def verifica_moduli_git(self):
               yscrollcommand=sb.set, state=tk.DISABLED)
     txt.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
     sb.config(command=txt.yview)
+    txt.tag_configure("log_ok", foreground="#2E7D32")
+    txt.tag_configure("log_warn", foreground="#E65100")
+    txt.tag_configure("log_err", foreground="#C62828")
+    txt.tag_configure("log_info", foreground="gray60")
     frame_btn = tk.Frame(popup, bg=self.COLOR_BACKGROUND, pady=10)
     frame_btn.pack(fill=tk.X, padx=20)
     img_avvia = self.icone_gui.get("sync")
@@ -1277,7 +1318,21 @@ def verifica_moduli_git(self):
     btn_chiudi_l.bind("<Button-1>", lambda e: popup.destroy())
     def _log(msg):
         txt.config(state=tk.NORMAL)
-        txt.insert(tk.END, msg + "\n")
+        testo = msg.lstrip()
+        if testo.startswith("✓") or testo.startswith("✅"):
+            tag = "log_ok"
+        elif testo.startswith("⚠️"):
+            tag = "log_warn"
+        elif testo.startswith("❌"):
+            tag = "log_err"
+        elif testo.startswith("⏳") or testo.startswith("🔄"):
+            tag = "log_info"
+        else:
+            tag = None
+        if tag:
+            txt.insert(tk.END, msg + "\n", tag)
+        else:
+            txt.insert(tk.END, msg + "\n")
         txt.see(tk.END)
         txt.config(state=tk.DISABLED)
     _guard = {"attivo": False}
