@@ -16,7 +16,7 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
     win.title("Estratti per Metodo di Pagamento e Conti")
     win.withdraw()
     self.update_idletasks()
-    w, h = 1100, 620
+    w, h = 1300, 620
     x = self.winfo_rootx() + (self.winfo_width() // 2) - (w // 2)
     y = self.winfo_rooty() + (self.winfo_height() // 2) - (h // 2)
     win.geometry(f"{w}x{h}+{x}+{y}")
@@ -402,5 +402,5 @@ def _esporta_estratti_metodo(self, tree, var_metodo, var_periodo, var_anno, var_
     righe.append(f"{'Saldo:':{C_DATA+C_CAT+C_DESC+2}} {f'{saldo:+.2f} €':>{C_IMP}} {'':>{C_IMP}}")
     contenuto = "\n".join(righe)
     oggi = datetime.date.today()
-    nome_file = f"Estratti_{metodo.split()[0] if metodo else 'tutti'}_{oggi.strftime('%d-%m-%Y')}.txt"
+    nome_file = f"Estratti_{metodo_pagamento_pulito(metodo) if metodo != 'Tutti i metodi' else 'tutti'}_{oggi.strftime('%d-%m-%Y')}.txt"
     self.show_export_preview(contenuto, nome_file)
