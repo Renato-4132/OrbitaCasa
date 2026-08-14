@@ -6,9 +6,17 @@ from tkinter import ttk
 
 # Finestra di Cancellazione Multipla Categorie
 def apri_cancella_multiplo(self):
+    if hasattr(self, '_cancella_multiplo_popup') and self._cancella_multiplo_popup and self._cancella_multiplo_popup.winfo_exists():
+        self._cancella_multiplo_popup.lift()
+        return
     popup = tk.Toplevel(self,bg=self.COLOR_TOPLEVEL)
+    self._cancella_multiplo_popup = popup
     popup.transient(self)
     popup.title("Cancella Categorie")
+    def chiudi_popup():
+        popup.destroy()
+        self._cancella_multiplo_popup = None
+    popup.bind("<Escape>", lambda e: chiudi_popup())
     popup.resizable(True, True)
     larghezza, altezza = 400, 500
     x = self.winfo_x() + (self.winfo_width() // 2) - (larghezza // 2)
@@ -89,4 +97,4 @@ def apri_cancella_multiplo(self):
     img_chiudi_pop = self.icone_gui.get("chiudi")
     btn_chiudi_pop = ttk.Label(btn_frame, compound="left", image=img_chiudi_pop, text=" Chiudi" if img_chiudi_pop else "Chiudi", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
     btn_chiudi_pop.pack(side="left", padx=5)
-    btn_chiudi_pop.bind("<Button-1>", lambda e: popup.destroy())
+    btn_chiudi_pop.bind("<Button-1>", lambda e: chiudi_popup())
