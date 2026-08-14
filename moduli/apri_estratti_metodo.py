@@ -175,7 +175,7 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
             return
         data_str = vals[0]
         try:
-            giorno = datetime.datetime.strptime(data_str, "%d/%m/%Y").date()
+            giorno = datetime.datetime.strptime(data_str, "%d-%m-%Y").date()
         except Exception:
             return
         self.set_stats_mode("giorno")
@@ -278,7 +278,7 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
                 _uso_ordinale_em[_key_em] = _ord_em + 1
                 if conto_f != "Tutti" and nome_conto_em != conto_f:
                     continue
-                data_str = data_obj.strftime("%d/%m/%Y")
+                data_str = data_obj.strftime("%d-%m-%Y")
                 ora_voce = campo(voce, "ora", "")
                 tag_voce = " ".join(campo(voce, "hashtag", []) or [])
                 if tipo == "Entrata":
@@ -357,9 +357,9 @@ def _esporta_estratti_metodo(self, tree, var_metodo, var_periodo, var_anno, var_
     elif periodo == "anno":
         periodo_str = f"Anno {var_anno.get()}"
     elif periodo == "mese":
-        periodo_str = f"{var_mese.get()}/{var_anno.get()}"
+        periodo_str = f"{var_mese.get()}-{var_anno.get()}"
     else:
-        periodo_str = f"{var_giorno.get()}/{var_mese.get()}/{var_anno.get()}"
+        periodo_str = f"{var_giorno.get()}-{var_mese.get()}-{var_anno.get()}"
     C_DATA  = 12
     C_CAT   = 20
     C_DESC  = 28
