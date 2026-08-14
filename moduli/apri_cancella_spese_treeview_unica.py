@@ -9,6 +9,9 @@ from tkinter import ttk
 from moduli.modello_spesa import campo, METODI_PAGAMENTO
 
 def apri_cancella_spese_treeview_unica(self):
+    if hasattr(self, '_cancella_spese_popup') and self._cancella_spese_popup and self._cancella_spese_popup.winfo_exists():
+        self._cancella_spese_popup.lift()
+        return
     import __main__ as _app
     PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
     NOMI_MESI_ITALIANO = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", 
@@ -126,6 +129,10 @@ def apri_cancella_spese_treeview_unica(self):
     def popola_treeview_spese():
         self.spese_treeview.delete(*self.spese_treeview.get_children())
         if not self.spese:
+            self.spese_treeview.insert("", "end", iid="FILTER_MSG",
+                                       text="",
+                                       values=("—", "Nessuna spesa presente.", "", "", "", "", "", "", ""),
+                                       tags=('empty',))
             return
         filtri = self.filtri_cancellazione
         items_inserted = 0
@@ -441,6 +448,7 @@ def apri_cancella_spese_treeview_unica(self):
             items_to_select.append(iid)
         popola_treeview_spese()
     popup = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
+    self._cancella_spese_popup = popup
     popup.transient(self)
     popup.title("Cancella Movimenti Multipli")
     larg, alt = 1300, 600
@@ -448,6 +456,12 @@ def apri_cancella_spese_treeview_unica(self):
     y = self.winfo_y() + (self.winfo_height() // 2) - (alt // 2)
     popup.geometry(f"{larg}x{alt}+{x}+{y}")
     popup.minsize(larg, alt)
+    def chiudi_popup_cf():
+        popup.destroy()
+        self._cancella_spese_popup = None
+    popup.bind("<Escape>", lambda e: chiudi_popup_cf())
+    popup.wait_visibility()
+    popup.grab_set()
     tk.Label(popup, text="Seleziona Movimenti da cancellare:", bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR, font=("Arial", 12, "bold")).pack(pady=(10, 5))
     top_controls_frame = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
     top_controls_frame.pack(fill='x', padx=10, pady=(0, 5))
@@ -609,7 +623,7 @@ def apri_cancella_spese_treeview_unica(self):
     img_chiudi_pop = self.icone_gui.get("chiudi")
     btn_chiudi_pop = ttk.Label(btn_frame, compound="left", image=img_chiudi_pop, text=" Chiudi" if img_chiudi_pop else "Chiudi", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
     btn_chiudi_pop.pack(side="left", padx=5)
-    btn_chiudi_pop.bind("<Button-1>", lambda e: popup.destroy())
+    btn_chiudi_pop.bind("<Button-1>", lambda e: chiudi_popup_cf())
     aggiorna_stato_filtri() 
     popola_treeview_spese()
     sort_treeview_column(self.spese_treeview, "Giorno", True, data_type='date') 
