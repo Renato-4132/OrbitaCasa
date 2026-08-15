@@ -156,7 +156,11 @@ def avvia_sincronizzazione(self, manuale=False):
                 if isinstance(response_part, tuple):
                     msg = email.message_from_bytes(response_part[1])
                     oggetto = str(msg.get("Subject", ""))
-                    data_dt = email.utils.parsedate_to_datetime(msg.get("Date")).date()
+                    data_dt = data_oggi
+                    try:
+                        data_dt = email.utils.parsedate_to_datetime(msg.get("Date")).date()
+                    except Exception:
+                        pass
                     corpo = ""
                     pdf_data = None
                     for part in msg.walk():
@@ -200,21 +204,25 @@ def avvia_sincronizzazione(self, manuale=False):
                             if "```json" in raw_e: raw_e = raw_e.split("```json")[1].split("```")[0].strip()
                             elif "```" in raw_e: raw_e = raw_e.split("```")[1].split("```")[0].strip()
                             for d in json.loads(raw_e):
-                                cat_ia = d.get("categoria", "")
-                                cat = cat_ia if cat_ia in self.categorie else "Generica"
-                                data_mov = datetime.strptime(d["data"], "%Y-%m-%d").date()
-                                importo_mov = float(d["importo"])
-                                tipo = "Entrata" if importo_mov >= 0 else "Uscita"
-                                esiste_mov = False
-                                for s in self.spese.get(data_mov, []):
-                                    if s[1] == d["desc"] and abs(s[2] - abs(importo_mov)) < 0.01:
-                                        esiste_mov = True
-                                        break
-                                if not esiste_mov:
-                                    self.spese.setdefault(data_mov, []).append(SpesaEntry.nuova(cat, "🤖 " + d["desc"], abs(importo_mov), tipo))
-                                    self.operazioni_scaricate_sessione += 1
-                                    with open(LOG_IMPORTAZIONI, "a", encoding="utf-8") as log:
-                                        log.write(f"{datetime.now().strftime('%d/%m/%Y %H:%M'):<17} | {'ESTRATTO':<8} | {data_mov.strftime('%d/%m/%Y'):<10} | {d['desc']:<50} | {abs(importo_mov):>10.2f} € | {tipo:<7} | {cat}\n")
+                                try:
+                                    cat_ia = d.get("categoria", "")
+                                    cat = cat_ia if cat_ia in self.categorie else "Generica"
+                                    data_mov = datetime.strptime(d["data"], "%Y-%m-%d").date()
+                                    importo_mov = float(d["importo"])
+                                    tipo = "Entrata" if importo_mov >= 0 else "Uscita"
+                                    esiste_mov = False
+                                    for s in self.spese.get(data_mov, []):
+                                        if s[1] == d["desc"] and abs(s[2] - abs(importo_mov)) < 0.01:
+                                            esiste_mov = True
+                                            break
+                                    if not esiste_mov:
+                                        self.spese.setdefault(data_mov, []).append(SpesaEntry.nuova(cat, "🤖 " + d["desc"], abs(importo_mov), tipo))
+                                        self.operazioni_scaricate_sessione += 1
+                                        with open(LOG_IMPORTAZIONI, "a", encoding="utf-8") as log:
+                                            log.write(f"{datetime.now().strftime('%d/%m/%Y %H:%M'):<17} | {'ESTRATTO':<8} | {data_mov.strftime('%d/%m/%Y'):<10} | {d['desc']:<50} | {abs(importo_mov):>10.2f} € | {tipo:<7} | {cat}\n")
+                                except Exception as _e_mov:
+                                    print(f"Movimento estratto scartato (dati incompleti): {_e_mov}")
+                                    continue
                             mail.store(m_id, '+FLAGS', '\\Seen')
                             aggiorna_UI(f"📊 Estratto acquisito", percentuale, self.operazioni_scaricate_sessione)
                             time.sleep(5)
@@ -250,14 +258,14 @@ def avvia_sincronizzazione(self, manuale=False):
                             if esiste: break
                         if not esiste:
                             desc_spesa = f"ALL· {desc}" if pdf_data else desc
-                            self.spese.setdefault(data_oggi, []).append(SpesaEntry.nuova(CATEGORIA_TEMPORANEA, desc_spesa, importo, direzione))
+                            self.spese.setdefault(data_dt, []).append(SpesaEntry.nuova(CATEGORIA_TEMPORANEA, desc_spesa, importo, direzione))
                             self.operazioni_scaricate_sessione += 1
                             with open(LOG_IMPORTAZIONI, "a", encoding="utf-8") as log:
-                                log.write(f"{datetime.now().strftime('%d/%m/%Y %H:%M'):<17} | {'MAIL':<8} | {data_oggi.strftime('%d/%m/%Y'):<10} | {desc_spesa:<50} | {importo:>10.2f} € | {direzione:<7} | {CATEGORIA_TEMPORANEA}\n")
+                                log.write(f"{datetime.now().strftime('%d/%m/%Y %H:%M'):<17} | {'MAIL':<8} | {data_dt.strftime('%d/%m/%Y'):<10} | {desc_spesa:<50} | {importo:>10.2f} € | {direzione:<7} | {CATEGORIA_TEMPORANEA}\n")
                             if pdf_data:
                                 azienda_safe = re.sub(r'[\\/*?:"<>|]', "-", azienda).strip()
                                 fattura_safe = re.sub(r'[\\/*?:"<>|]', "-", str(dati.get('fattura') or 'mancante')).strip()
-                                nome_file = f"{data_oggi.strftime('%d-%m-%Y')}_{azienda_safe}_fatt_{fattura_safe}.pdf"
+                                nome_file = f"{data_dt.strftime('%d-%m-%Y')}_{azienda_safe}_fatt_{fattura_safe}.pdf"
                                 percorso_completo = os.path.join(cartella_pdf, nome_file)
                                 with open(percorso_completo, "wb") as f:
                                     f.write(pdf_data)
@@ -265,7 +273,7 @@ def avvia_sincronizzazione(self, manuale=False):
                                 try:
                                     if not os.path.exists(DOC_DIR):
                                         os.makedirs(DOC_DIR)
-                                    data_ggmmaaaa = data_oggi.strftime("%d%m%Y")
+                                    data_ggmmaaaa = data_dt.strftime("%d%m%Y")
                                     imp_centesimi = int(round(importo * 100))
                                     def _san(s, n=30):
                                         return re.sub(r'[^\w\.-]', '', s.strip().replace(' ', '_').upper())[:n]
