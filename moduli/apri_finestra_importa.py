@@ -157,32 +157,42 @@ def apri_finestra_importa(self, path=None):
                         continue
                     dati_csv.extend(dati_blocco)
                 movimenti = []
+                righe_scartate = 0
                 for d in dati_csv:
-                    desc = d["desc"]
-                    fattura  = d.get("fattura")
-                    scadenza = d.get("scadenza")
-                    if fattura and str(fattura).lower() not in ("null", "", "none"):
-                        desc += f" {fattura}"
-                    if scadenza and str(scadenza).lower() not in ("null", "", "none"):
-                        desc += f" SCD:{scadenza}"
-                    movimenti.append({
-                        "data":        datetime.strptime(d["data"], "%Y-%m-%d").date(),
-                        "descrizione": desc,
-                        "importo":     float(d["importo"]),
-                        "categoria":   d.get("categoria", "Generica")
-                    })
-                if attesa.winfo_exists(): attesa.destroy()
+                    try:
+                        desc = d["desc"]
+                        fattura  = d.get("fattura")
+                        scadenza = d.get("scadenza")
+                        if fattura and str(fattura).lower() not in ("null", "", "none"):
+                            desc += f" {fattura}"
+                        if scadenza and str(scadenza).lower() not in ("null", "", "none"):
+                            desc += f" SCD:{scadenza}"
+                        movimenti.append({
+                            "data":        datetime.strptime(d["data"], "%Y-%m-%d").date(),
+                            "descrizione": desc,
+                            "importo":     float(d["importo"]),
+                            "categoria":   d.get("categoria", "Generica")
+                        })
+                    except Exception:
+                        righe_scartate += 1
+                        continue
+                self.after(0, lambda: attesa.destroy() if attesa.winfo_exists() else None)
                 if blocchi_falliti and not movimenti:
                     self.after(0, lambda: self.show_custom_warning(
                         "Errore IA",
                         "Gemini non ha risposto correttamente per nessun blocco del CSV.\nRiprova tra qualche minuto."))
                     return
                 self.after(0, lambda: self.apri_finestra_revisione_universale(movimenti))
-                if blocchi_falliti:
+                if blocchi_falliti or righe_scartate:
                     _n_falliti = len(blocchi_falliti)
-                    self.after(300, lambda n=_n_falliti: self.show_toast(
-                        f"Attenzione: {n} blocco/i del CSV non è stato importato (errore Gemini). Controlla il file.",
-                        duration=5000))
+                    _n_scartate = righe_scartate
+                    _parti = []
+                    if _n_falliti:
+                        _parti.append(f"{_n_falliti} blocco/i")
+                    if _n_scartate:
+                        _parti.append(f"{_n_scartate} riga/e")
+                    _msg = " e ".join(_parti) + " del CSV non importate (errore Gemini o dati incompleti). Controlla il file."
+                    self.after(300, lambda m=_msg: self.show_toast(m, duration=5000))
                 return
             response = client.models.generate_content(
                 model=GEMINI, contents=prompt)
@@ -194,8 +204,7 @@ def apri_finestra_importa(self, path=None):
             dati = json.loads(raw_json)
             movimenti = []
             tipo_doc = dati[0].get("tipo_documento", "estratto") if dati else "estratto"
-            estensione_path = os.path.splitext(path)[1].lower()
-            e_fattura_singola = (estensione_path == ".pdf" and len(dati) == 1)
+            e_fattura_singola = (tipo_doc == "fattura" and len(dati) == 1)
             if e_fattura_singola:
                 d0 = dati[0]
                 imp   = float(d0.get("importo") or 0.01)
@@ -233,7 +242,7 @@ def apri_finestra_importa(self, path=None):
                     data_fmt = datetime.strptime(data_str, "%Y-%m-%d").strftime("%d-%m-%Y")
                 except Exception:
                     data_fmt = datetime.now().strftime("%d-%m-%Y")
-                if attesa.winfo_exists(): attesa.destroy()
+                self.after(0, lambda: attesa.destroy() if attesa.winfo_exists() else None)
                 self.after(0, lambda d=desc, i=imp, c=cat, dt=data_fmt, t=direzione: self.gestisci_archivi_pdf(
                     categoria_iniziale=c,
                     data_iniziale=dt,
@@ -250,7 +259,7 @@ def apri_finestra_importa(self, path=None):
                     if fattura and str(fattura).lower() not in ("null", "", "none"):
                         desc += f" {fattura}"
                     if scadenza and str(scadenza).lower() not in ("null", "", "none"):
-                        desc += f" SCD{scadenza}"
+                        desc += f" SCD:{scadenza}"
                     movimenti.append({
                         "data":        datetime.strptime(d["data"], "%Y-%m-%d").date(),
                         "descrizione": desc,
