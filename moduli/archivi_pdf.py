@@ -6,6 +6,7 @@ import re
 import sys
 import json
 import shutil
+import hashlib
 import tempfile
 import zipfile
 import platform
@@ -58,6 +59,12 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
     def crea_directory_documenti():
          if not os.path.exists(DB_DIR): os.makedirs(DB_DIR)
          if not os.path.exists(DOC_DIR): os.makedirs(DOC_DIR)
+    def calcola_hash_pdf(path):
+         h = hashlib.sha256()
+         with open(path, 'rb') as f:
+             for chunk in iter(lambda: f.read(65536), b''):
+                 h.update(chunk)
+         return h.hexdigest()
     def load_document_registry():
          crea_directory_documenti()
          if os.path.exists(REGISTRY_FILE):
@@ -66,10 +73,22 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                      content = f.read()
                      if not content: return {}
                      f.seek(0)
-                     return json.load(f)
+                     registry = json.load(f)
                  except json.JSONDecodeError:
                      self.show_custom_warning("Attenzione", "Il file di registro è corrotto. Creazione di un nuovo registro.")
                      return {}
+             _backfill_avvenuto = False
+             for _fname, _dati in registry.items():
+                 if "sha256_hash" not in _dati:
+                     _fpath = os.path.join(DOC_DIR, _fname)
+                     try:
+                         _dati["sha256_hash"] = calcola_hash_pdf(_fpath)
+                         _backfill_avvenuto = True
+                     except Exception:
+                         pass
+             if _backfill_avvenuto:
+                 save_document_registry(registry)
+             return registry
          return {}
     def save_document_registry(registry):
          crea_directory_documenti()
@@ -78,7 +97,12 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
          # DataBase Condiviso
          if DB_CONDIVISO:
              self.notifica_modifica_web()
-             print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] 📡 Notifica di aggiornamento inviata .")
+             print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 Notifica di aggiornamento inviata .")
+    def rimuovi_prefisso_all(s):
+         s = s or ""
+         while s.startswith('ALL·'):
+             s = s[len('ALL·'):].strip()
+         return s
     def sanitizza_stringa(s, max_len=None):
          s_sanitizzata = s.strip().replace(' ', '_')
          s_sanitizzata = re.sub(r'[^\w\.-]', '', s_sanitizzata) 
@@ -264,12 +288,12 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
          for index, (val, k) in enumerate(l):
              treeview.move(k, '', index)
          treeview.heading(col, command=lambda c=col: treeview_sort_column(treeview, col, not reverse))
-    def load_documents(treeview, filtri_attuali=None):
+    def load_documents(treeview, filtri_attuali=None, _tentativo=0):
             self.funzione_carica_documenti = load_documents
             crea_directory_documenti()
             registry = load_document_registry()
-            if not registry and os.path.exists(REGISTRY_FILE) and os.path.getsize(REGISTRY_FILE) > 2:
-                    self.after(200, lambda: load_documents(treeview, filtri_attuali))
+            if not registry and os.path.exists(REGISTRY_FILE) and os.path.getsize(REGISTRY_FILE) > 2 and _tentativo < 5:
+                    self.after(200, lambda: load_documents(treeview, filtri_attuali, _tentativo + 1))
                     return
             for item in treeview.get_children(): treeview.delete(item)
             documenti_validi = [f for f in registry.keys() if f.endswith('.pdf')]
@@ -376,16 +400,30 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
         path = _drop_path_ref[0] or filedialog.askopenfilename(parent=pdf_window, filetypes=[("PDF", "*.pdf")])
         if not path: return
         try:
+            _hash_nuovo = calcola_hash_pdf(path)
+        except Exception:
+            _hash_nuovo = None
+        if _hash_nuovo:
+            _registry_dup = load_document_registry()
+            _match_dup = next((_fn for _fn, _dati in _registry_dup.items() if _dati.get("sha256_hash") == _hash_nuovo), None)
+            if _match_dup:
+                if not self.show_custom_askyesno("Documento già archiviato",
+                        f"Questo PDF risulta già archiviato come:\n\n{_match_dup}\n\nVuoi importarlo comunque?"):
+                    return
+        try:
           shutil.copy2(path, os.path.join(DOC_DIR, f_name))
-          spesa_trovata = False
+          spesa_trovata = None
           if data_obj in self.spese:
               for s in self.spese[data_obj]:
                   if abs(float(s[2]) - imp_float) < 0.01 and s[3] == tipo_esatto:
-                      spesa_trovata = True
+                      spesa_trovata = s
                       break
           if spesa_trovata:
+              _cat_st = spesa_trovata[0]
+              _desc_st = rimuovi_prefisso_all(spesa_trovata[1])
+              _imp_st = float(spesa_trovata[2])
               aggiorna_spesa = self.show_custom_askyesno("Aggiorna Spese",
-                  "Ho trovato una spesa simile.\n\nSì → aggancia il documento alla spesa esistente\nNo → salva solo il documento")
+                  f"Ho trovato una spesa simile:\n\nCategoria: {_cat_st}\nDescrizione: {_desc_st}\nImporto: {_imp_st:.2f} €\n\nSì → aggancia il documento alla spesa esistente\nNo → salva solo il documento")
           else:
               aggiorna_spesa = self.show_custom_askyesno("Nuova Spesa",
                   "Nessuna spesa trovata per questa data/importo.\n\nSì → aggiungi anche la spesa al database\nNo → salva solo il documento")
@@ -423,7 +461,8 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
           registry[f_name] = {
             "data_raw": data_ggmmaaaa, "categoria_esatta": categoria_esatta,
             "descrizione_esatta": desc_icona, "importo_raw": int(imp_raw),
-            "tipo_esatto": tipo_esatto, "timestamp": datetime.now().isoformat()
+            "tipo_esatto": tipo_esatto, "timestamp": datetime.now().isoformat(),
+            "sha256_hash": _hash_nuovo
           }
           save_document_registry(registry)
           self.refresh_gui() 
@@ -1068,7 +1107,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
             if _data_obj_orig in self.spese:
                 for _s in self.spese[_data_obj_orig]:
                     if (abs(float(_s[2]) - _imp_orig) < 0.01 and _s[3] == _tipo_orig
-                            and (_s[1] == _desc_orig or _s[1] == _desc_orig.lstrip('ALL·').strip())):
+                            and (_s[1] == _desc_orig or _s[1] == rimuovi_prefisso_all(_desc_orig))):
                         tag_e_var.set(" ".join(campo(_s, "hashtag", [])))
                         _spesa_collegata_mod = _s
                         break
@@ -1204,7 +1243,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                 imp_float = float(imp_dec)
                 imp_raw = str(int(imp_dec * 100))
             except Exception:
-                self.show_toast("Dati non validi.")
+                return self.show_toast("Dati non validi.")
             desc_pulita = desc_e_var.get().strip()
             while desc_pulita.startswith('ALL·'):
                 desc_pulita = desc_pulita[len('ALL·'):].strip()
@@ -1221,7 +1260,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                 for i, s in enumerate(self.spese[data_obj_old]):
                     corrispondenza_importo = abs(float(s[2]) - imp_float_old) < 0.01
                     corrispondenza_tipo    = s[3] == tipo_old
-                    corrispondenza_desc    = s[1] == desc_old or s[1] == desc_old.lstrip('ALL·').strip()
+                    corrispondenza_desc    = s[1] == desc_old or s[1] == rimuovi_prefisso_all(desc_old)
                     if corrispondenza_importo and corrispondenza_tipo and corrispondenza_desc:
                         idx_spesa = i
                         break
@@ -1232,8 +1271,12 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                             break
             spesa_trovata = idx_spesa != -1
             if spesa_trovata:
+                _voce_trov_e = self.spese[data_obj_old][idx_spesa]
+                _cat_st_e = _voce_trov_e[0]
+                _desc_st_e = rimuovi_prefisso_all(_voce_trov_e[1])
+                _imp_st_e = float(_voce_trov_e[2])
                 aggiorna_spesa = self.show_custom_askyesno("Aggiorna Spesa",
-                    "Ho trovato una spesa collegata.\nVuoi aggiornare anche quella?")
+                    f"Ho trovato una spesa collegata:\n\nCategoria: {_cat_st_e}\nDescrizione: {_desc_st_e}\nImporto: {_imp_st_e:.2f} €\n\nVuoi aggiornare anche quella?")
             nuovo_f_name = f"{data_ggmmaaaa}_{sanitizza_stringa(desc_pulita, 30)}_{tipo}_{sanitizza_stringa(categoria, 20)}_{imp_raw}.pdf"
             old_path = os.path.join(DOC_DIR, f_n)
             new_path = os.path.join(DOC_DIR, nuovo_f_name)
