@@ -257,15 +257,21 @@ def apri_inserimento_rapido(self, event):
                 break
         partecipante_attuale = ""
         for p_nome in sorted(nomi_combo, key=len, reverse=True):
-            if p_nome and testo_puro.endswith(p_nome):
+            if p_nome and p_nome in testo_puro:
                 partecipante_attuale = p_nome
-                testo_puro = testo_puro[:-len(p_nome)].strip()
+                testo_puro = testo_puro.replace(p_nome, "").strip()
+                testo_puro = " ".join(testo_puro.split())
                 break
         if event and event.widget == combo_part:
             partecipante_finale = var_part.get()
         else:
             partecipante_finale = partecipante_attuale
-        risultato = f"{testo_puro} {partecipante_finale}".strip()
+        parti = []
+        if partecipante_finale:
+            parti.append(partecipante_finale)
+        if testo_puro:
+            parti.append(testo_puro)
+        risultato = " ".join(parti)
         entry_desc_rapida.delete(0, tk.END)
         entry_desc_rapida.insert(0, risultato)
         var_part.set("")
