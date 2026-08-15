@@ -30,15 +30,11 @@ def _apri_viewer_pdf(self, pdf_path):
     entry_cerca = ttk.Entry(frame_cerca, textvariable=cerca_var,
                             width=30, style="TEntry")
     entry_cerca.pack(side="left", padx=(0, 4))
-    img_cerca_prec = self.icone_gui.get("indietro")
-    btn_cerca_prec = ttk.Label(frame_cerca, compound="left", image=img_cerca_prec,
-                               text=" ◀" if not img_cerca_prec else "",
+    btn_cerca_prec = ttk.Label(frame_cerca, text="◀",
                                background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
                                cursor="hand2", padding=(6, 3))
     btn_cerca_prec.pack(side="left", padx=2)
-    img_cerca_succ = self.icone_gui.get("avanti")
-    btn_cerca_succ = ttk.Label(frame_cerca, compound="left", image=img_cerca_succ,
-                               text=" ▶" if not img_cerca_succ else "",
+    btn_cerca_succ = ttk.Label(frame_cerca, text="▶",
                                background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
                                cursor="hand2", padding=(6, 3))
     btn_cerca_succ.pack(side="left", padx=2)
@@ -46,7 +42,12 @@ def _apri_viewer_pdf(self, pdf_path):
     btn_cerca_succ.bind("<Button-1>", lambda e: risultato_succ(e))
     entry_cerca.bind("<Return>", lambda e: esegui_ricerca(e))
     entry_cerca.bind("<KP_Enter>", lambda e: esegui_ricerca(e))
-    cerca_var.trace_add("write", lambda *a: esegui_ricerca())
+    _debounce_ricerca_id = [None]
+    def _ricerca_debounced(*_a):
+        if _debounce_ricerca_id[0] is not None:
+            win.after_cancel(_debounce_ricerca_id[0])
+        _debounce_ricerca_id[0] = win.after(300, esegui_ricerca)
+    cerca_var.trace_add("write", _ricerca_debounced)
     lbl_risultati = tk.Label(frame_cerca, text="",
                              bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
                              font=("Segoe UI", 8))
@@ -139,24 +140,18 @@ def _apri_viewer_pdf(self, pdf_path):
     tk.Frame(win, bg=self.COLOR_BACKGROUND, height=1).pack(fill="x", pady=(10, 0))
     frame_ctrl = tk.Frame(win, bg=self.COLOR_BACKGROUND)
     frame_ctrl.pack(pady=10)
-    img_prev = self.icone_gui.get("indietro")
-    btn_prev = ttk.Label(frame_ctrl, compound="left", image=img_prev,
-                         text=" Indietro" if img_prev else "◀ Indietro",
+    btn_prev = ttk.Label(frame_ctrl, text="◀ Indietro",
                          background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
                          cursor="hand2", padding=(10, 5))
-    btn_prev.image = img_prev
     btn_prev.pack(side="left", padx=5)
     lbl_pagina = tk.Label(frame_ctrl,
                           text=f"Pagina 1 / {len(doc)}",
                           bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
                           font=("Segoe UI", 9))
     lbl_pagina.pack(side="left", padx=12)
-    img_next = self.icone_gui.get("avanti")
-    btn_next = ttk.Label(frame_ctrl, compound="left", image=img_next,
-                         text=" Avanti" if img_next else "Avanti ▶",
+    btn_next = ttk.Label(frame_ctrl, text="Avanti ▶",
                          background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
                          cursor="hand2", padding=(10, 5))
-    btn_next.image = img_next
     btn_next.pack(side="left", padx=5)
     tk.Frame(frame_ctrl, bg=self.COLOR_BACKGROUND, width=20).pack(side="left")
     btn_zoom_out = ttk.Label(frame_ctrl, text="  −  ",
@@ -201,6 +196,7 @@ def _apri_viewer_pdf(self, pdf_path):
         risultato_corrente[0] = 0
         if not testo:
             lbl_risultati.config(text="")
+            pagina_corrente[0] = 0
             render_pagina()
             return
         for n in range(len(doc)):
@@ -264,7 +260,7 @@ def _apri_viewer_pdf(self, pdf_path):
         canvas_pdf.xview_moveto(0)
         lbl_pagina.config(text=f"Pagina {pagina_corrente[0] + 1} / {len(doc)}")
         lbl_zoom.config(text=f"{int(zoom_level[0] * 100)}%")
-    if toc:
+        if toc:
             pagina_att = pagina_corrente[0]
             voce_attiva = 0
             for i, p in enumerate(toc_pagine):
@@ -300,7 +296,6 @@ def _apri_viewer_pdf(self, pdf_path):
         dest = filedialog.asksaveasfilename(
             parent=win,
             title="Salva Manuale",
-            confirmoverwrite=False,
             initialdir=EXPORT_FILES,
             defaultextension=".pdf",
             filetypes=[("PDF", "*.pdf")],
@@ -349,5 +344,3 @@ def _apri_viewer_pdf(self, pdf_path):
         os.remove(pdf_path)
     except Exception:
         pass
-
-    # Scarica e Apri Tabella Consumi (PDF)
