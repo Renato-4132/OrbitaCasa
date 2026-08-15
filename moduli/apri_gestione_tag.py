@@ -16,78 +16,45 @@ def apri_gestione_tag(self):
         return
     NOMI_MESI_IT = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno",
                      "Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"]
+    _riga_map = {}
     def _carica():
         tdb = {}
-        for d, entries in self.spese.items():
-            for idx, v in enumerate(entries):
+        _riga_map.clear()
+        for d, entries in sorted(self.spese.items()):
+            for v in entries:
                 tags = getattr(v, "hashtag", None)
                 if tags:
-                    base = self._chiave_tag(d, v.categoria, v.descrizione, v.importo)
-                    tdb[f"{base}#{idx}"] = list(tags)
+                    chiave = getattr(v, "id_spesa", None)
+                    if not chiave:
+                        continue
+                    tdb[chiave] = list(tags)
+                    _riga_map[chiave] = (d, v)
         return tdb
-    def _idx_da_chiave(chiave):
-        if "#" in chiave:
-            try:
-                return int(chiave.rsplit("#", 1)[1])
-            except Exception:
-                return None
-        return None
     def _trova_entry(chiave):
-        parsed = _parse_chiave(chiave)
-        idx = _idx_da_chiave(chiave)
-        if not parsed or idx is None:
-            return None, None
-        data_str, cat, desc, imp_str = parsed
-        d = _parse_data(data_str)
-        if not d:
-            return None, None
-        try:
-            imp = float(imp_str)
-        except Exception:
-            return None, None
-        lista = self.spese.get(d, [])
-        if 0 <= idx < len(lista):
-            v = lista[idx]
-            if str(v[0]) == cat and str(v[1]) == desc and abs(float(v[2]) - imp) < 0.01:
-                return d, v
-        return None, None
+        return _riga_map.get(chiave, (None, None))
     def _imposta_tag(chiave, tags):
         d, entry = _trova_entry(chiave)
-        if entry is None or not hasattr(entry, "hashtag"):
+        if entry is None:
             return False
         entry.hashtag = list(tags)
         if hasattr(self, '_cache_tutti_tag'):
             del self._cache_tutti_tag
         self.save_db()
+        self.refresh_gui()
         return True
     def _rimuovi_tag_multipli(chiavi):
         modificati = 0
         for chiave in chiavi:
             d, entry = _trova_entry(chiave)
-            if entry is not None and hasattr(entry, "hashtag"):
+            if entry is not None:
                 entry.hashtag = []
                 modificati += 1
         if modificati:
             if hasattr(self, '_cache_tutti_tag'):
                 del self._cache_tutti_tag
             self.save_db()
+            self.refresh_gui()
         return modificati
-    def _parse_chiave(chiave):
-        try:
-            base = chiave.split("#", 1)[0]
-            parti = base.split("|")
-            if len(parti) == 4:
-                return parti[0], parti[1], parti[2], parti[3]
-        except Exception:
-            pass
-        return None
-    def _parse_data(data_str):
-        for fmt in ("%d-%m-%Y", "%Y-%m-%d"):
-            try:
-                return datetime.datetime.strptime(data_str, fmt).date()
-            except ValueError:
-                continue
-        return None
     def _genera_testo_export():
         lines = []
         now = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
@@ -141,17 +108,23 @@ def apri_gestione_tag(self):
         except Exception:
             _id_to_nome = {}
             _trasferimenti = []
+        _agganci_conto = {}
+        for _t in _trasferimenti:
+            if _t.get("da") in ("__spese__", "Contabilità") or _t.get("a") in ("__spese__", "Contabilità"):
+                _data_t = _t.get("data", "")
+                _imp_t  = round(float(_t.get("importo", 0)), 2)
+                _tipo_t = "Entrata" if _t.get("da") in ("__spese__", "Contabilità") else "Uscita"
+                _cnome  = _id_to_nome.get(_t.get("a") if _tipo_t == "Entrata" else _t.get("da"), "(nessuno)")
+                _agganci_conto.setdefault((_data_t, _imp_t, _tipo_t), []).append(_cnome)
+        _uso_ordinale_conto = {}
         def _trova_conto_cached(d, imp, tipo):
             if not d:
                 return "(nessuno)"
-            data_s = d.strftime("%d-%m-%Y")
-            for t in _trasferimenti:
-                if t.get("data") == data_s and abs(float(t.get("importo", 0)) - imp) < 0.01:
-                    if tipo == "Uscita" and t.get("a") in ("__spese__", "Contabilità"):
-                        return _id_to_nome.get(t.get("da"), "(nessuno)")
-                    elif tipo == "Entrata" and t.get("da") in ("__spese__", "Contabilità"):
-                        return _id_to_nome.get(t.get("a"), "(nessuno)")
-            return "(nessuno)"
+            chiave_c = (d.strftime("%d-%m-%Y"), round(imp, 2), tipo)
+            lista_c = _agganci_conto.get(chiave_c, [])
+            ord_c = _uso_ordinale_conto.get(chiave_c, 0)
+            _uso_ordinale_conto[chiave_c] = ord_c + 1
+            return lista_c[ord_c] if ord_c < len(lista_c) else "(nessuno)"
         filtro_tag  = (filtri or {}).get("tag",  "").lower().strip()
         filtro_cat  = (filtri or {}).get("cat",  "—")
         filtro_tipo = (filtri or {}).get("tipo", "—")
@@ -170,33 +143,16 @@ def apri_gestione_tag(self):
         inserted = 0
         date_ordinamento = []
         for chiave, tags in tdb.items():
-            parsed = _parse_chiave(chiave)
-            idx = _idx_da_chiave(chiave)
-            if not parsed or idx is None:
+            d, entry_match = _riga_map.get(chiave, (None, None))
+            if entry_match is None:
                 continue
-            data_str, cat, desc, imp_str = parsed
-            try:
-                imp = float(imp_str)
-            except Exception:
-                imp = 0.0
-            tipo = ""
-            entry_match = None
-            d = _parse_data(data_str)
-            if d:
-                lista = self.spese.get(d, [])
-                if 0 <= idx < len(lista):
-                    v = lista[idx]
-                    if str(v[0]) == cat and str(v[1]) == desc:
-                        try:
-                            if abs(float(v[2]) - imp) < 0.01:
-                                tipo = v[3].capitalize() if isinstance(v[3], str) else v[3]
-                                entry_match = v
-                        except Exception:
-                            pass
-            conto = (campo(entry_match, "conto", "") if entry_match is not None else "") \
-                or _trova_conto_cached(d, imp, tipo)
-            metodo = campo(entry_match, "metodo_pagamento", "") if entry_match is not None else ""
-            ora    = campo(entry_match, "ora", "") if entry_match is not None else ""
+            cat  = entry_match.categoria
+            desc = entry_match.descrizione
+            imp  = float(entry_match.importo)
+            tipo = entry_match.tipo.capitalize() if isinstance(entry_match.tipo, str) else entry_match.tipo
+            conto  = campo(entry_match, "conto", "") or _trova_conto_cached(d, imp, tipo)
+            metodo = campo(entry_match, "metodo_pagamento", "")
+            ora    = campo(entry_match, "ora", "")
             tags_str = " ".join(tags)
             if filtro_tag and filtro_tag not in tags_str.lower():
                 continue
@@ -217,7 +173,7 @@ def apri_gestione_tag(self):
             if not (da_f <= imp <= a_f):
                 continue
             imp_fmt = f"{imp:.2f} €"
-            data_fmt = d.strftime("%d/%m/%Y") if d else data_str
+            data_fmt = d.strftime("%d-%m-%Y") if d else "—"
             color_tag = "entrata" if tipo == "Entrata" else "uscita" if tipo == "Uscita" else ""
             tv.insert("", "end", iid=chiave,
                       values=(data_fmt, cat, desc, imp_fmt, tipo, conto, metodo, ora, tags_str),
@@ -245,12 +201,8 @@ def apri_gestione_tag(self):
             for t in str(vals[8]).split():
                 freq[t] = freq.get(t, 0) + 1
         top_tag = max(freq, key=freq.get) if freq else "—"
-        tdb = _carica()
-        tutti_tag = set()
-        for tags in tdb.values():
-            tutti_tag.update(tags)
         self._lbl_tag_tot_voci.config(text=f"Voci taggate: {len(items)}")
-        self._lbl_tag_uniq.config(text=f"Tag unici: {len(tutti_tag)}")
+        self._lbl_tag_uniq.config(text=f"Tag unici: {len(freq)}")
         self._lbl_tag_importo.config(text=f"Totale importi: {tot_imp:,.2f} €")
         self._lbl_tag_tag_freq.config(text=f"Tag più usato: {top_tag}")
     def _on_double_click(event):
@@ -261,7 +213,7 @@ def apri_gestione_tag(self):
             if not vals:
                     return
             try:
-                    d = datetime.datetime.strptime(str(vals[0]).strip(), "%d/%m/%Y").date()
+                    d = datetime.datetime.strptime(str(vals[0]).strip(), "%d-%m-%Y").date()
             except ValueError:
                     return
             self.mostra_treeview_statistiche()
@@ -287,11 +239,11 @@ def apri_gestione_tag(self):
         fw.geometry(f"{larg_f}x{alt_f}+{x}+{y}")
         fw.update_idletasks()
         tdb = _carica()
-        tutte_cat = ["—"] + sorted({_parse_chiave(k)[1] for k in tdb if _parse_chiave(k)})
+        tutte_cat = ["—"] + sorted({_riga_map[k][1].categoria for k in tdb if k in _riga_map})
         anni = ["—"] + sorted({
-            str(_parse_data(_parse_chiave(k)[0]).year)
+            str(_riga_map[k][0].year)
             for k in tdb
-            if _parse_chiave(k) and _parse_data(_parse_chiave(k)[0])
+            if k in _riga_map and _riga_map[k][0]
         }, reverse=True)
         tag_var  = tk.StringVar(value=filtri_attivi.get("tag",  ""))
         cat_var  = tk.StringVar(value=filtri_attivi.get("cat",  "—"))
@@ -578,7 +530,7 @@ def apri_gestione_tag(self):
         b.bind("<Button-1>", lambda e: comando())
         return b
     _mk_btn("filtri",   "Modifica Tag",   _modifica_tag_selezionato)
-    _mk_btn("chiudi",   "Elimina Tag",    _elimina_tag_selezionati)
+    _mk_btn("delete",   "Elimina Tag",    _elimina_tag_selezionati)
     _mk_btn("reset",    "Reset Filtri",   _reset_filtri)
     _mk_btn("salva",    "Salva / Preview", _salva_e_preview)
     _mk_btn("chiudi",   "Chiudi",         _chiudi, side="right")
