@@ -161,8 +161,6 @@ def apri_finestra_revisione_universale(self, movimenti):
     sb_scroll.pack(side="right", fill="y")
     area = tk.Frame(canvas, background=self.COLOR_WIDGET_BG)
     canvas.create_window((0, 0), window=area, anchor="nw")
-    area.bind("<Configure>", lambda e: canvas.configure(
-        scrollregion=canvas.bbox("all")))
     def on_mousewheel(event):
             try:
                     canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
@@ -233,6 +231,11 @@ def apri_finestra_revisione_universale(self, movimenti):
             _db_p = None
             print(f"[revisione_universale] Portafoglio non disponibile: {_ex}")
         _portafoglio_modificato = False
+        _spese_pre_import = {
+            _data: [(campo(_e, "importo", 0.0), campo(_e, "tipo", ""))
+                    for _e in _voci]
+            for _data, _voci in self.spese.items()
+        }
         if _db_p is not None:
             _ids_trasf = {t.get("id", "") for t in _db_p.get("trasferimenti", [])}
             _prossimo_id_trasf = 1
@@ -251,13 +254,13 @@ def apri_finestra_revisione_universale(self, movimenti):
             except ValueError:
                 errori.append(f"Importo non valido: {var_imp.get()}")
                 continue
-            desc = var_desc.get().strip()[:35]
+            desc = var_desc.get().strip()[:100]
             cat = combo.get() or "Generica"
             tipo = "Entrata" if importo >= 0 else "Uscita"
             gia_presente = any(
-                abs(float(campo(e, "importo", 0.0))) == abs(importo) and
-                campo(e, "tipo", "") == tipo
-                for e in self.spese.get(data_mov, [])
+                abs(float(imp_e)) == abs(importo) and
+                tipo_e == tipo
+                for imp_e, tipo_e in _spese_pre_import.get(data_mov, [])
             )
             if gia_presente:
                 duplicati += 1
@@ -272,6 +275,8 @@ def apri_finestra_revisione_universale(self, movimenti):
             self.spese.setdefault(data_mov, []).append(voce)
             self.memoria_descrizioni_categoria[desc.strip().upper()] = cat
             count += 1
+            if hasattr(self, 'registra_azione_gamification'):
+                self.registra_azione_gamification("movimento")
             if nome_conto_rev and nome_conto_rev != "(nessuno)" and _db_p is not None:
                 for _c in _db_p.get("conti", []):
                     if _c.get("nome") == nome_conto_rev:
@@ -285,7 +290,10 @@ def apri_finestra_revisione_universale(self, movimenti):
                             "importo": round(abs(importo), 2),
                             "note": f"{cat} – {desc}".strip(" –")
                         })
+                        _ids_trasf.add(f"t{_prossimo_id_trasf}")
                         _prossimo_id_trasf += 1
+                        while f"t{_prossimo_id_trasf}" in _ids_trasf:
+                            _prossimo_id_trasf += 1
                         _portafoglio_modificato = True
                         break
             try:
@@ -320,8 +328,6 @@ def apri_finestra_revisione_universale(self, movimenti):
         self.refresh_gui()
         if count > 0:
             self.riproduci_beep()
-            if hasattr(self, 'registra_azione_gamification'):
-                self.registra_azione_gamification("movimento")
         win.destroy()
         msg = f"{count} importati, {duplicati} duplicati ignorati."
         if errori:
