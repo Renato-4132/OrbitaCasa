@@ -9,9 +9,9 @@ from moduli.spinner_animato import crea_spinner_animato
 
 # Popup Messaggi di Sistema
 def show_custom_warning(self, title, message):
-    self._show_toast_dialog(title, message, bg="yellow", fg="black", kind="ok")
+    self._show_toast_dialog(title, message, bg="yellow", fg="black", kind="warning")
 def show_custom_info(self, title, message):
-    self._show_toast_dialog(title, message, bg="lightblue", fg="black", kind="ok")
+    self._show_toast_dialog(title, message, bg="lightblue", fg="black", kind="info")
 def show_custom_askyesno(self, title, message):
     if hasattr(self, '_yesno_popup') and self._yesno_popup and self._yesno_popup.winfo_exists():
         self._yesno_popup.lift()
@@ -23,7 +23,7 @@ def _show_toast_dialog(self, title, message, bg, fg, kind="ok"):
     import __main__ as _app
     WARN_TIMEOUT = _app.WARN_TIMEOUT
     USE_WAIT_WINDOW = _app.USE_WAIT_WINDOW
-    attr = '_yesno_popup' if kind == "yesno" else '_msg_popup'
+    attr = {"yesno": "_yesno_popup", "warning": "_warn_popup", "info": "_info_popup"}.get(kind, "_msg_popup")
     if hasattr(self, attr) and getattr(self, attr) and getattr(self, attr).winfo_exists():
         getattr(self, attr).lift()
         getattr(self, attr).focus_force()
@@ -141,4 +141,4 @@ def show_toast(self, message, duration=1500, parent=None):
     px, py, pw, ph = parent.winfo_rootx(), parent.winfo_rooty(), parent.winfo_width(), parent.winfo_height()
     toast.geometry(f"+{px+(pw//2)-(w//2)}+{py+(ph//2)-(h//2)}")
     toast.deiconify()
-    self.after(duration, lambda: toast.destroy() if toast.winfo_exists() else None)
+    self._toast_after_id = self.after(duration, lambda: toast.destroy() if toast.winfo_exists() else None)
