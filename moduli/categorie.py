@@ -1282,6 +1282,7 @@ def _ottieni_categorie_ricorrenti_mancanti(self):
         return []
     presenti_questo_mese = set()
     conteggio_storico = {}
+    mesi_gia_contati = set()
     MESI_INDIETRO = 12
     for d, sp in self.spese.items():
         dd = converti_data(d)
@@ -1293,14 +1294,14 @@ def _ottieni_categorie_ricorrenti_mancanti(self):
                 if cat_raw.strip():
                     presenti_questo_mese.add(cat_raw.strip().title())
         elif 1 <= diff_mesi <= MESI_INDIETRO:
-            viste_oggi = set()
             for voce in sp:
                 cat_raw = campo(voce, "categoria", "")
                 if cat_raw.strip():
                     cat = cat_raw.strip().title()
-                    if cat in categorie_base and cat not in viste_oggi:
+                    chiave_mese = (cat, dd.year, dd.month)
+                    if cat in categorie_base and chiave_mese not in mesi_gia_contati:
                         conteggio_storico[cat] = conteggio_storico.get(cat, 0) + 1
-                        viste_oggi.add(cat)
+                        mesi_gia_contati.add(chiave_mese)
     categorie_mancanti = []
     for cat in categorie_base:
         presenze_passate = conteggio_storico.get(cat, 0)
@@ -1577,7 +1578,13 @@ def cancella_categorie_checkbox(self, popup):
     if not selezionate:
         self.show_custom_warning("Attenzione", "Seleziona almeno una categoria da cancellare.")
         return
-    testo_conferma = f"Sei sicuro di voler cancellare le seguenti categorie?\n\n"
+    MAX_MOSTRATE = 6
+    if len(selezionate) > MAX_MOSTRATE:
+        elenco = "\n".join(f"• {c}" for c in selezionate[:MAX_MOSTRATE])
+        elenco += f"\n… e altre {len(selezionate) - MAX_MOSTRATE} categorie"
+    else:
+        elenco = "\n".join(f"• {c}" for c in selezionate)
+    testo_conferma = "Sei sicuro di voler cancellare le seguenti categorie?\n\n" + elenco
     conferma = self.show_custom_askyesno("Elimina", testo_conferma)
     if not conferma:
         return
@@ -1807,10 +1814,9 @@ def get_dati_categorie_json(self):
     for data, entries in self.spese.items():
         if data.year == anno_corrente:
             for entry in entries:
-                categoria = campo(entry, "categoria", "")
-                importo = campo(entry, "importo", 0.0)
-                tipo = self.categorie_tipi.get(categoria, 'Uscita')
-                if tipo == 'Uscita':
+                if campo(entry, "tipo", "") == "Uscita":
+                    categoria = campo(entry, "categoria", "")
+                    importo = campo(entry, "importo", 0.0)
                     spese_per_categoria[categoria] = spese_per_categoria.get(categoria, 0.0) + importo
     labels = list(spese_per_categoria.keys())
     spese = [round(v, 2) for v in spese_per_categoria.values()]
