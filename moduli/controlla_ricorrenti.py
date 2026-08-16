@@ -25,7 +25,7 @@ def controlla_ricorrenti_manual(self):
         return
     categorie_mancanti_nel_mese = []
     presenti_questo_mese = set()
-    conteggio_storico = {}
+    mesi_con_categoria = {}
     MESI_INDIETRO = 12
     for d, sp in self.spese.items():
         dd = converti_data(d)
@@ -37,15 +37,13 @@ def controlla_ricorrenti_manual(self):
                 if len(voce) > 0 and voce[0].strip():
                     presenti_questo_mese.add(voce[0].strip().title())
         elif 1 <= diff_mesi <= MESI_INDIETRO:
-            viste_in_data = set()
             for voce in sp:
                 if len(voce) > 0 and voce[0].strip():
                     cat = voce[0].strip().title()
-                    if cat in categorie_base and cat not in viste_in_data:
-                        conteggio_storico[cat] = conteggio_storico.get(cat, 0) + 1
-                        viste_in_data.add(cat)
+                    if cat in categorie_base:
+                        mesi_con_categoria.setdefault(cat, set()).add((dd.year, dd.month))
     for cat in categorie_base:
-        presenze_passate = conteggio_storico.get(cat, 0)
+        presenze_passate = len(mesi_con_categoria.get(cat, set()))
         if presenze_passate >= 4 and cat not in presenti_questo_mese:
             categorie_mancanti_nel_mese.append(cat)
     if categorie_mancanti_nel_mese:
@@ -92,7 +90,7 @@ def controlla_ricorrenti_a_fine_mese(self):
             return
         categorie_mancanti_nel_mese = []
         presenti_questo_mese = set()
-        conteggio_storico = {}
+        mesi_con_categoria = {}
         MESI_INDIETRO = 12
         for d, sp in self.spese.items():
             dd = converti_data(d)
@@ -103,15 +101,13 @@ def controlla_ricorrenti_a_fine_mese(self):
                     if len(voce) > 0 and voce[0].strip():
                         presenti_questo_mese.add(voce[0].strip().title())
             elif 1 <= diff_mesi <= MESI_INDIETRO:
-                viste_oggi = set()
                 for voce in sp:
                     if len(voce) > 0 and voce[0].strip():
                         cat = voce[0].strip().title()
-                        if cat in categorie_base and cat not in viste_oggi:
-                            conteggio_storico[cat] = conteggio_storico.get(cat, 0) + 1
-                            viste_oggi.add(cat)
+                        if cat in categorie_base:
+                            mesi_con_categoria.setdefault(cat, set()).add((dd.year, dd.month))
         for cat in categorie_base:
-            presenze_passate = conteggio_storico.get(cat, 0)
+            presenze_passate = len(mesi_con_categoria.get(cat, set()))
             if presenze_passate >= 4 and cat not in presenti_questo_mese:
                 categorie_mancanti_nel_mese.append(cat)
         if categorie_mancanti_nel_mese:
