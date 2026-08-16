@@ -236,9 +236,13 @@ def cerca_operazioni(self):
                                      for ico in ("PER·", "CTP·", "CNT·"))), "")
                 _key_cerca = (d.strftime("%d-%m-%Y"), round(float(importo_voce), 2), str(voce[3]).capitalize())
                 _lista_c_cerca = _agganci_cerca.get(_key_cerca, [])
-                _ord_cerca = _uso_ordinale_cerca.get(_key_cerca, 0)
-                nome_conto_cerca = campo(voce, "conto", "") or (_lista_c_cerca[_ord_cerca] if _ord_cerca < len(_lista_c_cerca) else "")
-                _uso_ordinale_cerca[_key_cerca] = _ord_cerca + 1
+                _conto_espl_cerca = campo(voce, "conto", "")
+                if _conto_espl_cerca:
+                    nome_conto_cerca = _conto_espl_cerca
+                else:
+                    _ord_cerca = _uso_ordinale_cerca.get(_key_cerca, 0)
+                    nome_conto_cerca = _lista_c_cerca[_ord_cerca] if _ord_cerca < len(_lista_c_cerca) else ""
+                    _uso_ordinale_cerca[_key_cerca] = _ord_cerca + 1
                 metodo_cerca  = campo(voce, "metodo_pagamento", "")
                 ora_cerca     = campo(voce, "ora", "")
                 hashtag_cerca = campo(voce, "hashtag", [])

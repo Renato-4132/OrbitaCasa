@@ -91,9 +91,10 @@ def draw_estratto_metodo(self):
                 _imp_t  = round(float(_t.get("importo", 0)), 2)
                 _tipo_t = "Entrata" if _t.get("da") in ("__spese__", "Contabilità") else "Uscita"
                 _cnome  = _id_a_nome.get(_t.get("a") if _tipo_t == "Entrata" else _t.get("da"), "")
-                _agganci_conto.setdefault((_data_t, _imp_t, _tipo_t), _cnome)
+                _agganci_conto.setdefault((_data_t, _imp_t, _tipo_t), []).append(_cnome)
     except Exception:
         _agganci_conto = {}
+    _uso_ordinale_conto = {}
     totali = {}
     dettagli = {}
     _nome_a_simbolo = SIMBOLI_METODO
@@ -118,7 +119,14 @@ def draw_estratto_metodo(self):
                     nome_metodo_pulito = _simboli_metodo[simbolo_trovato]
                 nome_base = f"{simbolo_trovato} {nome_metodo_pulito}" if simbolo_trovato else nome_metodo_pulito
                 _key_conto = (d.strftime("%d-%m-%Y"), round(float(imp), 2), str(tipo).capitalize())
-                sotto_nome = campo(entry, "conto", "") or _agganci_conto.get(_key_conto, "")
+                _conto_espl = campo(entry, "conto", "")
+                if _conto_espl:
+                    sotto_nome = _conto_espl
+                else:
+                    _lista_c = _agganci_conto.get(_key_conto, [])
+                    _ord_c = _uso_ordinale_conto.get(_key_conto, 0)
+                    sotto_nome = _lista_c[_ord_c] if _ord_c < len(_lista_c) else ""
+                    _uso_ordinale_conto[_key_conto] = _ord_c + 1
                 nome_metodo = f"{nome_base} {sotto_nome}" if sotto_nome else nome_base
                 segno = 1 if tipo == "Entrata" else -1
                 totali[nome_metodo] = totali.get(nome_metodo, 0) + imp * segno
@@ -248,9 +256,10 @@ def draw_estratto_conto(self):
                 _imp_t  = round(float(_t.get("importo", 0)), 2)
                 _tipo_t = "Entrata" if _t.get("da") in ("__spese__", "Contabilità") else "Uscita"
                 _cnome  = _id_a_nome.get(_t.get("a") if _tipo_t == "Entrata" else _t.get("da"), "")
-                _agganci_conto.setdefault((_data_t, _imp_t, _tipo_t), _cnome)
+                _agganci_conto.setdefault((_data_t, _imp_t, _tipo_t), []).append(_cnome)
     except Exception:
         _agganci_conto = {}
+    _uso_ordinale_conto2 = {}
     totali = {}
     dettagli = {}
     chiavi_per_conto = {}
@@ -261,7 +270,14 @@ def draw_estratto_conto(self):
             for entry in entries:
                 cat, desc, imp, tipo = entry[:4]
                 _key_conto = (d.strftime("%d-%m-%Y"), round(float(imp), 2), str(tipo).capitalize())
-                nome_conto = campo(entry, "conto", "") or _agganci_conto.get(_key_conto, "")
+                _conto_espl2 = campo(entry, "conto", "")
+                if _conto_espl2:
+                    nome_conto = _conto_espl2
+                else:
+                    _lista_c2 = _agganci_conto.get(_key_conto, [])
+                    _ord_c2 = _uso_ordinale_conto2.get(_key_conto, 0)
+                    nome_conto = _lista_c2[_ord_c2] if _ord_c2 < len(_lista_c2) else ""
+                    _uso_ordinale_conto2[_key_conto] = _ord_c2 + 1
                 if not nome_conto:
                     continue
                 segno = 1 if tipo == "Entrata" else -1
@@ -374,6 +390,8 @@ def draw_heatmap_mese(self):
     giorni = calendar.monthrange(view_year, view_month)[1]
     usc_g, ent_g = {}, {}
     for d, entries in self.spese.items():
+        if not self.considera_ricorrenze_var.get() and d > now:
+            continue
         if d.year == view_year and d.month == view_month:
             for entry in entries:
                 imp, tipo = entry[2], entry[3]

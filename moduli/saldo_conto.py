@@ -810,9 +810,13 @@ def open_saldo_conto(self):
                         if cat_f != "Tutte" and cat != cat_f: continue
                         _key = (d.strftime("%d-%m-%Y"), round(imp, 2), tipo)
                         _lista_c = _agganci.get(_key, [])
-                        _ord_sc = _uso_ordinale_sc.get(_key, 0)
-                        nome_conto_sp = campo(v, "conto", "") or (_lista_c[_ord_sc] if _ord_sc < len(_lista_c) else "")
-                        _uso_ordinale_sc[_key] = _ord_sc + 1
+                        _conto_espl_sc = campo(v, "conto", "")
+                        if _conto_espl_sc:
+                            nome_conto_sp = _conto_espl_sc
+                        else:
+                            _ord_sc = _uso_ordinale_sc.get(_key, 0)
+                            nome_conto_sp = _lista_c[_ord_sc] if _ord_sc < len(_lista_c) else ""
+                            _uso_ordinale_sc[_key] = _ord_sc + 1
                         if conto_f == "(nessuno)" and nome_conto_sp: continue
                         if conto_f not in ("Tutti", "(nessuno)") and nome_conto_sp != conto_f: continue
                         metodo_sp = campo(v, "metodo_pagamento", "")

@@ -67,9 +67,13 @@ def export_stats(self):
             tipo = campo(entry, "tipo", "")
             _key_st = (giorno.strftime("%d-%m-%Y"), round(float(imp), 2), tipo)
             _lista_conti = _agganci_st.get(_key_st, [])
-            _uso = _agganci_uso_st.get(_key_st, 0)
-            nome_conto = campo(entry, "conto", "") or (_lista_conti[_uso] if _uso < len(_lista_conti) else "")
-            _agganci_uso_st[_key_st] = _uso + 1
+            _conto_espl_st = campo(entry, "conto", "")
+            if _conto_espl_st:
+                nome_conto = _conto_espl_st
+            else:
+                _uso = _agganci_uso_st.get(_key_st, 0)
+                nome_conto = _lista_conti[_uso] if _uso < len(_lista_conti) else ""
+                _agganci_uso_st[_key_st] = _uso + 1
             metodo_val = campo(entry, "metodo_pagamento", "")
             ora_val = campo(entry, "ora", "")
             tag_val = " ".join(campo(entry, "hashtag", []))
@@ -132,9 +136,13 @@ def export_month_detail(self):
             importo_v = float(imp)
             _key_st = (d.strftime("%d-%m-%Y"), round(importo_v, 2), tipo)
             _lista_conti = _agganci_st.get(_key_st, [])
-            _uso = _agganci_uso_st.get(_key_st, 0)
-            nome_conto = campo(entry, "conto", "") or (_lista_conti[_uso] if _uso < len(_lista_conti) else "")
-            _agganci_uso_st[_key_st] = _uso + 1
+            _conto_espl_st = campo(entry, "conto", "")
+            if _conto_espl_st:
+                nome_conto = _conto_espl_st
+            else:
+                _uso = _agganci_uso_st.get(_key_st, 0)
+                nome_conto = _lista_conti[_uso] if _uso < len(_lista_conti) else ""
+                _agganci_uso_st[_key_st] = _uso + 1
             metodo_mov = campo(entry, "metodo_pagamento", "")
             ora_mov = campo(entry, "ora", "")
             tag_mov = " ".join(campo(entry, "hashtag", []))
