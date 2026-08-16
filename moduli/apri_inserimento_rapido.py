@@ -255,15 +255,31 @@ def apri_inserimento_rapido(self, event):
             if testo_puro.startswith(sim):
                 testo_puro = testo_puro[len(sim):].strip()
                 break
+        def _varianti_tag(p_nome_combo):
+            pulito = p_nome_combo.strip()
+            for _ico in ("CNT·", "PER·", "CTP·"):
+                if pulito.startswith(_ico):
+                    nome_puro = pulito[len(_ico):].strip()
+                    return (f"{_ico}{nome_puro}", f"{_ico} {nome_puro}")
+            return (pulito, pulito)
         partecipante_attuale = ""
         for p_nome in sorted(nomi_combo, key=len, reverse=True):
-            if p_nome and p_nome in testo_puro:
-                partecipante_attuale = p_nome
-                testo_puro = testo_puro.replace(p_nome, "").strip()
-                testo_puro = " ".join(testo_puro.split())
+            if not p_nome:
+                continue
+            for variante in _varianti_tag(p_nome):
+                if variante and variante in testo_puro:
+                    partecipante_attuale = variante
+                    testo_puro = testo_puro.replace(variante, "").strip()
+                    testo_puro = " ".join(testo_puro.split())
+                    break
+            if partecipante_attuale:
                 break
         if event and event.widget == combo_part:
-            partecipante_finale = var_part.get()
+            partecipante_finale = var_part.get().strip()
+            for _ico_combo in ("CNT·", "PER·", "CTP·"):
+                if partecipante_finale.startswith(_ico_combo):
+                    partecipante_finale = f"{_ico_combo}{partecipante_finale[len(_ico_combo):].strip()}"
+                    break
         else:
             partecipante_finale = partecipante_attuale
         parti = []
