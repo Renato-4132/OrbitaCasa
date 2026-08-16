@@ -8,6 +8,8 @@ import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
 
+from __main__ import NAME, VERSION, DB_DIR
+
 def _avvia_tutorial(self):
     num_mov = sum(len(v) for v in self.spese.values()) if hasattr(self, 'spese') else 0
     if num_mov > 0:
@@ -153,7 +155,7 @@ def _avvia_tutorial(self):
     ]
     stato = {"passo": 0, "imgs": {}}
     try:
-        path_logo = os.path.join(os.path.dirname(os.path.abspath(__file__)), "db", "resources", "info_image.png")
+        path_logo = os.path.join(DB_DIR, "resources", "info_image.png")
         img_logo = Image.open(path_logo)
         img_logo.thumbnail((IMG_W, IMG_H), Image.LANCZOS)
         stato["imgs"][0] = ImageTk.PhotoImage(img_logo)
@@ -161,7 +163,7 @@ def _avvia_tutorial(self):
         stato["imgs"][0] = None
     W, H = 980, 560
     win = tk.Toplevel(self)
-    win.title("OrbitaCasa — Benvenuto!")
+    win.title(f"{NAME} — Benvenuto!")
     win.resizable(False, False)
     win.attributes("-topmost", True)
     win.configure(bg=self.COLOR_BACKGROUND)
