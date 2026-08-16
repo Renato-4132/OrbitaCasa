@@ -232,7 +232,7 @@ def cerca_operazioni(self):
                 importo_voce = voce[2]
                 tipo         = str(voce[3]).lower()
                 owner = next((p["nome"] for p in _candidati_owner
-                              if any(f"{ico}{p['nome']}".lower() in descrizione
+                              if any(f"{ico}{p['nome']}".lower() in descrizione or f"{ico} {p['nome']}".lower() in descrizione
                                      for ico in ("PER·", "CTP·", "CNT·"))), "")
                 _key_cerca = (d.strftime("%d-%m-%Y"), round(float(importo_voce), 2), str(voce[3]).capitalize())
                 _lista_c_cerca = _agganci_cerca.get(_key_cerca, [])
@@ -268,7 +268,7 @@ def cerca_operazioni(self):
                             matches = False
                     if filtri.get("partecipanti") not in ["", "—"]:
                         nome_filtro = filtri["partecipanti"]
-                        for prefisso in ("CTP· ", "CTP· ", "CNT· ", "PER· "):
+                        for prefisso in ("CTP· ", "CNT· ", "PER· "):
                             if nome_filtro.startswith(prefisso):
                                 nome_filtro = nome_filtro[len(prefisso):]
                                 break
@@ -431,6 +431,7 @@ def cerca_operazioni(self):
                      "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
         _profilo_attivo_co2 = getattr(_app, "PROFILO_ATTIVO", "Principale")
         _gestore_nome_cerca = _profilo_attivo_co2 if _profilo_attivo_co2 != "Principale" else os.path.basename(os.getcwd())
+        _nomi_esistenti_cerca = [(p.get("nome", "") if isinstance(p, dict) else p) for p in self.nomi_partecipanti] if hasattr(self, "nomi_partecipanti") else []
         lista_partecipanti = ["—"]
         if self._gestore_partecipa() and _gestore_nome_cerca not in _nomi_esistenti_cerca:
             lista_partecipanti.append(f"PER· {_gestore_nome_cerca}")
