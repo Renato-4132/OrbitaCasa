@@ -22,6 +22,14 @@ def calcolo_mutuo_prestito(self):
         debito_res = capitale_iniziale
         if ammortamento_extra > 0:
             debito_res -= ammortamento_extra
+            tree_widget.insert("", "end", values=(
+                "Ammortamento Extra",
+                f"{ammortamento_extra:,.2f} €",
+                f"{ammortamento_extra:,.2f} €",
+                "0.00 €",
+                f"{debito_res:,.2f} €"
+            ), tags=('extra_row',))
+            tree_widget.tag_configure('extra_row', background='#e1f5fe')
         capitale_res_dopo_extra = debito_res
         try:
             if tasso_mensile > 0:
@@ -35,7 +43,8 @@ def calcolo_mutuo_prestito(self):
         for mese in range(1, mesi + 1):
             m_rata = (oggi.month + mese - 1) % 12 + 1
             a_rata = oggi.year + (oggi.month + mese - 1) // 12
-            data_str = f"{oggi.day:02d}-{m_rata:02d}-{a_rata}"
+            giorno_rata = min(oggi.day, 28)
+            data_str = f"{giorno_rata:02d}-{m_rata:02d}-{a_rata}"
             label_periodo = f"Rata {mese} ({data_str})"
             interessi_rata = debito_res * tasso_mensile
             capitale_rata = rata_base_nuova - interessi_rata
@@ -629,11 +638,13 @@ def calcolo_mutuo_prestito(self):
                 mese_corrente += 1
                 m_rata = (oggi.month + mese_corrente - 1) % 12 + 1
                 a_rata = oggi.year + (oggi.month + mese_corrente - 1) // 12
-                data_str = f"{oggi.day:02d}-{m_rata:02d}-{a_rata}"
+                giorno_rata = min(oggi.day, 28)
+                data_str = f"{giorno_rata:02d}-{m_rata:02d}-{a_rata}"
                 interessi_mese = debito * tasso_mensile
                 tot_interessi_killer += interessi_mese
                 risparmio_rate_anno_corrente += (rata_originale - rata_corrente)
                 versamento_extra = extra_annuo if (m_rata == mese_versamento) else 0
+                rata_mese_corrente = rata_corrente  # rata in vigore per il versamento di QUESTO mese
                 if versamento_extra > 0 and strategia == "Ricalcola Rata":
                     m_res = mesi_rimanenti - mese_corrente
                     if m_res > 0:
@@ -645,13 +656,14 @@ def calcolo_mutuo_prestito(self):
                             rata_corrente = dn / m_res
                         else:
                             rata_corrente = 0
-                abb_pot = (rata_corrente - interessi_mese) + versamento_extra
+                        # rata_corrente aggiornata vale solo dai mesi SUCCESSIVI in poi
+                abb_pot = (rata_mese_corrente - interessi_mese) + versamento_extra
                 if abb_pot >= debito:
                     versato_reale = debito + interessi_mese
                     abb_eff = debito
                     debito = 0
                 else:
-                    versato_reale = rata_corrente + versamento_extra
+                    versato_reale = rata_mese_corrente + versamento_extra
                     abb_eff = abb_pot
                     debito -= abb_eff
                     
