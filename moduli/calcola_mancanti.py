@@ -381,7 +381,6 @@ def calcola_mancanti(self):
     self.btn_chiudi_popup_generico.image = self.icone_gui.get("chiudi")
     self.btn_chiudi_popup_generico.pack(side="right", padx=10)
     self.btn_chiudi_popup_generico.bind("<Button-1>", lambda e: popup.destroy())
-    popup.bind("<Escape>", lambda e: popup.destroy())
     analizza()
     analizza_annuali()
     notebook.bind("<<NotebookTabChanged>>",
