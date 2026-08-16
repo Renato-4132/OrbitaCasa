@@ -136,6 +136,19 @@ def crea_grafico_categorie(self, id_righe_selezionate):
     dati_per_grafico = list(reversed(dati_ordinati)) 
     mesi_completi = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
                      "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"] 
+    def _etichetta_periodo(periodo, mode):
+        try:
+            if mode not in ("giorno", "mese") and '-' in periodo and len(periodo.split('-')) == 2:
+                a, m = periodo.split('-')
+                m_num = int(m)
+                if 1 <= m_num <= 12:
+                    return f"{mesi_completi[m_num - 1][:3]} {a}"
+            elif mode in ("giorno", "mese") and ' ' in periodo and len(periodo.split(' ')) == 3:
+                g, m, a = periodo.split(' ')
+                return f"{g}/{m}"
+        except Exception:
+            pass
+        return periodo
     totale_aggregato = 0.0
     if tipo_transazione_ricercato == "misto":
         tipo_transazione_base = "Entrate vs Uscite"
@@ -322,12 +335,6 @@ def crea_grafico_categorie(self, id_righe_selezionate):
         y_zero = y_base
         x_current = margine_inferiore
         dati_posizioni = []
-        anno_per_titolo = ""
-        try:
-            if stats_mode == "anno" and hasattr(self, 'stats_anno') and self.stats_anno != "Tutti":
-                anno_per_titolo = self.stats_anno
-        except NameError:
-            pass
         for periodo, dati_valore in dati_tuple:
             is_misto = isinstance(dati_valore, dict) and 'Entrata' in dati_valore and 'Uscita' in dati_valore and 'Totale' not in dati_valore
             barra_width = LARGHEZZ_MISTA if is_misto else LARGHEZZ_STANDARD
@@ -368,9 +375,7 @@ def crea_grafico_categorie(self, id_righe_selezionate):
                 bar_group_width = LARGHEZZA_BARRA_DINAMICA * BAR_FACTOR
                 x_start = x_center - (bar_group_width / 2)
             is_misto = isinstance(dati_valore, dict) and 'Entrata' in dati_valore and 'Uscita' in dati_valore and 'Totale' not in dati_valore
-            titolo_per_popup = periodo_originale
-            if stats_mode == "anno" and anno_per_titolo:
-                titolo_per_popup = f"{periodo_originale} {anno_per_titolo}"
+            titolo_per_popup = _etichetta_periodo(periodo_originale, stats_mode)
             if is_misto:
                 valore_e = dati_valore.get('Entrata', 0)
                 valore_u = dati_valore.get('Uscita', 0)
@@ -471,7 +476,7 @@ def crea_grafico_categorie(self, id_righe_selezionate):
             c.create_text(
                 x_center_text,
                 label_y,
-                text=periodo_originale,
+                text=_etichetta_periodo(periodo_originale, stats_mode),
                 font=("Arial", 8),
                 fill=self.TEXT_COLOR,
                 angle=45 if stats_mode != "giorno" else 0
