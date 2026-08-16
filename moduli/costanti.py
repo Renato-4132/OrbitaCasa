@@ -116,7 +116,7 @@ def carica_costanti(path_locale):
     g['TAGS_DB'] = os.path.join(DB_DIR, "tags_db.json")
     g['EMAIL_USER'] = ""
     g['APP_PASSWORD'] = ""
-    g['PAROLE_CHIAVE'] = ["no-reply-ML@aceaenergia.it, no-reply.acque@acque.net, contotelefonico@fatturazione.windtre.it"]
+    g['PAROLE_CHIAVE'] = ["no-reply-ML@aceaenergia.it", "no-reply.acque@acque.net", "contotelefonico@fatturazione.windtre.it"]
     g['SYNC_INT_MIN'] = 720
     g['SYNC_H'] = "a9d038b985412b44659f74b5c1bcf1c730b9e3f53f4b6b64eccf8e485a3103b1"
     g['API_KEY'] = ""
