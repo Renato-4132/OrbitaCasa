@@ -131,9 +131,13 @@ def confronta_bollette_ia(self):
                        padx=8, pady=6)
     commento.pack(side="left", fill="x", expand=True)
     comm_scroll.config(command=commento.yview)
-    commento.insert("1.0",
-        "Es: Confronta queste bollette e dimmi quale fornitore conviene di più, "
-        "evidenzia anomalie e suggerisci come risparmiare.")
+    _placeholder_commento = ("Es: Confronta queste bollette e dimmi quale fornitore conviene di più, "
+                          "evidenzia anomalie e suggerisci come risparmiare.")
+    commento.insert("1.0", _placeholder_commento)
+    def _clear_placeholder_commento(event=None):
+        if commento.get("1.0", "end").strip() == _placeholder_commento:
+            commento.delete("1.0", "end")
+    commento.bind("<FocusIn>", _clear_placeholder_commento)
     run_frame = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
     run_frame.pack(fill="x", padx=18, pady=10)
     img_run = self.icone_gui.get("sync")
