@@ -1204,8 +1204,6 @@ def mostra_guida_dare_avere(self, popup=None):
         "   - USCITA  → spesa pagata da quel partecipante (chi ha anticipato i soldi).\n"
         "   - ENTRATA → rimborso ricevuto (chi restituisce la quota).\n"
         "     L'entrata deve avere la STESSA CATEGORIA della spesa originale.\n"
-        "   - Metodi di pagamento disponibili: simboli_pag = "
-        + ", ".join(SIMBOLI_METODO.values()) + "\n\n"
         "4. SEGNARE UN PAGAMENTO\n"
         "   AUTOMATICO: se registri un'entrata con tag PER·Nome e stessa categoria\n"
         "   della spesa originale, il sistema segna il pagamento automaticamente.\n\n"
