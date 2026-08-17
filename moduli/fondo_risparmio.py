@@ -451,8 +451,10 @@ def apri_fondo_risparmio(self):
         def _calcola_rata(*args):
             try:
                 obj = float(obj_var.get().replace(",", "."))
+                _obj_valido = True
             except ValueError:
                 obj = 0.0
+                _obj_valido = False
             rata = obj / 12 if obj > 0 else 0.0
             lbl_rata.config(text=f"→  Rata mensile necessaria: {fmt(rata)}")
             diff = stats["media_r"] - rata
@@ -464,8 +466,9 @@ def apri_fondo_risparmio(self):
                 lbl_confronto.config(
                     text=f"Mancano {fmt(abs(diff))}/mese",
                     fg=self.COLOR_RED)
-            fr_dati["obiettivo_annuale"] = obj
-            _salva_fr(fr_dati)
+            if _obj_valido:
+                fr_dati["obiettivo_annuale"] = obj
+                _salva_fr(fr_dati)
             win.after(50, _draw_bar_obj)
 
         obj_var.trace_add("write", _calcola_rata)
@@ -838,10 +841,13 @@ def apri_fondo_risparmio(self):
         def _aggiorna(*args):
             try:
                 fondo = float(fondo_var.get().replace(",", "."))
+                _fondo_valido = True
             except ValueError:
                 fondo = 0.0
-            fr_dati["fondo_attuale"] = fondo
-            _salva_fr(fr_dati)
+                _fondo_valido = False
+            if _fondo_valido:
+                fr_dati["fondo_attuale"] = fondo
+                _salva_fr(fr_dati)
             win.after(50, lambda: _draw_barra(cvs_3,  spesa_mm * 3,  "Obiettivo 3 mesi  "))
             win.after(50, lambda: _draw_barra(cvs_6,  spesa_mm * 6,  "Obiettivo 6 mesi  "))
             win.after(50, lambda: _draw_barra(cvs_12, spesa_mm * 12, "Obiettivo 12 mesi "))
