@@ -60,7 +60,7 @@ def gestisci_documenti_personali(self):
             json.dump(reg, f, indent=4, ensure_ascii=False)
         if DB_CONDIVISO:
             self.notifica_modifica_web()
-            print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] 📡 Notifica di aggiornamento inviata .")
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 Notifica di aggiornamento inviata .")
     def load_categorie(nome):
         p = profilo_cat(nome)
         if os.path.exists(p):
@@ -82,8 +82,8 @@ def gestisci_documenti_personali(self):
     win.withdraw()
     win.minsize(1100, 620)
     def chiudi_win():
-        if hasattr(self, '_popup_calendario') and self._popup_calendario.winfo_exists():
-            self._popup_calendario.destroy()
+        if hasattr(self, 'popup_calendario') and self.popup_calendario and self.popup_calendario.winfo_exists():
+            self.popup_calendario.destroy()
         threading.Thread(target=self.backup_documenti_personali, daemon=True).start()
         win.destroy()
     win.protocol("WM_DELETE_WINDOW", chiudi_win)
@@ -752,7 +752,7 @@ def gestisci_documenti_personali(self):
                     save_registry(nome_profilo, reg)
                     if DB_CONDIVISO:
                         self.notifica_modifica_web()
-                        print(f"📡 [{datetime.datetime.now().strftime('%H:%M:%S')}] Notifica di aggiornamento inviata .")
+                        print(f"📡 [{datetime.now().strftime('%H:%M:%S')}] Notifica di aggiornamento inviata .")
                 shutil.rmtree(tmp, ignore_errors=True)
                 load_tree(campo_cerca.get())
                 self.show_custom_info("Importazione completata",
@@ -943,7 +943,7 @@ def gestisci_documenti_personali(self):
             if os.path.exists(pd): _sh.rmtree(pd, ignore_errors=True)
             for i in range(nb.index("end")):
                 try:
-                    if nb.tab(i, "text").strip() == f"👤 {n}":
+                    if nb.tab(i, "text").strip() == n:
                         nb.forget(i)
                         break
                 except Exception:
@@ -1060,7 +1060,7 @@ def gestisci_documenti_personali(self):
                 lt_()
             if DB_CONDIVISO:
                 self.notifica_modifica_web()
-                print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] 📡 Notifica di aggiornamento inviata .")
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 Notifica di aggiornamento inviata .")
             self.show_custom_info("Importazione completata",
                 f"Importazione da ZIP completata.\nNuovi profili aggiunti: {aggiunti}\n"
                 f"Riavvia la finestra per vedere eventuali nuovi tab.")
