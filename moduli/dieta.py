@@ -416,18 +416,6 @@ def apri_dieta(self):
     if hasattr(self, '_dieta_popup') and self._dieta_popup and self._dieta_popup.winfo_exists():
         self._dieta_popup.lift()
         return
-    def _calcola_fabbisogno(sesso, peso, altezza, eta):
-        if sesso == "Uomo":
-            bmr = (10 * peso) + (6.25 * altezza) - (5 * eta) + 5
-        else:
-            bmr = (10 * peso) + (6.25 * altezza) - (5 * eta) - 161
-        livelli = {
-            "Sedentario (Ufficio)": 1.2,
-            "Leggero (Faccende/Camminate)": 1.375,
-            "Moderato (Lavoro Dinamico)": 1.55,
-            "Attivo (Lavoro Fisico)": 1.725
-        }
-        return bmr, {k: round(bmr * v) for k, v in livelli.items()}
     def _carica_piano():
         try:
             if os.path.exists(DIETA_FILE):
@@ -753,7 +741,6 @@ def apri_dieta(self):
                     oggi_d     = datetime.date.today()
                     n_pag_tot  = len(piano_dati) + (1 if peso_storico else 0) + 1
                     try:
-                        s2 = inputs["Sesso"].get()
                         p2 = float(inputs["Peso (kg)"].get().replace(",", "."))
                         a2 = float(inputs["Altezza (cm)"].get().replace(",", "."))
                         e2 = int(inputs["Età"].get())
@@ -1002,9 +989,8 @@ def apri_dieta(self):
             for item in items:
                 for ti in range(6):
                     tot[ti] += item[2+ti]
-        if any(composizioni.get(f"{s_idx}_{g_idx}_{pk}") for pk in ("colazione","pranzo","cena","spuntino")):
-            for ti, val in enumerate(tot):
-                riga[5+ti] = round(val)
+        for ti, val in enumerate(tot):
+            riga[5+ti] = round(val)
     def _apri_composizione(s_idx, g_idx, pasto_key):
         giorno_nome = piano_dati[s_idx]["giorni"][g_idx][0]
         pasto_label = {"colazione":"Colazione","pranzo":"Pranzo",
@@ -2130,6 +2116,13 @@ def apri_dieta(self):
     UTENTI_DIR = os.path.join(DB_DIR, "utenti")
     FILE_KEYS  = ["dieta.json", "peso.json", "fabbisogno.json",
                    "pedometro.json", "alimenti_custom.json"]
+    _MAPPA_FILE_GENERICO = {
+        "dieta.json":           "dieta_piano.json",
+        "peso.json":            "peso_storico.json",
+        "fabbisogno.json":      "fabbisogno_dati.json",
+        "pedometro.json":       "pedometro.json",
+        "alimenti_custom.json": "alimenti_custom.json",
+    }
     def _get_utenti():
         nomi = ["Generico"]
         if os.path.isdir(UTENTI_DIR):
@@ -2140,7 +2133,7 @@ def apri_dieta(self):
         return nomi
     def _path_for(nome_utente, filename):
         if nome_utente == "Generico":
-            return os.path.join(DB_DIR, filename)
+            return os.path.join(DB_DIR, _MAPPA_FILE_GENERICO.get(filename, filename))
         return os.path.join(UTENTI_DIR, nome_utente, filename)
     def _copia_profilo(src_nome, dst_nome):
         for fname in FILE_KEYS:
