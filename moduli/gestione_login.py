@@ -358,10 +358,11 @@ def gestione_login(self):
                 salva_hash(inserita)
                 try:
                     with open(LOGIN_LCL, "r") as f: log = json.load(f)
-                except: log = []
-                log.append({"timestamp": adesso, "tipo": "PRIMO_ACCESSO", "utente": current_folder, "session_id": getattr(self, "SESSION_ID", "N/D")})
+                except: log = {}
+                log_eventi = log.get("eventi", []) if isinstance(log, dict) else []
+                log_eventi.append({"timestamp": adesso, "tipo": "PRIMO_ACCESSO", "utente": current_folder, "session_id": getattr(self, "SESSION_ID", "N/D")})
                 try:
-                    with open(LOGIN_LCL, "w") as f: json.dump({"ultimo_login": adesso, "eventi": log[-20:]}, f, indent=2)
+                    with open(LOGIN_LCL, "w") as f: json.dump({"ultimo_login": adesso, "eventi": log_eventi[-20:]}, f, indent=2)
                 except: pass
                 login_riuscito[0] = True
                 login.destroy()
