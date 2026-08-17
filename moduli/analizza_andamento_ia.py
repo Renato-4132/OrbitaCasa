@@ -12,6 +12,9 @@ from moduli.spinner_animato import crea_spinner_animato
 
 # Analisi AI Gemini: invia entrate/uscite/categorie degli ultimi 365gg e mostra proiezione e consigli strategici a fine anno
 def analizza_andamento_ia(self):
+    if getattr(self, '_analisi_ia_in_corso', False):
+        self.show_toast("Analisi AI già in corso, attendi il risultato...", duration=2000)
+        return
     api_key_check = API_KEY
     if not api_key_check:
         self.show_custom_warning("Configurazione AI Necessaria",
@@ -53,6 +56,7 @@ def analizza_andamento_ia(self):
     if not dettaglio_categories and e_tot == 0:
         self.show_custom_warning("Nessun Dato", "Dati insufficienti negli ultimi 365 giorni.")
         return
+    self._analisi_ia_in_corso = True
     if data_piu_vecchia:
         giorni_coperti = (oggi - data_piu_vecchia).days + 1
         mesi_coperti = max(1, round(giorni_coperti / 30.44))
@@ -108,6 +112,7 @@ def analizza_andamento_ia(self):
     _funcid_unmap = self.bind("<Unmap>", _on_iconify, add="+")
     _funcid_map   = self.bind("<Map>",   _on_deiconify, add="+")
     def _mostra_risultato(testo):
+        self._analisi_ia_in_corso = False
         self.unbind("<Unmap>", _funcid_unmap)
         self.unbind("<Map>", _funcid_map)
         if splash.winfo_exists():
