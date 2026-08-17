@@ -146,10 +146,31 @@ def gestisci_backup_popup(self):
     cols = ("Data", "Tipo", "File", "Dimensione")
     tree = ttk.Treeview(frame_tree, columns=cols, show="headings",
                         style="Treeview", selectmode="extended")
+    def _click_colonna(col, reverse):
+        if col == "Dimensione":
+            def size_key(k):
+                try:
+                    return os.path.getsize(os.path.join(cartella_backup, tree.set(k, "File")))
+                except Exception:
+                    return 0
+            items = sorted(tree.get_children(""), key=size_key, reverse=reverse)
+            for index, k in enumerate(items):
+                tree.move(k, "", index)
+            for c in cols:
+                cur = tree.heading(c, "text")
+                clean = cur.replace(" ▲", "").replace(" ▼", "")
+                arrow = (" ▲" if not reverse else " ▼") if c == col else ""
+                tree.heading(c, text=clean + arrow)
+            tree.heading("Dimensione", command=lambda: _click_colonna("Dimensione", not reverse))
+        else:
+            self.treeview_sort_column(tree, col, reverse)
+            # la funzione condivisa ha appena ri-agganciato un comando generico anche su "Dimensione":
+            # lo riporto al nostro ordinamento dedicato, altrimenti tornerebbe al bug al prossimo click
+            tree.heading("Dimensione", command=lambda: _click_colonna("Dimensione", False))
     for c in cols:
         tree.heading(c, text=c,
                      anchor="e" if c == "Dimensione" else "w",
-                     command=lambda _c=c: self.treeview_sort_column(tree, _c, False))
+                     command=lambda _c=c: _click_colonna(_c, False))
     tree.column("Data",       width=110, minwidth=90,  anchor="w")
     tree.column("Tipo",       width=160, minwidth=120, anchor="w")
     tree.column("File",       width=400, minwidth=200, anchor="w")
@@ -168,10 +189,10 @@ def gestisci_backup_popup(self):
         import re
         m = re.search(r"-(\d{2})(\d{2})(\d{4})_", nome)
         if m:
-            return f"{m.group(1)}/{m.group(2)}/{m.group(3)}"
+            return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
         m = re.search(r"_(\d{2})(\d{2})(\d{4})_", nome)
         if m:
-            return f"{m.group(1)}/{m.group(2)}/{m.group(3)}"
+            return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
         return "—"
     def _carica_lista(filtro=""):
         for i in tree.get_children():
@@ -185,7 +206,7 @@ def gestisci_backup_popup(self):
             parts = nome.split("-", 3)
             try:
                 datetime.datetime.strptime(f"{parts[0]}-{parts[1]}-{parts[2]}", "%d-%m-%Y")
-                data_completa = f"{parts[0]}/{parts[1]}/{parts[2]}"
+                data_completa = f"{parts[0]}-{parts[1]}-{parts[2]}"
                 if data_completa not in date_set:
                     date_set.append(data_completa)
             except Exception:
@@ -207,7 +228,7 @@ def gestisci_backup_popup(self):
             parts = nome.split("-", 3)
             try:
                 datetime.datetime.strptime(f"{parts[0]}-{parts[1]}-{parts[2]}", "%d-%m-%Y")
-                data_str = f"{parts[0]}/{parts[1]}/{parts[2]}"
+                data_str = f"{parts[0]}-{parts[1]}-{parts[2]}"
             except Exception:
                 data_str = _estrai_data_da_nome(nome)
             if filtro_data != "Tutte":
