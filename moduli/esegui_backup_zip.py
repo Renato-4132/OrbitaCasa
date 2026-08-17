@@ -10,6 +10,8 @@ from tkinter import filedialog, Toplevel, Label
 # Creazione e Archiviazione (ZIP/Formato Specifico) Completa
 def esegui_backup_zip(self):
     from datetime import datetime
+    import __main__ as _app
+    PATH_LOCALE = _app.PATH_LOCALE
     percorso_archivio = ""
     cartella_temp_path = None
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Tentativo di backup di '{self.current_folder}'...")
@@ -69,8 +71,7 @@ def esegui_backup_zip(self):
         aggiorna_UI(15, "Preparazione file temporanei...")
         percorso_output_senza_ext, _ = os.path.splitext(percorso_completo_output)
         cartella_destinazione = os.path.dirname(percorso_output_senza_ext)
-        root_dir_compress = os.path.dirname(os.getcwd())
-        cartella_sorgente = os.path.join(root_dir_compress, self.current_folder)
+        cartella_sorgente = PATH_LOCALE
         cartella_temp_path = tempfile.mkdtemp()
         cartella_dati_nel_temp_nome = self.current_folder
         cartella_dati_nel_temp_path = os.path.join(cartella_temp_path, cartella_dati_nel_temp_nome)
