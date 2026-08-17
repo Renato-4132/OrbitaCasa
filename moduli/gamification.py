@@ -48,10 +48,13 @@ def _gami_livello_da_punti(punti):
         indice_globale = idx
     else:
         extra = (punti - ultima_soglia) // _INCREMENTO_OLTRE
-        grado_extra = extra + 1
-        nome = f"{_NOMI_BASE[-1]} {_gami_numero_romano(grado_extra)}"
+        if extra == 0:
+            nome = _NOMI_BASE[-1]
+            indice_globale = len(_SOGLIE_BASE) - 1
+        else:
+            nome = f"{_NOMI_BASE[-1]} {_gami_numero_romano(extra)}"
+            indice_globale = (len(_SOGLIE_BASE) - 1) + extra
         prossima_soglia = ultima_soglia + (extra + 1) * _INCREMENTO_OLTRE
-        indice_globale = (len(_SOGLIE_BASE) - 1) + grado_extra
     return indice_globale, nome, prossima_soglia
 
 def _gami_livello_periodo(punti, soglie):
@@ -316,7 +319,7 @@ def _gami_dettaglio_livello_vita(punti):
         soglia_corrente = _SOGLIE_BASE[idx]
     else:
         grado_extra = idx - (len(_SOGLIE_BASE) - 1)
-        soglia_corrente = _SOGLIE_BASE[-1] + (grado_extra - 1) * _INCREMENTO_OLTRE
+        soglia_corrente = _SOGLIE_BASE[-1] + grado_extra * _INCREMENTO_OLTRE
     return idx, nome, soglia_corrente, prossima_soglia
 
 def _gami_dettaglio_livello_periodo(punti, soglie):
