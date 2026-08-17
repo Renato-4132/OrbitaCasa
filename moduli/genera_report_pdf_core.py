@@ -49,7 +49,7 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
         key   = (data_obj.strftime("%d-%m-%Y"), round(val, 2), t_tipo)
         lista = _agganci.get(key, [])
         uso   = _agganci_uso.get(key, 0)
-        nome  = lista[uso] if uso < len(lista) else (lista[-1] if lista else "")
+        nome  = lista[uso] if uso < len(lista) else ""
         _agganci_uso[key] = uso + 1
         return nome
     data_punti          = defaultdict(float)
@@ -676,4 +676,8 @@ def _apri_viewer_report(self, pdf_path):
     render_pagina()
     win.wait_window()
     doc.close()
+    try:
+        os.remove(pdf_path)
+    except Exception:
+        pass
         

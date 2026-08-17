@@ -82,6 +82,9 @@ def genera_report_pdf(self):
     btn_frame.pack(fill=tk.X)
     def _avvia(e=None):
         import threading
+        if getattr(self, '_generando_report', False):
+            self.show_toast("Generazione già in corso, attendi il completamento.")
+            return
         try:
             a_da = int(anno_da_var.get())
             a_a  = int(anno_a_var.get())
@@ -93,6 +96,7 @@ def genera_report_pdf(self):
         mese_idx = MESI_NOMI.index(mese_var.get())
         sezioni = {k: v.get() for k, v in sezioni_var.items()}
         sel.destroy()
+        self._generando_report = True
         prog = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
         prog.transient(self)
         prog.overrideredirect(True)
@@ -121,6 +125,7 @@ def genera_report_pdf(self):
                 self.after(0, lambda: self.show_custom_warning(
                     "Errore Report", f"Errore durante la generazione:\n{_err}"))
             finally:
+                self._generando_report = False
                 self.after(0, prog.destroy)
         threading.Thread(target=_genera, daemon=True).start()
     pulsanti = [
