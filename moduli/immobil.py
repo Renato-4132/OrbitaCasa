@@ -469,7 +469,7 @@ def _immobil_crea_tab(self, nb, imm, db, win):
             tree.insert("", "end", iid=m["id"], tags=(tag,), values=(
                 m.get("data",""),
                 m.get("categoria",""),
-                m.get("descrizione",""),
+                ("✓ " + m.get("descrizione","")) if m.get("esportato") else m.get("descrizione",""),
                 m.get("tipo",""),
                 f"{val_float:.2f} €"
             ))
@@ -564,6 +564,15 @@ def _immobil_crea_tab(self, nb, imm, db, win):
         if saldo == 0:
             self.show_toast("Saldo zero, nessun movimento esportato.")
             return
+        gia_esportati = [m for m in spese_filtrate if m.get("esportato")]
+        if gia_esportati:
+            conferma = self.show_custom_askyesno(
+                "Periodo già esportato",
+                f"{len(gia_esportati)} movimento/i di questo periodo risultano già esportati in precedenza.\n\n"
+                f"Esportare di nuovo aggiungerà il saldo una seconda volta al bilancio principale.\nProcedere comunque?"
+            )
+            if not conferma:
+                return
         nome = imm.get("nome", "Immobile")
         tipo_mov = "Entrata" if saldo >= 0 else "Uscita"
         imp_mov  = abs(saldo)
@@ -580,9 +589,13 @@ def _immobil_crea_tab(self, nb, imm, db, win):
             conto=(nome_conto if nome_conto and nome_conto != "(nessuno)" else ""),
             hashtag=["#immobili"]
         ))
+        for m in spese_filtrate:
+            m["esportato"] = True
+        self._immobil_salva(db)
         self.save_db()
         if hasattr(self, 'registra_azione_gamification'):
             self.registra_azione_gamification("movimento")
+        _popola_tree()
         self.refresh_gui()
         self.show_toast(f"Saldo {nome} ({tipo_mov} {imp_mov:.2f}€) esportato in SpesaDB.")
     img_add = self.icone_gui.get("aggiungi")
