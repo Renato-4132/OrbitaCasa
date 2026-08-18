@@ -177,7 +177,7 @@ def draw_mensile_chart(self, event=None):
                         aggregati[anno] = {"label": str(anno), "entrata": 0.0, "uscita": 0.0}
                     for entry in entries:
                         tipo = entry[3] if not isinstance(entry, dict) else entry.get("tipo", "")
-                        importo = float(entry[2]) if not isinstance(entry, dict) and len(entry) >= 4 else float(entry.get("importo", 0))
+                        importo = float(entry[2]) if not isinstance(entry, dict) else float(entry.get("importo", 0))
                         if not self.considera_ricorrenze_var.get() and giorno > datetime.date.today():
                             continue
                         if tipo == "Entrata":
@@ -193,7 +193,7 @@ def draw_mensile_chart(self, event=None):
                     mese_index = giorno.month - 1
                     for entry in entries:
                         tipo = entry[3] if not isinstance(entry, dict) else entry.get("tipo", "")
-                        importo = float(entry[2]) if not isinstance(entry, dict) and len(entry) >= 4 else float(entry.get("importo", 0))
+                        importo = float(entry[2]) if not isinstance(entry, dict) else float(entry.get("importo", 0))
                         if not self.considera_ricorrenze_var.get() and giorno > datetime.date.today():
                             continue
                         if tipo == "Entrata":
@@ -394,9 +394,10 @@ def draw_saldo_chart(self, event=None):
         btn_toggle.bind("<Button-1>", lambda e: toggle_saldo_mode())
         self.win_btn_saldo = canvas.create_window(canvas_width - 10, 2, window=btn_toggle, anchor="ne")
         if self.visualizza_saldo_10_anni:
+            limite_10anni = oggi - datetime.timedelta(days=365 * 10)
             transazioni_totali = []
             for giorno, entries in self.spese.items():
-                if hasattr(giorno, "year"):
+                if hasattr(giorno, "year") and giorno >= limite_10anni:
                     for entry in entries:
                         importo = float(entry[2]) if not isinstance(entry, dict) else float(entry.get("importo", 0))
                         tipo = entry[3] if not isinstance(entry, dict) else entry.get("tipo", "")
