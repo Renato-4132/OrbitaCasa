@@ -193,6 +193,7 @@ def launch_qr_svg_generator(self, initial_category="", initial_amount="", initia
                 qr_view.grab_set()
             except Exception as e:
                 print(f"Errore: {e}")
+                qr_view.destroy()
                 if 'browser_message' in locals() or 'browser_message' in globals():
                     browser_message.config(text=f"Errore visualizzazione QR: {e}", foreground="red")
                     browser_message.grid()
