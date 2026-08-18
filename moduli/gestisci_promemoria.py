@@ -35,9 +35,8 @@ def gestisci_promemoria(self):
                 promemoria = data.get("promemoria", "")
                 promemoria_text_widget.delete("1.0", tk.END)
                 promemoria_text_widget.insert("1.0", promemoria)
-            except (json.JSONDecodeError, FileNotFoundError) as e:
+            except Exception as e:
                 self.show_custom_warning("Errore", f"Impossibile caricare il file promemoria.json: {e}")
-                pass
     def esporta_promemoria():
         now = datetime.date.today()
         promemoria_text = promemoria_text_widget.get("1.0", tk.END).strip()
