@@ -33,7 +33,7 @@ def gestisci_configurazione(self):
     timeout_sec_iniziale = round(warn_timeout_ms_iniziale / 1000)
     timeout_sec_iniziale = max(5, min(60, timeout_sec_iniziale))
     ico_set_date_iniziale = config.get("ico_set_date", DEFAULT_CONFIG["ico_set_date"])
-    recurring_reminder_iniziale = config.get("enable_recurring_reminder", DEFAULT_CONFIG["enable_recurring_reminder"])
+    recurring_reminder_iniziale = config.get("enable_recurring_reminder", DEFAULT_CONFIG.get("enable_recurring_reminder", False))
     max_backup_iniziale = config.get("max_backup", DEFAULT_CONFIG.get("max_backup", 5))
     max_backup_iniziale = max(1, min(10, max_backup_iniziale))
     soglia_giorni_ricorrenti_iniziale = config.get("soglia_giorni_ricorrenti", DEFAULT_CONFIG.get("soglia_giorni_ricorrenti", 5))
@@ -49,7 +49,7 @@ def gestisci_configurazione(self):
     smartcat_toll_iniziale = max(5, min(100, smartcat_toll_iniziale))
     beep_enabled_iniziale = config.get("beep_enabled", DEFAULT_CONFIG.get("beep_enabled", True))
     bank_link_iniziale = config.get("bank_link", DEFAULT_CONFIG.get("bank_link", ""))
-    thema_iniziale = config.get("thema", DEFAULT_CONFIG.get("thema", "MATERIAL"))
+    thema_iniziale = config.get("thema", DEFAULT_CONFIG.get("thema", "OBSIDIAN"))
     carosello_enabled_iniziale = config.get("carosello_enabled", DEFAULT_CONFIG.get("carosello_enabled", True))
     carosello_intervallo_iniziale = config.get("carosello_intervallo", DEFAULT_CONFIG.get("carosello_intervallo", 10000))
     carosello_intervallo_sec_iniziale = round(carosello_intervallo_iniziale / 1000)
@@ -71,7 +71,7 @@ def gestisci_configurazione(self):
             close_behavior_iniziale = True if close_behavior_iniziale.lower() == "true" else False
     if not isinstance(close_behavior_iniziale, bool):
             close_behavior_iniziale = False
-    pk_raw = config.get("parole_chiave", DEFAULT_CONFIG.get("parole_chiave", "no-reply-ML@aceaenergia.it, no-reply.acque@acque.net, contotelefonico@fatturazione.windtre.it"))
+    pk_raw = config.get("parole_chiave", DEFAULT_CONFIG.get("parole_chiave", ["no-reply-ML@aceaenergia.it, no-reply.acque@acque.net, contotelefonico@fatturazione.windtre.it"]))
     if isinstance(pk_raw, list):
         parole_chiave_iniziale = ", ".join(pk_raw)
     else:
@@ -108,7 +108,7 @@ def gestisci_configurazione(self):
     self.var_cal_tooltips = tk.BooleanVar(value=config.get("cal_tooltips_enabled", True))
     self.var_anima_tot = tk.BooleanVar(value=anima_tot_iniziale)
     self.var_shared_db = tk.BooleanVar(value=config.get("shared_db", DEFAULT_CONFIG.get("shared_db", False)))
-    self.var_shared_db_path = tk.StringVar(value=config.get("shared_db_path", DEFAULT_CONFIG.get("shared_db_path", "")))
+    self.var_shared_db_path = tk.StringVar(value=config.get("shared_db_path", DEFAULT_CONFIG.get("shared_db_path", PATH_LOCALE)))
     self.var_udp_port_1 = tk.IntVar(value=udp_port_1_iniziale)
     self.var_udp_port_2 = tk.IntVar(value=udp_port_2_iniziale)
     self.var_target_mese = tk.DoubleVar(value=target_mese_iniziale)
@@ -136,8 +136,6 @@ def gestisci_configurazione(self):
     max_backup_label = ttk.Label(main_frame, text="")
     soglia_ricorrenti_label = ttk.Label(main_frame, text="")
     carosello_intervallo_label = ttk.Label(main_frame, text="")
-    target_mese_label = ttk.Label(main_frame, text="")
-    target_anno_label = ttk.Label(main_frame, text="")
 
     def update_warn_timeout_label(value):
         current_sec = int(round(self.var_warn_timeout_sec.get()))
@@ -157,12 +155,6 @@ def gestisci_configurazione(self):
     def update_carosello_intervallo_label(value):
         current_sec = int(round(self.var_carosello_intervallo_sec.get()))
         carosello_intervallo_label.config(text=f"{current_sec} Sec.")      
-    def update_target_mese_label(*args):
-        val = self.var_target_mese.get()
-        target_mese_label.config(text=f"{val:,.2f} €")
-    def update_target_anno_label(*args):
-        val = self.var_target_anno.get()
-        target_anno_label.config(text=f"{val:,.2f} €")
     
     def reset_defaults():
         self.var_auto_login.set(DEFAULT_CONFIG["enable_auto_login_flow"])
@@ -172,6 +164,9 @@ def gestisci_configurazione(self):
         self.var_bank_link.set(DEFAULT_CONFIG.get("bank_link", ""))
         self.var_load_geometry.set(DEFAULT_CONFIG["load_saved_geometry"])
         self.var_use_wait_window.set(DEFAULT_CONFIG.get("use_wait_window", False))
+        default_warn_timeout_sec = round(DEFAULT_CONFIG.get("warn_timeout_ms", 20000) / 1000)
+        self.var_warn_timeout_sec.set(max(5, min(60, default_warn_timeout_sec)))
+        update_warn_timeout_label(self.var_warn_timeout_sec.get())
         default_timeout_min = round(DEFAULT_CONFIG["inactivity_timeout_ms"] / 60000)
         self.var_timeout_minuti.set(max(5, default_timeout_min))
         update_timeout_label(self.var_timeout_minuti.get())
@@ -201,7 +196,8 @@ def gestisci_configurazione(self):
         self.var_target_mese.set(DEFAULT_CONFIG.get("target_mese", 0))
         self.var_target_anno.set(DEFAULT_CONFIG.get("target_anno", 0))
         self.var_sync_enabled.set(DEFAULT_CONFIG.get("sync_dati_enabled", False))
-        self.var_email_user.set(DEFAULT_CONFIG.get("email_user", "@gmail.com"))
+        self.var_manda_push.set(DEFAULT_CONFIG.get("manda_push_enabled", False))
+        self.var_email_user.set(DEFAULT_CONFIG.get("email_user", ""))
         self.var_app_password.set(DEFAULT_CONFIG.get("app_password", ""))
         self.var_gemini_api_key.set(DEFAULT_CONFIG.get("gemini_api_key", ""))
         self.var_gemini_model.set(DEFAULT_CONFIG.get("gemini_model", "gemini-2.5-flash"))
@@ -302,7 +298,7 @@ def gestisci_configurazione(self):
                 "smartcat_enabled": self.var_smartcat_enabled.get(),
                 "smartcat_toll": self.var_smartcat_toll.get(),
                 "beep_enabled": beep_enabled,
-                "check_double": self.var_check_double.get(),
+                "check_double": check_double,
                 "use_wait_window": self.var_use_wait_window.get(),
                 "warn_timeout_ms": warn_timeout_ms,
                 "thema": self.var_thema.get().upper(),
@@ -318,11 +314,11 @@ def gestisci_configurazione(self):
                 "target_anno": self.var_target_anno.get(),
                 "sync_dati_enabled": self.var_sync_enabled.get(),
                 "manda_push_enabled": manda_push_enabled,
-                "email_user": self.var_email_user.get().strip(),
-                "app_password": self.var_app_password.get().strip(),
-                "gemini_api_key": self.var_gemini_api_key.get().strip(),
-                "gemini_model": self.var_gemini_model.get().strip(),
-                "parole_chiave": ", ".join([k.strip() for k in self.var_parole_chiave.get().split(",") if k.strip()]),
+                "email_user": email_user,
+                "app_password": app_password,
+                "gemini_api_key": gemini_api_key_attuale,
+                "gemini_model": gemini_model_attuale,
+                "parole_chiave": parole_chiave_pulite,
                 "sync_intervallo_min": int(self.var_sync_intervallo.get() or 720),
                 "close_behavior": self.var_close_behavior.get(),
             }
