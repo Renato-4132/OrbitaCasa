@@ -99,7 +99,16 @@ def goto_dettaglio_mese(self):
                 ), tags=(_tag,))
                 _mappa_indici_reali[item_id] = idx
                 metodo_val = campo(sp, "metodo_pagamento", "")
-                self.stats_table._metodo_lookup[item_id] = metodo_val
+                self.stats_table._metodo_lookup[item_id] = {
+                    "metodo": metodo_val,
+                    "conto": conto,
+                    "ora": campo(sp, "ora", ""),
+                    "hashtag": campo(sp, "hashtag", []),
+                    "id_ricorrenza": campo(sp, "id_ricorrenza", ""),
+                    "data": giorno.strftime("%d-%m-%Y"),
+                    "categoria": cat,
+                    "importo": imp,
+                }
                 righe_inserite += 1
             except:
                 continue
