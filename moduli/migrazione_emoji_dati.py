@@ -13,8 +13,8 @@ MAPPA_EMOJI_DATI = {
     "🏠": "CNT·",
     "⚖️": "CTP·",
     "⚖":  "CTP·",
-    "⏰": "SCD:",
     "⏰\ufe0f": "SCD:",
+    "⏰": "SCD:",
 }
 
 def _migra_valore(obj, mappa):
