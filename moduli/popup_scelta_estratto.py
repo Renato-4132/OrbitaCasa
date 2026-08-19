@@ -92,6 +92,9 @@ def popup_scelta_estratto(self):
                 ultimo_giorno = calendar.monthrange(anno_sel, m_idx)[1]
                 self.stats_refdate = datetime.date(anno_sel, m_idx, ultimo_giorno)
             self.stats_mode.set(mode)
+            if hasattr(self, "cal"):
+                self.cal.selection_set(self.stats_refdate)
+                self.cal._sel_date = self.stats_refdate
             self.export_stats()
         popup.destroy()
     frame_footer = tk.Frame(popup, bg=self.COLOR_WIDGET_BG)
