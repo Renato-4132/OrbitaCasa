@@ -7,6 +7,10 @@ from tkinter import ttk, filedialog
 
 # Visualizzazione e Gestione del Registro Errori di Sistema
 def mostra_registro_errori(self, event=None):
+    if hasattr(self, '_registro_errori_win') and self._registro_errori_win.winfo_exists():
+        self._registro_errori_win.lift()
+        self._registro_errori_win.focus_force()
+        return
     import __main__ as _app
     DB_DIR = _app.DB_DIR
     EXPORT_FILES = _app.EXPORT_FILES
@@ -16,7 +20,9 @@ def mostra_registro_errori(self, event=None):
         return
     with open(log_path, "r", encoding="utf-8") as f:
         contenuto = f.read()
-    anteprima = tk.Toplevel(bg=self.COLOR_TOPLEVEL)
+    anteprima = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
+    anteprima.transient(self)
+    self._registro_errori_win = anteprima
     anteprima.withdraw()
     anteprima.title("Registro Anomalie di Sistema (Log)")
     anteprima.resizable(False, False)
@@ -38,7 +44,7 @@ def mostra_registro_errori(self, event=None):
     frame_testo = tk.Frame(anteprima, bg=self.COLOR_BACKGROUND)
     frame_testo.pack(padx=10, pady=10, fill="both", expand=True)
     txt = tk.Text(frame_testo, wrap="word", font=("Courier New", 10),
-                  bg=self.COLOR_WHITE, fg=self.COLOR_BLACK, insertbackground="white")
+                  bg=self.COLOR_WHITE, fg=self.COLOR_BLACK, insertbackground=self.COLOR_BLACK)
     scrollbar = ttk.Scrollbar(frame_testo, orient="vertical", command=txt.yview)
     txt.configure(yscrollcommand=scrollbar.set)
     txt.insert("1.0", contenuto)
