@@ -112,27 +112,42 @@ def mostra_grafici_fairshare(self, anno_sel="Tutti", mese_sel="Tutti"):
     _tooltip_data1 = {}
     _tooltip_data2 = {}
     _tooltip_data3 = {}
-    _tip_win = [None]
+    _tip_state = {"win": None, "tag": None}
     def _show_tip(event, canvas, data_dict):
-        _hide_tip()
         items = canvas.find_overlapping(event.x-2, event.y-2, event.x+2, event.y+2)
+        tag_trovato = None
         for it in items:
             for t in canvas.gettags(it):
                 if t in data_dict:
-                    win = tk.Toplevel(canvas)
-                    win.overrideredirect(True)
-                    win.attributes("-topmost", True)
-                    tk.Label(win, text=data_dict[t], bg="#2a2a2a", fg="#eeeeee",
-                             font=("Arial", 9), padx=6, pady=3,
-                             relief="solid", borderwidth=1).pack()
-                    win.geometry(f"+{event.x_root+14}+{event.y_root+14}")
-                    _tip_win[0] = win
-                    return
+                    tag_trovato = t
+                    break
+            if tag_trovato:
+                break
+        if tag_trovato is None:
+            _hide_tip()
+            return
+        if tag_trovato == _tip_state["tag"] and _tip_state["win"] is not None:
+            try:
+                _tip_state["win"].geometry(f"+{event.x_root+14}+{event.y_root+14}")
+                return
+            except Exception:
+                pass
+        _hide_tip()
+        win = tk.Toplevel(canvas)
+        win.overrideredirect(True)
+        win.attributes("-topmost", True)
+        tk.Label(win, text=data_dict[tag_trovato], bg="#2a2a2a", fg="#eeeeee",
+                 font=("Arial", 9), padx=6, pady=3,
+                 relief="solid", borderwidth=1).pack()
+        win.geometry(f"+{event.x_root+14}+{event.y_root+14}")
+        _tip_state["win"] = win
+        _tip_state["tag"] = tag_trovato
     def _hide_tip(*_):
-        if _tip_win[0]:
-            try: _tip_win[0].destroy()
+        if _tip_state["win"]:
+            try: _tip_state["win"].destroy()
             except: pass
-            _tip_win[0] = None
+            _tip_state["win"] = None
+            _tip_state["tag"] = None
     def disegna_tab1(event=None):
         cv1.delete("all"); _tooltip_data1.clear()
         W = cv1.winfo_width(); H = cv1.winfo_height()
@@ -220,15 +235,16 @@ def mostra_grafici_fairshare(self, anno_sel="Tutti", mese_sel="Tutti"):
             stato = deb.get("stato", "aperto")
             pag   = deb.get("pagamenti", {})
             if p_sel != "Tutti" and p_sel not in deb.get("partecipanti", []): continue
-            cat_tot_imp.setdefault(cat, 0.0); cat_tot_imp[cat] += imp
+            valore = quota if p_sel != "Tutti" else imp
+            cat_tot_imp.setdefault(cat, 0.0); cat_tot_imp[cat] += valore
             if stato == "chiuso":
-                cat_chiuso.setdefault(cat, 0.0); cat_chiuso[cat] += imp
+                cat_chiuso.setdefault(cat, 0.0); cat_chiuso[cat] += valore
                 cat_creditori.setdefault(cat, {})
                 for nome in deb.get("partecipanti", []):
                     cat_creditori[cat].setdefault(nome, 0.0)
                     cat_creditori[cat][nome] += quota
             else:
-                cat_aperto.setdefault(cat, 0.0); cat_aperto[cat] += imp
+                cat_aperto.setdefault(cat, 0.0); cat_aperto[cat] += valore
                 cat_debitori.setdefault(cat, {})
                 for nome in deb.get("partecipanti", []):
                     if not pag.get(nome, {}).get("pagato", False):
