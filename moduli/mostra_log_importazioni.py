@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import re
 import tkinter as tk
 from tkinter import ttk, filedialog
 
@@ -80,36 +81,61 @@ def mostra_log_importazioni(self):
              command=lambda c=col: self.treeview_sort_column(tree, c, False))
         tree.column(col, width=larghezze[i], minwidth=larghezze[i],
             stretch=(i == len(colonne) - 1), anchor="w")
+
+    def _parse_data_flessibile(data_str):
+        if not data_str:
+            return None
+        data_str = str(data_str).strip()
+        for fmt in ("%d-%m-%Y", "%d/%m/%Y", "%Y-%m-%d"):
+            try:
+                return datetime.strptime(data_str, fmt).date()
+            except ValueError:
+                pass
+        return None
+
     def vai_a_movimento(event):
         sel = tree.selection()
-        if not sel: return
+        if not sel:
+            return
         valori = tree.item(sel[0], "values")
-        try:
-            data_str = valori[2].strip()
-            giorno = datetime.strptime(data_str, "%d-%m-%Y").date()
-        except Exception:
+        if not valori or len(valori) < 3:
+            return
+        desc_cerca = valori[3].strip() if len(valori) > 3 else ""
+        giorno = None
+        scd_match = re.search(r"SCD:\s*(\d{2}[/-]\d{2}[/-]\d{4}|\d{4}[/-]\d{2}[/-]\d{2})", desc_cerca, re.IGNORECASE)
+        if scd_match:
+            giorno = _parse_data_flessibile(scd_match.group(1))
+        if not giorno:
+            giorno = _parse_data_flessibile(valori[2])
+        if not giorno:
             return
         popup.destroy()
         if hasattr(self, "cal"):
             self.cal.selection_set(giorno)
             self.cal._sel_date = giorno
-            self.estratto_month_var.set(f"{giorno.month:02d}")
-            self.estratto_year_var.set(str(giorno.year))
-            self.estratto_month_var.set(self.months[giorno.month - 1])
-            self.on_calendar_change()
-        desc_cerca = valori[3].strip() if len(valori) > 3 else ""
+            if hasattr(self, "estratto_year_var"):
+                self.estratto_year_var.set(str(giorno.year))
+            if hasattr(self, "estratto_month_var") and hasattr(self, "months"):
+                self.estratto_month_var.set(self.months[giorno.month - 1])
+            if hasattr(self, "on_calendar_change"):
+                self.on_calendar_change()
         self.after(400, lambda: _seleziona_in_tree(giorno, desc_cerca))
+
     def _seleziona_in_tree(giorno, desc_cerca):
+        if not hasattr(self, "spese_mese_tree"):
+            return
+        desc_pulita = desc_cerca.replace("RIC·", "").replace("ALL·", "").strip().lower()
         for iid in self.spese_mese_tree.get_children():
             v = self.spese_mese_tree.item(iid, "values")
-            try:
-                d = datetime.strptime(v[0].strip(), "%d/%m/%Y").date()
-            except Exception:
+            if not v:
                 continue
-            if d == giorno and desc_cerca and desc_cerca[:20] in str(v[2]):
-                self.spese_mese_tree.selection_set(iid)
-                self.spese_mese_tree.see(iid)
-                break
+            d = _parse_data_flessibile(v[0])
+            if d == giorno:
+                v_desc = str(v[2]).strip().lower() if len(v) > 2 else ""
+                if not desc_pulita or desc_pulita[:15] in v_desc or v_desc[:15] in desc_pulita:
+                    self.spese_mese_tree.selection_set(iid)
+                    self.spese_mese_tree.see(iid)
+                    break
     def copia_spesa_nel_form(event):
         item = tree.identify_row(event.y)
         if not item:
