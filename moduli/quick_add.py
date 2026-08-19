@@ -27,10 +27,16 @@ def quick_add(self, event):
             self.after_cancel(self.tooltip_timer)
             self.tooltip_timer = None
         try:
-            testo = event.widget.cget("text")
-            if testo.isdigit():
-                m, a = self.cal.get_displayed_month()
-                data_sel = datetime.date(a, m, int(testo))
+            celle_giorno = set()
+            for riga_celle in getattr(self.cal, "_calendar", []):
+                celle_giorno.update(riga_celle)
+            if event.widget in celle_giorno:
+                testo = event.widget.cget("text")
+                if testo.isdigit():
+                    m, a = self.cal.get_displayed_month()
+                    data_sel = datetime.date(a, m, int(testo))
+                else:
+                    data_sel = self.cal.selection_get()
             else:
                 data_sel = self.cal.selection_get()
         except Exception:
@@ -50,7 +56,7 @@ def quick_add(self, event):
         impegni_futuri = sum(float(campo(e, "importo", 0.0)) for d, entries in self.spese.items() 
             if data_sel < d <= fine_mese 
             for e in entries if campo(e, "tipo", "") == "Uscita")
-        budget_residuo = diff_mese - impegni_futuri
+        budget_residuo = diff_mese
         safe_spend_day = budget_residuo / giorni_rimanenti if budget_residuo > 0 else 0
         hud = tk.Toplevel(self)
         self._quick_add_hud = hud
@@ -81,12 +87,7 @@ def quick_add(self, event):
             except Exception:
                 pass
             self._quick_add_hud = None
-            try:
-                self.unbind_all("<Button-1>")
-            except Exception:
-                pass
         hud.after(4000, _chiudi_hud)
         hud.bind("<Button-1>", lambda e: _chiudi_hud())
-        self._hud_bind_id = self.bind_all("<Button-1>", lambda e: _chiudi_hud(), add="+")
     except Exception as e:
         print(f"Errore: {e}")
