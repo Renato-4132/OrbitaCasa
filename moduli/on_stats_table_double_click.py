@@ -198,10 +198,19 @@ def on_stats_table_double_click(self, event):
     import datetime as _dt
     oggi_d = _dt.date.today()
     fut_entrate = fut_uscite = 0.0
+    _uso_ordinale_st = {}
     for d, desc, imp, tipo, conto_diretto, metodo_diretto, tag_diretto in sorted(spese_categoria, key=lambda x: x[0], reverse=True):
         imp_formattato_it = f"{imp:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
         tag_name = f"row_{d.strftime('%Y%m%d%H%M%S')}_{len(tree.get_children(''))}"
-        nome_conto_tr = conto_diretto or (self._trova_conto_da_portafoglio(d, imp, tipo) if d else "")
+        if conto_diretto:
+            nome_conto_tr = conto_diretto
+        elif d:
+            _key_st = (d.strftime("%d-%m-%Y"), round(imp, 2), tipo)
+            _ord_st = _uso_ordinale_st.get(_key_st, 0)
+            nome_conto_tr = self._trova_conto_da_portafoglio(d, imp, tipo, ordinale=_ord_st)
+            _uso_ordinale_st[_key_st] = _ord_st + 1
+        else:
+            nome_conto_tr = ""
         tree.insert("", "end", values=(d.strftime("%d-%m-%Y"), desc, f"{imp_formattato_it} €", tipo, nome_conto_tr, metodo_diretto, tag_diretto), tags=(tag_name,))
         if d > oggi_d:
             tree.tag_configure(tag_name, foreground="#E5C07B")
