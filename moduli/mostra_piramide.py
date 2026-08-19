@@ -8,6 +8,15 @@ from PIL import Image, ImageDraw, ImageTk
 
 # Gestione e Visualizzazione Guida Utente (Help) - Piramide 3D interattiva dei moduli
 def mostra_piramide(self):
+    if hasattr(self, '_piramide_win') and self._piramide_win is not None:
+        try:
+            if self._piramide_win.winfo_exists():
+                self._piramide_win.deiconify()
+                self._piramide_win.lift()
+                self._piramide_win.focus_force()
+                return
+        except tk.TclError:
+            pass
 
     def _g(nome):
         return getattr(self, nome, None)
@@ -18,9 +27,6 @@ def mostra_piramide(self):
                 "label": "Cuore dell'app",
                 "fill": "#DBEAFE", "outline": "#3B82F6", "fg": "#1E3A5F",
                 "moduli": [
-                    ("Main",       "Registro movimenti principale",
-                     lambda win=None: win.destroy() if win else None),
-
                     ("Cat.", "Grafico spese per categoria",
                      (lambda: self.toggle_stats_view(tipo="grafico")) if _g("toggle_stats_view") else None),
 
@@ -239,21 +245,27 @@ def mostra_piramide(self):
     color_hi = getattr(self, "COLOR_HIGHLIGHT", "#3B82F6")
 
     win = tk.Toplevel(self)
+    self._piramide_win = win
     win.withdraw()
     win.title("Panoramica Moduli")
     win.configure(bg=bg)
     win.resizable(False, False)
     win.overrideredirect(True)
     win.bind("<Escape>", lambda e: win.destroy())
+    _chiuso = {"si": False}
+    win.bind("<Destroy>", lambda e: _chiuso.__setitem__("si", True) if e.widget is win else None, add="+")
     win.bind("<Unmap>", lambda e: _tooltip_hide())
 
     _focus_stato = {"pronto": False}
 
     def _on_focus_out(event):
-        if event.widget is not win or not _focus_stato["pronto"]:
+        if event.widget is not win or not _focus_stato["pronto"] or _chiuso["si"]:
             return
         _tooltip_hide()
-        win.after(60, _verifica_focus_e_chiudi)
+        try:
+            win.after(60, _verifica_focus_e_chiudi)
+        except tk.TclError:
+            pass
 
     def _verifica_focus_e_chiudi():
         if not _focus_stato["pronto"]:
@@ -605,7 +617,7 @@ def mostra_piramide(self):
                 win.after(16, _step)
             else:
                 def _esegui():
-                    win.withdraw()
+                    win.destroy()
                     if cmd:
                         cmd()
                 win.after(100, _esegui)
@@ -687,6 +699,8 @@ def mostra_piramide(self):
         return None
 
     def _blink_step():
+        if _chiuso["si"]:
+            return
         if _search_state["el"] is not None:
             _blink_state["fase"] += 0.18
             _render()
@@ -770,6 +784,8 @@ def mostra_piramide(self):
     canvas.bind("<Leave>", _on_leave)
 
     def _auto_step():
+        if _chiuso["si"]:
+            return
         if _auto["on"] and not _drag["active"] and not _pop_anim["animating"]:
             theta[0] += VEL_AUTO
             _render()
