@@ -86,7 +86,7 @@ def mostra_log_importazioni(self):
         valori = tree.item(sel[0], "values")
         try:
             data_str = valori[2].strip()
-            giorno = datetime.strptime(data_str, "%d/%m/%Y").date()
+            giorno = datetime.strptime(data_str, "%d-%m-%Y").date()
         except Exception:
             return
         popup.destroy()
