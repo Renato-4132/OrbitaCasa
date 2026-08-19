@@ -21,7 +21,7 @@ def mostra_qr_popup_label(self):
         ip_remoto = "N/A"
     dominio = self.get_dominio_ssl() if USA_SSL else ""
     if USA_SSL and dominio:
-        url_locale = f"https://{dominio}:{PORTA}"
+        url_locale = f"https://{ip_locale}:{PORTA}"
         url_remoto = f"https://{dominio}:{PORTA}"
     else:
         url_locale = f"{prot}://{ip_locale}:{PORTA}"
@@ -45,14 +45,12 @@ def mostra_qr_popup_label(self):
     top.resizable(False, False)
     def apri_url(url):
         webbrowser.open_new_tab(url)
-    def gen_qr(u, is_dark_theme):
+    def gen_qr(u):
         q = segno.make(u, error='L', version=4)
         b = io.BytesIO()
-        colore_qr = "white" if is_dark_theme else "black"
-        q.save(b, kind='png', scale=5, dark=colore_qr, light=self.COLOR_WIDGET_BG)
+        q.save(b, kind='png', scale=5, dark="black", light="white")
         b.seek(0)
         return ImageTk.PhotoImage(Image.open(b))
-    is_dark = True if self.COLOR_BACKGROUND != "#FFFFFF" else False
     try:
         main = tk.Frame(top, bg=self.COLOR_WIDGET_BG)
         main.pack(expand=True, fill="both", padx=20, pady=10)
@@ -66,7 +64,7 @@ def mostra_qr_popup_label(self):
         col_l.pack(side="left", padx=40)
         ttk.Label(col_l, text="Connessione Locale", font=("Arial", 14, "bold"), style="White.TLabel").pack()
         ttk.Label(col_l, text="(Stesso Wi-Fi / LAN)", style="WhiteSmall.TLabel").pack(pady=(0, 5))
-        img_l = gen_qr(url_locale, is_dark)
+        img_l = gen_qr(url_locale)
         lbl_img_l = tk.Label(col_l, image=img_l, bg=self.COLOR_WIDGET_BG) 
         lbl_img_l.image = img_l
         lbl_img_l.pack(pady=10)
@@ -83,7 +81,7 @@ def mostra_qr_popup_label(self):
         lbl_web_sub = ttk.Label(col_r, text="(Accesso Remoto)", style="WhiteSmall.TLabel")
         lbl_web_sub.configure(foreground=colore_web)
         lbl_web_sub.pack(pady=(0, 5))
-        img_r = gen_qr(url_remoto, is_dark)
+        img_r = gen_qr(url_remoto)
         lbl_img_r = tk.Label(col_r, image=img_r, bg=self.COLOR_WIDGET_BG)
         lbl_img_r.image = img_r
         lbl_img_r.pack(pady=10)
@@ -91,7 +89,7 @@ def mostra_qr_popup_label(self):
                                          bg=self.COLOR_WIDGET_BG, fg=colore_web, cursor="hand2")
         lbl_url_r.pack()
         lbl_url_r.bind("<Button-1>", lambda e: apri_url(url_remoto))
-        protocollo_attivo = "HTTPS (Cifrato)" if USA_SSL and os.path.exists(os.path.join(DB_DIR, "cert.pem")) else "HTTP (Non cifrato)"
+        protocollo_attivo = "HTTPS (Cifrato)" if prot == "https" else "HTTP (Non cifrato)"
 
         footer_text = (
               f"STATO CONNESSIONE: Il server opera attualmente su protocollo {protocollo_attivo}.\n"
@@ -102,7 +100,7 @@ def mostra_qr_popup_label(self):
           )
         lbl_footer = ttk.Label(main, text=footer_text, style="WhiteSmall.TLabel", justify="center")
         lbl_footer.pack(pady=20)
-        self.btn_chiudi_popup = ttk.Label(
+        btn_chiudi_qr = ttk.Label(
             main, 
             image=self.icone_gui.get("chiudi"), 
             text=" Chiudi", 
@@ -111,9 +109,9 @@ def mostra_qr_popup_label(self):
             background=self.COLOR_WIDGET_BG,
             font=("Arial", 9, "bold")
         )
-        self.btn_chiudi_popup.image = self.icone_gui.get("chiudi")
-        self.btn_chiudi_popup.pack(pady=(0, 10))
-        self.btn_chiudi_popup.bind("<Button-1>", lambda e: top.destroy())
+        btn_chiudi_qr.image = self.icone_gui.get("chiudi")
+        btn_chiudi_qr.pack(pady=(0, 10))
+        btn_chiudi_qr.bind("<Button-1>", lambda e: top.destroy())
         top.deiconify()
         top.update_idletasks()
         top.attributes("-topmost", False)
@@ -121,4 +119,8 @@ def mostra_qr_popup_label(self):
         top.bind("<Escape>", lambda e: top.destroy())
     except Exception as e:
         print(f"Errore UI: {e}")
+        top.bind("<Escape>", lambda e: top.destroy())
         top.deiconify()
+        top.attributes("-topmost", False)
+        if hasattr(self, "show_custom_warning"):
+            self.show_custom_warning("Errore", f"Impossibile completare la finestra QR: {e}")
