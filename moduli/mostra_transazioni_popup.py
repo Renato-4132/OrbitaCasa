@@ -219,6 +219,7 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
     oggi_d = _dt.date.today()
     tot_entrate = tot_uscite = 0.0
     fut_entrate = fut_uscite = 0.0
+    _uso_ordinale_tr = {}
     for d, cat, desc, imp, tipo, conto_diretto, metodo_diretto, tag_diretto in sorted(spese_filtrate, key=lambda x: x[0], reverse=True):
         imp_formattato = f"{imp:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
         if d > oggi_d:
@@ -229,7 +230,15 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
             tag_name = "green_row" if tipo == "Entrata" else "red_row"
             if tipo == "Entrata": tot_entrate += imp
             else: tot_uscite += imp
-        nome_conto_tr = conto_diretto or (self._trova_conto_da_portafoglio(d, imp, tipo) if d else "")
+        if conto_diretto:
+            nome_conto_tr = conto_diretto
+        elif d:
+            _key_tr = (d.strftime("%d-%m-%Y"), round(imp, 2), tipo)
+            _ord_tr = _uso_ordinale_tr.get(_key_tr, 0)
+            nome_conto_tr = self._trova_conto_da_portafoglio(d, imp, tipo, ordinale=_ord_tr)
+            _uso_ordinale_tr[_key_tr] = _ord_tr + 1
+        else:
+            nome_conto_tr = ""
         tree.insert("", "end", values=(d.strftime("%d-%m-%Y"), cat, desc, f"{imp_formattato} €", tipo, nome_conto_tr, metodo_diretto, tag_diretto), tags=(tag_name,))
     tree.tag_configure("green_row",  foreground="green")
     tree.tag_configure("red_row",    foreground="red")
