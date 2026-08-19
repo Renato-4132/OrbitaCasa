@@ -11,6 +11,11 @@ from tkinter import ttk, filedialog
 from moduli.modello_spesa import campo
 
 def open_compare_window(self):
+    if getattr(self, 'confronto_popup', None) is not None and self.confronto_popup.winfo_exists():
+        self.confronto_popup.deiconify()
+        self.confronto_popup.lift()
+        self.confronto_popup.focus_force()
+        return
     import __main__ as _app
     EXPORT_FILES = _app.EXPORT_FILES
     PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
@@ -221,7 +226,6 @@ def open_compare_window(self):
             values = treeview.item(item_id, "values")
             if not values or len(values) < 1:
                 return
-            categoria = values[0] 
             original_stats_table = getattr(self, 'stats_table', None)
             original_mode = getattr(self, 'stats_mode', None)
             original_refdate = getattr(self, 'stats_refdate', None)
@@ -407,13 +411,15 @@ def open_compare_window(self):
     img_grafico_c = self.icone_gui.get("grafico_linea")
     btn_grafico_c = tk.Label(btnframe, compound="left", image=img_grafico_c, text="Mostra Grafico" if img_grafico_c else "Mostra Grafico", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padx=15, pady=6, font=("Arial", 9, "bold"))
     btn_grafico_c.pack(side=tk.LEFT, padx=8)
-    btn_grafico_c.bind("<Button-1>", lambda e: self.crea_grafico_confronto(left_mese.get(), left_anno.get(), right_mese.get(), right_anno.get(), compare_by_year.get(), conto_sel=conto_var.get()))
+    btn_grafico_c.bind("<Button-1>", lambda e: self.crea_grafico_confronto(left_mese.get(), left_anno.get(), right_mese.get(), right_anno.get(), compare_by_year.get(), conto_sel=conto_var.get(), mostra_future=mostra_future_var.get()))
     img_chiudi_c = self.icone_gui.get("chiudi")
     btn_chiudi_c = tk.Label(btnframe, compound="left", image=img_chiudi_c, text="Chiudi" if img_chiudi_c else "❌ Chiudi", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padx=15, pady=6, font=("Arial", 9, "bold"))
     btn_chiudi_c.pack(side=tk.RIGHT, padx=8)
     btn_chiudi_c.bind("<Button-1>", lambda e: popup.destroy())
     
 def crea_grafico_confronto(self, m1_str, a1_str, m2_str, a2_str, per_anno, categoria_sel=None, mostra_future=True, conto_sel=None):
+    if getattr(self, 'popup_grafico_confronto', None) is not None and self.popup_grafico_confronto.winfo_exists():
+        self.popup_grafico_confronto.destroy()
     try:
         m1, a1, m2, a2 = int(m1_str), int(a1_str), int(m2_str), int(a2_str)
         p1_color = "#1f77b4"
@@ -444,6 +450,7 @@ def crea_grafico_confronto(self, m1_str, a1_str, m2_str, a2_str, per_anno, categ
         popup_width = 1100
         popup_height = 600
         popup_grafico = tk.Toplevel(self)
+        self.popup_grafico_confronto = popup_grafico
         popup_grafico.title("Grafico Confronto Periodi")
         popup_grafico.transient(self)
         popup_grafico.minsize(1100, 600)
@@ -764,5 +771,7 @@ def crea_grafico_confronto(self, m1_str, a1_str, m2_str, a2_str, per_anno, categ
         tk.Label(legenda_frame, text=f"P1 (Blu): {a1 if per_anno else f'{m1:02d}/{a1}'}", bg=bg_color, fg=p1_color, font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=(2, 8))
         tk.Label(legenda_frame, text=f"P2 (Arancione): {a2 if per_anno else f'{m2:02d}/{a2}'}", bg=bg_color, fg=p2_color, font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=(2, 8))
     except Exception as e:
+        if 'popup_grafico' in locals() and popup_grafico.winfo_exists():
+            popup_grafico.destroy()
         self.show_custom_warning("Errore Grafico", f"Si è verificato un errore critico durante la generazione del grafico: {e}")
         
