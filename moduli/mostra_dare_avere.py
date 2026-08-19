@@ -19,7 +19,6 @@ def mostra_dare_avere(self):
     popup.title("Fair Share — Dare & Avere per Spesa")
     self._dare_avere_popup = popup
     self._caller_popup = popup
-    popup.bind("<Destroy>", lambda e: setattr(self, '_dare_avere_popup', None) if e.widget is popup else None)
     popup.withdraw()
     self.update_idletasks()
     w, h = 1280, 650
@@ -43,7 +42,7 @@ def mostra_dare_avere(self):
     _gestore = _profilo_attivo_da if _profilo_attivo_da != "Principale" else os.path.basename(os.getcwd())
     _nomi_ico  = {}
     for p in self.nomi_partecipanti:
-        if p.get("tipo") not in ("persona", "contenitore"):
+        if p.get("tipo", "persona") not in ("persona", "contenitore"):
             continue
         _ico = "CNT·" if p.get("tipo") == "contenitore" else "PER·"
         _nomi_ico[p["nome"]] = f"{_ico} {p['nome']}"
@@ -390,8 +389,18 @@ def mostra_dare_avere(self):
                 try:
                     import pymupdf as fitz
                     doc = fitz.open()
-                    page = doc.new_page(width=842, height=595)
-                    page.insert_text((30, 30), testo, fontname="cour", fontsize=7)
+                    page_w, page_h = 842, 595
+                    margin = 30
+                    font_size = 7
+                    line_height = font_size + 2
+                    page = doc.new_page(width=page_w, height=page_h)
+                    y = margin
+                    for line in testo.split("\n"):
+                        if y > (page_h - margin):
+                            page = doc.new_page(width=page_w, height=page_h)
+                            y = margin
+                        page.insert_text((margin, y), line, fontname="cour", fontsize=font_size)
+                        y += line_height
                     doc.save(f_path); doc.close()
                     self.show_toast("PDF salvato.")
                 except Exception as ex:
@@ -420,10 +429,10 @@ def mostra_dare_avere(self):
         txt_area.config(state="disabled")
         bf = tk.Frame(prev_win, bg=self.COLOR_TOPLEVEL)
         bf.pack(fill=tk.X, pady=8)
-        for lbl_txt, cmd in [(" PDF", do_pdf), (" TXT", do_txt),
-                              (" Stampa", lambda: self._stampa_lista_diretta(
+        for lbl_txt, ico, cmd in [(" PDF", "salva", do_pdf), (" TXT", "salva", do_txt),
+                              (" Stampa", "stampa", lambda: self._stampa_lista_diretta(
                                   testo, self.show_custom_warning))]:
-            img = self.icone_gui.get("salva")
+            img = self.icone_gui.get(ico)
             b = ttk.Label(bf, compound="left", image=img, text=lbl_txt,
                           background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
                           cursor="hand2", padding=(10, 5))
