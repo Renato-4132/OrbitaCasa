@@ -261,7 +261,7 @@ def importa_profilo(self):
     w, h = 300, 110
     x = self.winfo_rootx() + (self.winfo_width() // 2) - (w // 2)
     y = self.winfo_rooty() + (self.winfo_height() // 2) - (h // 2)
-    win.geometry(f"{w}x{h}+{x}+{y}")
+    win.geometry(f"{w}x{h}+{max(0, x)}+{max(0, y)}")
     win.bind("<Escape>", lambda e: win.destroy())
 
     tk.Label(win, text="Nome del profilo da creare:", bg=self.COLOR_BACKGROUND,
@@ -278,7 +278,7 @@ def importa_profilo(self):
             self.show_toast("Nome profilo non valido")
             return
         profili_esistenti = elenco_profili(self)
-        if nome in profili_esistenti:
+        if nome.lower() in (p.lower() for p in profili_esistenti):
             self.show_toast("Esiste già un profilo con questo nome")
             return
         if len(profili_esistenti) >= MAX_PROFILI:
@@ -327,7 +327,7 @@ def mostra_selettore_profilo(self):
     w, h = 640, 440
     x = self.winfo_rootx() + (self.winfo_width() // 2) - (w // 2)
     y = self.winfo_rooty() + (self.winfo_height() // 2) - (h // 2)
-    win.geometry(f"{w}x{h}+{x}+{y}")
+    win.geometry(f"{w}x{h}+{max(0, x)}+{max(0, y)}")
     win.bind("<Escape>", lambda e: win.destroy())
     
     tk.Label(win, text="Profilo attivo:", bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
@@ -389,7 +389,7 @@ def mostra_selettore_profilo(self):
         w, h = 300, 110
         x = win.winfo_rootx() + (win.winfo_width() // 2) - (w // 2)
         y = win.winfo_rooty() + (win.winfo_height() // 2) - (h // 2)
-        popup.geometry(f"{w}x{h}+{x}+{y}")
+        popup.geometry(f"{w}x{h}+{max(0, x)}+{max(0, y)}")
         popup.bind("<Escape>", lambda e: popup.destroy())
         
         tk.Label(popup, text="Nome del nuovo profilo:", bg=self.COLOR_BACKGROUND,
@@ -405,7 +405,7 @@ def mostra_selettore_profilo(self):
             if not nome:
                 self.show_toast("Nome profilo non valido")
                 return
-            if nome in profili:
+            if nome.lower() in (p.lower() for p in profili):
                 self.show_toast("Esiste già un profilo con questo nome")
                 return
             if len(profili) >= MAX_PROFILI:
@@ -436,6 +436,10 @@ def mostra_selettore_profilo(self):
         popup.configure(bg=self.COLOR_BACKGROUND)
         popup.transient(win)
         popup.resizable(False, False)
+        w, h = 300, 110
+        x = win.winfo_rootx() + (win.winfo_width() // 2) - (w // 2)
+        y = win.winfo_rooty() + (win.winfo_height() // 2) - (h // 2)
+        popup.geometry(f"{w}x{h}+{max(0, x)}+{max(0, y)}")
         popup.bind("<Escape>", lambda e: popup.destroy())
 
         tk.Label(popup, text=f"Nuovo nome per '{vecchio_nome}':", bg=self.COLOR_BACKGROUND,
