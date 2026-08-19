@@ -20,7 +20,13 @@ def mostra_spese_simili(self):
     except ValueError:
         self.show_toast("Errore: Importo mancante o non valido.")
         return
-    tolleranza = int(self.spin_tolleranza.get()) if hasattr(self, "spin_tolleranza") else TOLL
+    if hasattr(self, "spin_tolleranza"):
+        try:
+            tolleranza = int(self.spin_tolleranza.get())
+        except ValueError:
+            tolleranza = TOLL
+    else:
+        tolleranza = TOLL
     limite_basso = target - tolleranza
     limite_alto = target + tolleranza
     
@@ -71,6 +77,8 @@ def mostra_spese_simili(self):
             for voce in lista
             if isinstance(campo(voce, "importo", None), (int, float))
             and limite_basso <= campo(voce, "importo", 0.0) <= limite_alto
+            and campo(voce, "categoria", "") not in ["", "Categoria Rimossa", None]
+            and campo(voce, "categoria", "") in self.categorie
         ]
         for item in tree.get_children():
             tree.delete(item)
@@ -212,24 +220,4 @@ def mostra_spese_simili(self):
     )
     btn_chiudi_pop.pack(side="left", padx=8)
     btn_chiudi_pop.bind("<Button-1>", lambda e: popup.destroy())
-    def sort_column(tv, col, reverse):
-        def extract(val):
-            try:
-                if col == "importo":
-                    return float(val.replace("€", "").replace(",", "").strip())
-                elif col == "data":
-                    return datetime.datetime.strptime(val, "%d-%m-%Y")
-                return str(val).lower()
-            except:
-                return val
-        idx = columns.index(col)
-        dati = [(tv.item(k)["values"], k) for k in tv.get_children()]
-        try:
-            dati.sort(key=lambda x: extract(x[0][idx]), reverse=reverse)
-        except Exception as e:
-            print(f"[Errore ordinamento '{col}']: {e}")
-            return
-        for i, (valori, k) in enumerate(dati):
-            tv.move(k, "", i)
-        tv.heading(col, command=lambda: sort_column(tv, col, not reverse))
 
