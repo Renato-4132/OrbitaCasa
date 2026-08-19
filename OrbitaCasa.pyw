@@ -4415,6 +4415,13 @@ class GestioneSpese(tk.Tk):
             if hasattr(self, 'popup_grafico') and self.popup_grafico and self.popup_grafico.winfo_exists():
                 self.popup_grafico.destroy()
                 del self.popup_grafico
+            if hasattr(self, 'popup_grafico_confronto') and self.popup_grafico_confronto is not None:
+                try:
+                    if self.popup_grafico_confronto.winfo_exists():
+                        self.popup_grafico_confronto.destroy()
+                        self.popup_grafico_confronto = None
+                except Exception:
+                    pass
             if hasattr(self, 'storico_cat_popup') and self.storico_cat_popup is not None:
                 try:
                     if self.storico_cat_popup.winfo_exists():
@@ -6005,7 +6012,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "d5b851ef4098a67317f95c1d03ae8ec13f13dd3f8fe71cb155f5ea021b7a909e"
+        E_H_B = "0e0adec883391afa71fd6177ff1f54b5e4380b429c4ef68d845e1014a3c5bb7e"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
