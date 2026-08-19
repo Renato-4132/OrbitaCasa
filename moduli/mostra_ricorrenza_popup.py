@@ -28,27 +28,16 @@ def mostra_ricorrenza_popup(self):
     self.ricorrenza_popup.transient(self)
     self.ricorrenza_popup.title("Gestione Ricorrenze")
     self.ricorrenza_popup.resizable(False, False)
-    self.ricorrenza_popup.protocol(
-        "WM_DELETE_WINDOW", 
-        lambda: (
-            self.ricorrenza_popup.withdraw(), 
-            (self.popup_calendario.destroy(), setattr(self, 'popup_calendario', None))
-            if hasattr(self, 'popup_calendario') and self.popup_calendario and self.popup_calendario.winfo_exists()
-            else None,
-            setattr(self, 'ricorrenza_bloccata', False) 
-        )
-    )
+    def _chiudi_ricorrenza_popup():
+        self.ricorrenza_popup.withdraw()
+        if hasattr(self, 'popup_calendario') and self.popup_calendario and self.popup_calendario.winfo_exists():
+            self.popup_calendario.destroy()
+            self.popup_calendario = None
+        self.ricorrenza_bloccata = False
+
+    self.ricorrenza_popup.protocol("WM_DELETE_WINDOW", _chiudi_ricorrenza_popup)
     self.ricorrenza_bloccata = False
-    self.ricorrenza_popup.bind(
-        "<Escape>", 
-        lambda event: (
-            self.ricorrenza_popup.withdraw(),
-            (self.popup_calendario.destroy(), setattr(self, 'popup_calendario', None))
-            if hasattr(self, 'popup_calendario') and self.popup_calendario and self.popup_calendario.winfo_exists()
-            else None,
-            setattr(self, 'ricorrenza_bloccata', False) 
-        )
-    )
+    self.ricorrenza_popup.bind("<Escape>", lambda event: _chiudi_ricorrenza_popup())
     window_width = 720
     window_height = 250
     screen_width = self.winfo_screenwidth()
