@@ -140,29 +140,21 @@ def mostra_lista_ricorrenze(self):
     tree = ttk.Treeview(main_frame, columns=columns, show="headings", height=12)
     tree.tag_configure("uscita", foreground="red")
     tree.tag_configure("entrata", foreground="green")
-    larghezze = {"Categoria": 110, "Conto": 90, "Metodo": 90, "Tag": 90, "Tipo": 50, "Importo": 60, "Durata": 30, "Saldate": 30, "Data Inizio": 60, "Data Fine": 60, "Importo Totale": 80, "Contabilizzato": 70, "Residuo": 60, "ID": 180}
+    larghezze = {"Categoria": 130, "Conto": 100, "Metodo": 100, "Tag": 100, "Tipo": 60, "Importo": 75, "Durata": 55, "Saldate": 55, "Data Inizio": 85, "Data Fine": 85, "Importo Totale": 100, "Contabilizzato": 100, "Residuo": 85, "ID": 90}
     for col in columns:
         tree.heading(col, text=col, command=lambda _col=col: self.treeview_sort_column(tree, _col, False))
         tree.column(col, width=larghezze[col], anchor="center")
     tree.pack(fill="both", expand=True)
     oggi = datetime.date.today()
     bilancio_mensile = 0.0
-    evasi_per_ricorrenza = {id_ric: [] for id_ric in self.ricorrenze.keys()}
-    for id_ricorrenza, dati in self.ricorrenze.items():
-        data_inizio_str = dati.get("data_inizio", "N/D")
-        data_inizio_obj = parse_data(data_inizio_str)
-        if data_inizio_obj:
-             if dati.get("tipo", "").lower() == "ogni mese":
-                volte_passate = (oggi.year - data_inizio_obj.year) * 12 + (oggi.month - data_inizio_obj.month)
-                for i in range(volte_passate + 1):
-                    data_movimento = (data_inizio_obj.replace(day=1) + datetime.timedelta(days=32 * i)).replace(day=data_inizio_obj.day)
-                    if data_movimento <= oggi:
-                        evasi_per_ricorrenza[id_ricorrenza].append({
-                            'data': data_movimento.strftime("%d-%m-%Y"),
-                            'descrizione': f"{dati['cat']} del {data_movimento.strftime('%B')}",
-                            'importo': dati['imp'],
-                            'tipo': dati['tipo_voce']
-                        })
+    conteggio_reale = {}
+    for data_key, voci in self.spese.items():
+        for voce in voci:
+            rid = campo(voce, "id_ricorrenza", None)
+            if rid and rid in self.ricorrenze:
+                entry = conteggio_reale.setdefault(rid, {"volte": 0, "importo": 0.0})
+                entry["volte"] += 1
+                entry["importo"] += float(campo(voce, "importo", 0.0))
     for i, (id_ricorrenza, dati) in enumerate(self.ricorrenze.items()):
         cat = dati.get("cat", "Sconosciuta")
         conto = dati.get("conto") or ""
@@ -176,19 +168,9 @@ def mostra_lista_ricorrenze(self):
         data_inizio_obj = parse_data(data_inizio_str)
         data_fine = calcola_data_fine(data_inizio_obj, n_volte, ric_periodo)
         importo_totale = imp * n_volte if isinstance(n_volte, int) else 0.0
-        volte_passate = 0
-        if data_inizio_obj:
-            if oggi >= data_inizio_obj:
-                if ric_periodo.lower() == "ogni mese":
-                    diff_mesi = (oggi.year - data_inizio_obj.year) * 12 + (oggi.month - data_inizio_obj.month)
-                    volte_passate = diff_mesi + 1
-                elif ric_periodo.lower() == "ogni anno":
-                    volte_passate = (oggi.year - data_inizio_obj.year) + 1
-                elif ric_periodo.lower() == "ogni giorno":
-                    diff_giorni = (oggi - data_inizio_obj).days
-                    volte_passate = diff_giorni + 1
-        volte_passate = min(volte_passate, n_volte)
-        importo_gia_pagato = imp * volte_passate
+        reale = conteggio_reale.get(id_ricorrenza, {"volte": 0, "importo": 0.0})
+        volte_passate = min(reale["volte"], n_volte) if isinstance(n_volte, int) and n_volte > 0 else reale["volte"]
+        importo_gia_pagato = reale["importo"]
         importo_rimasto = importo_totale - importo_gia_pagato
         tag = "uscita" if tipo_voce == "Uscita" else "entrata"
         values = (cat, conto, metodo, tag_str, tipo_voce, f"{imp:,.2f} €", n_volte, volte_passate, data_inizio_str, data_fine, f"{importo_totale:,.2f} €", f"{importo_gia_pagato:,.2f} €", f"{importo_rimasto:,.2f} €", id_ricorrenza)
