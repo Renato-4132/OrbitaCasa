@@ -6,6 +6,12 @@ import datetime
 import tkinter as tk
 from tkinter import ttk, filedialog
 
+def _porta_key_data(s):
+    try:
+        return datetime.datetime.strptime(s, "%d-%m-%Y")
+    except Exception:
+        return datetime.datetime.min
+
 def apri_portafoglio(self):
         from __main__ import EXPORT_FILES, EXP_DB, API_KEY, GEMINI
         from google import genai
@@ -434,12 +440,16 @@ def apri_portafoglio(self):
                              fg=self.TEXT_COLOR, font=("Segoe UI", 8, "bold")).pack(pady=(6, 2))
                     cvs = tk.Canvas(frm_graf, bg=self.COLOR_WIDGET_BG, highlightthickness=0)
                     cvs.pack(fill="both", expand=True, padx=4, pady=4)
+                    _ultima_dim = {"w": None, "h": None}
                     def _draw(event=None):
-                        cvs.delete("all")
                         W = cvs.winfo_width()
                         H = cvs.winfo_height()
                         if W < 50 or H < 50 or not closes:
                             return
+                        if _ultima_dim["w"] == W and _ultima_dim["h"] == H:
+                            return
+                        _ultima_dim["w"], _ultima_dim["h"] = W, H
+                        cvs.delete("all")
                         PAD_L, PAD_R, PAD_T, PAD_B = 50, 10, 15, 35
                         v_min = min(closes) * 0.998
                         v_max = max(closes) * 1.002
@@ -662,7 +672,7 @@ def apri_portafoglio(self):
                     if filtro != "Tutti" and t["ticker"] != filtro:
                         continue
                     for m in sorted(t.get("movimenti", []),
-                                    key=lambda x: x.get("data",""), reverse=True):
+                                    key=lambda x: _porta_key_data(x.get("data","")), reverse=True):
                         q   = float(m.get("quantita", 0))
                         p   = float(m.get("prezzo", 0))
                         com = float(m.get("commissioni", 0))
@@ -852,7 +862,7 @@ def apri_portafoglio(self):
                     netto    = float(d.get("importo_netto", lordo - ritenuta))
                     righe.append((d.get("data",""), t["ticker"], lordo, ritenuta, netto, t, d))
                     tot_netto += netto
-            for r in sorted(righe, key=lambda x: x[0], reverse=True):
+            for r in sorted(righe, key=lambda x: _porta_key_data(x[0]), reverse=True):
                 iid = str(id(r[6]))
                 ref_div[iid] = (r[5], r[6])
                 tv.insert("", "end", iid=iid, values=(
@@ -981,7 +991,7 @@ def apri_portafoglio(self):
             root_h = win.winfo_height()
             x = root_x + (root_w // 2) - (w_dlg // 2)
             y = root_y + (root_h // 2) - (h_dlg // 2)
-            dlg.geometry(f"{w_dlg}x{h_dlg}+{x}+{y}")
+            dlg.geometry(f"{w_dlg}x{h_dlg}+{max(0, x)}+{max(0, y)}")
             dlg.resizable(False, False)
             dlg.transient(win)
             dlg.bind("<Escape>", lambda e: dlg.destroy())
@@ -1476,7 +1486,7 @@ def apri_portafoglio(self):
                 for t in dati["titoli"]:
                     for m in t.get("movimenti", []):
                         tutti_mov.append((m.get("data", ""), t["ticker"], m))
-                for data, ticker, m in sorted(tutti_mov, key=lambda x: x[0], reverse=True):
+                for data, ticker, m in sorted(tutti_mov, key=lambda x: _porta_key_data(x[0]), reverse=True):
                     q   = float(m.get("quantita", 0))
                     p   = float(m.get("prezzo", 0))
                     com = float(m.get("commissioni", 0))
@@ -1504,7 +1514,7 @@ def apri_portafoglio(self):
                         netto    = float(d.get("importo_netto", lordo - ritenuta))
                         righe_div.append((d.get("data", ""), t["ticker"], lordo, ritenuta, netto))
                         tot_netto += netto
-                for r in sorted(righe_div, key=lambda x: x[0], reverse=True):
+                for r in sorted(righe_div, key=lambda x: _porta_key_data(x[0]), reverse=True):
                     lines.append(
                         f"{r[0]:<12}  {r[1]:<10}  "
                         f"{r[2]:>12,.2f}  {r[3]:>12,.2f}  {r[4]:>12,.2f}"
@@ -1543,6 +1553,7 @@ def apri_portafoglio(self):
             frm_act = tk.Frame(prev, bg=self.COLOR_TOPLEVEL)
             frm_act.pack(fill=tk.X, padx=10, pady=8)
             def _salva_txt():
+                import os
                 path = filedialog.asksaveasfilename(
                     parent=prev, defaultextension=".txt",
                     filetypes=[("Testo", "*.txt")],
@@ -1550,10 +1561,14 @@ def apri_portafoglio(self):
                     initialfile=f"portafoglio_{datetime.date.today()}.txt")
                 if not path:
                     return
+                if os.path.exists(path) and not self.show_custom_askyesno(
+                        "Sovrascrivi", f"Il file esiste già. Sovrascrivere?\n\n{path}"):
+                    return
                 with open(path, "w", encoding="utf-8") as f:
                     f.write(testo)
                 self.show_toast("TXT salvato.")
             def _salva_pdf():
+                import os
                 path = filedialog.asksaveasfilename(
                     parent=prev, defaultextension=".pdf",
                     filetypes=[("PDF", "*.pdf")],
@@ -1561,6 +1576,9 @@ def apri_portafoglio(self):
                     confirmoverwrite=False,
                     initialfile=f"portafoglio_{datetime.date.today()}.pdf")
                 if not path:
+                    return
+                if os.path.exists(path) and not self.show_custom_askyesno(
+                        "Sovrascrivi", f"Il file esiste già. Sovrascrivere?\n\n{path}"):
                     return
                 try:
                     import pymupdf as fitz
@@ -1603,6 +1621,7 @@ def apri_portafoglio(self):
             prev.attributes('-topmost', True)
             prev.after(100, lambda: prev.attributes('-topmost', False))          
         def _esporta_json():
+            import os
             path = filedialog.asksaveasfilename(
                 parent=win, defaultextension=".json",
                 initialdir=EXP_DB,
@@ -1610,6 +1629,9 @@ def apri_portafoglio(self):
                 confirmoverwrite=False,
                 initialfile=f"portafoglio_{datetime.date.today()}.json")
             if not path:
+                return
+            if os.path.exists(path) and not self.show_custom_askyesno(
+                    "Sovrascrivi", f"Il file esiste già. Sovrascrivere?\n\n{path}"):
                 return
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(dati, f, indent=2, ensure_ascii=False)
@@ -2028,12 +2050,16 @@ Genera un report completo del portafoglio (KPI, titoli, movimenti, dividendi) es
                                 highlightthickness=1)
                 cvs.pack(fill="both", expand=True)
                 frm.update_idletasks()
+                _ultima_dim = {"w": None, "h": None}
                 def _draw(event=None):
-                    cvs.delete("all")
                     W = cvs.winfo_width()
                     H = cvs.winfo_height()
                     if W < 50 or H < 50:
                         return
+                    if _ultima_dim["w"] == W and _ultima_dim["h"] == H:
+                        return
+                    _ultima_dim["w"], _ultima_dim["h"] = W, H
+                    cvs.delete("all")
                     all_vals = [v for s in serie_list for v in s]
                     if not all_vals:
                         return
