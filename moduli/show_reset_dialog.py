@@ -266,15 +266,24 @@ def show_reset_dialog(self):
         tk.Label(blocco, text=messaggio, bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
                  font=("Arial", 10, "bold"), wraplength=w_b - 20, justify="center").pack(expand=True, fill="both", padx=10, pady=10)
         blocco.focus_force()
+        blocco.update()
+        blocco.grab_set()
         return blocco
 
     def _restart_application():
         script_path = os.path.abspath(sys.argv[0])
         args = [sys.executable, script_path] + sys.argv[1:]
-        if os.name == 'nt':
-            subprocess.Popen(args, creationflags=0x00000008, shell=False, close_fds=True)
-        else:
-            subprocess.Popen(args, start_new_session=True, close_fds=True)
+        try:
+            if os.name == 'nt':
+                subprocess.Popen(args, creationflags=0x00000008, shell=False, close_fds=True)
+            else:
+                subprocess.Popen(args, start_new_session=True, close_fds=True)
+        except Exception as e:
+            self.show_custom_warning(
+                "Errore Riavvio",
+                f"Impossibile riavviare automaticamente l'applicazione:\n{e}\n\nChiudi e riavvia manualmente."
+            )
+            return
         os._exit(0)
 
     def _esegui_reset():
