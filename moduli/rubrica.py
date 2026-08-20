@@ -90,8 +90,11 @@ def rubrica_app(self):
     def ordina_contatti():
         contatti.sort(key=lambda c: c["nome"].lower())
     def salva_su_json():
-        with open(DATI_FILE, "w", encoding="utf-8") as f:
-            json.dump(contatti, f, indent=2, ensure_ascii=False)
+        try:
+            with open(DATI_FILE, "w", encoding="utf-8") as f:
+                json.dump(contatti, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            self.show_custom_warning("Errore", f"Impossibile salvare la rubrica:\n{e}")
     def pulisci_campi():
         entry_nome.delete(0, tk.END)
         entry_telefono.delete(0, tk.END)
@@ -109,6 +112,11 @@ def rubrica_app(self):
             for i, c in enumerate(contatti):
                 tree_contatti.insert("", tk.END, iid=i, 
                                     values=(c["nome"], c["telefono"], c["email"], c["note"]))
+    def aggiorna_vista():
+        if entry_cerca.get().strip():
+            cerca_contatto()
+        else:
+            aggiorna_lista()
     def carica_da_json():
         if os.path.exists(DATI_FILE):
             with open(DATI_FILE, "r", encoding="utf-8") as f:
@@ -156,7 +164,7 @@ def rubrica_app(self):
             contatti.append({"nome": nome, "telefono": telefono, "email": email, "note": note})
             ordina_contatti()
             salva_su_json()
-            aggiorna_lista()
+            aggiorna_vista()
             pulisci_campi()
             self.show_toast("Contatto aggiunto correttamente !")
         else:
@@ -175,16 +183,25 @@ def rubrica_app(self):
         except ValueError:
             self.show_toast("Selezione non valida per la modifica.")
             return
+        nome = entry_nome.get().strip()
+        telefono = entry_telefono.get().strip()
+        email = entry_email.get().strip()
+        note = entry_note.get("1.0", tk.END).strip()
+        if len(nome) > 43 or len(telefono) > 43 or len(email) > 43 or len(note) > 100:
+            self.show_custom_warning("Limite superato", 
+                     "Hai superato il limite massimo di caratteri:\n\n"
+                     "- Nome: 43\n- Telefono: 43\n- Email: 43\n- Note: 100")
+            return
         contatti[i] = {
-            "nome": entry_nome.get().strip(),
-            "telefono": entry_telefono.get().strip(),
-            "email": entry_email.get().strip(),
-            "note": entry_note.get("1.0", tk.END).strip()
+            "nome": nome,
+            "telefono": telefono,
+            "email": email,
+            "note": note
         }
         ordina_contatti()
         salva_su_json()
         pulisci_campi() 
-        aggiorna_lista()
+        aggiorna_vista()
         self.show_toast("Contatto modificato correttamente!")
     def cancella_contatto():
         selected_items = tree_contatti.selection()
@@ -197,10 +214,13 @@ def rubrica_app(self):
             i = int(iid)
         except ValueError:
             return
+        nome_contatto = contatti[i].get("nome", "") if 0 <= i < len(contatti) else ""
+        if not self.show_custom_askyesno("Elimina contatto", f"Eliminare il contatto '{nome_contatto}'?"):
+            return
         contatti.pop(i) 
         salva_su_json()
         pulisci_campi() 
-        aggiorna_lista()
+        aggiorna_vista()
         self.show_toast("Contatto cancellato con successo !")
     def cerca_contatto(event=None):
         query = entry_cerca.get().lower()
