@@ -46,11 +46,21 @@ SCORCIATOIA_ESC = ("Esc", "Chiudi")
 # Scorciatoie Tasti
 def configura_scorciatoie(self):
     for tk_key, _label, metodo_nome, _descr in SCORCIATOIE:
-        metodo = getattr(self, metodo_nome)
+        try:
+            metodo = getattr(self, metodo_nome)
+        except AttributeError:
+            print(f"[Scorciatoie] Metodo non trovato: {metodo_nome} ({tk_key})")
+            continue
         self.bind_all(tk_key, lambda e, f=metodo: f())
 
 def mostra_popup_scorciatoie(self, event=None):
+    if hasattr(self, '_scorciatoie_popup') and self._scorciatoie_popup and self._scorciatoie_popup.winfo_exists():
+        self._scorciatoie_popup.lift()
+        self._scorciatoie_popup.focus_force()
+        return
     popup = tk.Toplevel(self)
+    self._scorciatoie_popup = popup
+    popup.bind("<Destroy>", lambda e: setattr(self, '_scorciatoie_popup', None) if e.widget is popup else None)
     popup.title("Scorciatoie")
     popup.withdraw()
     popup.configure(background=self.COLOR_WIDGET_BG)
@@ -82,7 +92,7 @@ def mostra_popup_scorciatoie(self, event=None):
         tk.Label(main_container, text=d, font=("Arial", 9),
                  foreground=self.TEXT_COLOR, background=self.COLOR_WIDGET_BG,
                  anchor="w").grid(row=riga, column=colonna_base + 1, padx=(0, 20), pady=1, sticky="w")
-    self.btn_chiudi_popup = tk.Label(
+    btn_chiudi_scorciatoie = tk.Label(
         popup,
         image=self.icone_gui.get("chiudi"),
         text=" Chiudi",
@@ -92,6 +102,6 @@ def mostra_popup_scorciatoie(self, event=None):
         foreground=self.TEXT_COLOR,
         font=("Arial", 9, "bold")
     )
-    self.btn_chiudi_popup.image = self.icone_gui.get("chiudi")
-    self.btn_chiudi_popup.pack(pady=(15, 20))
-    self.btn_chiudi_popup.bind("<Button-1>", lambda e: popup.destroy())
+    btn_chiudi_scorciatoie.image = self.icone_gui.get("chiudi")
+    btn_chiudi_scorciatoie.pack(pady=(15, 20))
+    btn_chiudi_scorciatoie.bind("<Button-1>", lambda e: popup.destroy())
