@@ -401,10 +401,14 @@ def apri_studio(self):
         cv = tk.Canvas(graf_frame, bg=self.COLOR_WIDGET_BG,
                        highlightthickness=0)
         cv.pack(fill="both", expand=True, padx=8, pady=8)
+        _ultima_dim_barchart = {"w": None, "h": None}
         def _draw_barchart(event=None):
-            cv.delete("all")
             cw = cv.winfo_width()  or 500
             ch = cv.winfo_height() or 260
+            if _ultima_dim_barchart["w"] == cw and _ultima_dim_barchart["h"] == ch:
+                return
+            _ultima_dim_barchart["w"], _ultima_dim_barchart["h"] = cw, ch
+            cv.delete("all")
             margin_l, margin_b, margin_t = 60, 40, 20
             W_plot = cw - margin_l - 20
             H_plot = ch - margin_b - margin_t
@@ -1614,7 +1618,7 @@ def apri_studio(self):
             b_close_form = ttk.Label(bot, text=" Chiudi", image=self.icone_gui.get("chiudi"), compound="left", background=self.COLOR_WIDGET_BG, cursor="hand2", font=("Arial",9,"bold"), padding=(6,3))
             b_close_form.pack(side="left", padx=8)
             b_close_form.bind("<Button-1>", lambda e: fw.destroy())
-        def _genera_pdf(doc=None):
+        def _genera_pdf(doc=None, path_out=None):
             os.makedirs(EXPORT_FATTURE_DIR, exist_ok=True)
             if doc is None:
                 sel = tv.selection()
@@ -1632,21 +1636,22 @@ def apri_studio(self):
                 self.show_custom_warning("Errore",
                     "PyMuPDF (fitz) non installato.\n"
                     "Installa con: pip install pymupdf"); return
-            path_out = filedialog.asksaveasfilename(
-                parent=win,
-                initialdir=EXPORT_FATTURE_DIR,
-                defaultextension=".pdf",
-                filetypes=[("PDF","*.pdf")],
-                initialfile=f"{doc.get('tipo_doc','Doc')}_{doc.get('numero','').replace('/','_')}.pdf",
-                confirmoverwrite=False
-            )
-            if not path_out: return
-            if os.path.exists(path_out):
-                if not self.show_custom_askyesno(
-                    "Sovrascrivere file?",
-                    f"Il file '{os.path.basename(path_out)}' \nesiste già. Vuoi sovrascriverlo?"
-                ):
-                    return
+            if path_out is None:
+                path_out = filedialog.asksaveasfilename(
+                    parent=win,
+                    initialdir=EXPORT_FATTURE_DIR,
+                    defaultextension=".pdf",
+                    filetypes=[("PDF","*.pdf")],
+                    initialfile=f"{doc.get('tipo_doc','Doc')}_{doc.get('numero','').replace('/','_')}.pdf",
+                    confirmoverwrite=False
+                )
+                if not path_out: return
+                if os.path.exists(path_out):
+                    if not self.show_custom_askyesno(
+                        "Sovrascrivere file?",
+                        f"Il file '{os.path.basename(path_out)}' \nesiste già. Vuoi sovrascriverlo?"
+                    ):
+                        return
             try:
                 W, H   = 595, 842
                 MARG   = 45
@@ -2155,8 +2160,8 @@ def apri_studio(self):
         def _genera_pdf_path(doc, path_out):
             try:
                 import pymupdf as fitz
-                sel_orig = tv.selection()
-                _genera_pdf(doc=doc)
+                _genera_pdf(doc=doc, path_out=path_out)
+                self.stampa_pdf(path_out, self.show_custom_warning)
             except Exception:
                 pass
         def _incassa():
@@ -2300,6 +2305,13 @@ def apri_studio(self):
                     self.show_toast("Seleziona un movimento."); return
             mov = next((m for m in cassa if m["id"]==sel[0]), None)
             if not mov: return
+            if mov.get("trasferito"):
+                if not self.show_custom_askyesno(
+                    "Movimento già trasferito",
+                    "Questo movimento risulta già trasferito al DB principale in precedenza.\n\n"
+                    "Trasferirlo di nuovo aggiungerà l'importo una seconda volta al bilancio.\nProcedere comunque?"
+                ):
+                    return
             import __main__ as _app
             PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
             imp  = mov.get("importo", 0.0)
@@ -2386,6 +2398,8 @@ def apri_studio(self):
                         hashtag=tag_lista
                     ))
                     self.save_db()
+                    mov["trasferito"] = True
+                    _save(STUDIO_CASSA, cassa)
                     if hasattr(self, 'registra_azione_gamification'):
                         self.registra_azione_gamification("movimento")
                     self.refresh_gui()
