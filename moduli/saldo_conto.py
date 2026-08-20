@@ -726,7 +726,7 @@ def open_saldo_conto(self):
             _lbl_filt("Categoria:")
             ttk.Combobox(tb, textvariable=v_cat, values=cats_str,
                          state="readonly", width=14, style="Border.TCombobox").pack(side="left", padx=(0,8))
-            _conti_nomi_filt = [c.get("nome", "?") for c in json.load(open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8")).get("conti", [])] if os.path.exists(PORTAFOGLIO_BANCARIO) else []
+            _conti_nomi_filt = [c.get("nome", "?") for c in carica_db().get("conti", [])]
             _lbl_filt("Conto:")
             ttk.Combobox(tb, textvariable=v_conto,
                          values=["Tutti", "(nessuno)"] + _conti_nomi_filt,
@@ -972,9 +972,19 @@ def open_saldo_conto(self):
                     if f:
                         try:
                             import pymupdf as fitz
-                            doc  = fitz.open()
-                            page = doc.new_page(width=842, height=595)
-                            page.insert_text((40, 40), contenuto, fontname="cour", fontsize=9)
+                            doc = fitz.open()
+                            page_w, page_h = 842, 595
+                            margin = 40
+                            font_size = 9
+                            line_height = font_size + 2
+                            page = doc.new_page(width=page_w, height=page_h)
+                            y = margin
+                            for line in contenuto.split("\n"):
+                                if y > (page_h - margin):
+                                    page = doc.new_page(width=page_w, height=page_h)
+                                    y = margin
+                                page.insert_text((margin, y), line, fontname="cour", fontsize=font_size)
+                                y += line_height
                             doc.save(f)
                             doc.close()
                             self.show_toast("PDF salvato.")
@@ -1036,7 +1046,7 @@ def open_saldo_conto(self):
                             corrisponde = abs(float(v[2]) - imp) < 0.01 and str(v[3]) == tipo
                         except Exception:
                             corrisponde = False
-                        if corrisponde and hasattr(v, "conto"):
+                        if corrisponde and not campo(v, "conto", ""):
                             v.conto = nome_conto
                             agganciati += 1
                             break
@@ -1294,6 +1304,10 @@ def open_saldo_conto(self):
                 build_conti()
             elif tab == 2:
                 build_trasferimenti()
+            elif tab == 3:
+                build_movimenti()
+            elif tab == 4:
+                build_storico()
         nb.bind("<<NotebookTabChanged>>", on_tab_change)
         def chiudi_portafoglio():
             if hasattr(self, '_calendario_attivo'):
