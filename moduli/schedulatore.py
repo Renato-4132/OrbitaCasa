@@ -458,7 +458,8 @@ def _tick_scheduler(self):
     try:
         self._esegui_scheduler()
     except Exception as e:
-        print(f"[SCHEDULER] Errore tick: {e}")
+        ora = datetime.datetime.now().strftime("%H:%M:%S")
+        print(f"[{ora}] [SCHEDULER] Errore tick: {e}")
     self.after(60000, self._tick_scheduler)
 
 def _esegui_scheduler(self):
@@ -612,7 +613,7 @@ def _esegui_scheduler(self):
                         self.after(0, lambda: self.show_toast(f"✉ Email Schedulata Inviata: {n}", duration=4000))
                 except Exception as ex:
                     ora = datetime.datetime.now().strftime("%H:%M:%S")
-                    print(f"[SCHEDULER] Errore interno durante l'invio di '{n}': {ex}")
+                    print(f"[{ora}] [SCHEDULER] Errore interno durante l'invio di '{n}': {ex}")
             self.after(0, _operazioni_gui)
         if modificato:
             try:
