@@ -109,7 +109,7 @@ def scadenze_mese(self):
     tree_mensile.pack(fill="both", expand=True, padx=10, pady=(10, 0))
     tree_mensile.bind("<Double-1>", self.on_scadenza_doppio_click)
     for col in colonne:
-        tree_mensile.heading(col, text=col.capitalize(), command=(lambda c=col: lambda: ordina_colonna(tree_mensile, c, False))())
+        tree_mensile.heading(col, text=col.replace("_", " ").capitalize(), command=(lambda c=col: lambda: ordina_colonna(tree_mensile, c, False))())
     tree_mensile.column("data", width=80, anchor="center", stretch=False)
     tree_mensile.column("categoria", width=180, anchor="center", stretch=False)
     tree_mensile.column("descrizione", width=307, anchor="w", stretch=False)
@@ -145,7 +145,10 @@ def scadenze_mese(self):
                     )
                     data_movimento = datetime.date(anno, mese, giorno)
                 elif ric_type == "ogni anno":
-                    data_movimento = data_inizio.replace(year=data_inizio.year + i)
+                    try:
+                        data_movimento = data_inizio.replace(year=data_inizio.year + i)
+                    except ValueError:
+                        data_movimento = data_inizio.replace(year=data_inizio.year + i, day=28)
                 else:
                     data_movimento = data_inizio + datetime.timedelta(days=i)
                 if data_movimento.month == mese_corrente and data_movimento.year == anno_corrente:
@@ -157,12 +160,12 @@ def scadenze_mese(self):
                 entry_trovata = None
                 if data_movimento in self.spese:
                     for voce in self.spese[data_movimento]:
-                        if len(voce) == 5 and voce[4] == item_id:
+                        if len(voce) >= 5 and voce[4] == item_id:
                             importo_effettivo = voce[2]
                             voce_trovata = True
                             entry_trovata = voce
                             break
-                valore_importo = f"{importo_effettivo:,.2f} €" if voce_trovata else "—"
+                valore_importo = f"{importo_effettivo:,.2f} €".replace(",", "X").replace(".", ",").replace("X", ".") if voce_trovata else "—"
                 pagato = "✔️" if data_movimento <= oggi and voce_trovata else "❌"
                 progressione = f"{indice}/{n}"
                 descrizione = descrizione_base
@@ -204,7 +207,7 @@ def scadenze_mese(self):
                 if len(voce) < 5 or voce[4] not in self.ricorrenze:
                     try:
                         categoria, descrizione, importo, tipo_voce = voce[:4]
-                        valore_importo = f"{importo:,.2f} €"
+                        valore_importo = f"{importo:,.2f} €".replace(",", "X").replace(".", ",").replace("X", ".")
                         pagato = "✔️" if data_voce <= oggi else "❌"
                         progressione = "—"
                         data_scadenza = data_voce.strftime("%d-%m-%Y")
