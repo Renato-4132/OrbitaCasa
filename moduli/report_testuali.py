@@ -97,8 +97,8 @@ def export_month_detail(self):
     PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
 
     ref = self.stats_refdate
-    month = ref.month
-    year = ref.year
+    month = getattr(self, '_view_month', ref.month)
+    year = getattr(self, '_view_year', ref.year)
     monthname = self.get_month_name(month)
     oggi = datetime.date.today()
     tot_entrate, tot_uscite = 0.0, 0.0
@@ -177,23 +177,22 @@ def export_month_detail(self):
                 lines.append(f" {cat:<22.22}{conteggio:<8}{importo_cat:>12.2f} €{percentuale:>10.1f} %")
         else:
             lines.append(" Nessuna uscita registrata nel mese.")
-        lines.append("\n" + "═" * 146)
-        lines.append(f"{'DETTAGLIO MOVIMENTI'.center(146)}")
-        lines.append("═" * 146)
-        lines.append(f"{'Data':<11}{'Categoria':<18}{'Descrizione':<38}{'Tipo':<10}{'Importo':>11}  {'Conto':<16}{'Metodo':<14}{'Ora':<8}{'Tag':<18}")
-        lines.append("─" * 146)
+        lines.append("\n" + "═" * 153)
+        lines.append(f"{'DETTAGLIO MOVIMENTI'.center(153)}")
+        lines.append("═" * 153)
+        lines.append(f"{'Data':<11} {'Categoria':<18} {'Descrizione':<38} {'Tipo':<10} {'Importo':>11}  {'Conto':<16} {'Metodo':<14} {'Ora':<8} {'Tag':<18}")
+        lines.append("─" * 153)
         tutti_movimenti.sort(key=lambda x: x[0])
         for mov in tutti_movimenti:
             data_mov, cat_mov, desc_mov, tipo_mov, imp_mov, conto_mov, metodo_mov, ora_mov, tag_mov = mov
             data_str = data_mov.strftime('%d/%m/%Y')
             segno = "+" if tipo_mov == "Entrata" else "-"
             imp_str = f"{segno}{imp_mov:.2f}"
-            lines.append(f"{data_str:<11}{cat_mov:<18.18}{desc_mov:<38.38}{tipo_mov:<10}{imp_str:>11}  {conto_mov:<16.16}{metodo_mov:<14.14}{ora_mov:<8.8}{tag_mov:<18.18}")
+            lines.append(f"{data_str:<11} {cat_mov:<18.18} {desc_mov:<38.38} {tipo_mov:<10} {imp_str:>11}  {conto_mov:<16.16} {metodo_mov:<14.14} {ora_mov:<8.8} {tag_mov:<18.18}")
         lines.append("─" * 146)
         lines.append(f"Totale movimenti: {len(tutti_movimenti)}\n")
     lines.append(f"Report generato il {oggi.strftime('%d/%m/%Y')} da OrbitaCasa.\n")
-    now = datetime.date.today()
-    month_str = now.strftime("%m-%Y")
+    month_str = f"{month:02d}-{year}"
     filename = f"Riepilogo_Mese_{month_str}.txt"
     self.show_export_preview("\n".join(lines), default_filename=filename)
 
@@ -240,7 +239,6 @@ def export_anno_dettagliato(self):
                         if d2 > oggi:
                             continue
                 cat = campo(entry, "categoria", "")
-                desc = campo(entry, "descrizione", "")
                 imp = campo(entry, "importo", 0.0)
                 tipo = campo(entry, "tipo", "")
                 if tipo == "Entrata":
