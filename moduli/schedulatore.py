@@ -64,19 +64,19 @@ def apri_schedulatore(self):
     pos_x = self.winfo_rootx() + (self.winfo_width() // 2) - (W // 2)
     pos_y = self.winfo_rooty() + (self.winfo_height() // 2) - (H // 2)
     win.geometry(f"{W}x{H}+{max(0, pos_x)}+{max(0, pos_y)}")
-    def _chiudi():
-        self.unbind("<Map>")
-        self.unbind("<Unmap>")
-        win.destroy()
-    win.bind("<Escape>", lambda e: _chiudi())
-    win.protocol("WM_DELETE_WINDOW", _chiudi)
     def _on_iconify(e):
         if self.state() == "iconic":
             win.withdraw()
         else:
             win.deiconify()
-    self.bind("<Map>", _on_iconify)
-    self.bind("<Unmap>", _on_iconify)
+    _map_bind_id = self.bind("<Map>", _on_iconify, add="+")
+    _unmap_bind_id = self.bind("<Unmap>", _on_iconify, add="+")
+    def _chiudi():
+        self.unbind("<Map>", _map_bind_id)
+        self.unbind("<Unmap>", _unmap_bind_id)
+        win.destroy()
+    win.bind("<Escape>", lambda e: _chiudi())
+    win.protocol("WM_DELETE_WINDOW", _chiudi)
     hdr = tk.Frame(win, bg=self.COLOR_TOPLEVEL)
     hdr.pack(fill=tk.X, padx=15, pady=(12, 4))
     img_timer = self.icone_gui.get("timer_sync")
@@ -359,51 +359,51 @@ def apri_schedulatore(self):
         nome = task.get("nome", "")
         tipo = task.get("tipo", "")
         dest = task.get("destinatario", EMAIL_USER) or EMAIL_USER
-        def _run():
-            try:
-                corpo = ""
-                if tipo == "estratto_mensile":
-                    corpo = self._genera_testo_estratto_mensile()
-                elif tipo == "estratto_annuale":
-                    corpo = self._genera_testo_estratto_annuale()
-                elif tipo in ("riepilogo_settimanale", "giornaliero"):
-                    corpo = self._genera_testo_riepilogo_cronologico(tipo)
-                elif tipo == "promemoria_libero":
-                    corpo = (
-                        f"PROMEMORIA DIRETTO\n"
-                        f"────────────────────────────\n"
-                        f" 📝 Nota:\n"
-                        f" {task.get('note', '')}\n\n"
-                        f"────────────────────────────\n"
-                        f" 📊 Report generato il {datetime.date.today().strftime('%d/%m/%Y')}."
-                    )
-                elif tipo == "controllo_ricorrenti":
-                    corpo = self._genera_testo_ricorrenti_mancanti()
-                elif tipo == "scadenze_veicoli":
-                    corpo = self._genera_testo_scadenze_veicoli()
-                elif tipo == "documenti_scadenza":
-                    profilo_filtro = (task.get("note") or "").strip() or None
-                    corpo = self._genera_testo_scadenze_documenti(profilo=profilo_filtro)
-                inviata = False
-                if corpo and EMAIL_USER and APP_PASSWORD:
-                    import threading
-                    threading.Thread(
-                        target=self._invia_email_scheduler,
-                        args=(nome, corpo, dest),
-                        daemon=True
-                    ).start()
-                    inviata = True
-                tasks[idx]["ultima_esecuzione"] = datetime.date.today().strftime("%d/%m/%Y")
-                _salva(tasks)
-                self.after(0, _aggiorna_tree)
-                if inviata:
-                    self.after(0, lambda: self.show_toast(f"Email Inviata Ora: {nome}", duration=3000))
-                else:
-                    self.after(0, lambda: self.show_toast(f"Nessuna scadenza da segnalare: email non inviata ({nome})", duration=3500))
-            except Exception as ex:
-                print(f"[SCHEDULER] Errore invio manuale: {ex}")
-        import threading
-        threading.Thread(target=_run, daemon=True).start()
+        corpo = ""
+        if tipo == "estratto_mensile":
+            corpo = self._genera_testo_estratto_mensile()
+        elif tipo == "estratto_annuale":
+            corpo = self._genera_testo_estratto_annuale()
+        elif tipo in ("riepilogo_settimanale", "giornaliero"):
+            corpo = self._genera_testo_riepilogo_cronologico(tipo)
+        elif tipo == "promemoria_libero":
+            corpo = (
+                f"PROMEMORIA DIRETTO\n"
+                f"────────────────────────────\n"
+                f" 📝 Nota:\n"
+                f" {task.get('note', '')}\n\n"
+                f"────────────────────────────\n"
+                f" 📊 Report generato il {datetime.date.today().strftime('%d/%m/%Y')}."
+            )
+        elif tipo == "controllo_ricorrenti":
+            corpo = self._genera_testo_ricorrenti_mancanti()
+        elif tipo == "scadenze_veicoli":
+            corpo = self._genera_testo_scadenze_veicoli()
+        elif tipo == "documenti_scadenza":
+            profilo_filtro = (task.get("note") or "").strip() or None
+            corpo = self._genera_testo_scadenze_documenti(profilo=profilo_filtro)
+        def _fine(esito, errore=None):
+            tasks[idx]["ultima_esecuzione"] = datetime.date.today().strftime("%d/%m/%Y")
+            _salva(tasks)
+            _aggiorna_tree()
+            if esito == "ok":
+                self.show_toast(f"Email Inviata Ora: {nome}", duration=3000)
+            elif esito == "vuoto":
+                self.show_toast(f"Nessuna scadenza da segnalare: email non inviata ({nome})", duration=3500)
+            elif esito == "credenziali":
+                self.show_toast(f"Email mittente o app password non configurate: '{nome}' non inviata", duration=4500)
+            elif esito == "errore":
+                self.show_toast(f"Invio '{nome}' fallito: {errore}", duration=4500)
+        if not corpo:
+            _fine("vuoto")
+        elif not (EMAIL_USER and APP_PASSWORD):
+            _fine("credenziali")
+        else:
+            import threading
+            def _invia_bg():
+                ok, errore = self._invia_email_scheduler(nome, corpo, dest)
+                self.after(0, lambda: _fine("ok" if ok else "errore", errore))
+            threading.Thread(target=_invia_bg, daemon=True).start()
     def _apri_gcalendar():
         sel = tree.selection()
         if not sel:
@@ -476,7 +476,8 @@ def _esegui_scheduler(self):
             with open(SCHEDULE_FILE, "r", encoding="utf-8") as f:
                 tasks = json.load(f)
         except Exception as e:
-            print(f"[SCHEDULER] ERRORE CRITICO LETTURA JSON: {e}")
+            ora = datetime.datetime.now().strftime("%H:%M:%S")
+            print(f"[{ora}] [SCHEDULER] ERRORE CRITICO LETTURA JSON: {e}")
             return
         ora_now = datetime.datetime.now()
         oggi = ora_now.date()
@@ -504,7 +505,8 @@ def _esegui_scheduler(self):
                 else:
                     mese_x = int(mese_config)
             except Exception as e:
-                print(f"[SCHEDULER] Errore parsing parametri task '{task.get('nome')}': {e}")
+                ora = datetime.datetime.now().strftime("%H:%M:%S")
+                print(f"[{ora}] [SCHEDULER] Errore parsing parametri task '{task.get('nome')}': {e}")
                 continue
             deve_girare = False
             if freq == "giornaliero":
@@ -566,7 +568,8 @@ def _esegui_scheduler(self):
                                     with open(SCHEDULE_FILE, "w", encoding="utf-8") as _f:
                                         json.dump(_tasks, _f, indent=2, ensure_ascii=False)
                                 except Exception as _e:
-                                    print(f"[SCHEDULER] Errore reset saldo notificato: {_e}")
+                                    ora = datetime.datetime.now().strftime("%H:%M:%S")
+                                    print(f"[{ora}] [SCHEDULER] Errore reset saldo notificato: {_e}")
                             ie = False
                         elif saldo_mese != ultimo_notificato:
                             corpo_mail = self._genera_testo_allerta_saldo(saldo_mese)
@@ -583,7 +586,8 @@ def _esegui_scheduler(self):
                                 with open(SCHEDULE_FILE, "w", encoding="utf-8") as _f:
                                     json.dump(_tasks, _f, indent=2, ensure_ascii=False)
                             except Exception as _e:
-                                print(f"[SCHEDULER] Errore salvataggio saldo notificato: {_e}")
+                                ora = datetime.datetime.now().strftime("%H:%M:%S")
+                                print(f"[{ora}] [SCHEDULER] Errore salvataggio saldo notificato: {_e}")
                         else:
                             ie = False
                     elif t == "promemoria_libero":
@@ -607,6 +611,7 @@ def _esegui_scheduler(self):
                         ).start()
                         self.after(0, lambda: self.show_toast(f"✉ Email Schedulata Inviata: {n}", duration=4000))
                 except Exception as ex:
+                    ora = datetime.datetime.now().strftime("%H:%M:%S")
                     print(f"[SCHEDULER] Errore interno durante l'invio di '{n}': {ex}")
             self.after(0, _operazioni_gui)
         if modificato:
@@ -614,7 +619,8 @@ def _esegui_scheduler(self):
                 with open(SCHEDULE_FILE, "w", encoding="utf-8") as f:
                     json.dump(tasks, f, indent=2, ensure_ascii=False)
             except Exception as e:
-                print(f"[SCHEDULER] Errore scrittura file: {e}")
+                ora = datetime.datetime.now().strftime("%H:%M:%S")
+                print(f"[{ora}] [SCHEDULER] Errore scrittura file: {e}")
 
 # Genera il testo del riepilogo giornaliero/settimanale (spostata da fairshare.py: non c'entrava nulla con FairShare)
 def _genera_testo_riepilogo_cronologico(self, frequenza_tipo):
@@ -971,7 +977,11 @@ def _invia_email_scheduler(self, nome, corpo, destinatario):
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(EMAIL_USER, APP_PASSWORD)
             server.sendmail(EMAIL_USER, destinatario, msg.as_string())
-        print(f"[SCHEDULER] Email inviata con successo: {nome} → {destinatario}")
+        ora = datetime.datetime.now().strftime("%H:%M:%S")
+        print(f"[{ora}] [SCHEDULER] Email inviata con successo: {nome} → {destinatario}")
+        return True, None
     except Exception as e:
-        print(f"[SCHEDULER] Errore critico invio email '{nome}': {e}")
+        ora = datetime.datetime.now().strftime("%H:%M:%S")
+        print(f"[{ora}] [SCHEDULER] Errore critico invio email '{nome}': {e}")
+        return False, str(e)
 
