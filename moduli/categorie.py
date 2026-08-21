@@ -1346,9 +1346,9 @@ def gruppo_categorie(self):
         for d in self.spese
     }, reverse=True)
     ttk.Label(top_bar, text="Anno:").pack(side="left", padx=(10, 5))
-    ttk.Combobox(top_bar, values=[str(a) for a in anni], textvariable=anno_var, style="Border.TCombobox", state="readonly", width=8).pack(side="left")
+    ttk.Combobox(top_bar, values=["Tutti"] + [str(a) for a in anni], textvariable=anno_var, style="Border.TCombobox", state="readonly", width=8).pack(side="left")
     img_reset_filtri = self.icone_gui.get("reset")
-    btn_reset_filtri = tk.Label(top_bar, compound="left", image=img_reset_filtri, text=" 🔙" if not img_reset_filtri else "", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padx=10, pady=5, font=("Arial", 9, "bold"))
+    btn_reset_filtri = tk.Label(top_bar, compound="left", image=img_reset_filtri, text=" Filtri correnti" if img_reset_filtri else " 🔙 Filtri correnti", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padx=10, pady=5, font=("Arial", 9, "bold"))
     btn_reset_filtri.pack(side="left", padx=(10, 0))
     btn_reset_filtri.bind("<Button-1>", lambda e: [mese_var.set("Tutti"), anno_var.set(str(today.year))])
     ttk.Checkbutton(
@@ -1389,12 +1389,16 @@ def gruppo_categorie(self):
     def analizza():
         text_output.config(state="normal")
         text_output.delete("1.0", "end")
-        try:
-            anno = int(anno_var.get())
-        except:
-            text_output.config(state="disabled")
-            self.show_custom_warning("Errore", "Anno non valido.")
-            return
+        anno_sel = anno_var.get()
+        if anno_sel != "Tutti":
+            try:
+                anno = int(anno_sel)
+            except:
+                text_output.config(state="disabled")
+                self.show_custom_warning("Errore", "Anno non valido.")
+                return
+        else:
+            anno = None
         selezionato = mese_var.get()
         if selezionato not in mesi:
             text_output.config(state="disabled")
@@ -1408,7 +1412,7 @@ def gruppo_categorie(self):
                 d = datetime.datetime.strptime(d, "%d-%m-%Y").date()
             if not mostra_future_var.get() and d > oggi:
                 continue
-            if d.year == anno and (selezionato == "Tutti" or d.month == mesi.index(selezionato)):
+            if (anno is None or d.year == anno) and (selezionato == "Tutti" or d.month == mesi.index(selezionato)):
                 for voce in sp:
                     cat = campo(voce, "categoria", "").strip().title()
                     imp = campo(voce, "importo", 0.0)
@@ -1421,7 +1425,8 @@ def gruppo_categorie(self):
                                 risultato[cat]["uscite"] += imp
                             elif tipo == "Entrata":
                                 risultato[cat]["entrate"] += imp
-        righe = [f"Analisi categorie – {mese_var.get()} {anno}\n"]
+        anno_label = "Tutti gli anni" if anno is None else str(anno)
+        righe = [f"Analisi categorie – {mese_var.get()} {anno_label}\n"]
         righe.append(f"{'Categoria':<30} {'Num':>4}   {'Uscite (€)':>12}   {'Entrate (€)':>12}   {'Saldo (€)':>12}")
         righe.append("─" * 80)
         totale = 0.0
