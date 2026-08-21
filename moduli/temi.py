@@ -582,7 +582,7 @@ def applica_temi(self, THEMA):
                 thickness=10
             )
             
-            style.configure("TProgressbar", thickness=6)
+            style.configure("Horizontal.TProgressbar", thickness=6)
             
             stili_tabella = [
             ("mensile", "#E6FFE6", "#004C00"),
@@ -883,7 +883,7 @@ def applica_temi(self, THEMA):
                 thickness=10
             )
             
-            style.configure("TProgressbar", thickness=6)
+            style.configure("Horizontal.TProgressbar", thickness=6)
             
             stili_tabella = [
             ("mensile", "#E6FFE6", "#004C00"),
@@ -1197,7 +1197,7 @@ def applica_temi(self, THEMA):
                 thickness=10
             )
             
-            style.configure("TProgressbar", thickness=6)
+            style.configure("Horizontal.TProgressbar", thickness=6)
             
             stili_tabella = [
             ("mensile", "#E6FFE6", "#004C00"),
@@ -1510,7 +1510,7 @@ def applica_temi(self, THEMA):
                 thickness=10
             )
             
-            style.configure("TProgressbar", thickness=6)
+            style.configure("Horizontal.TProgressbar", thickness=6)
             
             stili_tabella = [
             ("mensile", "#E6FFE6", "#004C00"),
