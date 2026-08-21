@@ -632,7 +632,7 @@ def utenze(self):
     def reset_anno():
         anno_var.set(anno_corrente)
     img_reset_anno = self.icone_gui.get("reset")
-    btn_reset_anno = ttk.Label(contenuto_controls, compound="left", image=img_reset_anno, text=" 🔄" if not img_reset_anno else "", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(5, 5))
+    btn_reset_anno = ttk.Label(contenuto_controls, compound="left", image=img_reset_anno, text=" Anno corrente" if img_reset_anno else " 🔄 Anno corrente", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(5, 5))
     btn_reset_anno.pack(side=tk.LEFT, padx=2)
     btn_reset_anno.bind("<Button-1>", lambda e: reset_anno())
     tk.Frame(contenuto_controls, bg=self.COLOR_TOPLEVEL, width=20).pack(side=tk.LEFT)
