@@ -9,9 +9,15 @@ from moduli.modello_spesa import campo
 
 # Time Machine: Simulazione di Risparmio per Categoria
 def time_machine(self):
+    if hasattr(self, '_time_machine_popup') and self._time_machine_popup and self._time_machine_popup.winfo_exists():
+        self._time_machine_popup.lift()
+        self._time_machine_popup.focus_force()
+        return
     import __main__ as _app
     EXPORT_FILES = _app.EXPORT_FILES
-    popup = tk.Toplevel()
+    popup = tk.Toplevel(self)
+    self._time_machine_popup = popup
+    popup.bind("<Destroy>", lambda e: setattr(self, '_time_machine_popup', None) if e.widget is popup else None)
     popup.title("Time Machine – Simulazione per categoria")
     popup.geometry("1200x650")
     popup.withdraw()
@@ -34,17 +40,17 @@ def time_machine(self):
     main.pack(fill="both", expand=True)
     anni_disponibili = sorted({datetime.datetime.strptime(str(d), "%d-%m-%Y").year
                                if isinstance(d, str) else d.year for d in self.spese}, reverse=True)
-    anno_var = tk.IntVar(value=datetime.date.today().year)
+    anno_var = tk.StringVar(value=str(datetime.date.today().year))
     mostra_future_var = tk.BooleanVar(value=True)
     top_bar = ttk.Frame(main)
     top_bar.pack(fill="x", pady=(0, 10))
     ttk.Label(top_bar, text="Anno:", font=("Arial", 10)).pack(side="left", padx=(0, 5))
-    anno_combo = ttk.Combobox(top_bar, textvariable=anno_var, values=anni_disponibili, style="Border.TCombobox", state="readonly", width=8)
+    anno_combo = ttk.Combobox(top_bar, textvariable=anno_var, values=["Tutti"] + [str(a) for a in anni_disponibili], style="Border.TCombobox", state="readonly", width=8)
     anno_combo.pack(side="left")
     img_indietro_anno = self.icone_gui.get("reset")
-    btn_reset_anno = tk.Label(top_bar, compound="left", image=img_indietro_anno, text=" 🔙" if not img_indietro_anno else "", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padx=10, pady=5, font=("Arial", 9, "bold"))
+    btn_reset_anno = tk.Label(top_bar, compound="left", image=img_indietro_anno, text=" Anno corrente" if img_indietro_anno else " 🔙 Anno corrente", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padx=10, pady=5, font=("Arial", 9, "bold"))
     btn_reset_anno.pack(side="left", padx=(5, 0))
-    btn_reset_anno.bind("<Button-1>", lambda e: [anno_var.set(datetime.date.today().year), aggiorna_interfaccia()])
+    btn_reset_anno.bind("<Button-1>", lambda e: [anno_var.set(str(datetime.date.today().year)), aggiorna_interfaccia()])
     ttk.Checkbutton(
         top_bar,
         text="Includi movimenti futuri nei totali",
@@ -88,7 +94,7 @@ def time_machine(self):
     scroll_y.config(command=text_output.yview) 
     text_output.config(state="disabled")
     def aggiorna_categorie():
-        anno = anno_var.get()
+        anno_sel = anno_var.get()
         contatori = {}
         oggi = datetime.date.today()
         for d, sp in self.spese.items():
@@ -101,7 +107,7 @@ def time_machine(self):
                 continue
             if not mostra_future_var.get() and d_conv > oggi:
                 continue
-            if d_conv.year != anno:
+            if anno_sel != "Tutti" and d_conv.year != int(anno_sel):
                 continue
             for voce in sp:
                 cat = campo(voce, "categoria", "").strip().lower()
@@ -157,7 +163,9 @@ def time_machine(self):
         contatori = aggiorna_categorie()
         text_output.config(state="normal")
         text_output.delete("1.0", tk.END)
-        lines = [f"Time Machine – Anno {anno_var.get()}\n"]
+        anno_sel = anno_var.get()
+        periodo_label = "Tutti gli anni" if anno_sel == "Tutti" else f"Anno {anno_sel}"
+        lines = [f"Time Machine – {periodo_label}\n"]
         totale = 0.0
         scelte = set()
         for cat, (var, _) in selezioni.items():
@@ -173,7 +181,8 @@ def time_machine(self):
             if dati:
                 risultati.append((cat, dati["count"], dati["uscite"], dati["entrate"], dati["risparmio"]))
         risultati.sort(key=lambda x: -x[4])
-        lines.append(f"Proiezione del risparmio ottenibile nel {anno_var.get()}, escludendo le categorie selezionate: ➤\n")
+        periodo_proiezione = "su tutti gli anni disponibili" if anno_sel == "Tutti" else f"nel {anno_sel}"
+        lines.append(f"Proiezione del risparmio ottenibile {periodo_proiezione}, escludendo le categorie selezionate: ➤\n")
         lines.append(f"{'Categoria':<25} {'Num':>4}   {'Uscite (€)':>12}   {'Entrate (€)':>12}   {'Risparmio (€)':>14}")
         lines.append("─" * 77)
         for cat, n, usc, ent, risp in risultati:
@@ -184,7 +193,7 @@ def time_machine(self):
         text_output.insert("1.0", "\n".join(lines))
         text_output.config(state="disabled")
     def reset_tutto():
-        anno_var.set(datetime.date.today().year)
+        anno_var.set(str(datetime.date.today().year))
         mostra_future_var.set(True)
         for var in combo_vars:
             var.set("— Nessuna —")
