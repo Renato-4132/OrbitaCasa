@@ -345,6 +345,7 @@ def _crea_flask_app(self):
     def get_pdf():
         nome_file = request.args.get("file")
         if nome_file:
+            nome_file = os.path.basename(nome_file)
             file_path = os.path.join(DOC_DIR, nome_file)
             if os.path.exists(file_path):
                 return send_file(file_path, mimetype="application/pdf",
@@ -357,6 +358,8 @@ def _crea_flask_app(self):
         nome_file = request.args.get("file")
         profilo   = request.args.get("profilo")
         if nome_file:
+            nome_file = os.path.basename(nome_file)
+            profilo = os.path.basename(profilo) if profilo else None
             fp = (os.path.join(DOC_PERS_DIR, profilo, "documenti", nome_file)
                   if profilo else os.path.join(DOC_PERS_DIR, nome_file))
             if os.path.exists(fp):
@@ -8254,6 +8257,6 @@ def pianifica_sincro_web(self):
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Avvio sincronizzazione web automatica...")
         threading.Thread(target=self._esegui_sincro_thread, daemon=True).start()
     except Exception as e:
-        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Errore durante il trigger della sincronizzazione: {e}")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Errore durante il trigger della sincronizzazione: {e}")
     SYNC_INTERVALLO_MS = SYNC_INT_MIN * 60 * 1000
     self.after(SYNC_INTERVALLO_MS, self.pianifica_sincro_web)
