@@ -33,6 +33,7 @@ def spesa_supermercato(self):
     ricerca_var_confronto = tk.StringVar()
     supermercato_selezionato_var = tk.StringVar()
     filtro_supermercato_confronto_var = tk.StringVar(value="Tutti i supermercati")
+    _iid_to_articolo = {}
     if not hasattr(self, 'risultati_tv_ref'):
         self.risultati_tv_ref = None
     if hasattr(self, '_popup_spesa_active') and self._popup_spesa_active.winfo_exists():
@@ -200,6 +201,7 @@ def spesa_supermercato(self):
                                     values=valori_tupla,
                                     tags=tags_da_applicare 
                                    )
+            _iid_to_articolo[f"item_{supermercato}_{i}"] = articolo
     def calcola_prezzo_minimo_globale(nome_articolo_cercato):
         minimo = float('inf')
         supermercato_migliore = None
@@ -369,8 +371,12 @@ def spesa_supermercato(self):
             if not selezione: self.show_custom_warning("Selezione", "Selezionare un articolo da cancellare."); return
             if self.show_custom_askyesno("Cancellazione", "Sei sicuro di voler cancellare l'articolo selezionato?"):
                 iid_da_cancellare = selezione[0]
-                try: idx_cancellare = int(iid_da_cancellare.split('_')[-1])
-                except ValueError: self.show_custom_warning("Errore", "Impossibile identificare l'articolo da cancellare."); return
+                articolo_target = _iid_to_articolo.get(iid_da_cancellare)
+                if articolo_target is None:
+                    self.show_custom_warning("Errore", "Impossibile identificare l'articolo (ricarica la lista)."); return
+                idx_cancellare = next((i for i, a in enumerate(dati_supermercati[supermercato]) if a is articolo_target), None)
+                if idx_cancellare is None:
+                    self.show_custom_warning("Errore", "Articolo non più presente nel catalogo."); return
                 if 0 <= idx_cancellare < len(dati_supermercati[supermercato]):
                     dati_supermercati[supermercato].pop(idx_cancellare)
                     dati_supermercati[supermercato].sort(key=lambda x: x.get('nome', '').lower())
@@ -421,8 +427,12 @@ def spesa_supermercato(self):
             data_scadenza = refs['data_scadenza'].get().strip()
             if not nome or not prezzo: self.show_custom_warning("Errore di Input", "Nome e Prezzo sono obbligatori per il salvataggio."); return
             iid_da_salvare = selezione[0]
-            try: idx_da_salvare = int(iid_da_salvare.split('_')[-1])
-            except ValueError: self.show_custom_warning("Errore", "Impossibile identificare l'articolo da salvare."); return
+            articolo_target = _iid_to_articolo.get(iid_da_salvare)
+            if articolo_target is None:
+                self.show_custom_warning("Errore", "Impossibile identificare l'articolo (ricarica la lista)."); return
+            idx_da_salvare = next((i for i, a in enumerate(dati_supermercati[supermercato]) if a is articolo_target), None)
+            if idx_da_salvare is None:
+                self.show_custom_warning("Errore", "Articolo non più presente nel catalogo."); return
             if 0 <= idx_da_salvare < len(dati_supermercati[supermercato]):
                 dati_supermercati[supermercato][idx_da_salvare] = {
                     "nome": nome, "descrizione": descrizione, "categoria": categoria,
@@ -888,6 +898,9 @@ def spesa_supermercato(self):
             initialdir=EXPORT_FILES, confirmoverwrite=False, initialfile=default_filename, parent=popup
         )
         if f:
+            if os.path.exists(f) and not self.show_custom_askyesno(
+                    "Sovrascrivi", f"Il file esiste già. Sovrascrivere?\n\n{f}"):
+                return
             try:
                 with open(f, 'w', encoding='utf-8') as file_handle: file_handle.write(content_text)
                 self.show_custom_warning("Successo", f"Lista spesa salvata con successo in:\n{f}")
@@ -933,13 +946,10 @@ def spesa_supermercato(self):
             self.show_custom_warning("Modifica Supermercato", "Seleziona prima un supermercato da rinominare.")
             return
         rinomina_popup = tk.Toplevel(popup, bg=self.COLOR_TOPLEVEL)
+        rinomina_popup.withdraw()
         rinomina_popup.title(f"Rinomina {old_superm}")
         rinomina_popup.transient(popup)
         rinomina_popup.resizable(False, False)
-        rinomina_popup.update_idletasks()
-        rinomina_popup.deiconify()
-        rinomina_popup.grab_set()
-        rinomina_popup.focus_set()
         ttk.Label(rinomina_popup, text="Nuovo nome:", style="Popup.TLabel").pack(padx=10, pady=(10, 0))
         new_name_var = tk.StringVar(value=old_superm)
         entry = ttk.Entry(rinomina_popup, textvariable=new_name_var, width=30)
@@ -1009,6 +1019,9 @@ def spesa_supermercato(self):
         x = popup.winfo_rootx() + (popup.winfo_width() // 2) - (w // 2)
         y = popup.winfo_rooty() + (popup.winfo_height() // 2) - (h // 2)
         rinomina_popup.geometry(f'+{x}+{y}')
+        rinomina_popup.deiconify()
+        rinomina_popup.grab_set()
+        rinomina_popup.focus_set()
 
     def import_supermercati_db():
         popup.lift() 
@@ -1056,6 +1069,9 @@ def spesa_supermercato(self):
             filetypes=[("File JSON", "*supermercati.json"), ("Tutti i file", "*.*")]
         )
         if file:
+            if os.path.exists(file) and not self.show_custom_askyesno(
+                    "Sovrascrivi", f"Il file esiste già. Sovrascrivere?\n\n{file}"):
+                return
             try:
                 with open(SUPERMERCATI_DB, "r", encoding="utf-8") as fsrc:
                     dbdata = fsrc.read()
@@ -1123,6 +1139,7 @@ def spesa_supermercato(self):
     _carica_dati_interno()
     self.after(200, _controlla_scadenza_promo)
     popup = tk.Toplevel(self.master, bg=self.COLOR_TOPLEVEL)
+    popup.withdraw()
     menu_popup = tk.Menu(popup, tearoff=0, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT, activebackground=self.MENU_ACT_BG_COLOR, activeforeground=self.MENU_ACT_FG_COLOR)
     menu_db = tk.Menu(menu_popup, tearoff=0, bg=self.MENU_BG, fg=self.MENU_FG_LIGHT, activebackground=self.MENU_ACT_BG_COLOR, activeforeground=self.MENU_ACT_FG_COLOR)
     menu_popup.add_cascade(label="💾 Database", menu=menu_db)
@@ -1183,6 +1200,7 @@ def spesa_supermercato(self):
     x = (screen_width - 1300) // 2
     y = (screen_height - 630) // 2
     popup.geometry(f"1300x630+{x}+{y}")
+    popup.deiconify()
     popup.after(10, lambda: popup.focus_force())
     popup.bind("<Escape>", lambda e: (self.deiconify(), self.after(0, self.imp_entry.focus_set), popup.destroy()))
     self.withdraw()
@@ -1674,18 +1692,12 @@ def spesa_supermercato(self):
         if not dati_supermercati.get(super_corrente):
             self.show_custom_warning("Errore Dati", "Supermercato di origine non trovato.")
             return
+        articolo_target = _iid_to_articolo.get(selected_item_iid)
+        if articolo_target is None:
+            self.show_custom_warning("Errore Dati", "Impossibile identificare l'articolo (ricarica la lista).")
+            return
         try:
-            iid_parts = selected_item_iid.split('_')
-            if len(iid_parts) == 3 and iid_parts[0] == 'item':
-                idx_da_rimuovere = int(iid_parts[2])
-            else:
-                item_values = treeview_crud.item(selected_item_iid, 'values')
-                if not item_values:
-                    self.show_custom_warning("Errore Dati", "Articolo non trovato nei dati del supermercato corrente.")
-                    return
-                nome_articolo = item_values[0]
-                articoli_correnti = dati_supermercati[super_corrente]
-                idx_da_rimuovere = next(i for i, a in enumerate(articoli_correnti) if a.get('nome') == nome_articolo)
+            idx_da_rimuovere = next(i for i, a in enumerate(dati_supermercati[super_corrente]) if a is articolo_target)
             articolo_spostato = dati_supermercati[super_corrente].pop(idx_da_rimuovere)
         except StopIteration:
             self.show_custom_warning("Errore Dati", "Articolo non trovato nei dati del supermercato corrente.")
@@ -1795,6 +1807,9 @@ def spesa_supermercato(self):
                 parent=popup
             )
             if f:
+                if os.path.exists(f) and not self.show_custom_askyesno(
+                        "Sovrascrivi", f"Il file esiste già. Sovrascrivere?\n\n{f}"):
+                    return
                 try:
                     with open(f, 'w', encoding='utf-8') as file_handle: file_handle.write(content_text)
                     self.show_toast("Catalogo salvato con successo.")
