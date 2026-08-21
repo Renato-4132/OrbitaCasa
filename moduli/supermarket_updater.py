@@ -73,9 +73,7 @@ def check_supermarket_update(self):
         if not os.path.exists(nome_file_locale):
             # self.show_custom_warning("File Editor Mancante", f"⚠️ L'editor locale ({nome_file_locale}) non esiste. Aggiornamento consigliato.")
             return
-        import datetime
-        from datetime import datetime, timezone
-        local_time = datetime.fromtimestamp(os.path.getmtime(nome_file_locale), timezone.utc).replace(microsecond=0)
+        local_time = datetime.datetime.fromtimestamp(os.path.getmtime(nome_file_locale), datetime.timezone.utc).replace(microsecond=0)
         try:
             sha_remoto = _ottieni_sha_remoto_supermarket(REPO_OWNER, REPO_NAME, BRANCH, PATH_REMOTO)
             sha_locale = _boot_git_blob_sha1(nome_file_locale)
@@ -169,20 +167,21 @@ def check_supermarket_update(self):
                      font=("Segoe UI", 9)).pack(pady=(10, 0))
             frame_bottoni = tk.Frame(win, bg=self.COLOR_BACKGROUND)
             frame_bottoni.pack(pady=14)
+            _timer_id = [None]
             def aggiorna_timer(secondi_rimasti):
                 if secondi_rimasti > 0:
                     label_timer.config(
                         text=f"⏱  Chiusura automatica tra {secondi_rimasti} secondi",
                         fg=self.COLOR_RED_SMOOTH if secondi_rimasti <= 10 else self.TEXT_COLOR
                     )
-                    win.after(1000, aggiorna_timer, secondi_rimasti - 1)
+                    _timer_id[0] = win.after(1000, aggiorna_timer, secondi_rimasti - 1)
                 else:
                     label_timer.config(text="⏱  Chiusura in corso...", fg=self.COLOR_RED_SMOOTH)
                     win.destroy()
-            timeout_id = win.after(60000, win.destroy)
             aggiorna_timer(60)
             def annulla_timeout():
-                win.after_cancel(timeout_id)
+                if _timer_id[0] is not None:
+                    win.after_cancel(_timer_id[0])
             def aggiorna():
                 annulla_timeout()
                 win.destroy()
@@ -295,9 +294,7 @@ def check_supermarket_update_manuale(self):
         if not os.path.exists(nome_file_locale):
             # self.show_custom_warning("File Editor Mancante", f"⚠️ L'editor locale ({nome_file_locale}) non esiste. Aggiornamento consigliato.")
             return
-        import datetime
-        from datetime import datetime, timezone
-        local_time = datetime.fromtimestamp(os.path.getmtime(nome_file_locale), timezone.utc).replace(microsecond=0)
+        local_time = datetime.datetime.fromtimestamp(os.path.getmtime(nome_file_locale), datetime.timezone.utc).replace(microsecond=0)
         try:
             sha_remoto = _ottieni_sha_remoto_supermarket(REPO_OWNER, REPO_NAME, BRANCH, PATH_REMOTO)
             sha_locale = _boot_git_blob_sha1(nome_file_locale)
@@ -391,20 +388,21 @@ def check_supermarket_update_manuale(self):
                      font=("Segoe UI", 9)).pack(pady=(10, 0))
             frame_bottoni = tk.Frame(win, bg=self.COLOR_BACKGROUND)
             frame_bottoni.pack(pady=14)
+            _timer_id = [None]
             def aggiorna_timer(secondi_rimasti):
                 if secondi_rimasti > 0:
                     label_timer.config(
                         text=f"⏱  Chiusura automatica tra {secondi_rimasti} secondi",
                         fg=self.COLOR_RED_SMOOTH if secondi_rimasti <= 10 else self.TEXT_COLOR
                     )
-                    win.after(1000, aggiorna_timer, secondi_rimasti - 1)
+                    _timer_id[0] = win.after(1000, aggiorna_timer, secondi_rimasti - 1)
                 else:
                     label_timer.config(text="⏱  Chiusura in corso...", fg=self.COLOR_RED_SMOOTH)
                     win.destroy()
-            timeout_id = win.after(60000, win.destroy)
             aggiorna_timer(60)
             def annulla_timeout():
-                win.after_cancel(timeout_id)
+                if _timer_id[0] is not None:
+                    win.after_cancel(_timer_id[0])
             def aggiorna():
                 annulla_timeout()
                 win.destroy()
@@ -553,10 +551,7 @@ def _avvia_editor_esterno(self):
             comando = ['python3', script_path]
         if hasattr(self, '_popup_spesa_active') and self._popup_spesa_active is not None and self._popup_spesa_active.winfo_exists():
             self._popup_spesa_active.destroy()
-        subprocess.run(comando, close_fds=True)
-        self.deiconify() 
-        self.lift()
-        self.focus_force()
+        subprocess.Popen(comando, close_fds=True)
     except OSError as e:
         self.show_custom_warning(
             "Errore Esecuzione", 
