@@ -43,14 +43,7 @@ def toggle_stats_view(self, tipo="grafico"):
         for d, sp in self.spese.items():
             if inizio_pf <= d <= today_pf:
                 for entry in sp:
-                    if isinstance(entry, dict):
-                        cat_pf = entry.get("categoria", "Altro")
-                        imp_pf = entry.get("importo", 0.0)
-                        tipo_v_pf = entry.get("tipo", "")
-                    elif not isinstance(entry, dict) and len(entry) >= 4:
-                        cat_pf, desc_pf, imp_pf, tipo_v_pf = entry[:4]
-                    else:
-                        continue
+                    cat_pf, desc_pf, imp_pf, tipo_v_pf = entry[:4]
                     key_pf = (d.year, d.month)
                     if key_pf not in mesi_dati_pf:
                         mesi_dati_pf[key_pf] = {"e": 0.0, "u": 0.0}
@@ -69,13 +62,7 @@ def toggle_stats_view(self, tipo="grafico"):
                 if d.month not in mesi_prec_pf:
                     mesi_prec_pf[d.month] = {"e": 0.0, "u": 0.0}
                 for entry in sp:
-                    if isinstance(entry, dict):
-                        imp2_pf = entry.get("importo", 0.0)
-                        tipo_v2_pf = entry.get("tipo", "")
-                    elif not isinstance(entry, dict) and len(entry) >= 4:
-                        imp2_pf, tipo_v2_pf = entry[2], entry[3]
-                    else:
-                        continue
+                    imp2_pf, tipo_v2_pf = entry[2], entry[3]
                     if tipo_v2_pf == "Entrata":
                         mesi_prec_pf[d.month]["e"] += imp2_pf
                     else:
@@ -289,7 +276,7 @@ def toggle_stats_view(self, tipo="grafico"):
                         tipo_voce = entry[3]
                     else:
                         continue
-                    if tipo_voce == "Uscita":
+                    if tipo_voce == "Uscita" and importo > 0:
                         category_totals[categoria] += importo
             self.data_for_chart = [{'label': cat, 'value': val} for cat, val in category_totals.items()]
             self.data_for_chart.sort(key=lambda x: x['value'], reverse=True)
