@@ -23,7 +23,7 @@ VERSIONE_APP = "1.3"
 BASE_DIR_APP = os.path.dirname(os.path.abspath(sys.argv[0]))
 DB_DIR_NAME = "db"
 DB_DIR_PATH = os.path.join(BASE_DIR_APP, DB_DIR_NAME)
-ICON_PATH = os.path.join(DB_DIR_PATH, "casa-facile.png")
+ICON_PATH = os.path.join(DB_DIR_PATH, "resources/info_image.png")
 SUPERMERCATI_DB = os.path.join(DB_DIR_PATH, "supermercati.json")
 DEFAULT_API = os.path.join(DB_DIR_PATH, "api.json")
 
