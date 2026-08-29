@@ -67,6 +67,24 @@ if not os.path.isfile(_SPINNER_PATH_BOOT):
 
 from moduli.spinner_animato import crea_spinner_animato
 
+def _fmt_it(v, spec=",.2f"):
+    s = format(v, spec)
+    return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+
+def _fmt_it_safe(v, spec=".2f"):
+    return format(v, spec).replace(".", ",")
+
+def _parse_it_float(v, default=0.0):
+        if isinstance(v, (int, float)):
+                return float(v)
+        if not v:
+                return default
+        try:
+                s = str(v).strip().replace('€', '').replace('.', '').replace(',', '.')
+                return float(s)
+        except (ValueError, TypeError):
+                return default
+                
 current_folder = os.path.basename(os.getcwd())   
 def show_warning_popup(titolo=None, titolo_fg="#FF3333",
                         corpo=None, corpo_fg="#AAAAAA", corpo_font_size=9, corpo_expand=False,
@@ -322,6 +340,7 @@ class GestioneSpese(tk.Tk):
         self.budget_mensile = TARGET_MESE
         self.budget_annuale = TARGET_ANNO
         self.var_budget_cat = tk.StringVar(value="")
+        self.var_budget_annuo_cat = tk.StringVar(value="")
         self.save_lock = threading.Lock()
        
         # Themi
@@ -679,7 +698,8 @@ class GestioneSpese(tk.Tk):
             columns=("Data", "Categoria", "Descrizione", "Importo", "Tipo"),
             show="headings",
             height=30,
-            yscrollcommand=vsb.set
+            yscrollcommand=vsb.set,
+            selectmode='browse'
         )
         vsb.config(command=self.spese_mese_tree.yview)
         vsb.pack(side="right", fill="y")
@@ -710,7 +730,7 @@ class GestioneSpese(tk.Tk):
                 self.on_categoria_changed(manuale=False)
             try:
                 self.imp_entry.delete(0, tk.END)
-                self.imp_entry.insert(0, f"{float(importo):.2f}")
+                self.imp_entry.insert(0, _fmt_it_safe(float(importo)))
             except (ValueError, TypeError):
                 pass
             self.desc_entry.delete(0, tk.END)
@@ -741,6 +761,7 @@ class GestioneSpese(tk.Tk):
         self.spese_mese_tree.tag_configure('entrata', foreground='green')
         self.spese_mese_tree.tag_configure('uscita',  foreground='red')
         self.spese_mese_tree.tag_configure("futuro", foreground="#E5C07B", font=("Arial", 9, "italic"))
+        self.spese_mese_tree.tag_configure("sforato", foreground='#C08081', font=("Arial", 9, "bold"))
         for col in self.spese_mese_tree["columns"]:
             self.spese_mese_tree.heading(col, command=lambda _col=col: self.treeview_sort_column(self.spese_mese_tree, _col, False))
             self._bind_tooltip_metodo(self.spese_mese_tree)
@@ -796,7 +817,8 @@ class GestioneSpese(tk.Tk):
             frm_ricorrenti, 
             columns=("Categoria", "Ultima", "Frequenza"), 
             show="headings", 
-            height=15
+            height=15,
+            selectmode='browse'
         )
         def on_ricorrenti_right_click(event):
             item = self.tree_ricorrenti.identify_row(event.y)
@@ -805,7 +827,7 @@ class GestioneSpese(tk.Tk):
             valori = self.tree_ricorrenti.item(item, "values")
             if not valori: return
             categoria = str(valori[0]).strip()
-            importo_str = str(valori[1]).replace("€", "").replace(",", ".").strip()
+            importo_val = _parse_it_float(valori[1])
             cat_match = next((c for c in self.categorie if c.strip().lower() == categoria.lower()), None)
             if cat_match:
                 self.cat_sel.set(cat_match)
@@ -813,7 +835,7 @@ class GestioneSpese(tk.Tk):
                 self.on_categoria_changed(manuale=False)
             try:
                 self.imp_entry.delete(0, tk.END)
-                self.imp_entry.insert(0, f"{float(importo_str):.2f}")
+                self.imp_entry.insert(0, _fmt_it_safe(importo_val))
             except ValueError: pass
             self.desc_entry.delete(0, tk.END)
         columns_info = {"Categoria": "Spese da riconfermare", "Ultima": "Ultima (€)", "Frequenza": "Frequenza"}
@@ -1014,6 +1036,11 @@ class GestioneSpese(tk.Tk):
                     self.tooltip_window = tk.Toplevel(self)
                     self.tooltip_window.withdraw()
                     self.tooltip_window.wm_overrideredirect(True)
+                    self.tooltip_window.config(
+                        highlightthickness=1,
+                        highlightbackground=self.COLOR_HIGHLIGHT,
+                        bg=self.COLOR_TOOLTIP
+                    )
                     label = ttk.Label(self.tooltip_window, text=get_txt(), style="Tooltip.TLabel")
                     label.pack()
                     self.tooltip_window.update_idletasks()
@@ -1192,6 +1219,7 @@ class GestioneSpese(tk.Tk):
         self.set_stats_mode("giorno")
         self.stats_table.tag_configure("uscita", foreground="red")
         self.stats_table.tag_configure("entrata", foreground="green")        
+        self.stats_table.tag_configure("sforato", foreground='#C08081', font=("Arial", 9, "bold"))
         self.stats_table.bind("<Double-1>", self.on_stats_table_double_click)
         self.stats_table.bind("<ButtonRelease-1>", self.on_table_click)
         self.stats_table.bind("<Button-3>", self.on_stats_table_right_click)
@@ -1253,8 +1281,8 @@ class GestioneSpese(tk.Tk):
         row = 0  
         right_info_container = tk.Frame(form_frame, bd=2, relief="flat", bg=self.COLOR_WIDGET_BG)
         right_info_container.grid(row=0, column=2, rowspan=4, sticky="nsew", padx=10, pady=5)
-        txt_m = f"Target Mese: € {TARGET_MESE:.2f}" if TARGET_MESE > 0 else "Target Mese: N/D"
-        txt_a = f"Target Anno: € {TARGET_ANNO:.2f}" if TARGET_ANNO > 0 else "Target Anno: N/D"
+        txt_m = f"Target Mese: € {_fmt_it(TARGET_MESE)}" if TARGET_MESE > 0 else "Target Mese: N/D"
+        txt_a = f"Target Anno: € {_fmt_it(TARGET_ANNO)}" if TARGET_ANNO > 0 else "Target Anno: N/D"
         self.lbl_budget_mese_widget = ttk.Label(right_info_container, text=txt_m, font=("Arial", 8, "bold"), style="TLabel")
         self.lbl_budget_mese_widget.pack(anchor="w", padx=5, pady=2)
         self.lbl_budget_anno_widget = ttk.Label(right_info_container, text=txt_a, font=("Arial", 8, "bold"), style="TLabel")
@@ -1267,6 +1295,13 @@ class GestioneSpese(tk.Tk):
             f"Movimenti oltre soglia – {['','Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'][datetime.date.today().month]} {datetime.date.today().year}"
         ) if getattr(self, '_budget_sforati', None) else None)
         add_tt(self.lbl_budget_cat_sforati, lambda: getattr(self, '_tt_budget_sforati_txt', ''))
+        self.lbl_budget_cat_annuo_sforati = ttk.Label(right_info_container, text="", font=("Arial", 8, "bold"), foreground=self.COLOR_RED, style="TLabel", cursor="hand2")
+        self.lbl_budget_cat_annuo_sforati.pack(anchor="w", padx=5, pady=2)
+        add_tt(self.lbl_budget_cat_annuo_sforati, lambda: getattr(self, '_tt_budget_annuo_sforati_txt', ''))
+        self.lbl_budget_cat_annuo_sforati.bind("<Button-1>", lambda e: self.mostra_transazioni_popup(
+            {"categorie": list(self._budget_annuo_sforati), "anno": str(datetime.date.today().year)},
+            f"Movimenti oltre soglia annuale – {datetime.date.today().year}"
+        ) if getattr(self, '_budget_annuo_sforati', None) else None)
         btns_row = tk.Frame(right_info_container, bg=self.COLOR_WIDGET_BG)
         btns_row.pack(fill="x", padx=5, pady=2)
         self.lbl_sync_count_widget = ttk.Label(
@@ -1848,6 +1883,7 @@ class GestioneSpese(tk.Tk):
                 pass
                 
         self.after(500, lambda: self._controlla_sforamento_budget(mostra_toast=False))
+        self.after(550, lambda: self._controlla_sforamento_budget_annuo(mostra_toast=False))
         self.after(600, self.aggiorna_streak_gamification)
 
     def aggiorna_vista_ricorrenti(self, includi_futuri=False):
@@ -1881,7 +1917,7 @@ class GestioneSpese(tk.Tk):
                                 ultima = (dd, imp)
                         except:
                             continue
-            ultima_spesa = f"€{ultima[1]:.2f}" if ultima else "N/D"
+            ultima_spesa = f"€{_fmt_it_safe(ultima[1])}" if ultima else "N/D"
             freq = len(importi)
             self.tree_ricorrenti.insert("", "end", values=(cat, ultima_spesa, f"{freq} volte/anno"))
 
@@ -2124,24 +2160,24 @@ class GestioneSpese(tk.Tk):
             righe = []
             _data_info = _info.get("data", "")
             if _data_info:
-                righe.append(f"Data: {_data_info}")
+                righe.append(("Data", _data_info))
             _ora = _info.get("ora", "")
             if _ora:
-                righe.append(f"Orario: {_ora}")
+                righe.append(("Orario", _ora))
             _categoria_info = _info.get("categoria", "")
             if _categoria_info:
-                righe.append(f"Categoria: {_categoria_info}")
+                righe.append(("Categoria", _categoria_info))
             if metodo:
-                righe.append(f"Pagamento: {metodo}")
+                righe.append(("Pagamento", metodo))
             _conto = _info.get("conto", "")
             if _conto:
-                righe.append(f"Conto: {_conto}")
+                righe.append(("Conto", _conto))
             _importo_info = _info.get("importo", None)
             if _importo_info is not None and _importo_info != "":
                 try:
-                    righe.append(f"Importo: € {float(_importo_info):.2f}")
+                    righe.append(("Importo", f"€ {_fmt_it(float(_importo_info))}"))
                 except (TypeError, ValueError):
-                    righe.append(f"Importo: {_importo_info}")
+                    righe.append(("Importo", str(_importo_info)))
             _partecipante_nome = _info.get("partecipante", "")
             if _partecipante_nome:
                 _partecipante_tipo = _info.get("partecipante_tipo", "")
@@ -2150,27 +2186,36 @@ class GestioneSpese(tk.Tk):
                     "Personale" if _partecipante_tipo == "personale" else
                     "Partecipante"
                 )
-                righe.append(f"{_etichetta_partecipante}: {_partecipante_nome}")
+                righe.append((_etichetta_partecipante, _partecipante_nome))
             _id_ric = _info.get("id_ricorrenza", "")
             if _id_ric:
                 _ric = self.ricorrenze.get(_id_ric, {})
                 _freq = _ric.get("tipo", "")
-                righe.append(f"Ricorrente: {_freq}" if _freq else "Ricorrente: Sì")
+                righe.append(("Ricorrente", _freq if _freq else "Sì"))
             _hashtag = _info.get("hashtag", [])
             if isinstance(_hashtag, str):
                 _hashtag = [_hashtag] if _hashtag else []
             if _hashtag:
                 _tag_fmt = ", ".join(f"#{t.lstrip('#')}" for t in _hashtag if t)
                 if _tag_fmt:
-                    righe.append(f"Tag: {_tag_fmt}")
+                    righe.append(("Tag", _tag_fmt))
             if not righe:
                 return
-            testo_tooltip = "\n".join(righe)
+            _larghezza_etichetta = max(len(_e) for _e, _ in righe) + 1
+            testo_tooltip = "\n".join(
+                f"{(_e + ':').ljust(_larghezza_etichetta + 2)}{_v}" for _e, _v in righe
+            )
             def _crea():
                 _tt[0] = tk.Toplevel(self)
                 _tt[0].wm_overrideredirect(True)
                 _tt[0].attributes("-topmost", True)
-                ttk.Label(_tt[0], text=testo_tooltip, style="Tooltip.TLabel", justify="left").pack()
+                _tt[0].config(
+                    highlightthickness=1,
+                    highlightbackground=self.COLOR_HIGHLIGHT,
+                    bg=self.COLOR_TOOLTIP
+                )
+                ttk.Label(_tt[0], text=testo_tooltip, style="Tooltip.TLabel", justify="left",
+                          font=("Courier New", 9, "bold")).pack()
                 _tt[0].update_idletasks()
                 tw = _tt[0].winfo_reqwidth()
                 th = _tt[0].winfo_reqheight()
@@ -2212,17 +2257,17 @@ class GestioneSpese(tk.Tk):
                 linee = []
                 W = 38
                 if e_voci:
-                    ve = f"€ {tot_e:.2f}"
+                    ve = f"€ {_fmt_it(tot_e)}"
                     linee.append(f"{'▲ SALDO (+):'.ljust(W - len(ve))}{ve}")
                     for c, v in e_voci:
-                        vs = f"{v:.2f}"
+                        vs = _fmt_it(v)
                         linee.append(f"{f' {c}'.ljust(W - len(vs))}{vs}")
                 if u_voci:
                     if linee: linee.append("─" * W)
-                    vu = f"€ {tot_u:.2f}"
+                    vu = f"€ {_fmt_it(tot_u)}"
                     linee.append(f"{'▼ SALDO (-):'.ljust(W - len(vu))}{vu}")
                     for c, v in u_voci:
-                        vs = f"{v:.2f}"
+                        vs = _fmt_it(v)
                         linee.append(f"{f' {c}'.ljust(W - len(vs))}{vs}")
                 testo_tooltip = "\n" + "\n".join(linee)
                 if tot_e > 0 and tot_u > 0: tag = "misto"
@@ -2510,6 +2555,7 @@ class GestioneSpese(tk.Tk):
                 "spese": [],
                 "ricorrenze": {},
                 "budget_categorie": {},
+                "budget_annuale_categorie": {},
                 "_window_geometry": None
             }
             self.categorie = self.db["categorie"]
@@ -2518,6 +2564,7 @@ class GestioneSpese(tk.Tk):
             self.ricalcola_operazioni_web()
             self.ricorrenze = self.db["ricorrenze"]
             self.budget_categorie = self.db["budget_categorie"]
+            self.budget_annuale_categorie = self.db["budget_annuale_categorie"]
             self._window_geometry = self.db["_window_geometry"]
             return
         try:
@@ -2534,6 +2581,7 @@ class GestioneSpese(tk.Tk):
                 self.spese[d] = entries
             self.ricorrenze = self.db.get("ricorrenze", {})
             self.budget_categorie = self.db.get("budget_categorie", {})
+            self.budget_annuale_categorie = self.db.get("budget_annuale_categorie", {})
             self._window_geometry = self.db.get("_window_geometry", None)
             self.ricalcola_operazioni_web()
         except Exception as e:
@@ -2575,7 +2623,7 @@ class GestioneSpese(tk.Tk):
                         return risultato
                     except Exception as err_bak:
                         print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Ripristino fallito: {err_bak}")
-            self.db = {"categorie": ["Generica"], "categorie_tipi": {"Generica": "Uscita"}, "spese": [], "ricorrenze": {}, "budget_categorie": {}, "_window_geometry": None}
+            self.db = {"categorie": ["Generica"], "categorie_tipi": {"Generica": "Uscita"}, "spese": [], "ricorrenze": {}, "budget_categorie": {}, "budget_annuale_categorie": {}, "_window_geometry": None}
             CATEGORIA_PRIORITARIA = "Generica"
             cat_raw = self.db.get("categorie", ["Generica"])
             self.categorie = (
@@ -2588,6 +2636,7 @@ class GestioneSpese(tk.Tk):
             self.spese = {}
             self.ricorrenze = {}
             self.budget_categorie = {}
+            self.budget_annuale_categorie = {}
             self._window_geometry = None
             self.ricalcola_operazioni_web()
             msg_errore = (
@@ -2662,6 +2711,7 @@ class GestioneSpese(tk.Tk):
                     ],
                     "ricorrenze": self.ricorrenze,
                     "budget_categorie": self.budget_categorie,
+                    "budget_annuale_categorie": self.budget_annuale_categorie,
                     "_window_geometry": self._window_geometry or (self.geometry() if hasattr(self, 'geometry') else None)
                 }
                 if os.path.exists(DB_FILE):
@@ -2679,6 +2729,7 @@ class GestioneSpese(tk.Tk):
                     self.notifica_modifica_web()
                     print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Notifica di aggiornamento inviata e backup .bak creato.")
                 self._controlla_sforamento_budget()
+                self._controlla_sforamento_budget_annuo()
         except Exception as e:
             print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}]Errore critico durante il salvataggio: {e}")
         finally:
@@ -2716,19 +2767,65 @@ class GestioneSpese(tk.Tk):
                     if cat not in self._budget_sforati:
                         self._budget_sforati.add(cat)
                         if mostra_toast:
-                            self.show_toast(f"Budget '{cat}' superato: €{tot:.2f} / €{budget:.2f}")
+                            self.show_toast(f"Budget '{cat}' superato: €{_fmt_it(tot)} / €{_fmt_it(budget)}")
                 else:
                     self._budget_sforati.discard(cat)
         if hasattr(self, 'lbl_budget_cat_sforati'):
             n = len(categorie_in_sforamento)
             if n > 0:
-                self.lbl_budget_cat_sforati.config(text=f"{n} Categori{'a' if n == 1 else 'e'} oltre soglia")
+                self.lbl_budget_cat_sforati.config(text=f"{n} Categori{'a' if n == 1 else 'e'} oltre soglia mensile")
             else:
                 self.lbl_budget_cat_sforati.config(text="")
             self._tt_budget_sforati_txt = "\n".join(
-                f"{c}: €{totali.get(c, 0.0):.2f} / €{self.budget_categorie.get(c, 0):.2f}"
+                f"{c}: €{_fmt_it(totali.get(c, 0.0))} / €{_fmt_it(self.budget_categorie.get(c, 0))}"
                 for c in sorted(categorie_in_sforamento)
             ) if categorie_in_sforamento else "Nessuna categoria oltre soglia"
+
+    # Controlla se qualche categoria con budget annuale impostato ha superato il limite nell'anno corrente
+    def _controlla_sforamento_budget_annuo(self, mostra_toast=True):
+        if not hasattr(self, 'budget_annuale_categorie') or not self.budget_annuale_categorie:
+            return
+        if not hasattr(self, 'show_toast'):
+            return
+        oggi = datetime.date.today()
+        totali = {}
+        for data_reg, voci in self.spese.items():
+            if data_reg.year == oggi.year:
+                for v in voci:
+                    if len(v) >= 4 and v[3] == "Uscita":
+                        cat = v[0]
+                        try:
+                            totali[cat] = totali.get(cat, 0.0) + float(v[2])
+                        except (ValueError, TypeError):
+                            pass
+        if not hasattr(self, '_budget_annuo_sforati_anno'):
+            self._budget_annuo_sforati_anno = oggi.year
+            self._budget_annuo_sforati = set()
+        elif self._budget_annuo_sforati_anno != oggi.year:
+            self._budget_annuo_sforati_anno = oggi.year
+            self._budget_annuo_sforati = set()
+        categorie_in_sforamento = []
+        for cat, budget in self.budget_annuale_categorie.items():
+            if budget and budget > 0:
+                tot = totali.get(cat, 0.0)
+                if tot > budget:
+                    categorie_in_sforamento.append(cat)
+                    if cat not in self._budget_annuo_sforati:
+                        self._budget_annuo_sforati.add(cat)
+                        if mostra_toast:
+                            self.show_toast(f"Budget annuale '{cat}' superato: €{_fmt_it(tot)} / €{_fmt_it(budget)}")
+                else:
+                    self._budget_annuo_sforati.discard(cat)
+        if hasattr(self, 'lbl_budget_cat_annuo_sforati'):
+            n = len(categorie_in_sforamento)
+            if n > 0:
+                self.lbl_budget_cat_annuo_sforati.config(text=f"{n} Categori{'a' if n == 1 else 'e'} oltre soglia annuale")
+            else:
+                self.lbl_budget_cat_annuo_sforati.config(text="")
+            self._tt_budget_annuo_sforati_txt = "\n".join(
+                f"{c}: €{_fmt_it(totali.get(c, 0.0))} / €{_fmt_it(self.budget_annuale_categorie.get(c, 0))}"
+                for c in sorted(categorie_in_sforamento)
+            ) if categorie_in_sforamento else "Nessuna categoria oltre soglia annuale"
 
     # Ripristino dello stato predefinito del modulo di inserimento spesa
     def reset_form(self):
@@ -2840,7 +2937,7 @@ class GestioneSpese(tk.Tk):
                 break
             date_list.append(d)
         _tags_ric = self._normalizza_tags(self.ricorrenza_tag.get()) if hasattr(self, 'ricorrenza_tag') else []
-        _nome_c_ric = self.v_conto_movimento.get() if hasattr(self, 'v_conto_movimento') else "(nessuno)"
+        _nome_c_ric = self.v_conto_ricorrenza.get() if hasattr(self, 'v_conto_ricorrenza') else "(nessuno)"
         _conto_ric = _nome_c_ric if _nome_c_ric and _nome_c_ric != "(nessuno)" else ""
         _metodo_ric = self._metodo_pagamento_pulito(self.ricorrenza_metodo.get()) if hasattr(self, 'ricorrenza_metodo') else ""
         for d in date_list:
@@ -3032,7 +3129,7 @@ class GestioneSpese(tk.Tk):
         new_style = 'GreenOutline.TButton' if tipo == "Entrata" else 'RedOutline.TButton'
         self.btn_tipo_spesa.config(style=new_style)
         if hasattr(self, 'v_conto_movimento'):
-            self.v_conto_movimento.set(campo(voce, "conto", "") or self._trova_conto_da_portafoglio(giorno, float(imp), tipo, self._ordine_in_gruppo_chiave(giorno, idx)))
+            self.v_conto_movimento.set(campo(voce, "conto", "") or self._trova_conto_da_portafoglio(giorno, _parse_it_float(imp), tipo, self._ordine_in_gruppo_chiave(giorno, idx)))
         if hasattr(self, 'metodo_pagamento_var'):
             self.metodo_pagamento_var.set(self._metodo_pagamento_a_combo(campo(voce, "metodo_pagamento", "")))
         if hasattr(self, 'tag_entry'):
@@ -3101,7 +3198,7 @@ class GestioneSpese(tk.Tk):
         new_style = 'GreenOutline.TButton' if tipo == "Entrata" else 'RedOutline.TButton'
         self.btn_tipo_spesa.config(style=new_style)
         if hasattr(self, 'v_conto_movimento'):
-            self.v_conto_movimento.set(campo(voce, "conto", "") or self._trova_conto_da_portafoglio(giorno, float(imp), tipo, self._ordine_in_gruppo_chiave(giorno, idx)))
+            self.v_conto_movimento.set(campo(voce, "conto", "") or self._trova_conto_da_portafoglio(giorno, _parse_it_float(imp), tipo, self._ordine_in_gruppo_chiave(giorno, idx)))
         if hasattr(self, 'metodo_pagamento_var'):
             self.metodo_pagamento_var.set(self._metodo_pagamento_a_combo(campo(voce, "metodo_pagamento", "")))
         if hasattr(self, 'tag_entry'):
@@ -3356,10 +3453,19 @@ class GestioneSpese(tk.Tk):
                 for entry in self.spese[d]:
                     cat, desc, imp, tipo = entry[:4]
                     spese_mese.append((d, cat, desc, imp, tipo, entry))
+        _budget_sforati_attivo = (year == now.year and month == now.month)
+        _cat_sforate = getattr(self, '_budget_sforati', set()) if _budget_sforati_attivo else set()
         for d, cat, desc, imp, tipo, entry in spese_mese:
-            tag = "futuro" if d > datetime.date.today() else ("entrata" if tipo == "Entrata" else "uscita")
+            if d > datetime.date.today():
+                tag = "futuro"
+            elif tipo == "Uscita" and cat in _cat_sforate:
+                tag = "sforato"
+            elif tipo == "Entrata":
+                tag = "entrata"
+            else:
+                tag = "uscita"
             item_id = self.spese_mese_tree.insert("", "end", values=(
-                d.strftime("%d-%m-%Y"), cat, desc, f"{imp:.2f}", tipo
+                d.strftime("%d-%m-%Y"), cat, desc, _fmt_it_safe(imp), tipo
             ), tags=(tag,))
             _desc_low = str(desc).lower()
             _partecipante_nome = ""
@@ -3441,6 +3547,7 @@ class GestioneSpese(tk.Tk):
             self.stats_hint_label.config(text=nuova_guida)
         self.stats_table["displaycolumns"] = ("A", "B", "C", "D", "E", "F")
         if mode == "giorno":
+            self.stats_table.config(selectmode="browse")
             try:
                 data_corrente = self.cal.selection_get()
             except:
@@ -3463,7 +3570,9 @@ class GestioneSpese(tk.Tk):
                 "F": (100, "center", "Conto/Varia")
             }
         else:
+            self.stats_table.config(selectmode="extended")
             if mode == "mese":
+                self.stats_table.config(selectmode="extended")
                 ref = getattr(self, 'stats_refdate', datetime.date.today())
                 m_name = self.get_month_name(ref.month) if hasattr(self, 'get_month_name') else str(ref.month)
                 self.stats_label.config(text=f"Riepilogo Mensile {m_name} {ref.year}", foreground="dodgerblue", font=("Arial", 10, "bold"))
@@ -3513,7 +3622,13 @@ class GestioneSpese(tk.Tk):
             return float(s or 0)
         def to_date(v):
             from datetime import datetime
-            return datetime.strptime(str(v).strip(), "%d-%m-%Y")
+            s = str(v).strip()
+            for fmt in ("%d-%m-%Y", "%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M", "%d/%m/%Y"):
+                try:
+                    return datetime.strptime(s, fmt)
+                except ValueError:
+                    continue
+            raise ValueError(f"Formato data non riconosciuto: {s!r}")
         try:
             items.sort(key=lambda t: to_float(t[0]), reverse=reverse)
         except Exception:
@@ -3591,7 +3706,7 @@ class GestioneSpese(tk.Tk):
             nome_conto_g = campo(entry, "conto", "")
             item_id = self.stats_table.insert(
                 "", "end",
-                values=(d.strftime("%d-%m-%Y"), cat, desc, f"{imp:.2f}", tipo, nome_conto_g),
+                values=(d.strftime("%d-%m-%Y"), cat, desc, _fmt_it_safe(imp), tipo, nome_conto_g),
                 tags=(tag,)
             )
             self.stats_table._metodo_lookup[item_id] = {
@@ -3611,7 +3726,7 @@ class GestioneSpese(tk.Tk):
         diff = tot_entrate - tot_uscite
         colore_fg = "dodgerblue" if diff >= 0 else "red"
         self.totali_label.config(
-            text=f"Totale Entrate: {tot_entrate:.2f}    Totale Uscite: {tot_uscite:.2f}    Differenza: {diff:.2f}",
+            text=f"Totale Entrate: {_fmt_it(tot_entrate)}    Totale Uscite: {_fmt_it(tot_uscite)}    Differenza: {_fmt_it(diff)}",
             foreground=colore_fg, font=("Arial", 10, "bold")
         )
         if hasattr(self, 'lbl_mov_count'):
@@ -3660,6 +3775,10 @@ class GestioneSpese(tk.Tk):
             for idx, entry in enumerate(spese):
                 cat, desc, imp, tipo = entry[:4]
                 tag = "futuro" if giorno > datetime.date.today() else ("entrata" if tipo == "Entrata" else "uscita")
+                if (tipo == "Uscita" and giorno <= datetime.date.today()
+                        and (giorno.year, giorno.month) == (oggi.year, oggi.month)
+                        and cat in getattr(self, "_budget_sforati", set())):
+                    tag = "sforato"
                 nome_conto_st = campo(entry, "conto", "")
                 if not nome_conto_st:
                     _key_st = (giorno.strftime("%d-%m-%Y"), round(float(imp), 2), tipo)
@@ -3669,7 +3788,7 @@ class GestioneSpese(tk.Tk):
                     _agganci_uso_st[_key_st] = _uso + 1
                 _item_st = self.stats_table.insert(
                     "", "end",
-                    values=(giorno.strftime("%d-%m-%Y"), cat, desc, f"{imp:.2f}", tipo, nome_conto_st),
+                    values=(giorno.strftime("%d-%m-%Y"), cat, desc, _fmt_it_safe(imp), tipo, nome_conto_st),
                     tags=(f"{giorno.strftime('%d-%m-%Y')}|{idx}", tag)
                 )
                 _desc_low_st = str(desc).lower()
@@ -3741,9 +3860,13 @@ class GestioneSpese(tk.Tk):
                 for tipo in ("Entrata", "Uscita"):
                     if totali[cat][tipo] > 0:
                         tag = "futuro" if cat in future_cats else ("entrata" if tipo == "Entrata" else "uscita")
+                        if (tipo == "Uscita" and cat not in future_cats and mode == "mese"
+                                and (ref.year, ref.month) == (oggi.year, oggi.month)
+                                and cat in getattr(self, "_budget_sforati", set())):
+                            tag = "sforato"
                         self.stats_table.insert(
                             "", "end",
-                            values=(cat, f"{totali[cat][tipo]:.2f}", tipo),
+                            values=(cat, _fmt_it_safe(totali[cat][tipo]), tipo),
                             tags=(tag,)
                         )
                         if tipo == "Entrata":
@@ -3752,7 +3875,7 @@ class GestioneSpese(tk.Tk):
                             tot_uscite += totali[cat][tipo]
         diff = tot_entrate - tot_uscite
         colore_fg = "dodgerblue" if diff >= 0 else "red"
-        txt_tot = f"Totale Entrate: {tot_entrate:.2f}    Totale Uscite: {tot_uscite:.2f}    Differenza: {diff:.2f}"
+        txt_tot = f"Totale Entrate: {_fmt_it(tot_entrate)}    Totale Uscite: {_fmt_it(tot_uscite)}    Differenza: {_fmt_it(diff)}"
         self.totali_label.config(text=txt_tot, foreground=colore_fg, font=("Arial", 10, "bold"))
         if hasattr(self, 'lbl_mov_count'):
             if mode == "giorno":
@@ -3857,7 +3980,8 @@ class GestioneSpese(tk.Tk):
     def _anima_label_valore(self, label, valore_finale, steps=20, step_ms=30):
         if ANIMAZIONI:
             try:
-                testo_attuale = label.cget("text").replace("€", "").replace(",", ".").strip()
+                testo_attuale = label.cget("text").replace("€", "").strip()
+                testo_attuale = testo_attuale.replace(".", "").replace(",", ".")
                 valore_iniziale = float(testo_attuale) if testo_attuale else 0.0
             except:
                 valore_iniziale = 0.0
@@ -3868,14 +3992,14 @@ class GestioneSpese(tk.Tk):
                 t = i / steps
                 t_ease = t * t * (3 - 2 * t)
                 valore = valore_iniziale + delta * t_ease
-                label.config(text=f"{valore:.2f} €")
+                label.config(text=f"{_fmt_it(valore)} €")
                 if i < steps:
                     self.after(step_ms, lambda: _step(i + 1))
                 else:
-                    label.config(text=f"{valore_finale:.2f} €")
+                    label.config(text=f"{_fmt_it(valore_finale)} €")
             _step(0)
         else:
-            label.config(text=f"{valore_finale:.2f} €")
+            label.config(text=f"{_fmt_it(valore_finale)} €")
                         
     # Gestione del Database: Importazione e Esportazione del File di Dati    
     def import_db(self):
@@ -4001,8 +4125,6 @@ class GestioneSpese(tk.Tk):
                 f"Impossibile aprire il link: {LINK_BANCA}\nErrore: {e}"
             )
             print(f"Errore durante l'apertura del link: {e}")
-
-    # goto_dettaglio_mese ora vive in moduli/goto_dettaglio_mese.py (registrato da registra_tutti_i_moduli)
 
     # Ripristino della Visualizzazione alla Data Attuale        
     def goto_today(self):
@@ -4180,11 +4302,11 @@ class GestioneSpese(tk.Tk):
             col_bar = colore if saldo >= 0 else "#CC3333"
             c.create_rectangle(BAR_X, bar_y1, BAR_X + bar_w, bar_y2,
                                fill=col_bar, outline="")
-            saldo_txt = f"€ {saldo:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            saldo_txt = f"€ {_fmt_it(saldo)}"
             col_txt = self.COLOR_GREEN if saldo >= 0 else self.COLOR_RED
             c.create_text(BAR_X + BAR_MAX_W + 4, y_center, text=saldo_txt,
                           fill=col_txt, font=("Arial", 9, "bold"), anchor="w")
-        tot_txt = f"Totale: € {totale:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        tot_txt = f"Totale: € {_fmt_it(totale)}"
         col_tot = self.COLOR_GREEN if totale >= 0 else self.COLOR_RED
         c.create_text(W // 2, H - 8, text=tot_txt,
                       fill=col_tot, font=("Arial", 9, "bold"), anchor="s")
@@ -4258,7 +4380,7 @@ class GestioneSpese(tk.Tk):
             rc = 10
             draw.ellipse([cx-rc, cy-rc, cx+rc, cy+rc], fill=colore_hex)
             if formato == "€":
-                testo = f"{valore:,.2f} €".replace(",", "X").replace(".", ",").replace("X", ".")
+                testo = f"{_fmt_it(valore)} €"
             else:
                 testo = f"{valore*100:.0f}%"
             draw.text((cx, cy + 36), testo, fill=colore_hex, anchor="mm", font=font_valore)
@@ -4314,7 +4436,7 @@ class GestioneSpese(tk.Tk):
                     initial_date_str = str(values[0]).strip()
                     initial_category = str(values[1]).strip()
                     initial_description = str(values[2]).strip()
-                    initial_amount = str(values[3]).strip().replace('€', '').replace(',', '.')
+                    initial_amount = str(_parse_it_float(values[3]))
                     initial_type = str(values[4]).strip().lower()
                     self.launch_qr_svg_generator(
                         initial_category=initial_category,
@@ -4608,6 +4730,8 @@ class GestioneSpese(tk.Tk):
                 self.aggiorna_monitoraggio_budget()
                 self.refresh_documenti()
                 self._refresh_portafoglio_se_aperto()
+                self._controlla_sforamento_budget()
+                self._controlla_sforamento_budget_annuo()
         except Exception:
                 pass
 
@@ -5052,11 +5176,11 @@ class GestioneSpese(tk.Tk):
         rimanente_m = budget_m - uscite_mese + entrate_mese
         rimanente_a = budget_a - uscite_anno + entrate_anno
         self.lbl_budget_mese.config(
-                text=f"{rimanente_m:,.2f} €",
+                text=f"{_fmt_it(rimanente_m)} €",
                 foreground=self.COLOR_GREEN if rimanente_m >= 0 else self.COLOR_RED
         )
         self.lbl_budget_anno.config(
-                text=f"{rimanente_a:,.2f} €",
+                text=f"{_fmt_it(rimanente_a)} €",
                 foreground=self.COLOR_GREEN if rimanente_a >= 0 else self.COLOR_RED
         )
         if ANIMAZIONI:
@@ -5203,6 +5327,7 @@ class GestioneSpese(tk.Tk):
             self.colora_giorni_spese()
             self.aggiorna_monitoraggio_budget()
             self._controlla_sforamento_budget(mostra_toast=False)
+            self._controlla_sforamento_budget_annuo(mostra_toast=False)
             if hasattr(self, 'pdf_window') and self.pdf_window.winfo_exists():
                 tabella = getattr(self, 'tabella_documenti', None)
                 funzione_load = getattr(self, 'funzione_carica_documenti', None)
@@ -5420,7 +5545,11 @@ class GestioneSpese(tk.Tk):
             self._win_reg.lift()
             return
         device_id = _get_device_id()
-        win = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
+        _bordo_reg = getattr(self, "COLOR_HIGHLIGHT", "#3B82F6")
+        win = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL,
+                           highlightthickness=2,
+                           highlightbackground=_bordo_reg,
+                           highlightcolor=_bordo_reg)
         self._win_reg = win
         win.title("Registrazione")
         win.withdraw()
@@ -6012,7 +6141,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "0e0adec883391afa71fd6177ff1f54b5e4380b429c4ef68d845e1014a3c5bb7e"
+        E_H_B = "f48827ab1de3026486cecaf7d7190ac62c0e71d8b63cd03c3b5e22658006afc2"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
