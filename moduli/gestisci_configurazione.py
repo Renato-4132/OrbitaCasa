@@ -18,7 +18,6 @@ def gestisci_configurazione(self):
         try: self.ferma_scorrimento_automatico()
         except: pass
     if hasattr(self, 'btn_ciclico_carosello'):
-        self.btn_ciclico_carosello.configure(variable="") 
         self.btn_ciclico_carosello.state(['!active', '!selected', '!alternate'])
         self.btn_ciclico_carosello.update_idletasks()
     if not self.winfo_exists():
@@ -80,10 +79,11 @@ def gestisci_configurazione(self):
     sync_intervallo_iniziale = config.get("sync_intervallo_min", DEFAULT_CONFIG.get("sync_intervallo_min", 720))
     
     config_window = Toplevel(self)
+    config_window.configure(bg=self.COLOR_TOPLEVEL)
     config_window.withdraw()
     config_window.transient(self)
     config_window.title("⚙️ Configurazione Applicazione")
-    config_window.bind('<Escape>', lambda e: config_window.destroy())
+    config_window.bind('<Escape>', lambda e: chiudi_config())
     config_window.resizable(False, False)
     self.var_use_wait_window = tk.BooleanVar(value=use_wait_window_iniziale)
     self.var_warn_timeout_sec = tk.DoubleVar(value=timeout_sec_iniziale)
@@ -104,7 +104,7 @@ def gestisci_configurazione(self):
     self.var_anni_da_mantenere = tk.IntVar(value=anni_da_mantenere_iniziale)
     self.var_iconizza_inattivita = tk.BooleanVar(value=iconizza_inattivita_iniziale)
     self.var_thema = tk.StringVar(value=thema_iniziale.capitalize())
-    self.var_carosello_enabled = tk.BooleanVar(value=carosello_enabled_iniziale)
+    var_carosello_enabled_cfg = tk.BooleanVar(value=carosello_enabled_iniziale)
     self.var_carosello_intervallo_sec = tk.DoubleVar(value=carosello_intervallo_sec_iniziale)
     self.var_cal_tooltips = tk.BooleanVar(value=config.get("cal_tooltips_enabled", True))
     self.var_anima_tot = tk.BooleanVar(value=anima_tot_iniziale)
@@ -124,19 +124,9 @@ def gestisci_configurazione(self):
     self.var_sync_intervallo = tk.IntVar(value=sync_intervallo_iniziale)
     self.var_check_double = tk.BooleanVar(value=check_double_iniziale)
     self.var_close_behavior = tk.BooleanVar(value=close_behavior_iniziale)
-    self.var_beep_enabled = tk.BooleanVar(value=beep_enabled_iniziale)
     
     main_frame = ttk.Frame(config_window, padding="10 10 10 5")
     main_frame.pack(fill="both", expand=True)
-    main_frame.columnconfigure(0, weight=1, uniform="col")
-    main_frame.columnconfigure(1, weight=1, uniform="col")
-    main_frame.columnconfigure(2, weight=1, uniform="col")
-    warn_timeout_label = ttk.Label(main_frame, text="")
-    timeout_label = ttk.Label(main_frame, text="")
-    anni_label = ttk.Label(main_frame, text="")
-    max_backup_label = ttk.Label(main_frame, text="")
-    soglia_ricorrenti_label = ttk.Label(main_frame, text="")
-    carosello_intervallo_label = ttk.Label(main_frame, text="")
 
     def update_warn_timeout_label(value):
         current_sec = int(round(self.var_warn_timeout_sec.get()))
@@ -184,7 +174,7 @@ def gestisci_configurazione(self):
         self.var_smartcat_toll.set(DEFAULT_CONFIG.get("smartcat_toll", 15))
         self.var_beep_enabled.set(DEFAULT_CONFIG.get("beep_enabled", True))
         self.var_thema.set(DEFAULT_CONFIG.get("thema", "OBSIDIAN").capitalize())
-        self.var_carosello_enabled.set(DEFAULT_CONFIG.get("carosello_enabled", True))
+        var_carosello_enabled_cfg.set(DEFAULT_CONFIG.get("carosello_enabled", True))
         default_carosello_sec = round(DEFAULT_CONFIG.get("carosello_intervallo", 10000) / 1000)
         self.var_carosello_intervallo_sec.set(max(5, min(30, default_carosello_sec)))
         update_carosello_intervallo_label(self.var_carosello_intervallo_sec.get())
@@ -303,7 +293,7 @@ def gestisci_configurazione(self):
                 "use_wait_window": self.var_use_wait_window.get(),
                 "warn_timeout_ms": warn_timeout_ms,
                 "thema": self.var_thema.get().upper(),
-                "carosello_enabled": self.var_carosello_enabled.get(),
+                "carosello_enabled": var_carosello_enabled_cfg.get(),
                 "carosello_intervallo": carosello_intervallo_ms,
                 "cal_tooltips_enabled": self.var_cal_tooltips.get(),
                 "anima_tot_enabled": self.var_anima_tot.get(),
@@ -513,8 +503,42 @@ def gestisci_configurazione(self):
         c_y = config_window.winfo_rooty() + (config_window.winfo_height() // 2) - (fixed_height // 2)
         help_window.geometry(f"{fixed_width}x{fixed_height}+{c_x}+{c_y}")
         help_window.deiconify()
-    row_counter = 0
-    
+    notebook = ttk.Notebook(main_frame)
+    notebook.pack(fill="both", expand=True, pady=(0, 8))
+
+    tab_generali = ttk.Frame(notebook, padding="10 10 10 5")
+    tab_rete     = ttk.Frame(notebook, padding="10 10 10 5")
+    tab_timeout  = ttk.Frame(notebook, padding="10 10 10 5")
+    tab_dati     = ttk.Frame(notebook, padding="10 10 10 5")
+    tab_sync     = ttk.Frame(notebook, padding="10 10 10 5")
+
+    def _add_tab_cfg(frame, ico_key, testo):
+        img = self.icone_gui.get(ico_key)
+        if img:
+            notebook.add(frame, image=img, text=f" {testo} ", compound="left")
+        else:
+            notebook.add(frame, text=testo)
+
+    _add_tab_cfg(tab_generali, "filtri", "Generali")
+    _add_tab_cfg(tab_rete, "google", "Rete & Web Server")
+    _add_tab_cfg(tab_timeout, "timer", "Timeout & Avvisi")
+    _add_tab_cfg(tab_dati, "salva", "Dati & Backup")
+    _add_tab_cfg(tab_sync, "sync", "Sync Email & AI")
+
+    for _tab in (tab_generali, tab_rete, tab_timeout, tab_dati, tab_sync):
+        _tab.columnconfigure(0, weight=1, uniform="col")
+        _tab.columnconfigure(1, weight=1, uniform="col")
+        _tab.columnconfigure(2, weight=1, uniform="col")
+
+    warn_timeout_label = ttk.Label(tab_timeout, text="")
+    timeout_label = ttk.Label(tab_timeout, text="")
+    anni_label = ttk.Label(tab_dati, text="")
+    max_backup_label = ttk.Label(tab_dati, text="")
+    soglia_ricorrenti_label = ttk.Label(tab_timeout, text="")
+    carosello_intervallo_label = ttk.Label(tab_timeout, text="")
+
+    row_generali = row_rete = row_timeout = row_dati = row_sync = 0
+
     def create_checkbutton(container, text, variable, row, column=0):
         cb = ttk.Checkbutton(container, text=text, variable=variable)
         cb.grid(row=row, column=column, sticky="w", padx=10, pady=2)
@@ -562,99 +586,121 @@ def gestisci_configurazione(self):
         update_func(variable.get())
         return slider
     
-    create_checkbutton(main_frame, "Abilita Flusso Login/Iconizza Automatica", self.var_auto_login, row_counter, column=0)
-    create_checkbutton(main_frame, "Iconizza alla pressione della (X) invece di chiudere", self.var_close_behavior, row_counter, column=1)
-    create_checkbutton(main_frame, "Attiva SmartCat (Suggerimento Categorie)", self.var_smartcat_enabled, row_counter, column=2)
-    row_counter += 1
-    create_checkbutton(main_frame, "Data Odierna alla Riapertura", self.var_ico_set_date, row_counter, column=0)
-    create_checkbutton(main_frame, "Abilita Notifiche Push (Gmail)", self.var_manda_push, row_counter, column=1)
-    create_checkbutton(main_frame, "Carica Posizione Finestra Salvata", self.var_load_geometry, row_counter, column=2)
-    row_counter += 1
-    create_checkbutton(main_frame, "Abilita Smart Info-Point su Calendario", self.var_cal_tooltips, row_counter, column=0)
-    create_checkbutton(main_frame, "Animazioni Totalizzatori e Icone Dinamiche", self.var_anima_tot, row_counter, column=1)
-    create_checkbutton(main_frame, "Controllo Movimenti Duplicati", self.var_check_double, row_counter, column=2)
-    row_counter += 1
-    f_bank = ttk.Frame(main_frame)
-    f_bank.grid(row=row_counter, column=0, columnspan=2, sticky="we", padx=10, pady=2)
+    ttk.Separator(tab_generali, orient='horizontal', style="Rosso.TSeparator").grid(row=row_generali, column=0, columnspan=3, sticky="ew", pady=5)
+    row_generali += 1
+    create_checkbutton(tab_generali, "Abilita Flusso Login/Iconizza Automatica", self.var_auto_login, row_generali, column=0)
+    create_checkbutton(tab_generali, "Iconizza alla pressione della (X) invece di chiudere", self.var_close_behavior, row_generali, column=1)
+    create_checkbutton(tab_generali, "Attiva SmartCat (Suggerimento Categorie)", self.var_smartcat_enabled, row_generali, column=2)
+    row_generali += 1
+    create_checkbutton(tab_generali, "Data Odierna alla Riapertura", self.var_ico_set_date, row_generali, column=0)
+    create_checkbutton(tab_generali, "Abilita Notifiche Push (Gmail)", self.var_manda_push, row_generali, column=1)
+    create_checkbutton(tab_generali, "Carica Posizione Finestra Salvata", self.var_load_geometry, row_generali, column=2)
+    row_generali += 1
+    create_checkbutton(tab_generali, "Abilita Smart Info-Point su Calendario", self.var_cal_tooltips, row_generali, column=0)
+    create_checkbutton(tab_generali, "Animazioni Totalizzatori e Icone Dinamiche", self.var_anima_tot, row_generali, column=1)
+    create_checkbutton(tab_generali, "Controllo Movimenti Duplicati", self.var_check_double, row_generali, column=2)
+    row_generali += 1
+    f_bank = ttk.Frame(tab_generali)
+    f_bank.grid(row=row_generali, column=0, columnspan=2, sticky="we", padx=10, pady=2)
     ttk.Label(f_bank, text="Link Banca:").pack(side="left")
     ent_bank = ttk.Entry(f_bank, textvariable=self.var_bank_link, width=40)
     ent_bank.pack(side="left", fill="x", expand=False, padx=5)
-    f_toll = ttk.Frame(main_frame)
-    f_toll.grid(row=row_counter, column=1, sticky="we", padx=10, pady=2)
+    f_toll = ttk.Frame(tab_generali)
+    f_toll.grid(row=row_generali, column=1, sticky="we", padx=10, pady=2)
     ttk.Label(f_toll, text="Tolleranza SmartCat (€):").pack(side="left")
     ttk.Spinbox(f_toll, from_=5, to=100, increment=1, width=5, textvariable=self.var_smartcat_toll, justify="center", state="readonly", style="Custom.TSpinbox").pack(side="left", padx=4)
-    create_checkbutton(main_frame, "Abilita Beep Acustico Avvisi", self.var_beep_enabled, row_counter, column=2)
-    row_counter += 1
-    create_combobox(main_frame, "Tema UI:", self.var_thema, ["Chiaro", "Material", "Blu", "Obsidian", "Gold"], row_counter, column=2)
-    row_counter += 1
-    ttk.Separator(main_frame, orient='horizontal', style="Rosso.TSeparator").grid(row=row_counter, column=0, columnspan=3, sticky="ew", pady=5)
-    row_counter += 1
-    create_checkbutton(main_frame, "Abilita Web Server all'avvio", self.var_webserver_enabled, row_counter, column=0)
-    create_entry(main_frame, "Porta Web Server (8080 default)", self.var_port, row_counter, column=1)
-    create_checkbutton(main_frame, "Usa SSL (HTTPS)", self.var_usa_ssl, row_counter, column=2)
-    row_counter += 1
-    ttk.Separator(main_frame, orient='horizontal', style="Rosso.TSeparator").grid(row=row_counter, column=0, columnspan=3, sticky="ew", pady=5)
-    row_counter += 1
-    create_checkbutton(main_frame, "Abilita Database Condiviso (Rete)", self.var_shared_db, row_counter, column=0)
-    f_path = ttk.Frame(main_frame)
-    f_path.grid(row=row_counter, column=1, columnspan=2, sticky="we", padx=10, pady=2)
+    create_checkbutton(tab_generali, "Abilita Beep Acustico Avvisi", self.var_beep_enabled, row_generali, column=2)
+    row_generali += 1
+    create_combobox(tab_generali, "Tema UI:", self.var_thema, ["Chiaro", "Material", "Blu", "Obsidian", "Gold"], row_generali, column=2)
+    row_generali += 1
+    ttk.Separator(tab_generali, orient='horizontal', style="Rosso.TSeparator").grid(row=row_generali, column=0, columnspan=3, sticky="ew", pady=5)
+    row_generali += 1
+
+    ttk.Separator(tab_rete, orient='horizontal', style="Rosso.TSeparator").grid(row=row_rete, column=0, columnspan=3, sticky="ew", pady=5)
+    row_rete += 1
+    create_checkbutton(tab_rete, "Abilita Web Server all'avvio", self.var_webserver_enabled, row_rete, column=0)
+    create_entry(tab_rete, "Porta Web Server (8080 default)", self.var_port, row_rete, column=1)
+    create_checkbutton(tab_rete, "Usa SSL (HTTPS)", self.var_usa_ssl, row_rete, column=2)
+    row_rete += 1
+    ttk.Separator(tab_rete, orient='horizontal', style="Rosso.TSeparator").grid(row=row_rete, column=0, columnspan=3, sticky="ew", pady=5)
+    row_rete += 1
+    create_checkbutton(tab_rete, "Abilita Database Condiviso (Rete)", self.var_shared_db, row_rete, column=0)
+    f_path = ttk.Frame(tab_rete)
+    f_path.grid(row=row_rete, column=1, columnspan=2, sticky="we", padx=10, pady=2)
     ttk.Label(f_path, text="Path Database Condiviso (UNC o Unità)").pack(side="left")
     ttk.Entry(f_path, textvariable=self.var_shared_db_path, width=40).pack(side="left", fill="x", expand=True, padx=5)
-    row_counter += 1
-    create_entry(main_frame, "Porta UDP 1", self.var_udp_port_1, row_counter, column=0)
-    create_entry(main_frame, "Porta UDP 2", self.var_udp_port_2, row_counter, column=1)
-    row_counter += 1
-    ttk.Separator(main_frame, orient='horizontal', style="Rosso.TSeparator").grid(row=row_counter, column=0, columnspan=3, sticky="ew", pady=5)
-    row_counter += 1
-    create_checkbutton(main_frame, "Avvisi Bloccanti (Richiedono Interazione)", self.var_use_wait_window, row_counter, column=0)
-    create_slider_row(main_frame, "Timer Auto-Chiusura Avvisi (5-60 secondi)", 5, 60, self.var_warn_timeout_sec, update_warn_timeout_label, warn_timeout_label, row_counter, column=1, colspan=2)
-    row_counter += 1
-    create_checkbutton(main_frame, "Iconizza App in caso di Inattività", self.var_iconizza_inattivita, row_counter, column=0)
-    create_slider_row(main_frame, "Timeout Inattività (5-60 minuti)", 5, 60, self.var_timeout_minuti, update_timeout_label, timeout_label, row_counter, column=1, colspan=2)
-    row_counter += 1
-    create_checkbutton(main_frame, "Attiva Promemoria Mensile Categorie Mancanti", self.var_recurring_reminder, row_counter, column=0)
-    create_slider_row(main_frame, "Soglia Giorni Anticipo Promemoria (1-10 giorni)", 1, 10, self.var_soglia_ricorrenti, update_soglia_ricorrenti_label, soglia_ricorrenti_label, row_counter, column=1, colspan=2)
-    row_counter += 1
-    create_checkbutton(main_frame, "Abilita Carosello Statistiche", self.var_carosello_enabled, row_counter, column=0)
-    create_slider_row(main_frame, "Intervallo Carosello (5-30 secondi)", 5, 30, self.var_carosello_intervallo_sec, update_carosello_intervallo_label, carosello_intervallo_label, row_counter, column=1, colspan=2)
-    row_counter += 1
-    ttk.Separator(main_frame, orient='horizontal', style="Rosso.TSeparator").grid(row=row_counter, column=0, columnspan=3, sticky="ew", pady=5)
-    row_counter += 1       
+    row_rete += 1
+    create_entry(tab_rete, "Porta UDP 1", self.var_udp_port_1, row_rete, column=0)
+    row_rete += 1
+    create_entry(tab_rete, "Porta UDP 2", self.var_udp_port_2, row_rete, column=0)
+    row_rete += 1
+    ttk.Separator(tab_rete, orient='horizontal', style="Rosso.TSeparator").grid(row=row_rete, column=0, columnspan=3, sticky="ew", pady=5)
+    
+    ttk.Separator(tab_timeout, orient='horizontal', style="Rosso.TSeparator").grid(row=row_timeout, column=0, columnspan=3, sticky="ew", pady=5)
+    row_timeout += 1
+    create_checkbutton(tab_timeout, "Avvisi Bloccanti (Richiedono Interazione)", self.var_use_wait_window, row_timeout, column=0)
+    create_slider_row(tab_timeout, "Timer Auto-Chiusura Avvisi (5-60 secondi)", 5, 60, self.var_warn_timeout_sec, update_warn_timeout_label, warn_timeout_label, row_timeout, column=1, colspan=2)
+    row_timeout += 1
+    create_checkbutton(tab_timeout, "Iconizza App in caso di Inattività", self.var_iconizza_inattivita, row_timeout, column=0)
+    create_slider_row(tab_timeout, "Timeout Inattività (5-60 minuti)", 5, 60, self.var_timeout_minuti, update_timeout_label, timeout_label, row_timeout, column=1, colspan=2)
+    row_timeout += 1
+    create_checkbutton(tab_timeout, "Attiva Promemoria Mensile Categorie Mancanti", self.var_recurring_reminder, row_timeout, column=0)
+    create_slider_row(tab_timeout, "Soglia Giorni Anticipo Promemoria (1-10 giorni)", 1, 10, self.var_soglia_ricorrenti, update_soglia_ricorrenti_label, soglia_ricorrenti_label, row_timeout, column=1, colspan=2)
+    row_timeout += 1
+    create_checkbutton(tab_timeout, "Abilita Carosello Statistiche", var_carosello_enabled_cfg, row_timeout, column=0)
+    create_slider_row(tab_timeout, "Intervallo Carosello (5-30 secondi)", 5, 30, self.var_carosello_intervallo_sec, update_carosello_intervallo_label, carosello_intervallo_label, row_timeout, column=1, colspan=2)
+    row_timeout += 1
+    ttk.Separator(tab_timeout, orient='horizontal', style="Rosso.TSeparator").grid(row=row_timeout, column=0, columnspan=3, sticky="ew", pady=5)
+    row_timeout += 1
+ 
+    ttk.Separator(tab_dati, orient='horizontal', style="Rosso.TSeparator").grid(row=row_dati, column=0, columnspan=3, sticky="ew", pady=5)
+    row_dati += 1
+
     def formatta_target(sb, var):
-        try:
-            val = float(str(sb.get()).replace(",", "."))
-            var.set(val)
-            sb.set(f"{val:.2f}")
-        except:
-            var.set(0.0)
-            sb.set("0.00")
-    create_slider_row(main_frame, "Anni di Storico Dati (periodo di conservazione - 2-10 anni)", 2, 10, self.var_anni_da_mantenere, update_anni_label, anni_label, row_counter, column=0)
-    main_frame.grid_slaves(row=row_counter, column=0)[0].grid(columnspan=2, sticky="we")
-    f_target_m = ttk.Frame(main_frame)
-    f_target_m.grid(row=row_counter, column=2, sticky="we", padx=10, pady=2)
+            try:
+                    val = float(str(sb.get()).replace(",", "."))
+                    var.set(val)
+                    sb.set(f"{val:.2f}")
+            except:
+                    var.set(0.0)
+                    sb.set("0.00")
+
+    create_slider_row(tab_dati, "Anni Storico Dati (Conservazione 2-10 anni) ", 2, 10, self.var_anni_da_mantenere, update_anni_label, anni_label, row_dati, column=0)
+    tab_dati.grid_slaves(row=row_dati, column=0)[0].grid(columnspan=3, sticky="we")
+    row_dati += 1
+
+    create_slider_row(tab_dati, "Massimo Copie Backup da Mantenere (1-10)", 1, 10, self.var_max_backup, update_max_backup_label, max_backup_label, row_dati, column=0)
+    tab_dati.grid_slaves(row=row_dati, column=0)[0].grid(columnspan=3, sticky="we")
+    row_dati += 1
+    ttk.Separator(tab_dati, orient='horizontal', style="Rosso.TSeparator").grid(row=row_dati, column=0, columnspan=3, sticky="ew", pady=5)
+    row_dati += 1
+
+    f_target_m = ttk.Frame(tab_dati)
+    f_target_m.grid(row=row_dati, column=0, sticky="we", padx=10, pady=2)
     ttk.Label(f_target_m, text="Target Mese (€):", width=16, anchor="e").pack(side="left", padx=(0,4))
     sb_m = ttk.Spinbox(f_target_m, from_=0, to=9999, increment=50, width=7, textvariable=self.var_target_mese, justify="center", style="Custom.TSpinbox")
     sb_m.pack(side="left")
     sb_m.set(f"{self.var_target_mese.get():.2f}")
     sb_m.bind("<FocusOut>", lambda e: formatta_target(sb_m, self.var_target_mese))
-    row_counter += 1
-    create_slider_row(main_frame, "Max. Copie Backup da Mantenere (1-10)", 1, 10, self.var_max_backup, update_max_backup_label, max_backup_label, row_counter, column=0)
-    main_frame.grid_slaves(row=row_counter, column=0)[0].grid(columnspan=2, sticky="we")
-    f_target_a = ttk.Frame(main_frame)
-    f_target_a.grid(row=row_counter, column=2, sticky="we", padx=10, pady=2)
+    f_target_a = ttk.Frame(tab_dati)
+    f_target_a.grid(row=row_dati, column=1, sticky="we", padx=10, pady=2)
     ttk.Label(f_target_a, text="Target Anno (€):", width=16, anchor="e").pack(side="left", padx=(0,4))
     sb_a = ttk.Spinbox(f_target_a, from_=0, to=99999, increment=500, width=7, textvariable=self.var_target_anno, justify="center", style="Custom.TSpinbox")
     sb_a.pack(side="left")
     sb_a.set(f"{self.var_target_anno.get():.2f}")
     sb_a.bind("<FocusOut>", lambda e: formatta_target(sb_a, self.var_target_anno))
-    row_counter += 1
-    ttk.Separator(main_frame, orient='horizontal', style="Rosso.TSeparator").grid(row=row_counter, column=0, columnspan=3, sticky="ew", pady=5)
-    row_counter += 1
-    create_checkbutton(main_frame, "Abilita Lettura Automatica Movimenti (Solo Gmail):", self.var_sync_enabled, row_counter)
-    row_counter += 1
+    row_dati += 1
+
+    ttk.Separator(tab_dati, orient='horizontal', style="Rosso.TSeparator").grid(row=row_dati, column=0, columnspan=3, sticky="ew", pady=5)
+    row_dati += 1
+
+    ttk.Separator(tab_sync, orient='horizontal', style="Rosso.TSeparator").grid(row=row_sync, column=0, columnspan=3, sticky="ew", pady=5)
+    row_sync += 1
+    create_checkbutton(tab_sync, "Abilita Lettura Automatica Movimenti (Solo Gmail):", self.var_sync_enabled, row_sync)
+    row_sync += 1
     self.icon_occhio = self.icone_gui.get("occhio")
-    f_email = ttk.Frame(main_frame)
-    f_email.grid(row=row_counter, column=0, columnspan=3, sticky="we", padx=10, pady=2)
+    f_email = ttk.Frame(tab_sync)
+    f_email.grid(row=row_sync, column=0, columnspan=3, sticky="we", padx=10, pady=2)
     ttk.Label(f_email, text="Indirizzo Gmail:", width=25, anchor="w").pack(side="left")
     ent_email = ttk.Entry(f_email, textvariable=self.var_email_user, show="•")
     ent_email.config(width=60)
@@ -665,17 +711,13 @@ def gestisci_configurazione(self):
         ent_email.config(show="" if self.email_visible else "•")
     tk.Button(f_email, image=self.icon_occhio, command=toggle_email,
               bd=0, relief="flat", cursor="hand2", bg="#f0f0f0").pack(side="left", padx=(0, 5))
-    ttk.Label(f_email, text="Modello Gemini:", anchor="w", width=15).pack(side="left", padx=(20, 0))
-    ttk.Entry(f_email, textvariable=self.var_gemini_model, width=32).pack(side="left", padx=(5, 0))
-    lbl_fetch = ttk.Label(f_email, text="🔍", cursor="hand2")
-    lbl_fetch.pack(side="left", padx=(5, 0))
-    lbl_fetch.bind("<Button-1>", lambda e: self.fetch_gemini_models())
-    row_counter += 1
-    f_pass = ttk.Frame(main_frame)
-    f_pass.grid(row=row_counter, column=0, columnspan=3, sticky="we", padx=10, pady=2)
+
+    row_sync += 1
+    f_pass = ttk.Frame(tab_sync)
+    f_pass.grid(row=row_sync, column=0, columnspan=3, sticky="we", padx=10, pady=2)
     ttk.Label(f_pass, text="App Password (16 cifre):", width=25, anchor="w").pack(side="left")
-    ent_pass = ttk.Entry(f_pass, textvariable=self.var_app_password, width=115, show="•")
-    ent_pass.pack(side="left", padx=5, fill="x", expand=True)
+    ent_pass = ttk.Entry(f_pass, textvariable=self.var_app_password, width=100, show="•")
+    ent_pass.pack(side="left", padx=5, expand=False)
     self.icon_occhio = self.icone_gui.get("occhio")
     self.pass_visible = False
     def toggle_password():
@@ -701,25 +743,69 @@ def gestisci_configurazione(self):
             "<Button-1>",
             lambda e: webbrowser.open("https://myaccount.google.com/apppasswords")
     )
-    row_counter += 1
-    f_keys = ttk.Frame(main_frame)
-    f_keys.grid(row=row_counter, column=0, columnspan=3, sticky="we", padx=10, pady=2)
-    ttk.Label(f_keys, text="Filtri Email (Enel, Wind)").pack(side="left")
-    ent_keys = ttk.Entry(f_keys, textvariable=self.var_parole_chiave, show="•")
-    ent_keys.config(width=115)
-    ent_keys.pack(side="left", fill="x", expand=False, padx=(58, 5))
-    self.keys_visible = False
-    def toggle_keys():
-            self.keys_visible = not self.keys_visible
-            ent_keys.config(show="" if self.keys_visible else "•")
-    tk.Button(f_keys, image=self.icon_occhio, command=toggle_keys,
-            bd=0, relief="flat", cursor="hand2", bg="#f0f0f0").pack(side="left", padx=(0, 5))
-    row_counter += 1
+    row_sync += 1
+    f_keys = ttk.Frame(tab_sync)
+    f_keys.grid(row=row_sync, column=0, columnspan=3, sticky="we", padx=10, pady=4)
+    ttk.Label(f_keys, text="Filtri Email:", width=25, anchor="nw").pack(side="left", anchor="nw")
+    txt_keys = tk.Text(
+        f_keys,
+        height=5,
+        width=100,
+        wrap="word",
+        bg=self.COLOR_WIDGET_BG,
+        fg=self.TEXT_COLOR,
+        insertbackground=self.TEXT_COLOR,
+        bd=0,
+        highlightbackground=self.COLOR_HIGHLIGHT,
+        highlightcolor=self.COLOR_HIGHLIGHT,
+        highlightthickness=1,
+        relief="flat"
+    )
+    sb_keys = ttk.Scrollbar(f_keys, orient="vertical", style="Vertical.TScrollbar", command=txt_keys.yview)
+    txt_keys.config(yscrollcommand=sb_keys.set)
+    txt_keys.pack(side="left", padx=(5, 0))
+    sb_keys.pack(side="left", fill="y", padx=(0, 5))
+    txt_keys.insert("1.0", self.var_parole_chiave.get())
+    def sync_keys(event=None):
+            self.var_parole_chiave.set(txt_keys.get("1.0", "end-1c"))
+    txt_keys.bind("<KeyRelease>", sync_keys)
+    row_sync += 1
 
-    f_api = ttk.Frame(main_frame)
-    f_api.grid(row=row_counter, column=0, columnspan=3, sticky="we", padx=10, pady=2)
+    def aggiorna_label_sync(*args):
+        minuti = int(self.var_sync_intervallo.get())
+        ore = minuti // 60
+        min_residui = minuti % 60
+        if min_residui == 0:
+            testo = f"Sincronizza ogni: {ore} ore"
+        else:
+            testo = f"Sincronizza ogni: {ore} ore e {min_residui} min"
+        sync_intervallo_label.config(text=testo)
+
+    f_sync_scale = ttk.Frame(tab_sync)
+    f_sync_scale.grid(row=row_sync, column=0, columnspan=3, sticky="we", padx=10, pady=2)
+
+    sync_intervallo_label = ttk.Label(f_sync_scale, text="", width=25, anchor="w")
+    sync_intervallo_label.pack(side="left")
+
+    scale_sync = ttk.Scale(
+            f_sync_scale,
+            from_=720,
+            to=1440,
+            variable=self.var_sync_intervallo,
+            orient="horizontal",
+            length=300,
+            command=aggiorna_label_sync
+    )
+    scale_sync.pack(side="left", padx=5)
+
+    aggiorna_label_sync()
+    row_sync += 1
+    ttk.Separator(tab_sync, orient='horizontal', style="Rosso.TSeparator").grid(row=row_sync, column=0, columnspan=3, sticky="ew", pady=5)
+    row_sync += 1
+    f_api = ttk.Frame(tab_sync)
+    f_api.grid(row=row_sync, column=0, columnspan=3, sticky="we", padx=10, pady=2)
     ttk.Label(f_api, text="Gemini API Key:", width=25, anchor="w").pack(side="left")
-    ent_api = ttk.Entry(f_api, textvariable=self.var_gemini_api_key, width=115, show="•")
+    ent_api = ttk.Entry(f_api, textvariable=self.var_gemini_api_key, width=100, show="•")
     ent_api.pack(side="left", padx=5, fill="x", expand=False)
 
     self.api_visible = False
@@ -746,33 +832,19 @@ def gestisci_configurazione(self):
             "<Button-1>",
             lambda e: webbrowser.open("https://aistudio.google.com/app/apikey")
     )
-    row_counter += 1
-    def aggiorna_label_sync(*args):
-        minuti = int(self.var_sync_intervallo.get())
-        ore = minuti // 60
-        min_residui = minuti % 60
-        if min_residui == 0:
-            testo = f"Sincronizza ogni: {ore} ore"
-        else:
-            testo = f"Sincronizza ogni: {ore} ore e {min_residui} min"
-        sync_intervallo_label.config(text=testo)
-    sync_intervallo_label = ttk.Label(main_frame, text="")
-    sync_intervallo_label.grid(row=row_counter, column=0, sticky="w", padx=10)
-    scale_sync = ttk.Scale(
-        main_frame,
-        from_=720,
-        to=1440,
-        variable=self.var_sync_intervallo,
-        orient="horizontal",
-        command=aggiorna_label_sync
-    )
-    scale_sync.grid(row=row_counter, column=1, columnspan=2, sticky="we", padx=10, pady=5)
-    aggiorna_label_sync()
-    row_counter += 1
-    ttk.Separator(main_frame, orient='horizontal', style="Rosso.TSeparator").grid(row=row_counter, column=0, columnspan=3, sticky="ew", pady=(3, 3))
-    row_counter += 1
+    row_sync += 1
+    f_model = ttk.Frame(tab_sync)
+    f_model.grid(row=row_sync, column=0, columnspan=3, sticky="we", padx=10, pady=2)
+    ttk.Label(f_model, text="Modello Gemini:", anchor="w", width=25).pack(side="left")
+    ttk.Entry(f_model, textvariable=self.var_gemini_model, width=40).pack(side="left", padx=(5, 0))
+    lbl_fetch = ttk.Label(f_model, text="🔍", cursor="hand2")
+    lbl_fetch.pack(side="left", padx=(5, 0))
+    lbl_fetch.bind("<Button-1>", lambda e: self.fetch_gemini_models())
+    row_sync += 1
+
+    ttk.Separator(main_frame, orient='horizontal', style="Rosso.TSeparator").pack(fill="x", pady=(3, 3))
     button_frame = ttk.Frame(main_frame)
-    button_frame.grid(row=row_counter, column=0, columnspan=3, pady=(4, 5), sticky="n")
+    button_frame.pack(pady=(4, 5))
     img_salva_cfg = self.icone_gui.get("salva")
     save_button = ttk.Label(
             button_frame,
@@ -829,12 +901,10 @@ def gestisci_configurazione(self):
     help_button.grid(row=0, column=3, padx=5)
     help_button.bind("<Button-1>", lambda e: mostra_help_configurazione())
     config_window.protocol("WM_DELETE_WINDOW", chiudi_config)
-    config_window.bind_all("<Escape>", lambda e: chiudi_config())
-    row_counter += 1
     config_window.withdraw()
     config_window.update_idletasks()
-    width = max(config_window.winfo_reqwidth(), 1300)
-    height = max(config_window.winfo_reqheight(), 650)
+    width = 1300
+    height = 500
     config_window.minsize(width, height)
     screen_w = self.winfo_screenwidth()
     screen_h = self.winfo_screenheight()
