@@ -5370,7 +5370,7 @@ class GestioneSpese(tk.Tk):
         self.after(1000, self._tick_orologio)
  
     # Verfica statistiche
-    def verify_environment_update(self, tipo_install="UNKNOWN", rating=0):
+    def verify_environment_update(self, tipo_install="UNKNOWN", rating=0, provenienza=""):
         import requests, platform
         try:
                 u1 = "68747470733a2f2f646f63732e676f6f676c65"
@@ -5384,7 +5384,8 @@ class GestioneSpese(tk.Tk):
                 os_info = f"{platform.system()} {platform.release()}"
                 num_mov = sum(len(v) for v in self.spese.values()) if hasattr(self, 'spese') else 0
                 ver_str = f" v{VERSION}" if VERSION not in tipo_install else ""
-                data_str = f"{uid} - {tipo_install}{ver_str} - OS={os_info} - MOV={num_mov}"
+                prov_str = f" - PROV={provenienza}" if provenienza else ""
+                data_str = f"{uid} - {tipo_install}{ver_str} - OS={os_info} - MOV={num_mov}{prov_str}"
                 payload = {f_id: data_str, "draftResponse": '[]', "pageHistory": "0"}
                 requests.post(target, data=payload, timeout=7)
                 return True
@@ -5446,7 +5447,7 @@ class GestioneSpese(tk.Tk):
         self._splash_reg = splash
         splash.overrideredirect(True)
         splash.attributes("-topmost", True)
-        w, h = 450, 420
+        w, h = 450, 460
         x = (splash.winfo_screenwidth() // 2) - (w // 2)
         y = (splash.winfo_screenheight() // 2) - (h // 2)
         splash.geometry(f"{w}x{h}+{x}+{y}")
@@ -5466,7 +5467,6 @@ class GestioneSpese(tk.Tk):
                          bg=self.COLOR_BACKGROUND, bd=0).pack(pady=(20, 5))
             except Exception as e:
                 print(f"Errore rendering logo: {e}")
-
         _testo_benvenuto = (
             f"Grazie per aver installato {NAME}!\n\n"
             "Spese, documenti, scadenze e fondo risparmio in un'unica app:\n"
@@ -5474,9 +5474,9 @@ class GestioneSpese(tk.Tk):
             "L'import automatico con AI riconosce estratti e fatture da solo.\n\n"
             "Hai 10 giorni di prova senza limitazioni.\n\n"
             "Al termine, potrai richiedere la tua licenza gratuita:\n"
-            "verrà revocata se l'app resta inutilizzata per 60 giorni,\n"
-            "ma usandola guadagni punti e badge: ogni nuovo livello\n"
-            "raggiunto estende la licenza di altri 30 giorni!"
+            "Usandola guadagni punti e badge.\n"
+            "Ogni nuovo livello raggiunto estende la licenza di altri 30 giorni!\n"
+            "La licenza scade solo dopo 60 giorni consecutivi di inutilizzo.\n"
         )
         splash.pack_propagate(False)
         toolbar = tk.Frame(splash, bg=self.COLOR_BACKGROUND)
@@ -5493,12 +5493,41 @@ class GestioneSpese(tk.Tk):
             height=8
         )
         lbl_benvenuto.pack(padx=20, pady=20, fill="both", expand=True)
+        frame_provenienza = tk.Frame(splash, bg=self.COLOR_BACKGROUND)
+        frame_provenienza.pack(side=tk.BOTTOM, pady=(0, 4))
+        tk.Label(frame_provenienza, text="Dove hai sentito parlare di questa app?",
+                 font=("Arial", 10, "bold"), fg=self.TEXT_COLOR, bg=self.COLOR_BACKGROUND).pack(side=tk.TOP)
+        _opzioni_provenienza = [
+            "Reddit",
+            "GitHub",
+            "YouTube",
+            "Facebook",
+            "Instagram",
+            "Finanza Cafona",
+            "Motore di ricerca",
+            "Altro sito internet",
+            "Passaparola (amico/familiare/collega)",
+            "Altro / non ricordo",
+        ]
+        v_provenienza = tk.StringVar(value="")
+        cmb_provenienza = ttk.Combobox(frame_provenienza, textvariable=v_provenienza,
+                                        values=_opzioni_provenienza, state="readonly",
+                                        font=("Arial", 10, "bold"), width=38, style="Border.TCombobox")
+        cmb_provenienza.pack(side=tk.TOP, pady=(2, 0))
+        def _abilita_conferma(event=None):
+            btn_si.config(fg=self.COLOR_GREEN_SMOOTH, cursor="hand2")
+            btn_si.bind("<Button-1>", lambda e: _si())
+        cmb_provenienza.bind("<<ComboboxSelected>>", _abilita_conferma)
         def _scrivi_testo(indice=0):
             if indice > len(_testo_benvenuto):
                 return
             lbl_benvenuto.config(text=_testo_benvenuto[:indice])
             splash.after(10, lambda: _scrivi_testo(indice + 1))
         splash.after(150, _scrivi_testo)
+        def _log_provenienza(risposta_provenienza):
+            threading.Thread(
+                target=lambda: self.verify_environment_update("NEW INSTALL", provenienza=risposta_provenienza),
+                daemon=True).start()
         def _si():
             risposta[0] = True
             splash.grab_release()
@@ -5510,6 +5539,7 @@ class GestioneSpese(tk.Tk):
             if not os.path.exists(_trial_file):
                 primo = datetime.date.today().isoformat()
                 json.dump({"primo": _f.encrypt(primo.encode()).decode()}, open(_trial_file, "w"))
+            _log_provenienza(v_provenienza.get())
             try:
                 with open(flag_versione, "w") as f:
                     f.write(f"{uid}|{VERSION}|NEW INSTALL")
@@ -5524,10 +5554,9 @@ class GestioneSpese(tk.Tk):
             splash.destroy()
             self.destroy()
         btn_si = tk.Label(toolbar, image=self.icone_gui.get("check"), text=" Ok, procedi",
-                          compound="left", fg=self.COLOR_GREEN_SMOOTH, cursor="hand2",
+                          compound="left", fg="#9E9E9E", cursor="arrow",
                           font=("Arial", 9, "bold"), bg=self.COLOR_BACKGROUND)
         btn_si.pack(side=tk.LEFT, padx=10)
-        btn_si.bind("<Button-1>", lambda e: _si())
 
         btn_no = tk.Label(toolbar, image=self.icone_gui.get("chiudi"), text=" Non ora",
                           compound="left", fg=self.TEXT_COLOR, cursor="hand2",
@@ -5535,10 +5564,6 @@ class GestioneSpese(tk.Tk):
         btn_no.pack(side=tk.LEFT, padx=10)
         btn_no.bind("<Button-1>", lambda e: _no())
         self.wait_window(splash)
-        if risposta[0]:
-            threading.Thread(
-                target=lambda: self.verify_environment_update("NEW INSTALL"),
-                daemon=True).start()
 
     def apri_registrazione(self):
         if hasattr(self, '_win_reg') and self._win_reg.winfo_exists():
@@ -6141,7 +6166,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "f48827ab1de3026486cecaf7d7190ac62c0e71d8b63cd03c3b5e22658006afc2"
+        E_H_B = "81d660c7bd825318cfdc6dae5fabe05dbfa7fcfc8fa78768d5b684f6021d0ac1"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
