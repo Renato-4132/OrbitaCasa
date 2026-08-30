@@ -63,11 +63,11 @@ def registra_tutti_i_moduli(GestioneSpese):
             setattr(GestioneSpese, _f.__name__, _f)
 
     from moduli.sidebar_menu import (
-        setup_sidebar, _animate_logo_text, toggle_sidebar, contrai_sidebar_manuale, _crea_voce_sidebar, pop_gestione,
-        pop_analisi, pop_finanze, pop_ricorrenze, pop_opzioni, pop_info, _mostra_popup, _chiudi_menu_orfano, _verifica_chiusura_menu,
+        setup_sidebar, toggle_sidebar, contrai_sidebar_manuale, _crea_voce_sidebar, pop_gestione,
+        pop_analisi, pop_finanze, pop_ricorrenze, pop_opzioni, pop_categorie, web_info, pop_info, _mostra_popup, _chiudi_menu_orfano, _verifica_chiusura_menu,
         espandi_sidebar, _add_m_item,_filtra_sidebar,)
-    _registra(setup_sidebar, _animate_logo_text, toggle_sidebar, contrai_sidebar_manuale, _crea_voce_sidebar, pop_gestione, 
-    pop_analisi, pop_finanze, pop_ricorrenze, pop_opzioni, pop_info, _mostra_popup, _chiudi_menu_orfano, _verifica_chiusura_menu, 
+    _registra(setup_sidebar, toggle_sidebar, contrai_sidebar_manuale, _crea_voce_sidebar, pop_gestione, 
+    pop_analisi, pop_finanze, pop_ricorrenze, pop_opzioni, pop_categorie, web_info, pop_info, _mostra_popup, _chiudi_menu_orfano, _verifica_chiusura_menu, 
     espandi_sidebar, _add_m_item, _filtra_sidebar)
             
     from moduli.dialoghi_custom import (
@@ -146,13 +146,13 @@ def registra_tutti_i_moduli(GestioneSpese):
         add_categoria, modifica_categoria, conferma_cancella_categoria, cancella_categoria, draw_top_categorie, mostra_storico_categoria,
         suggerisci_tipo_categoria, open_analisi_categoria, _ottieni_categorie_ricorrenti_mancanti, gruppo_categorie, cancella_categorie_checkbox,
         apri_categorie_suggerite, get_dati_categorie_storiche_json, get_dati_categorie_json, mostra_editor_memoria_categorie,
-        pop_categorie, _aggiorna_stile_pulsante_tipo_popup, _salva_budget_annuo_categoria,)
+        _aggiorna_stile_pulsante_tipo_popup, _salva_budget_annuo_categoria,)
     _registra(mostra_categorie_popup, on_categoria_modifica_changed_popup, on_categoria_modifica_changed, 
     reset_campi_categoria, aggiorna_categoria_automatica, aggiorna_combobox_categorie, on_categoria_changed, 
     mostra_tutte_le_categorie, add_categoria, modifica_categoria, conferma_cancella_categoria, cancella_categoria, 
     draw_top_categorie, mostra_storico_categoria, suggerisci_tipo_categoria, open_analisi_categoria, 
     _ottieni_categorie_ricorrenti_mancanti, gruppo_categorie, cancella_categorie_checkbox, apri_categorie_suggerite, 
-    get_dati_categorie_storiche_json, get_dati_categorie_json, mostra_editor_memoria_categorie, pop_categorie, _aggiorna_stile_pulsante_tipo_popup,
+    get_dati_categorie_storiche_json, get_dati_categorie_json, mostra_editor_memoria_categorie, _aggiorna_stile_pulsante_tipo_popup,
     _salva_budget_annuo_categoria)
 
     from moduli.open_compare_window import open_compare_window, crea_grafico_confronto
@@ -365,7 +365,7 @@ def registra_tutti_i_moduli(GestioneSpese):
         genera_html_consultazione, pagina_menu_esplora, add_categoria_web, modifica_categoria_web, cancella_categoria_web,
         refresh_categorie_web, html_gestione_categorie, pagina_fondo_risparmio_web, pagina_grafici_web, html_lista_spese_mensili,
         stats_mensili_html, modifica_voce_form, cancella_voce_web, aggiungi_voce_web, carica_db_web, analizza_pdf_web,
-        ricalcola_operazioni_web, notifica_modifica_web, web_info, pianifica_sincro_web,
+        ricalcola_operazioni_web, notifica_modifica_web, pianifica_sincro_web,
         manda_push, get_dati_entrate_uscite_tutti_gli_anni_json, get_dati_saldo_annuale_json,
         get_dati_entrate_uscite_json, get_dati_saldo_json, esegui_switch_profilo_web, pagina_cambia_profilo_web,
         pagina_switch_in_corso_web,)
@@ -376,7 +376,7 @@ def registra_tutti_i_moduli(GestioneSpese):
     modifica_categoria_web, cancella_categoria_web, refresh_categorie_web, html_gestione_categorie, 
     pagina_fondo_risparmio_web, pagina_grafici_web, html_lista_spese_mensili, stats_mensili_html, 
     modifica_voce_form, cancella_voce_web, aggiungi_voce_web, carica_db_web, analizza_pdf_web, 
-    ricalcola_operazioni_web, notifica_modifica_web, web_info, pianifica_sincro_web,
+    ricalcola_operazioni_web, notifica_modifica_web, pianifica_sincro_web,
     manda_push, get_dati_entrate_uscite_tutti_gli_anni_json, get_dati_saldo_annuale_json,
     get_dati_entrate_uscite_json, get_dati_saldo_json, esegui_switch_profilo_web, pagina_cambia_profilo_web,
     pagina_switch_in_corso_web)

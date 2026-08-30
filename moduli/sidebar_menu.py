@@ -1,7 +1,85 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import time
 import tkinter as tk
+import tkinter.font as tkfont
+
+class MenuPersonalizzato(tk.Frame):
+    def __init__(self, master, bg, fg, active_bg, border_color, font=("Arial", 9)):
+        super().__init__(master, bg=border_color, bd=0)
+        self._master_ref = master
+        self._bg = bg
+        self._fg = fg
+        self._active_bg = active_bg
+        self._font = font
+        self._inner = tk.Frame(self, bg=bg, bd=0)
+        self._inner.pack(fill="both", expand=True, padx=1, pady=1)
+
+    def add_command(self, label="", image=None, compound="left", command=None, accelerator=""):
+        row = tk.Frame(self._inner, bg=self._bg)
+        row.pack(fill="x")
+        widgets = [row]
+        if image:
+            l_icona = tk.Label(row, image=image, bg=self._bg)
+            l_icona.image = image
+            l_icona.pack(side="left", padx=(10, 6), pady=2)
+            widgets.append(l_icona)
+        l_testo = tk.Label(row, text=label, bg=self._bg, fg=self._fg,
+                            font=self._font, anchor="w")
+        l_testo.pack(side="left", fill="x", expand=True, pady=2)
+        widgets.append(l_testo)
+        if accelerator:
+            l_acc = tk.Label(row, text=accelerator, bg=self._bg, fg=self._fg,
+                              font=self._font)
+            l_acc.pack(side="right", padx=(6, 12))
+            widgets.append(l_acc)
+
+        def _esegui(event=None, _c=command):
+            self.unpost()
+            if _c:
+                _c()
+
+        def _enter(event=None, _w=widgets):
+            for w in _w:
+                w.configure(bg=self._active_bg)
+
+        def _leave(event=None, _w=widgets):
+            for w in _w:
+                w.configure(bg=self._bg)
+
+        for w in widgets:
+            w.bind("<Button-1>", _esegui)
+            w.bind("<Enter>", _enter)
+            w.bind("<Leave>", _leave)
+
+    def add_separator(self):
+        sep = tk.Frame(self._inner, bg=self._fg, height=1)
+        sep.pack(fill="x", padx=8, pady=5)
+
+    def post(self, x, y):
+        self.update_idletasks()
+        altezza = self.winfo_reqheight()
+        larghezza = self.winfo_reqwidth()
+        root = self._master_ref.winfo_toplevel()
+        root_top = root.winfo_rooty()
+        root_bottom = root_top + root.winfo_height()
+        root_right = root.winfo_rootx() + root.winfo_width()
+        if y + altezza > root_bottom:
+            y = max(root_top, root_bottom - altezza)
+        if x + larghezza > root_right:
+            x = max(root.winfo_rootx(), root_right - larghezza)
+        rel_x = int(x) - root.winfo_rootx()
+        rel_y = int(y) - root.winfo_rooty()
+        self.place(x=rel_x, y=rel_y)
+        self.lift()
+
+    def unpost(self):
+        try:
+            self.place_forget()
+            self.destroy()
+        except Exception:
+            pass
 
 def setup_sidebar(self):
     import __main__ as _app
@@ -17,16 +95,23 @@ def setup_sidebar(self):
                                bd=0, activebackground=self.MENU_ACT_BG_COLOR,
                                command=self.toggle_sidebar, cursor="hand2")
     self.btn_toggle.pack(fill="x", pady=5)
-    self.lbl_logo = tk.Label(
-        self.sidebar, 
-        text="O.C.", 
-        font=("Arial", 10, "bold"),
-        bg=self.MENU_BG_DARK, 
-        fg=self.COLOR_GREEN, 
-        pady=10
-    )
-    self.lbl_logo.pack(fill="x")
+    self.lbl_logo_container = tk.Frame(self.sidebar, bg=self.MENU_BG_DARK, height=40)
+    self.lbl_logo_container.pack(fill="x")
+    self.lbl_logo_container.pack_propagate(False)
+    self._logo_img = _carica_icona_scintille(self)
+    self.lbl_logo = tk.Label(self.lbl_logo_container, bg=self.MENU_BG_DARK)
+    if self._logo_img:
+        self.lbl_logo.configure(image=self._logo_img)
+        self.lbl_logo.image = self._logo_img
+    self.lbl_logo.pack(side="left", pady=12, padx=(13, 4))
     self.lbl_logo.bind("<Button-1>", lambda e: self.mostra_piramide())
+    self.lbl_logo_container.bind("<Button-1>", lambda e: self.mostra_piramide())
+    VERSION = getattr(_app, 'VERSION', '')
+    self.lbl_logo_testo = tk.Label(
+        self.lbl_logo_container, text=f"O.C. v.{VERSION}", font=("Arial", 9, "bold"),
+        bg=self.MENU_BG_DARK, fg=self.COLOR_GREEN
+    )
+    self.lbl_logo_testo.bind("<Button-1>", lambda e: self.mostra_piramide())
     self._search_var = tk.StringVar()
     self._search_entry = tk.Entry(
         self.sidebar, textvariable=self._search_var,
@@ -38,8 +123,6 @@ def setup_sidebar(self):
     self._search_results_frame = tk.Frame(self.sidebar, bg=self.MENU_BG_DARK)
     self._search_overlay = None
     self._search_results_frame.pack_propagate(False)
-    if ANIMAZIONI:
-        self._animate_logo_text() 
     self.menu_sidebar_data = [ 
         ("documenti_B", "Gestione", self.pop_gestione), 
         ("report_B", "Analisi", self.pop_analisi), 
@@ -60,31 +143,20 @@ def setup_sidebar(self):
     self._crea_voce_sidebar("filtri_B", "Configura", self.gestisci_configurazione)
     self._crea_voce_sidebar("spina_B", "Esci", self._on_close, icon_fallback="✖") 
     self.configura_scorciatoie() 
-def _animate_logo_text(self, color_idx=0, sub_step=0):
-    if not hasattr(self, 'lbl_logo') or not self.lbl_logo.winfo_exists():
-        return
-    palette = [
-        (0, 200, 83),
-        (0, 85, 255),
-        (170, 0, 255),
-        (255, 0, 85)
-    ]
-    def lerp(c1, c2, t):
-        return tuple(int(c1[i] + (c2[i] - c1[i]) * t) for i in range(3))
-    next_idx = (color_idx + 1) % len(palette)
-    t = sub_step / 15.0
-    current_rgb = lerp(palette[color_idx], palette[next_idx], t)
-    color_hex = f'#{current_rgb[0]:02x}{current_rgb[1]:02x}{current_rgb[2]:02x}'
+    
+def _carica_icona_scintille(self, size=(20, 20)):
+    import os
+    import __main__ as _app
+    from PIL import Image, ImageTk
+    p = os.path.join(_app.DB_DIR, "resources", "scintille_B.png")
+    if not os.path.exists(p):
+        return None
     try:
-        self.lbl_logo.configure(fg=color_hex)
-        new_sub_step = sub_step + 1
-        new_color_idx = color_idx
-        if new_sub_step > 15:
-            new_sub_step = 0
-            new_color_idx = next_idx
-        self.after(60, lambda: self._animate_logo_text(new_color_idx, new_sub_step))
+        img = Image.open(p).convert("RGBA").resize(size, Image.LANCZOS)
+        return ImageTk.PhotoImage(img)
     except Exception:
-        pass
+        return None
+
 def toggle_sidebar(self):
     if not self.sidebar_espansa:
         self.espandi_sidebar()
@@ -94,10 +166,12 @@ def toggle_sidebar(self):
         self.contrai_sidebar_manuale()
         self.btn_toggle.configure(text="➤")
         self.sidebar_espansa = False
+        
 def contrai_sidebar_manuale(self):
     self.sidebar.configure(width=45)
-    self.lbl_logo.config(text="OC", font=("Arial", 10, "bold"), pady=15)
     self.sidebar_espansa = False
+    if hasattr(self, 'lbl_logo_testo'):
+        self.lbl_logo_testo.pack_forget()
     if hasattr(self, 'lbl_tipo_percentuale'): 
         self.lbl_tipo_percentuale.pack(side=tk.LEFT, padx=4)
     if hasattr(self, '_search_entry'):
@@ -117,7 +191,8 @@ def contrai_sidebar_manuale(self):
     ]:
         btn.configure(text=testo)
     self._ricerca_globale_var.set("")
-    self.ricerca_globale_entry.pack_forget()    
+    self.ricerca_globale_entry.pack_forget()  
+      
 def _crea_voce_sidebar(self, icon_key, testo, comando, icon_fallback="•"): 
     f = tk.Frame(self.sidebar, bg=self.MENU_BG_DARK, cursor="hand2") 
     f.pack(fill="x", side="top" if testo != "Esci" else "bottom") 
@@ -134,12 +209,14 @@ def _crea_voce_sidebar(self, icon_key, testo, comando, icon_fallback="•"):
     l_testo.pack(side="left", padx=(2, 6)) 
     for w in (f, l_icona, l_testo): 
         w.bind("<Button-1>", lambda e, c=comando: c())
+        
     def _on_enter(e):
         f.config(bg=self.MENU_BG_DARK)
         l_icona.config(bg=self.MENU_BG_DARK)
         l_testo.config(bg=self.MENU_BG_DARK, fg=self.COLOR_HIGHLIGHT)
         l_icona.pack_configure(pady=(8, 16))
         f.after(120, lambda: l_icona.pack_configure(pady=12) if f.winfo_exists() else None)
+        
     def _on_leave(e):
         f.config(bg=self.MENU_BG_DARK)
         l_icona.config(bg=self.MENU_BG_DARK)
@@ -149,9 +226,13 @@ def _crea_voce_sidebar(self, icon_key, testo, comando, icon_fallback="•"):
         w.bind("<Enter>", _on_enter)
         w.bind("<Leave>", _on_leave)
     self.widgets_voci.append(f)
+    
 def pop_gestione(self): 
-    m = tk.Menu(self, tearoff=0, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,  
-                activebackground=self.MENU_ACT_BG_COLOR, font=("Arial", 9)) 
+    m = MenuPersonalizzato(
+        self, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,
+        active_bg=self.MENU_ACT_BG_COLOR, border_color=self.COLOR_HIGHLIGHT,
+        font=("Arial", 9)
+    ) 
     self._add_m_item(m, "Gestione SuperMarket", "spesa", self.spesa_supermercato) 
     self._add_m_item(m, "Gestione Documenti", "documenti", self.gestisci_archivi_pdf) 
     self._add_m_item(m, "Gestione Documenti Personali", "documenti", self.gestisci_documenti_personali)
@@ -176,9 +257,13 @@ def pop_gestione(self):
     self._add_m_item(m, "Salva ed Esci", "chiudi", self._on_close, "Ctrl+Q") 
     self._add_m_item(m, "Riduci a Icona", "iconizza", self.iconify, "Ctrl+X") 
     self._mostra_popup(m, 50) 
+    
 def pop_analisi(self): 
-    m = tk.Menu(self, tearoff=0, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,  
-                activebackground=self.MENU_ACT_BG_COLOR, font=("Arial", 9)) 
+    m = MenuPersonalizzato(
+        self, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,
+        active_bg=self.MENU_ACT_BG_COLOR, border_color=self.COLOR_HIGHLIGHT,
+        font=("Arial", 9)
+    ) 
     self._add_m_item(m, "Ricerca Globale", "search", self.cerca_operazioni, "Ctrl+F")
     self._add_m_item(m, "Gestione Tag #", "filtri", self.apri_gestione_tag)
     self._add_m_item(m, "Confronta Periodi", "report", self.open_compare_window, "Ctrl+N")
@@ -194,9 +279,13 @@ def pop_analisi(self):
     self._add_m_item(m, "Calcolatore Inflazione", "calcolatrice", self.apri_calcolatore_inflazione)
     self._add_m_item(m, "Bilancio Grafico PDF", "grafico_linea", self.genera_report_pdf, "Alt+R") 
     self._mostra_popup(m, 100) 
+    
 def pop_finanze(self): 
-    m = tk.Menu(self, tearoff=0, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,  
-                activebackground=self.MENU_ACT_BG_COLOR, font=("Arial", 9)) 
+    m = MenuPersonalizzato(
+        self, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,
+        active_bg=self.MENU_ACT_BG_COLOR, border_color=self.COLOR_HIGHLIGHT,
+        font=("Arial", 9)
+    ) 
     self._add_m_item(m, "Portafoglio Bancario", "saldo", self.open_saldo_conto, "Ctrl+S")
     self._add_m_item(m, "Portafoglio Investimenti", "lavoro", self.apri_portafoglio) 
     self._add_m_item(m, "Calcolo Mutuo/Prestiti", "banca", self.calcolo_mutuo_prestito, "Ctrl+O") 
@@ -210,17 +299,24 @@ def pop_finanze(self):
     self._add_m_item(m, "Analisi Andamento Bilancio OpenAI", "report", self.analizza_andamento_ia)
     self._add_m_item(m, "Analisi e Confronto Documenti OpenAI", "report", self.confronta_bollette_ia)
     self._mostra_popup(m, 140)
+    
 def pop_ricorrenze(self): 
-    m = tk.Menu(self, tearoff=0, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,  
-                activebackground=self.MENU_ACT_BG_COLOR, font=("Arial", 9)) 
+    m = MenuPersonalizzato(
+        self, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,
+        active_bg=self.MENU_ACT_BG_COLOR, border_color=self.COLOR_HIGHLIGHT,
+        font=("Arial", 9)
+    ) 
     self._add_m_item(m, "Gestione Ricorrenze", "descrizione", self.mostra_ricorrenza_popup, "Ctrl+T") 
     self._add_m_item(m, "Lista Ricorrenze", "descrizione", self.mostra_lista_ricorrenze, "Ctrl+L") 
     self._add_m_item(m, "Scadenze Mese", "scadenze", self.scadenze_mese, "Ctrl+J") 
     self._mostra_popup(m, 180) 
 
 def pop_opzioni(self): 
-    m = tk.Menu(self, tearoff=0, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,  
-                activebackground=self.MENU_ACT_BG_COLOR, font=("Arial", 9))
+    m = MenuPersonalizzato(
+        self, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,
+        active_bg=self.MENU_ACT_BG_COLOR, border_color=self.COLOR_HIGHLIGHT,
+        font=("Arial", 9)
+    )
     self._add_m_item(m, "Impostazioni App", "filtri", self.gestisci_configurazione)
     m.add_separator()
     self._add_m_item(m, "Gestisci Profili Utenti", "api_key", self.mostra_selettore_profilo)
@@ -244,9 +340,38 @@ def pop_opzioni(self):
     m.add_separator()
     self._add_m_item(m, "Contatta Assistenza", "help", lambda: self.apri_pannello_topic(self.topic_unico))
     self._mostra_popup(m, 260) 
+
+def pop_categorie(self):
+    m = MenuPersonalizzato(
+        self, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,
+        active_bg=self.MENU_ACT_BG_COLOR, border_color=self.COLOR_HIGHLIGHT,
+        font=("Arial", 9)
+    )
+    self._add_m_item(m, "Analisi Categorie", "timer", self.open_analisi_categoria, "Ctrl+K")
+    self._add_m_item(m, "Suggerisci Categorie", "descrizione", self.apri_categorie_suggerite, "Ctrl+Shift+K")
+    self._add_m_item(m, "Gestione Categorie", "filtri", self.mostra_categorie_popup, "Ctrl+Shift+T")
+    self._add_m_item(m, "Gestione Categorie Bulk", "delete", self.apri_cancella_multiplo, "Ctrl+Shift+S")
+    self._add_m_item(m, "Editor Categorie Estratti", "filtri", self.mostra_editor_memoria_categorie)
+    self._mostra_popup(m, 220)
+
+def web_info(self):
+    m = MenuPersonalizzato(
+        self, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,
+        active_bg=self.MENU_ACT_BG_COLOR, border_color=self.COLOR_HIGHLIGHT,
+        font=("Arial", 9)
+    )
+    self._add_m_item(m, "Visualizza Interfaccia Web Locale", "google", self.apri_webserver)
+    self._add_m_item(m, "Gestisci Certificati SSL", "google", self.gestisci_certificati)
+    self._add_m_item(m, "QRcode Connessioni Gateway Remoti", "qr_code", self.mostra_qr_popup_label)
+    self._add_m_item(m, "Manuale CertBot SSL", "info", self.scarica_manuale_ssl)
+    self._mostra_popup(m, 340)
+
 def pop_info(self): 
-    m = tk.Menu(self, tearoff=0, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,  
-                activebackground=self.MENU_ACT_BG_COLOR, font=("Arial", 9))
+    m = MenuPersonalizzato(
+        self, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,
+        active_bg=self.MENU_ACT_BG_COLOR, border_color=self.COLOR_HIGHLIGHT,
+        font=("Arial", 9)
+    )
     self._add_m_item(m, "Esporta DB Transazioni", "carica", self.export_db) 
     self._add_m_item(m, "Importa DB Transazioni", "archivia", self.import_db)
     m.add_separator() 
@@ -258,21 +383,35 @@ def pop_info(self):
     m.add_separator() 
     self._add_m_item(m, "Apri Manuale", "documenti", self.scarica_manuale, "Ctrl+M") 
     self._mostra_popup(m, 300)
+
 def _mostra_popup(self, menu, y_offset): 
     if self.menu_aperto == menu: return 
     if self.menu_aperto: 
         try: self.menu_aperto.unpost() 
         except: pass 
     self.menu_aperto = menu 
+    # Il click che apre il menu puo' generare PIU' di un evento globale
+    # (es. <Button-1> e, se sposta il focus da un altro widget come la
+    # casella di ricerca, anche <FocusIn>). Un flag "usa e getta" viene
+    # consumato dal primo evento e lascia passare il secondo, chiudendo
+    # subito il menu appena aperto. Usiamo invece una piccola finestra
+    # temporale: qualsiasi evento di chiusura entro questo intervallo
+    # dallo stesso click di apertura viene ignorato, indipendentemente
+    # da quanti eventi genera.
+    self._menu_opened_at = time.monotonic()
     x = self.sidebar.winfo_rootx() + self.sidebar.winfo_width() 
     y = self.sidebar.winfo_rooty() + y_offset 
     try: 
         menu.post(x, y) 
-        self.bind_all("<Button-1>", self._verifica_chiusura_menu, add="+") 
+        self.unbind_all("<Button-1>")
+        self.unbind_all("<FocusIn>")
+        self.bind_all("<Button-1>", self._verifica_chiusura_menu, add="+")
+        self.bind_all("<FocusIn>", self._verifica_chiusura_menu, add="+")
         root = self.winfo_toplevel()
-        root.bind("<FocusOut>", lambda e: self._chiudi_menu_orfano(e))
+        root.bind("<Escape>", self._chiudi_menu_orfano)
     except Exception as e: 
         print(f"Errore apertura menu: {e}")
+
 def _chiudi_menu_orfano(self, event=None):
     if self.menu_aperto:
         try:
@@ -280,33 +419,35 @@ def _chiudi_menu_orfano(self, event=None):
         except:
             pass
         self.menu_aperto = None
-        root = self.winfo_toplevel()
-        root.unbind("<FocusOut>")
         self.unbind_all("<Button-1>") 
+        self.unbind_all("<FocusIn>")
+        root = self.winfo_toplevel()
+        root.unbind("<Escape>")
+
 def _verifica_chiusura_menu(self, event): 
+    if time.monotonic() - getattr(self, '_menu_opened_at', 0) < 0.2:
+        return
     if self.menu_aperto: 
-        if not isinstance(event.widget, tk.Menu): 
-            try: self.menu_aperto.unpost() 
-            except: pass
-            self.menu_aperto = None
-            self.unbind_all("<Button-1>")
+        w = event.widget
+        try:
+            if w == self.menu_aperto or str(w).startswith(str(self.menu_aperto)):
+                return
+        except Exception:
+            pass
+        try: self.menu_aperto.unpost() 
+        except: pass
+        self.menu_aperto = None
+        self.unbind_all("<Button-1>")
+        self.unbind_all("<FocusIn>")
             
 def espandi_sidebar(self):
-    import __main__ as _app
-    VERSION = _app.VERSION
     self.sidebar.configure(width=120) 
-    self.lbl_logo.config( 
-        text=f" O.C. v.{VERSION} ",  
-        font=("Arial", 10, "bold"), 
-        bg=self.MENU_BG_DARK, 
-        fg=self.COLOR_GREEN, 
-        padx=10, 
-        pady=2
-    )
+    if hasattr(self, 'lbl_logo_testo'):
+        self.lbl_logo_testo.pack(side="left", padx=(0, 6))
     if hasattr(self, 'lbl_tipo_percentuale'): 
         self.lbl_tipo_percentuale.pack_forget()
     if hasattr(self, '_search_entry'):
-        self._search_entry.pack(after=self.lbl_logo, fill="x", padx=6, pady=(2, 4))
+        self._search_entry.pack(after=self.lbl_logo_container, fill="x", padx=6, pady=(2, 4))
     if hasattr(self, '_search_results_frame'):
         self._search_results_frame.pack(after=self._search_entry, fill="x")
     if hasattr(self, '_search_var'):
@@ -323,9 +464,11 @@ def _add_m_item(self, target, label, icon_key, command, acc=""):
             except: pass
             self.menu_aperto = None
             self.unbind_all("<Button-1>")
+            self.unbind_all("<FocusIn>")
         c()
     target.add_command(label=f" {label}", image=img, compound="left",  
                         command=wrapped, accelerator=acc)
+                        
 def _filtra_sidebar(self, *_):
     testo = self._search_var.get().strip().lower()
     if hasattr(self, '_search_overlay') and self._search_overlay and self._search_overlay.winfo_exists():
@@ -430,6 +573,7 @@ def _filtra_sidebar(self, *_):
     overlay = tk.Frame(self, bg=self.MENU_BG_DARK, bd=1, relief="solid")
     overlay.place(x=overlay_x, y=overlay_y, width=popup_w, height=popup_h)
     self._search_overlay = overlay
+    
     def _chiudi():
         if hasattr(self, '_search_overlay') and self._search_overlay and self._search_overlay.winfo_exists():
             self._search_overlay.place_forget()

@@ -2086,14 +2086,3 @@ def mostra_editor_memoria_categorie(self, event=None):
                            background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR)
     btn_chiudi.pack(side="right", padx=10)
     btn_chiudi.bind("<Button-1>", lambda e: popup.destroy())
-
-def pop_categorie(self): 
-    m = tk.Menu(self, tearoff=0, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,  
-                activebackground=self.MENU_ACT_BG_COLOR, font=("Arial", 9)) 
-    self._add_m_item(m, "Analisi Categorie", "timer", self.open_analisi_categoria, "Ctrl+K") 
-    self._add_m_item(m, "Suggerisci Categorie", "descrizione", self.apri_categorie_suggerite, "Ctrl+Shift+K") 
-    self._add_m_item(m, "Gestione Categorie", "filtri", self.mostra_categorie_popup, "Ctrl+Shift+T") 
-    self._add_m_item(m, "Gestione Categorie Bulk", "delete", self.apri_cancella_multiplo, "Ctrl+Shift+S") 
-    self._add_m_item(m, "Editor Categorie Estratti", "filtri", self.mostra_editor_memoria_categorie)
-    self._mostra_popup(m, 220) 
-

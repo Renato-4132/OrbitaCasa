@@ -8327,15 +8327,6 @@ def notifica_modifica_web(self):
     except Exception as e:
         print(f"Errore invio: {e}")
 
-def web_info(self): 
-    m = tk.Menu(self, tearoff=0, bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT,  
-                activebackground=self.MENU_ACT_BG_COLOR, font=("Arial", 9)) 
-    self._add_m_item(m, "Visualizza Interfaccia Web Locale", "google", self.apri_webserver)
-    self._add_m_item(m, "Gestisci Certificati SSL", "google", self.gestisci_certificati) 
-    self._add_m_item(m, "QRcode Connessioni Gateway Remoti", "qr_code", self.mostra_qr_popup_label) 
-    self._add_m_item(m, "Manuale CertBot SSL", "info", self.scarica_manuale_ssl)
-    self._mostra_popup(m, 340)
-
 def pianifica_sincro_web(self):
     import __main__ as _app
     SYNC_INT_MIN = _app.SYNC_INT_MIN
