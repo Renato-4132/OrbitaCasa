@@ -174,7 +174,7 @@ def check_network_connection():
             sys.exit(1)
 
 # Disabilita Sync        
-DISABILITA_SYNC_MODULI_TEST = False
+DISABILITA_SYNC_MODULI_TEST = True
                     
 check_network_connection()            
 PATH_LOCALE = os.path.dirname(os.path.abspath(__file__))
@@ -1846,6 +1846,8 @@ class GestioneSpese(tk.Tk):
         self.lbl_tipo_percentuale = ttk.Label(importo_frame, text="", font=("Arial", 9, "bold"))
         self.lbl_tipo_percentuale.pack(side=tk.LEFT, padx=4)
         self.on_categoria_changed(manuale=False)
+        self._controlla_sforamento_budget(mostra_toast=False)
+        self._controlla_sforamento_budget_annuo(mostra_toast=False)
         self.refresh_gui()
         self.after(1000, self.check_aggiornamento_con_api)
         self.after(5000, self._check_librerie_in_background)
@@ -6194,7 +6196,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "7cbb322e2f7fcc4a7f27c67e3f4647998db411595ae8bb0f0bb5c62b7f86980e"
+        E_H_B = "7415223c053ba4cab187bda0179f886a2d9691b57b3a3abe6c670e5dfc1b85f5"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
