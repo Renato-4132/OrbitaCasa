@@ -73,7 +73,7 @@ def apri_cancella_spese_treeview_unica(self):
         if not row_id or row_id in ("EMPTY_MSG", "FILTER_MSG"): return
         is_selected = row_id in self.selezionate_iid
         current_tags = list(self.spese_treeview.item(row_id, 'tags'))
-        type_tag = [t for t in current_tags if t in ('entrata', 'uscita', 'futuro')] 
+        type_tag = [t for t in current_tags if t in ('entrata', 'uscita', 'futuro', 'sforato')] 
         if is_selected:
             self.selezionate_iid.remove(row_id)
             self.spese_treeview.item(row_id, tags=type_tag, text="[ ]") 
@@ -245,6 +245,11 @@ def apri_cancella_spese_treeview_unica(self):
                             color_tag = 'futuro'
                         else:
                             color_tag = 'entrata' if tipo == 'Entrata' else 'uscita'
+                            oggi_sf = datetime.date.today()
+                            if (tipo == 'Uscita' and d
+                                    and (d.year, d.month) == (oggi_sf.year, oggi_sf.month)
+                                    and categoria in getattr(self, "_budget_sforati", set())):
+                                color_tag = 'sforato'
                         tags = [color_tag]
                         if is_selected:
                             tags.append('selezionata')
@@ -600,6 +605,7 @@ def apri_cancella_spese_treeview_unica(self):
     self.spese_treeview.tag_configure('entrata', foreground='green')
     self.spese_treeview.tag_configure('uscita', foreground='red') 
     self.spese_treeview.tag_configure('futuro', foreground='#E5C07B', font=('Arial', 9, 'italic'))
+    self.spese_treeview.tag_configure('sforato', foreground='#C08081', font=('Arial', 9, 'bold'))
     self.spese_treeview.tag_configure('empty', foreground='gray', font=('Arial', 10, 'italic'))
     self.spese_treeview.bind('<Button-1>', toggle_selection_treeview)
     btn_frame = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)

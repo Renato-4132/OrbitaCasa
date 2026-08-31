@@ -171,6 +171,7 @@ def cerca_operazioni(self):
     tree.tag_configure("uscita_tag",  foreground="red")
     tree.tag_configure("neutro_tag",  foreground="gray")
     tree.tag_configure("futuro_tag",  foreground="#E5C07B", font=("Arial", 9, "italic"))
+    tree.tag_configure("sforato_tag", foreground="#C08081", font=("Arial", 9, "bold"))
     frame_totali = tk.Frame(finestra)
     frame_totali.pack(fill="x", pady=10, padx=10)
     lbl_risultati = tk.Label(frame_totali, text="", anchor="w", font=("Arial", 10))
@@ -349,6 +350,28 @@ def cerca_operazioni(self):
                 fg=colore_saldo,
                 bg=self.COLOR_TOPLEVEL
             )
+            _budget_categorie_ref_cerca = getattr(self, 'budget_categorie', {}) or {}
+            _tot_categoria_mese_cache_cerca = {}
+            def _budget_categoria_cerca(cat):
+                return next(
+                    (v for k, v in _budget_categorie_ref_cerca.items() if k.strip().lower() == cat.strip().lower()),
+                    0
+                )
+            def _speso_categoria_mese_cerca(cat, anno_t, mese_t):
+                chiave = (anno_t, mese_t, cat.strip().lower())
+                if chiave not in _tot_categoria_mese_cache_cerca:
+                    tot = 0.0
+                    for d2, voci2 in self.spese.items():
+                        d2d = d2 if isinstance(d2, datetime.date) else datetime.datetime.strptime(d2, "%d-%m-%Y").date()
+                        if d2d.year == anno_t and d2d.month == mese_t:
+                            for e2 in voci2:
+                                if len(e2) >= 4 and str(e2[0]).strip().lower() == cat.strip().lower() and str(e2[3]).lower() == "uscita":
+                                    try:
+                                        tot += float(e2[2])
+                                    except (ValueError, TypeError):
+                                        pass
+                    _tot_categoria_mese_cache_cerca[chiave] = tot
+                return _tot_categoria_mese_cache_cerca[chiave]
             for riga in risultati:
                 tipo_r = riga['tipo'].lower()
                 d_riga = datetime.datetime.strptime(riga['data'], '%d/%m/%Y').date()
@@ -358,6 +381,10 @@ def cerca_operazioni(self):
                     tag = "entrata_tag"
                 elif tipo_r == "uscita":
                     tag = "uscita_tag"
+                    _budget_val_cerca = _budget_categoria_cerca(str(riga['categoria']))
+                    if _budget_val_cerca and _budget_val_cerca > 0:
+                        if _speso_categoria_mese_cerca(str(riga['categoria']), d_riga.year, d_riga.month) > _budget_val_cerca:
+                            tag = "sforato_tag"
                 else:
                     tag = "neutro_tag"
                 tree.insert("", "end", values=(

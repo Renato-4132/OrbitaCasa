@@ -833,6 +833,9 @@ def open_saldo_conto(self):
                             tag = "entrata"
                         else:
                             tag = "uscita"
+                            if ((d.year, d.month) == (oggi.year, oggi.month)
+                                    and cat in getattr(self, "_budget_sforati", set())):
+                                tag = "sforato"
                         tree.insert("", "end",
                                     values=(d.strftime("%d-%m-%Y"), cat, desc, f"{_fmt_it(imp)}", tipo, nome_conto_sp, metodo_sp, tag_sp),
                                     tags=(tag,))
@@ -841,6 +844,7 @@ def open_saldo_conto(self):
                 tree.tag_configure("entrata",    foreground=self.COLOR_GREEN)
                 tree.tag_configure("uscita",     foreground=self.COLOR_RED)
                 tree.tag_configure("futuro", foreground="#E5C07B", font=("Arial", 9, "italic"))
+                tree.tag_configure("sforato", foreground='#C08081', font=("Arial", 9, "bold"))
                 saldo_m = tot_e - tot_u
                 col_s = self.COLOR_GREEN_SMOOTH if saldo_m >= 0 else self.COLOR_RED_SMOOTH
                 n_tot = len(tree.get_children())

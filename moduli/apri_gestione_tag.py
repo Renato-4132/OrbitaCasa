@@ -147,6 +147,7 @@ def apri_gestione_tag(self):
             a_f = float("inf")
         inserted = 0
         date_ordinamento = []
+        oggi = datetime.date.today()
         for chiave, tags in tdb.items():
             d, entry_match = _riga_map.get(chiave, (None, None))
             if entry_match is None:
@@ -179,7 +180,12 @@ def apri_gestione_tag(self):
                 continue
             imp_fmt = f"{imp:.2f}".replace(".", ",") + " €"
             data_fmt = d.strftime("%d-%m-%Y") if d else "—"
-            color_tag = "entrata" if tipo == "Entrata" else "uscita" if tipo == "Uscita" else ""
+            color_tag = "futuro" if (d and d > oggi) else (
+                "entrata" if tipo == "Entrata" else "uscita" if tipo == "Uscita" else "")
+            if (tipo == "Uscita" and d and d <= oggi
+                    and (d.year, d.month) == (oggi.year, oggi.month)
+                    and cat in getattr(self, "_budget_sforati", set())):
+                color_tag = "sforato"
             tv.insert("", "end", iid=chiave,
                       values=(data_fmt, cat, desc, imp_fmt, tipo, conto, metodo, ora, tags_str),
                       tags=(color_tag,) if color_tag else ())
@@ -471,6 +477,8 @@ def apri_gestione_tag(self):
         tv.heading(c, text=c, command=lambda _c=c: self.treeview_sort_column(tv, _c, False))
     tv.tag_configure("entrata", foreground="green")
     tv.tag_configure("uscita",  foreground="red")
+    tv.tag_configure("futuro",  foreground="#E5C07B", font=("Arial", 9, "italic"))
+    tv.tag_configure("sforato", foreground='#C08081', font=("Arial", 9, "bold"))
     def _on_right_click(event):
         item = tv.identify_row(event.y)
         if not item:

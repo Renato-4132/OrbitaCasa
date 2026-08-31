@@ -195,12 +195,31 @@ def on_stats_table_double_click(self, event):
         anchor = "w" if col == "Descrizione" else "center"
         tree.heading(col, text=col, command=lambda c=col: self.treeview_sort_column(tree, c, False))
         tree.column(col, width=w, anchor=anchor)
-    self._bind_tooltip_metodo(tree, col_desc=1)
     tot_entrate = tot_uscite = 0.0
     import datetime as _dt
     oggi_d = _dt.date.today()
     fut_entrate = fut_uscite = 0.0
     _uso_ordinale_st = {}
+    _budget_categorie_ref = getattr(self, 'budget_categorie', {}) or {}
+    _budget_val_cat = next(
+        (v for k, v in _budget_categorie_ref.items() if k.strip().lower() == categoria.strip().lower()),
+        0
+    )
+    _tot_categoria_mese_cache = {}
+    def _speso_categoria_mese(anno_t, mese_t):
+        chiave = (anno_t, mese_t)
+        if chiave not in _tot_categoria_mese_cache:
+            tot = 0.0
+            for d2, voci2 in self.spese.items():
+                if d2.year == anno_t and d2.month == mese_t:
+                    for e2 in voci2:
+                        if len(e2) >= 4 and str(e2[0]).strip().lower() == categoria.strip().lower() and str(e2[3]).lower() == "uscita":
+                            try:
+                                tot += float(e2[2])
+                            except (ValueError, TypeError):
+                                pass
+            _tot_categoria_mese_cache[chiave] = tot
+        return _tot_categoria_mese_cache[chiave]
     for d, desc, imp, tipo, conto_diretto, metodo_diretto, tag_diretto in sorted(spese_categoria, key=lambda x: x[0], reverse=True):
         imp_formattato_it = f"{imp:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
         tag_name = f"row_{d.strftime('%Y%m%d%H%M%S')}_{len(tree.get_children(''))}"
@@ -215,14 +234,17 @@ def on_stats_table_double_click(self, event):
             nome_conto_tr = ""
         tree.insert("", "end", values=(d.strftime("%d-%m-%Y"), desc, f"{imp_formattato_it} €", tipo, nome_conto_tr, metodo_diretto, tag_diretto), tags=(tag_name,))
         if d > oggi_d:
-            tree.tag_configure(tag_name, foreground="#E5C07B")
+            tree.tag_configure(tag_name, foreground="#E5C07B", font=("Arial", 9, "italic"))
             if tipo == "Entrata": fut_entrate += imp
             else: fut_uscite += imp
         elif tipo == "Entrata":
             tree.tag_configure(tag_name, foreground="green")
             tot_entrate += imp
         else:
-            tree.tag_configure(tag_name, foreground="red")
+            if _budget_val_cat and _budget_val_cat > 0 and _speso_categoria_mese(d.year, d.month) > _budget_val_cat:
+                tree.tag_configure(tag_name, foreground="#C08081", font=("Arial", 9, "bold"))
+            else:
+                tree.tag_configure(tag_name, foreground="red")
             tot_uscite += imp
     saldo = tot_entrate - tot_uscite
     includi_futuri_var = tk.BooleanVar(value=True)

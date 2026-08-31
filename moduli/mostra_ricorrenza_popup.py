@@ -538,6 +538,8 @@ def mostra_ricorrenza_popup(self):
     self.btn_chiudi_ricorrenza.bind("<Button-1>", lambda e: _chiudi_ricorrenza_popup())
 
 def reset_ricorrenza_popup(self):
+    if not hasattr(self, 'importo_ricorrenza'):
+        return
     oggi = datetime.date.today().strftime("%d-%m-%Y")
     self.importo_ricorrenza.set("")
     self.ricorrenza_tipo.set("Nessuna")

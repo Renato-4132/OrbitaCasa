@@ -215,12 +215,32 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
             command=lambda c=col: treeview_sort_column(tree, c, False)
         )
         tree.column(col, width=w, anchor=a)
-        self._bind_tooltip_metodo(tree, col_desc=2)
     import datetime as _dt
     oggi_d = _dt.date.today()
     tot_entrate = tot_uscite = 0.0
     fut_entrate = fut_uscite = 0.0
     _uso_ordinale_tr = {}
+    _budget_categorie_ref = getattr(self, 'budget_categorie', {}) or {}
+    _tot_categoria_mese_cache = {}
+    def _budget_categoria(cat_display):
+        return next(
+            (v for k, v in _budget_categorie_ref.items() if k.strip().lower() == cat_display.strip().lower()),
+            0
+        )
+    def _speso_categoria_mese(cat_display, anno_t, mese_t):
+        chiave = (anno_t, mese_t, cat_display.strip().lower())
+        if chiave not in _tot_categoria_mese_cache:
+            tot = 0.0
+            for d2, voci2 in self.spese.items():
+                if d2.year == anno_t and d2.month == mese_t:
+                    for e2 in voci2:
+                        if len(e2) >= 4 and str(e2[0]).strip().lower() == cat_display.strip().lower() and str(e2[3]).lower() == "uscita":
+                            try:
+                                tot += float(e2[2])
+                            except (ValueError, TypeError):
+                                pass
+            _tot_categoria_mese_cache[chiave] = tot
+        return _tot_categoria_mese_cache[chiave]
     for d, cat, desc, imp, tipo, conto_diretto, metodo_diretto, tag_diretto in sorted(spese_filtrate, key=lambda x: x[0], reverse=True):
         imp_formattato = f"{imp:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
         if d > oggi_d:
@@ -231,6 +251,11 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
             tag_name = "green_row" if tipo == "Entrata" else "red_row"
             if tipo == "Entrata": tot_entrate += imp
             else: tot_uscite += imp
+            if tipo == "Uscita":
+                _budget_val = _budget_categoria(cat)
+                if _budget_val and _budget_val > 0:
+                    if _speso_categoria_mese(cat, d.year, d.month) > _budget_val:
+                        tag_name = "sforato"
         if conto_diretto:
             nome_conto_tr = conto_diretto
         elif d:
@@ -243,7 +268,8 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
         tree.insert("", "end", values=(d.strftime("%d-%m-%Y"), cat, desc, f"{imp_formattato} €", tipo, nome_conto_tr, metodo_diretto, tag_diretto), tags=(tag_name,))
     tree.tag_configure("green_row",  foreground="green")
     tree.tag_configure("red_row",    foreground="red")
-    tree.tag_configure("yellow_row", foreground="#E5C07B")
+    tree.tag_configure("yellow_row", foreground="#E5C07B", font=("Arial", 9, "italic"))
+    tree.tag_configure("sforato",    foreground="#C08081", font=("Arial", 9, "bold"))
     saldo = tot_entrate - tot_uscite
     includi_futuri_var = tk.BooleanVar(value=True)
     lbl_frame = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)

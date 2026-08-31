@@ -166,6 +166,8 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
     sb.pack(side="right", fill=tk.Y)
     tree.tag_configure("entrata", foreground="green")
     tree.tag_configure("uscita",  foreground="red")
+    tree.tag_configure("futuro",  foreground="#E5C07B", font=("Arial", 9, "italic"))
+    tree.tag_configure("sforato", foreground='#C08081', font=("Arial", 9, "bold"))
     def on_doppio_clic(event):
         item_id = tree.identify_row(event.y)
         if not item_id:
@@ -285,12 +287,22 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
                 data_str = data_obj.strftime("%d-%m-%Y")
                 ora_voce = campo(voce, "ora", "")
                 tag_voce = " ".join(campo(voce, "hashtag", []) or [])
+                oggi_em = datetime.date.today()
+                if data_obj > oggi_em:
+                    tag_colore = "futuro"
+                elif tipo == "Entrata":
+                    tag_colore = "entrata"
+                else:
+                    tag_colore = "uscita"
+                    if ((data_obj.year, data_obj.month) == (oggi_em.year, oggi_em.month)
+                            and cat in getattr(self, "_budget_sforati", set())):
+                        tag_colore = "sforato"
                 if tipo == "Entrata":
                     tot_e += importo
-                    righe.append((data_obj, data_str, cat, desc, f"{_app._fmt_it(importo)} €", "", "entrata", nome_conto_em, metodo_voce, ora_voce, tag_voce))
+                    righe.append((data_obj, data_str, cat, desc, f"{_app._fmt_it(importo)} €", "", tag_colore, nome_conto_em, metodo_voce, ora_voce, tag_voce))
                 else:
                     tot_u += importo
-                    righe.append((data_obj, data_str, cat, desc, "", f"{_app._fmt_it(importo)} €", "uscita", nome_conto_em, metodo_voce, ora_voce, tag_voce))
+                    righe.append((data_obj, data_str, cat, desc, "", f"{_app._fmt_it(importo)} €", tag_colore, nome_conto_em, metodo_voce, ora_voce, tag_voce))
         righe.sort(key=lambda r: (r[0], r[9]), reverse=True)
         for r in righe:
             tree.insert("", "end", values=(r[1], r[2], r[3], r[4], r[5], r[7], r[8], r[9], r[10]), tags=(r[6],))

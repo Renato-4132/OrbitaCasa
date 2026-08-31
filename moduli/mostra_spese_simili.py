@@ -96,7 +96,16 @@ def mostra_spese_simili(self):
                 conto_v = campo(voce, "conto", "")
                 metodo_v = campo(voce, "metodo_pagamento", "")
                 tag_v = " ".join(campo(voce, "hashtag", []))
-                tag = "entrata" if str(tipo).lower() == "entrata" else "uscita"
+                oggi_ms = datetime.date.today()
+                if d > oggi_ms:
+                    tag = "futuro"
+                elif str(tipo).lower() == "entrata":
+                    tag = "entrata"
+                else:
+                    tag = "uscita"
+                    if ((d.year, d.month) == (oggi_ms.year, oggi_ms.month)
+                            and categoria in getattr(self, "_budget_sforati", set())):
+                        tag = "sforato"
                 tree.insert("", tk.END, values=(
                     d.strftime("%d-%m-%Y"),
                     tipo,
@@ -168,7 +177,16 @@ def mostra_spese_simili(self):
             conto_v = campo(voce, "conto", "")
             metodo_v = campo(voce, "metodo_pagamento", "")
             tag_v = " ".join(campo(voce, "hashtag", []))
-            tag = "entrata" if str(tipo).lower() == "entrata" else "uscita"
+            oggi_ms0 = datetime.date.today()
+            if d > oggi_ms0:
+                tag = "futuro"
+            elif str(tipo).lower() == "entrata":
+                tag = "entrata"
+            else:
+                tag = "uscita"
+                if ((d.year, d.month) == (oggi_ms0.year, oggi_ms0.month)
+                        and categoria in getattr(self, "_budget_sforati", set())):
+                    tag = "sforato"
             tree.insert("", tk.END, values=(
                 d.strftime("%d-%m-%Y"),
                 tipo,
@@ -184,6 +202,8 @@ def mostra_spese_simili(self):
             continue
     tree.tag_configure("entrata", foreground="green")
     tree.tag_configure("uscita", foreground="red")
+    tree.tag_configure("futuro", foreground="#E5C07B", font=("Arial", 9, "italic"))
+    tree.tag_configure("sforato", foreground='#C08081', font=("Arial", 9, "bold"))
     def usa_categoria():
         selezione = tree.selection()
         if not selezione:
