@@ -174,7 +174,7 @@ def check_network_connection():
             sys.exit(1)
 
 # Disabilita Sync        
-DISABILITA_SYNC_MODULI_TEST = False
+DISABILITA_SYNC_MODULI_TEST = True
                     
 check_network_connection()            
 PATH_LOCALE = os.path.dirname(os.path.abspath(__file__))
@@ -2199,11 +2199,38 @@ class GestioneSpese(tk.Tk):
                 _tag_fmt = ", ".join(f"#{t.lstrip('#')}" for t in _hashtag if t)
                 if _tag_fmt:
                     righe.append(("Tag", _tag_fmt))
+            if "sforato" in tree.item(item, "tags") and _categoria_info:
+                _budget_cat = getattr(self, 'budget_categorie', {}).get(_categoria_info, 0)
+                _tot_precalcolato = _info.get("tot_categoria_uscita", None)
+                if _tot_precalcolato is not None:
+                    _tot_cat_mese = float(_tot_precalcolato)
+                else:
+                    _tot_cat_mese = 0.0
+                    try:
+                        _gg, _mm, _aa = (int(x) for x in _data_info.split("-"))
+                        for _d, _voci in self.spese.items():
+                            if _d.year == _aa and _d.month == _mm:
+                                for _v in _voci:
+                                    if len(_v) >= 4 and _v[0] == _categoria_info and str(_v[3]).lower() == "uscita":
+                                        _tot_cat_mese += float(_v[2])
+                    except (ValueError, TypeError):
+                        pass
+                if _budget_cat:
+                    _diff_cat = _tot_cat_mese - _budget_cat
+                    _txt_budget = (
+                        f"€ {_fmt_it(_budget_cat)}\n"
+                        f"Speso € {_fmt_it(_tot_cat_mese)}  (+€ {_fmt_it(_diff_cat)})"
+                    )
+                    righe.append(("Budget", _txt_budget))
+                else:
+                    righe.append(("Budget", "Categoria oltre budget mensile"))
             if not righe:
                 return
             _larghezza_etichetta = max(len(_e) for _e, _ in righe) + 1
+            _pad = _larghezza_etichetta + 2
             testo_tooltip = "\n".join(
-                f"{(_e + ':').ljust(_larghezza_etichetta + 2)}{_v}" for _e, _v in righe
+                f"{(_e + ':').ljust(_pad)}{_v.replace(chr(10), chr(10) + ' ' * _pad)}"
+                for _e, _v in righe
             )
             def _crea():
                 _tt[0] = tk.Toplevel(self)
@@ -3864,7 +3891,7 @@ class GestioneSpese(tk.Tk):
                                 and (ref.year, ref.month) == (oggi.year, oggi.month)
                                 and cat in getattr(self, "_budget_sforati", set())):
                             tag = "sforato"
-                        self.stats_table.insert(
+                        item_id_agg = self.stats_table.insert(
                             "", "end",
                             values=(cat, _fmt_it_safe(totali[cat][tipo]), tipo),
                             tags=(tag,)
@@ -5183,6 +5210,7 @@ class GestioneSpese(tk.Tk):
                 text=f"{_fmt_it(rimanente_a)} €",
                 foreground=self.COLOR_GREEN if rimanente_a >= 0 else self.COLOR_RED
         )
+
         if ANIMAZIONI:
             self._anima_label_valore(self.lbl_budget_mese, rimanente_m)
             self._anima_label_valore(self.lbl_budget_anno, rimanente_a)
@@ -6166,7 +6194,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "81d660c7bd825318cfdc6dae5fabe05dbfa7fcfc8fa78768d5b684f6021d0ac1"
+        E_H_B = "7cbb322e2f7fcc4a7f27c67e3f4647998db411595ae8bb0f0bb5c62b7f86980e"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
