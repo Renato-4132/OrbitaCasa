@@ -174,7 +174,7 @@ def check_network_connection():
             sys.exit(1)
 
 # Disabilita Sync        
-DISABILITA_SYNC_MODULI_TEST = True
+DISABILITA_SYNC_MODULI_TEST = False
                     
 check_network_connection()            
 PATH_LOCALE = os.path.dirname(os.path.abspath(__file__))
