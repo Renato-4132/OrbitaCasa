@@ -1929,6 +1929,13 @@ class GestioneSpese(tk.Tk):
             return
         self._pil_oggi_orig = Image.open(path).convert("RGBA")
         self._rotazione_oggi_angolo = 0
+        if not ANIMAZIONI:
+            self._rotazione_oggi_attiva = False
+            self._foto_oggi_ruotata = ImageTk.PhotoImage(self._pil_oggi_orig)
+            self.btn_oggi.configure(image=self._foto_oggi_ruotata)
+            if hasattr(self, "btn_oggi_stats"):
+                self.btn_oggi_stats.configure(image=self._foto_oggi_ruotata)
+            return
         self._rotazione_oggi_attiva = True
         self._ruota_oggi()
     def _ruota_oggi(self):
@@ -2405,8 +2412,13 @@ class GestioneSpese(tk.Tk):
             return
         self._pil_alert_orig = Image.open(path).convert("RGBA")
         self._rotazione_angolo = 0
-        self._rotazione_attiva = True
         self._rotazione_job = None
+        if not ANIMAZIONI:
+            self._rotazione_attiva = False
+            self._foto_alert_ruotata = ImageTk.PhotoImage(self._pil_alert_orig)
+            self.btn_spese_simili.configure(image=self._foto_alert_ruotata)
+            return
+        self._rotazione_attiva = True
         self._ruota_alert()
     def _ferma_rotazione_spese_simili(self):
         self._rotazione_attiva = False
@@ -6196,7 +6208,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "7415223c053ba4cab187bda0179f886a2d9691b57b3a3abe6c670e5dfc1b85f5"
+        E_H_B = "c7c495aa9c15c5526ffb4a8a021ce8bba73e8f367d36061f27010612f4f88b0a"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
