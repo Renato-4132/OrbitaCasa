@@ -174,7 +174,7 @@ def check_network_connection():
             sys.exit(1)
 
 # Disabilita Sync        
-DISABILITA_SYNC_MODULI_TEST = True
+DISABILITA_SYNC_MODULI_TEST = False
                     
 check_network_connection()            
 PATH_LOCALE = os.path.dirname(os.path.abspath(__file__))
@@ -6208,7 +6208,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "c7c495aa9c15c5526ffb4a8a021ce8bba73e8f367d36061f27010612f4f88b0a"
+        E_H_B = "1f3df74d2fee87424f3f11ef7fdd4fbc54eeada7e5dcd9ae4f28ede1aff13824"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
