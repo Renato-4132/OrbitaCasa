@@ -136,9 +136,8 @@ def _veicoli_importa_da_spese(self, db, win, nb):
         for entry in lista:
             if getattr(entry, "tipo", "") != "Uscita":
                 continue
-            if "#veicoli" in getattr(entry, "hashtag", []):
-                continue
-            candidate.append((data_key, entry))
+            gia_importata = "#veicoli" in getattr(entry, "hashtag", [])
+            candidate.append((data_key, entry, gia_importata))
     candidate.sort(key=lambda t: t[0], reverse=True)
 
     popup = tk.Toplevel(win, bg=self.COLOR_TOPLEVEL)
@@ -146,7 +145,7 @@ def _veicoli_importa_da_spese(self, db, win, nb):
     popup.transient(win)
     popup.withdraw()
     win.update_idletasks()
-    W, H = 760, 560
+    W, H = 1000, 560
     x = win.winfo_rootx() + (win.winfo_width() // 2) - (W // 2)
     y = win.winfo_rooty() + (win.winfo_height() // 2) - (H // 2)
     popup.geometry(f"{W}x{H}+{max(0,x)}+{max(0,y)}")
@@ -185,7 +184,7 @@ def _veicoli_importa_da_spese(self, db, win, nb):
     filtro_f.pack(fill=tk.X, padx=10, pady=(4, 0))
     tk.Label(filtro_f, text="Filtra per categoria spesa originale:", bg=self.COLOR_TOPLEVEL,
              fg=self.TEXT_COLOR, font=("Arial", 9)).pack(side=tk.LEFT, padx=(0, 6))
-    cats_presenti = sorted({e.categoria for _, e in candidate})
+    cats_presenti = sorted({e.categoria for _, e, _ in candidate}, key=str.lower)
     v_catf = tk.StringVar(value="Tutte")
     cb_catf = ttk.Combobox(filtro_f, textvariable=v_catf, values=["Tutte"] + cats_presenti,
                            state="readonly", style="Border.TCombobox", width=18)
@@ -193,7 +192,7 @@ def _veicoli_importa_da_spese(self, db, win, nb):
 
     tk.Label(filtro_f, text="Mese:", bg=self.COLOR_TOPLEVEL,
              fg=self.TEXT_COLOR, font=("Arial", 9)).pack(side=tk.LEFT, padx=(0, 6))
-    mesi_presenti = sorted({data_key.strftime("%m") for data_key, _ in candidate})
+    mesi_presenti = sorted({data_key.strftime("%m") for data_key, _, _ in candidate})
     v_mesef = tk.StringVar(value="Tutti")
     cb_mesef = ttk.Combobox(filtro_f, textvariable=v_mesef, values=["Tutti"] + mesi_presenti,
                             state="readonly", style="Border.TCombobox", width=6)
@@ -201,13 +200,17 @@ def _veicoli_importa_da_spese(self, db, win, nb):
 
     tk.Label(filtro_f, text="Anno:", bg=self.COLOR_TOPLEVEL,
              fg=self.TEXT_COLOR, font=("Arial", 9)).pack(side=tk.LEFT, padx=(0, 6))
-    anni_presenti = sorted({data_key.strftime("%Y") for data_key, _ in candidate})
+    anni_presenti = sorted({data_key.strftime("%Y") for data_key, _, _ in candidate})
     v_annof = tk.StringVar(value="Tutti")
     cb_annof = ttk.Combobox(filtro_f, textvariable=v_annof, values=["Tutti"] + anni_presenti,
                             state="readonly", style="Border.TCombobox", width=8)
-    cb_annof.pack(side=tk.LEFT)
+    cb_annof.pack(side=tk.LEFT, padx=(0, 12))
 
-    cols = ("Data", "Categoria originale", "Descrizione", "Importo")
+    v_nascondi = tk.BooleanVar(value=False)
+    chk_nascondi = ttk.Checkbutton(filtro_f, text="Nascondi già importate", variable=v_nascondi)
+    chk_nascondi.pack(side=tk.LEFT)
+
+    cols = ("Data", "Categoria originale", "Descrizione", "Importo", "Stato")
     tree_f = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
     tree_f.pack(fill=tk.BOTH, expand=True, padx=10, pady=6)
     tree = ttk.Treeview(tree_f, columns=cols, show="headings", selectmode="extended")
@@ -216,11 +219,12 @@ def _veicoli_importa_da_spese(self, db, win, nb):
     vsb.pack(side=tk.RIGHT, fill=tk.Y)
     tree.pack(fill=tk.BOTH, expand=True)
     wcfg = {"Data": (90, "w"), "Categoria originale": (150, "w"),
-            "Descrizione": (280, "w"), "Importo": (90, "e")}
+            "Descrizione": (240, "w"), "Importo": (90, "e"), "Stato": (110, "center")}
     for c in cols:
         w, anc = wcfg[c]
         tree.heading(c, text=c, command=lambda _c=c: self.treeview_sort_column(tree, _c, False))
         tree.column(c, width=w, anchor=anc)
+    tree.tag_configure("gia_importata", foreground="#888888")
 
     riga_map = {}
 
@@ -230,28 +234,39 @@ def _veicoli_importa_da_spese(self, db, win, nb):
         fc = v_catf.get()
         fm = v_mesef.get()
         fa = v_annof.get()
-        for i, (data_key, entry) in enumerate(candidate):
+        nascondi = v_nascondi.get()
+        for i, (data_key, entry, gia_importata) in enumerate(candidate):
             if fc != "Tutte" and entry.categoria != fc:
                 continue
             if fm != "Tutti" and data_key.strftime("%m") != fm:
                 continue
             if fa != "Tutti" and data_key.strftime("%Y") != fa:
                 continue
+            if nascondi and gia_importata:
+                continue
             iid = str(i)
-            riga_map[iid] = (data_key, entry)
-            tree.insert("", "end", iid=iid, values=(
+            riga_map[iid] = (data_key, entry, gia_importata)
+            stato_txt = "✔ Importata" if gia_importata else "Da importare"
+            tags = ("gia_importata",) if gia_importata else ()
+            tree.insert("", "end", iid=iid, tags=tags, values=(
                 data_key.strftime("%d-%m-%Y"), entry.categoria,
-                entry.descrizione, f"{_fmt_it(entry.importo)} €"
+                entry.descrizione, f"{_fmt_it(entry.importo)} €", stato_txt
             ))
     cb_catf.bind("<<ComboboxSelected>>", lambda e: _popola())
     cb_mesef.bind("<<ComboboxSelected>>", lambda e: _popola())
     cb_annof.bind("<<ComboboxSelected>>", lambda e: _popola())
+    chk_nascondi.configure(command=_popola)
     _popola()
 
     def _importa():
         sel = tree.selection()
         if not sel:
             self.show_toast("Seleziona almeno una spesa da importare.")
+            return
+        gia_sel = [riga_map[iid] for iid in sel if riga_map.get(iid, (None, None, False))[2]]
+        sel_valide = [iid for iid in sel if not riga_map.get(iid, (None, None, False))[2]]
+        if not sel_valide:
+            self.show_toast("Le spese selezionate risultano già importate.")
             return
         veicolo = next((x for x in db["veicoli"] if x.get("nome") == v_dest.get()), None)
         if veicolo is None:
@@ -262,8 +277,8 @@ def _veicoli_importa_da_spese(self, db, win, nb):
             self.show_toast("Seleziona una categoria di destinazione.")
             return
         n = 0
-        for iid in sel:
-            data_key, entry = riga_map.get(iid, (None, None))
+        for iid in sel_valide:
+            data_key, entry, _ = riga_map.get(iid, (None, None, False))
             if entry is None:
                 continue
             nuovo_mov = {
@@ -291,7 +306,10 @@ def _veicoli_importa_da_spese(self, db, win, nb):
                 nb.select(i)
                 break
 
-        self.show_toast(f"Importate {n} spese in {veicolo.get('nome')} (categoria: {cat_dest}).")
+        msg = f"Importate {n} spese in {veicolo.get('nome')} (categoria: {cat_dest})."
+        if gia_sel:
+            msg += f" {len(gia_sel)} già importate saltate."
+        self.show_toast(msg)
         popup.destroy()
 
     btn_f = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
@@ -640,6 +658,7 @@ def _veicoli_crea_tab(self, nb, v, db, win):
             cat_v.append(nc)
             cat_v.sort(key=str.lower)
             cb_cat["values"] = cat_v
+            cb_fcat["values"] = ["Tutte"] + sorted(cat_v, key=str.lower)
             v_cat.set(nc)
             self._veicoli_salva(db)
             v_nuova_cat.set("")
@@ -650,6 +669,7 @@ def _veicoli_crea_tab(self, nb, v, db, win):
         if sel in cat_v and len(cat_v) > 1:
             cat_v.remove(sel)
             cb_cat["values"] = cat_v
+            cb_fcat["values"] = ["Tutte"] + sorted(cat_v, key=str.lower)
             v_cat.set(cat_v[0])
             self._veicoli_salva(db)
 
@@ -680,7 +700,7 @@ def _veicoli_crea_tab(self, nb, v, db, win):
     tk.Label(filtri_tree_f, text="Categoria:", bg=self.COLOR_WIDGET_BG,
              fg=self.COLOR_HEADER, font=("Arial", 9, "bold")).pack(side=tk.LEFT, padx=(0, 4))
     v_fcat = tk.StringVar(value="Tutte")
-    cb_fcat = ttk.Combobox(filtri_tree_f, textvariable=v_fcat, values=["Tutte"] + sorted(cat_v),
+    cb_fcat = ttk.Combobox(filtri_tree_f, textvariable=v_fcat, values=["Tutte"] + sorted(cat_v, key=str.lower),
                             state="readonly", style="Border.TCombobox", width=22)
     cb_fcat.pack(side=tk.LEFT, padx=(0, 8))
     cb_fcat.bind("<<ComboboxSelected>>", lambda e: _popola_tree())
@@ -769,7 +789,7 @@ def _veicoli_crea_tab(self, nb, v, db, win):
     def _popola_tree():
         anni_agg = sorted({m.get("data", "")[-4:] for m in v.get("movimenti", []) if len(m.get("data", "")) == 10}, reverse=True)
         cb_fanno["values"] = ["Tutti"] + anni_agg
-        cb_fcat["values"] = ["Tutte"] + sorted(cat_v)
+        cb_fcat["values"] = ["Tutte"] + sorted(cat_v, key=str.lower)
         migrato = False
         for m in v.get("movimenti", []):
             if not m.get("id"):
@@ -1106,7 +1126,7 @@ def _veicoli_grafici(self, db):
     popup.focus_force()
 
     nomi_veicoli = [v.get("nome", "?") for v in db["veicoli"]]
-    tutte_categorie = sorted({m.get("categoria", "Altro") for v in db["veicoli"] for m in v.get("movimenti", [])})
+    tutte_categorie = sorted({m.get("categoria", "Altro") for v in db["veicoli"] for m in v.get("movimenti", [])}, key=str.lower)
     anni_disponibili = sorted({
         m.get("data", "")[-4:] for v in db["veicoli"] for m in v.get("movimenti", [])
         if len(m.get("data", "")) == 10
