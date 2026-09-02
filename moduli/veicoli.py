@@ -189,7 +189,23 @@ def _veicoli_importa_da_spese(self, db, win, nb):
     v_catf = tk.StringVar(value="Tutte")
     cb_catf = ttk.Combobox(filtro_f, textvariable=v_catf, values=["Tutte"] + cats_presenti,
                            state="readonly", style="Border.TCombobox", width=18)
-    cb_catf.pack(side=tk.LEFT)
+    cb_catf.pack(side=tk.LEFT, padx=(0, 12))
+
+    tk.Label(filtro_f, text="Mese:", bg=self.COLOR_TOPLEVEL,
+             fg=self.TEXT_COLOR, font=("Arial", 9)).pack(side=tk.LEFT, padx=(0, 6))
+    mesi_presenti = sorted({data_key.strftime("%m") for data_key, _ in candidate})
+    v_mesef = tk.StringVar(value="Tutti")
+    cb_mesef = ttk.Combobox(filtro_f, textvariable=v_mesef, values=["Tutti"] + mesi_presenti,
+                            state="readonly", style="Border.TCombobox", width=6)
+    cb_mesef.pack(side=tk.LEFT, padx=(0, 12))
+
+    tk.Label(filtro_f, text="Anno:", bg=self.COLOR_TOPLEVEL,
+             fg=self.TEXT_COLOR, font=("Arial", 9)).pack(side=tk.LEFT, padx=(0, 6))
+    anni_presenti = sorted({data_key.strftime("%Y") for data_key, _ in candidate})
+    v_annof = tk.StringVar(value="Tutti")
+    cb_annof = ttk.Combobox(filtro_f, textvariable=v_annof, values=["Tutti"] + anni_presenti,
+                            state="readonly", style="Border.TCombobox", width=8)
+    cb_annof.pack(side=tk.LEFT)
 
     cols = ("Data", "Categoria originale", "Descrizione", "Importo")
     tree_f = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
@@ -203,7 +219,7 @@ def _veicoli_importa_da_spese(self, db, win, nb):
             "Descrizione": (280, "w"), "Importo": (90, "e")}
     for c in cols:
         w, anc = wcfg[c]
-        tree.heading(c, text=c)
+        tree.heading(c, text=c, command=lambda _c=c: self.treeview_sort_column(tree, _c, False))
         tree.column(c, width=w, anchor=anc)
 
     riga_map = {}
@@ -212,8 +228,14 @@ def _veicoli_importa_da_spese(self, db, win, nb):
         tree.delete(*tree.get_children())
         riga_map.clear()
         fc = v_catf.get()
+        fm = v_mesef.get()
+        fa = v_annof.get()
         for i, (data_key, entry) in enumerate(candidate):
             if fc != "Tutte" and entry.categoria != fc:
+                continue
+            if fm != "Tutti" and data_key.strftime("%m") != fm:
+                continue
+            if fa != "Tutti" and data_key.strftime("%Y") != fa:
                 continue
             iid = str(i)
             riga_map[iid] = (data_key, entry)
@@ -222,6 +244,8 @@ def _veicoli_importa_da_spese(self, db, win, nb):
                 entry.descrizione, f"{_fmt_it(entry.importo)} €"
             ))
     cb_catf.bind("<<ComboboxSelected>>", lambda e: _popola())
+    cb_mesef.bind("<<ComboboxSelected>>", lambda e: _popola())
+    cb_annof.bind("<<ComboboxSelected>>", lambda e: _popola())
     _popola()
 
     def _importa():
