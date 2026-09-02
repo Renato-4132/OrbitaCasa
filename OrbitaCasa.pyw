@@ -173,7 +173,9 @@ def check_network_connection():
                 )
             sys.exit(1)
 
-# Disabilita Sync        
+# Disabilita Sync
+# True no check Moduli
+# False check moduli       
 DISABILITA_SYNC_MODULI_TEST = False
                     
 check_network_connection()            
@@ -6083,7 +6085,7 @@ class GestioneSpese(tk.Tk):
             CUSTOM_FILE, PESO_FILE, FABB_FILE, PEDOMETRO_FILE, STUDIO_CLIENTI,
             STUDIO_APPUNTAMENTI, STUDIO_PRESTAZIONI, STUDIO_FATTURE, STUDIO_EMITTENTE,
             STUDIO_CASSA, STUDIO_MAGAZZINO, IMMOBIL_FILE, FR_FILE, PORTAFOGLIO_BANCARIO,
-            SCHEDULE_FILE, VEICOLI_FILE, GAMIFICATION_FILE
+            SCHEDULE_FILE, VEICOLI_FILE, GAMIFICATION_FILE, CREDENTIALS_FILE
         ]
         file_copiati = 0
         for f in lista_file:
@@ -6208,7 +6210,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "1f3df74d2fee87424f3f11ef7fdd4fbc54eeada7e5dcd9ae4f28ede1aff13824"
+        E_H_B = "607ccc60ac1c1920c246d7875cb93820eed8e09fbfcefb22916f8652cbc6add3"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
@@ -6249,6 +6251,7 @@ _SW_PKGS = [
     ("cryptography", "Sicurezza SSL"),
     ("pywin32",      "Stampa su Windows"),
     ("tkinterdnd2",  "Trascina documenti"),
+    ("webauthn",     "Autenticazione biometrica"),
 ]
 _SW_TOTAL = len(_SW_PKGS)
 _SW_BAR_W = 360
@@ -6666,6 +6669,26 @@ def install_tkinterdnd2():
 _DND_FILES, _TkDnD_Class, _HAS_DND = install_tkinterdnd2()
 if _HAS_DND and _TkDnD_Class:
     GestioneSpese.__bases__ = (_TkDnD_Class.Tk,)
+
+def install_webauthn():
+    try:
+        import webauthn
+        return webauthn
+    except ImportError:
+        _sw_avanza("webauthn")
+        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] 'webauthn' non trovato. Installazione in corso...")
+        try:
+            _pip_install("webauthn")
+            print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] 'webauthn' installato con successo.")
+            import webauthn
+            return webauthn
+        except subprocess.CalledProcessError as e:
+            print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] ERRORE: 'webauthn' fallito: {e}")
+            return None
+        except ImportError:
+            print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] ERRORE: Impossibile importare 'webauthn' dopo l'installazione.")
+            return None
+webauthn = install_webauthn()
 
 _sw_chiudi()
 
