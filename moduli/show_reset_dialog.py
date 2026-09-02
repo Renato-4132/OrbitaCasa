@@ -54,6 +54,7 @@ def _elenco_file_variabili(_app):
         ("Log Importazioni",                  "Registro delle operazioni di importazione (log_importazioni.txt)", "LOG_IMPORTAZIONI", False),
         ("Login Web - Accessi Riusciti",      "Storico dei login riusciti dall'interfaccia web (login_web.json)", "LOGIN_WEB", False),
         ("Login Web - Accessi Falliti",       "Storico dei tentativi di login falliti dal web (login_web_fail.json)", "LOGIN_WEB_FAIL", False),
+        ("Login Web - Passkey / WebAuthn",    "Credenziali passkey/WebAuthn salvate (webauthn_credentials.json)", "CREDENTIALS_FILE", False),
         ("Login Locale",                      "Storico degli accessi dall'app desktop (login_lcl.json)", "LOGIN_LCL", False),
         ("Controllo Accessi Web",             "Whitelist/blacklist IP per l'accesso web (web_access_control.json)", "ACCESS_CONTROL_WEB", False),
     ]

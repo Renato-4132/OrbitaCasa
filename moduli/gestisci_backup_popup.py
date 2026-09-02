@@ -43,6 +43,7 @@ def gestisci_backup_popup(self):
     FR_FILE = _app.FR_FILE
     PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
     SCHEDULE_FILE = _app.SCHEDULE_FILE
+    CREDENTIALS_FILE = _app.CREDENTIALS_FILE
 
     import os, time, subprocess, sys
     if hasattr(self, '_win_backup_istanza') and self._win_backup_istanza.winfo_exists():
@@ -84,6 +85,7 @@ def gestisci_backup_popup(self):
         "veicoli.json":                   "Veicoli",
         "fondo_risparmio.json":           "Fondo Risparmio",
         "schedule.json":                  "Schedulatore",
+        "webauthn_credentials.json":      "Passkey / WebAuthn",
         "snapshot_db.zip":                "Snapshot DB Completo",
     }
     win = tk.Toplevel(self, bg=self.COLOR_BACKGROUND)
@@ -305,7 +307,7 @@ def gestisci_backup_popup(self):
                 CUSTOM_FILE, PESO_FILE, FABB_FILE, PEDOMETRO_FILE, STUDIO_CLIENTI,
                 STUDIO_APPUNTAMENTI, STUDIO_PRESTAZIONI, STUDIO_FATTURE, STUDIO_EMITTENTE,
                 STUDIO_CASSA, STUDIO_MAGAZZINO, IMMOBIL_FILE, FR_FILE, PORTAFOGLIO_BANCARIO,
-                SCHEDULE_FILE, VEICOLI_FILE, GAMIFICATION_FILE
+                SCHEDULE_FILE, VEICOLI_FILE, GAMIFICATION_FILE, CREDENTIALS_FILE
             ]
             for s in selezione:
                 nome_bak = tree.set(s, "File")

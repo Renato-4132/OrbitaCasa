@@ -227,6 +227,10 @@ def registra_tutti_i_moduli(GestioneSpese):
     from moduli.toggle_stats_view import toggle_stats_view
     _registra(toggle_stats_view)
 
+
+    from moduli.webauthn_login import html_webauthn_web
+    _registra(html_webauthn_web)
+
     from moduli.goto_dettaglio_mese import goto_dettaglio_mese
     _registra(goto_dettaglio_mese)
 
@@ -404,3 +408,4 @@ def registra_tutti_i_moduli(GestioneSpese):
     _registra(_gami_carica, _gami_salva, _gami_estendi_licenza, aggiorna_streak_gamification, registra_azione_gamification,
         annulla_azione_gamification, aggiorna_badge_header,
         _gami_nome_scope, _gami_mostra_notifiche_badge, mostra_dettaglio_gamification)
+

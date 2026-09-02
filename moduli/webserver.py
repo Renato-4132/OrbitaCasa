@@ -529,6 +529,9 @@ def _crea_flask_app(self):
             return html_resp(tk_app.pagina_switch_in_corso_web(risultato["profilo"], nuovo=risultato.get("nuovo", False)))
         return redirect(f"/cambia_profilo_web?errore={quote(risultato.get('errore', 'Errore sconosciuto'))}", code=303)
 
+    from moduli.webauthn_login import aggiungi_rotte_webauthn
+    aggiungi_rotte_webauthn(flask_app, tk_app, richiede_login, html_resp, get_ip, request)
+
     return flask_app
 
 def start_web_server(self):
@@ -753,6 +756,67 @@ def html_login(self, path):
             <div class="badge-slot">{fail_badge}</div>
             <button type="submit" class="btn-submit">ACCEDI 🔓</button>
         </form>
+        <button id="btnBiometrico" type="button" class="btn-submit" style="display:none; margin-top:8px;" onclick="accediBiometrico()">👆 Accesso Biometrico</button>
+        <div id="msgBiometrico" style="font-size:12px; text-align:center; margin-top:6px; min-height:16px;"></div>
+        <script>
+        function b64uToBuf(s) {{
+            s = s.replace(/-/g, '+').replace(/_/g, '/');
+            while (s.length % 4) s += '=';
+            const bin = atob(s);
+            const buf = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+            return buf.buffer;
+        }}
+        function bufToB64u(buf) {{
+            const bytes = new Uint8Array(buf);
+            let bin = '';
+            for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+            return btoa(bin).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');
+        }}
+        (async function initBiometrico() {{
+            if (!window.PublicKeyCredential) return;
+            try {{
+                const r = await fetch('/webauthn/login/opzioni');
+                if (r.status === 404) return; // nessun dispositivo registrato
+                if (!r.ok) return;
+                document.getElementById('btnBiometrico').style.display = 'block';
+            }} catch (e) {{}}
+        }})();
+        async function accediBiometrico() {{
+            const msg = document.getElementById('msgBiometrico');
+            msg.textContent = 'Attendi la richiesta del browser...';
+            try {{
+                const optResp = await fetch('/webauthn/login/opzioni');
+                const opts = await optResp.json();
+                if (opts.errore) {{ msg.textContent = '⚠️ ' + opts.errore; return; }}
+                opts.challenge = b64uToBuf(opts.challenge);
+                if (opts.allowCredentials) opts.allowCredentials.forEach(c => c.id = b64uToBuf(c.id));
+                const cred = await navigator.credentials.get({{ publicKey: opts }});
+                const payload = {{
+                    id: cred.id,
+                    rawId: bufToB64u(cred.rawId),
+                    type: cred.type,
+                    response: {{
+                        clientDataJSON: bufToB64u(cred.response.clientDataJSON),
+                        authenticatorData: bufToB64u(cred.response.authenticatorData),
+                        signature: bufToB64u(cred.response.signature),
+                        userHandle: cred.response.userHandle ? bufToB64u(cred.response.userHandle) : null,
+                    }}
+                }};
+                const verResp = await fetch('/webauthn/login/verifica', {{
+                    method: 'POST', headers: {{'Content-Type': 'application/json'}}, body: JSON.stringify(payload)
+                }});
+                const risultato = await verResp.json();
+                if (risultato.ok) {{
+                    window.location.href = '/';
+                }} else {{
+                    msg.textContent = '⚠️ ' + (risultato.errore || 'Accesso non riuscito.');
+                }}
+            }} catch (e) {{
+                msg.textContent = '⚠️ ' + e.message;
+            }}
+        }}
+        </script>
         """
     return f"""<!DOCTYPE html>
 <html lang="it">
@@ -1023,8 +1087,8 @@ def html_cambia_pw_web(self):
     body {{
         font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text);
         min-height: 100vh; min-height: 100dvh;
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        padding: 16px; transition: background 0.3s, color 0.3s;
+        display: flex; flex-direction: column; align-items: center;
+        padding: 24px 16px; transition: background 0.3s, color 0.3s;
         background-image:
             radial-gradient(ellipse 60% 50% at 50% -5%, rgba(99,160,240,0.09) 0%, transparent 70%),
             radial-gradient(ellipse 40% 30% at 80% 90%, rgba(201,168,76,0.05) 0%, transparent 60%);
@@ -1560,6 +1624,7 @@ def pagina_risultati_avanzati(self, params):
     uscite_totali = sum(v["imp"] for vlist in risultati_categorizzati.values() for v in vlist if v["tipo"].lower() != "entrata")
     saldo = entrate_totali - uscite_totali
     colore_saldo = "#4caf82" if saldo >= 0 else "#e05a5a"
+    segno_saldo = "+" if saldo >= 0 else ""
     anno_corrente = datetime.now().year
     schede_html = ""
     for cat, voci in sorted(risultati_categorizzati.items()):
@@ -1584,7 +1649,7 @@ def pagina_risultati_avanzati(self, params):
                     <span class="voce-data">{v['data']}</span>
                 </div>
                 <div class="voce-body">
-                    <span class="voce-imp" style="color:{colore_tipo}">{simbolo}€{_fmt_it(v['imp'])}</span>
+                    <span class="voce-imp" style="color:{colore_tipo}">€ {simbolo}{_fmt_it(v['imp'])}</span>
                     <span class="voce-tipo" style="color:{colore_tipo}">{v['tipo']}</span>
                     <div class="voce-desc">{v['desc']}</div>
                 </div>
@@ -1594,7 +1659,7 @@ def pagina_risultati_avanzati(self, params):
             <button class="cat-toggle" onclick="toggleCategoria(this)">
                 <span class="freccia">▶</span>
                 <span class="cat-name">{html_escape.escape(cat)}</span>
-                <span class="cat-totale" style="color:{colore_tot}">{simbolo_tot}€{_fmt_it(abs(totale_cat))} · {len(voci)} voci</span>
+                <span class="cat-totale" style="color:{colore_tot}">€ {simbolo_tot}{_fmt_it(abs(totale_cat))} · {len(voci)} voci</span>
             </button>
             <div class="cat-content">
                 <ul class="voce-list">{voce_html}</ul>
@@ -1777,15 +1842,15 @@ def pagina_risultati_avanzati(self, params):
         <div class="riepilogo-grid">
             <div class="riepilogo-item">
                 <small>Entrate</small>
-                <b style="color:var(--green)">€{_fmt_it(entrate_totali)}</b>
+                <b style="color:var(--green)">€ {_fmt_it(entrate_totali)}</b>
             </div>
             <div class="riepilogo-item">
                 <small>Uscite</small>
-                <b style="color:var(--red)">€{_fmt_it(uscite_totali)}</b>
+                <b style="color:var(--red)">€ {_fmt_it(uscite_totali)}</b>
             </div>
             <div class="riepilogo-item">
                 <small>Saldo</small>
-                <b style="color:{colore_saldo}">€{_fmt_it(saldo)}</b>
+                <b style="color:{colore_saldo}">€ {segno_saldo}{_fmt_it(saldo)}</b>
             </div>
         </div>
     </div>
@@ -1816,7 +1881,7 @@ def pagina_risultati_avanzati(self, params):
     let dData = null, dIdx = null, dHaPdf = false;
     function apriModal(data, idx, cat, imp, ha_pdf) {{
         dData = data; dIdx = idx; dHaPdf = (ha_pdf === '1' || ha_pdf === 1);
-        document.getElementById("modalText").innerHTML = "Eliminare <b>" + cat + "</b> — <b>€" + imp + "</b>?";
+        document.getElementById("modalText").innerHTML = "Eliminare <b>" + cat + "</b> — <b>€ " + imp + "</b>?";
         document.getElementById("deleteModal").style.display = "flex";
     }}
     function closeModal() {{ document.getElementById("deleteModal").style.display = "none"; }}
@@ -2011,7 +2076,7 @@ def html_info_sys(self):
     .log-inner {{ padding: 14px 16px; }}
     .log-folder {{ font-family: 'DM Sans', sans-serif; font-size: 1em; font-weight: 800; color: var(--gold); margin-bottom: 4px; }}
     .log-time {{ font-size: 0.8em; color: var(--text-mid); }}
-    .log-links {{ display: flex; gap: 10px; padding: 10px 16px; border-top: 1px solid var(--border); }}
+    .log-links {{ display: flex; flex-wrap: wrap; gap: 10px; padding: 10px 16px; border-top: 1px solid var(--border); }}
     .log-link {{
         display: flex; align-items: center; gap: 6px; text-decoration: none;
         background: var(--surface2); border: 1px solid var(--border);
@@ -2077,8 +2142,8 @@ def html_info_sys(self):
             <a href="mailto:helporbitacasa@gmail.com" class="log-link">✉️ Supporto</a>
             <a href="/log_web" class="log-link">📋 Log</a>
             <a href="/cambia_pw_web" class="log-link">🔑 Pwd</a>
+            <a href="/webauthn_web" class="log-link">👆 Biometrico</a>
         </div>
-        <div class="log-timestamp">{ora_server}</div>
     </div>
     <a href="/" class="btn-home">🏠 Torna alla Home</a>
 </main>
@@ -2201,7 +2266,7 @@ def html_form(self):
                     <div class="mov-cat">{mov["cat"]}</div>
                     <div class="mov-desc">{mov["desc"]}</div>
                 </div>
-                <div class="mov-amount" style="color:{colore}">{segno}€{_fmt_it(mov["imp"])}</div>
+                <div class="mov-amount" style="color:{colore}">€ {segno}{_fmt_it(mov["imp"])}</div>
             </div>"""
     today = oggi.isoformat()
     anno_corrente = oggi.year
@@ -2212,6 +2277,7 @@ def html_form(self):
     saldo_mese = entrate_mese - uscite_mese
     icona_saldo = "☀️" if saldo_mese >= 0 else "⛈️"
     saldo_colore = "#4caf82" if saldo_mese >= 0 else "#e05a5a"
+    segno_saldo_mese = "+" if saldo_mese >= 0 else ""
     check_doppi_js = "true" if self.CHECK_DOPPI_MOV else "false"
     partecipanti_fs = []
     for p in self.nomi_partecipanti:
@@ -2226,7 +2292,7 @@ def html_form(self):
         _conti_lista = _db_portaf.get("conti", [])
         _conto_princ = next((c.get("nome","") for c in _conti_lista if c.get("principale")), "")
         conti_options = "\n".join(
-            f'<option value="{c.get("nome","")}" {"selected" if c.get("nome","") == _conto_princ else ""}>{c.get("nome","")}\u2002(\u20ac{_fmt_it(float(c.get("saldo",0)))})</option>'
+            f'<option value="{c.get("nome","")}" {"selected" if c.get("nome","") == _conto_princ else ""}>{c.get("nome","")}\u2002(\u20ac {_fmt_it(float(c.get("saldo",0)))})</option>'
             for c in _conti_lista
         )
         mostra_conto_stile = "block" if _conti_lista else "none"
@@ -2519,15 +2585,15 @@ def html_form(self):
             <div class="saldo-grid">
                 <div class="saldo-item">
                     <small>Entrate</small>
-                    <b style="color:var(--green)">€{_fmt_it(entrate_mese)}</b>
+                    <b style="color:var(--green)">€ {_fmt_it(entrate_mese)}</b>
                 </div>
                 <div class="saldo-item">
                     <small>Uscite</small>
-                    <b style="color:var(--red)">€{_fmt_it(uscite_mese)}</b>
+                    <b style="color:var(--red)">€ {_fmt_it(uscite_mese)}</b>
                 </div>
                 <div class="saldo-item">
                     <small>Saldo</small>
-                    <b style="color:{saldo_colore}">€{_fmt_it(saldo_mese)}</b>
+                    <b style="color:{saldo_colore}">€ {segno_saldo_mese}{_fmt_it(saldo_mese)}</b>
                 </div>
             </div>
             <div class="movimenti-section">
@@ -2859,7 +2925,7 @@ def html_form(self):
                 const d = trovato.data.split("-");
                 const catSelect = document.getElementById("categoria_select");
                 const catName = catSelect.options[catSelect.selectedIndex].text;
-                const msg = "Hai già inserito €" + valore.toFixed(2) + " per '" + catName + "' il " + d[2]+"-"+d[1]+"-"+d[0] + ". Vuoi continuare?";
+                const msg = "Hai già inserito € " + valore.toFixed(2) + " per '" + catName + "' il " + d[2]+"-"+d[1]+"-"+d[0] + ". Vuoi continuare?";
                 document.getElementById("confirmMsg").innerText = msg;
                 document.getElementById("customConfirm").style.display = "block";
                 return false;
@@ -2912,7 +2978,7 @@ def html_form(self):
                         "<b style='color:var(--green)'>✅ Movimento creato!</b><br>" +
                         "<b>" + data.desc + "</b><br>" +
                         "Importo: <span style='color:" + col + ";font-weight:700'>" +
-                        segno + "€" + data.importo.toFixed(2) + "</span> · " +
+                        "€ " + segno + data.importo.toFixed(2) + "</span> · " +
                         data.categoria + " · " + data.data;
                     _pdfFile = null;
                     document.getElementById("dz_filename").textContent = "";
@@ -2996,7 +3062,7 @@ def html_saluto(self):
     * {{ box-sizing: border-box; margin: 0; padding: 0; }}
     body {{
         font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text);
-        min-height: 100vh; display: flex; align-items: center; justify-content: center;
+        min-height: 100vh; display: flex; justify-content: center;
         padding: 20px; transition: background 0.3s, color 0.3s;
         background-image:
             radial-gradient(ellipse 60% 50% at 50% -5%, rgba(99,160,240,0.09) 0%, transparent 70%),
@@ -3369,7 +3435,7 @@ def html_fairshare_web(self):
         const neg = v < 0;
         const parts = Math.abs(v).toFixed(2).split('.');
         parts[0] = parts[0].replace(/\\B(?=(\\d{{3}})+(?!\\d))/g, '.');
-        return "€" + (neg ? '-' : '') + parts[0] + ',' + parts[1];
+        return "€ " + (neg ? '-' : '') + parts[0] + ',' + parts[1];
     }}
     async function carica() {{
         const anno   = document.getElementById("f_anno").value;
@@ -3564,6 +3630,8 @@ def documenti_pdf_web(self):
         cat = dettagli.get('categoria_esatta', 'Generico')
         categorie_set.add(cat)
         importo_raw = dettagli.get('importo_raw', 0)
+        tipo_doc = dettagli.get('tipo_esatto', 'Uscita')
+        segno_doc = "+" if tipo_doc == "Entrata" else "-"
         try:
             importo_val = float(importo_raw) / 100 if isinstance(importo_raw, (int, float)) else 0.0
         except:
@@ -3576,7 +3644,7 @@ def documenti_pdf_web(self):
             "descrizione": dettagli.get('descrizione_esatta', 'N/D'),
             "categoria": cat,
             "importo_val": importo_val,
-            "importo_str": f"{_fmt_it(importo_val)} €",
+            "importo_str": f"€ {segno_doc}{_fmt_it(importo_val)}",
             "dimensione": bytes_to_human(os.path.getsize(percorso_fisico_check))
         })
     archivi_ordinati = sorted(archivi_dati_strutturati, key=lambda x: x["data_caricamento"], reverse=True)
@@ -4783,8 +4851,8 @@ def genera_html_consultazione(self, file_selezionato=None):
                     promo_attiva = art.get("promo", False)
                     try: pp = float(art.get("prezzo_promo","0"))
                     except: pp = 0
-                    promo_cell = f"<span class='promo'>€{_fmt_it(pp)}</span>" if promo_attiva and pp > 0 else "—"
-                    rows += f"<tr><td>{nome}</td><td class='td-desc'>{desc}</td><td>{cat}</td><td class='td-price'>€{pn}</td><td class='td-price'>{promo_cell}</td></tr>"
+                    promo_cell = f"<span class='promo'>€ {_fmt_it(pp)}</span>" if promo_attiva and pp > 0 else "—"
+                    rows += f"<tr><td>{nome}</td><td class='td-desc'>{desc}</td><td>{cat}</td><td class='td-price'>€ {pn}</td><td class='td-price'>{promo_cell}</td></tr>"
                 table = f"<table><thead><tr><th>Articolo</th><th>Descrizione</th><th>Categoria</th><th>Prezzo</th><th>Promo</th></tr></thead><tbody>{rows}</tbody></table>"
             else:
                 table = "<p class='empty-msg'>Nessun articolo registrato.</p>"
@@ -7160,12 +7228,12 @@ def pagina_grafici_web(self):
             const budget = budgets[i] || 0;
             const sfora = budget > 0 && vals[i] > budget;
             const budgetInfo = budget > 0
-                ? `<span class="legend-budget${{sfora ? ' over' : ''}}">${{sfora ? '⚠️ ' : ''}}budget €${{fmtIt(budget)}}</span>`
+                ? `<span class="legend-budget${{sfora ? ' over' : ''}}">${{sfora ? '⚠️ ' : ''}}budget € ${{fmtIt(budget)}}</span>`
                 : '';
             return `<div class="legend-item${{sfora ? ' over-budget' : ''}}">
                 <span class="legend-dot" style="background:${{colors[i] || '#888'}}"></span>
                 <span class="legend-name">${{lbl}}${{budgetInfo}}</span>
-                <span class="legend-val">€${{fmtIt(vals[i])}}</span>
+                <span class="legend-val">€ ${{fmtIt(vals[i])}}</span>
                 <span class="legend-pct">${{pct}}%</span>
             </div>`;
         }}).join('');
@@ -7204,7 +7272,7 @@ def pagina_grafici_web(self):
                     label: function(ctx) {{
                         const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
                         const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
-                        return ` ${{ctx.label}}: €${{fmtIt(ctx.parsed)}} (${{pct}}%)`;
+                        return ` ${{ctx.label}}: € ${{fmtIt(ctx.parsed)}} (${{pct}}%)`;
                     }}
                 }}
             }};
@@ -7214,13 +7282,13 @@ def pagina_grafici_web(self):
                 callbacks: {{
                     label: function(ctx) {{
                         const dsLabel = ctx.dataset.label ? ctx.dataset.label + ': ' : '';
-                        return ` ${{dsLabel}}€${{fmtIt(ctx.parsed.y)}}`;
+                        return ` ${{dsLabel}}€ ${{fmtIt(ctx.parsed.y)}}`;
                     }}
                 }}
             }};
             opts.scales = {{
                 x: {{ ticks: {{ color: cc.tick, font: {{ family: 'DM Sans' }} }}, grid: {{ color: cc.grid }} }},
-                y: {{ ticks: {{ color: cc.tick, font: {{ family: 'DM Sans' }}, callback: v => '€' + fmtIt(v) }}, grid: {{ color: cc.grid }} }}
+                y: {{ ticks: {{ color: cc.tick, font: {{ family: 'DM Sans' }}, callback: v => '€ ' + fmtIt(v) }}, grid: {{ color: cc.grid }} }}
             }};
         }}
         let data = JSON.parse(JSON.stringify(chartData[tabName]));
@@ -7287,6 +7355,7 @@ def html_lista_spese_mensili(self):
     saldo_mese = tot_entrate - tot_uscite
     icona_meteo = "☀️" if saldo_mese >= 0 else "⛈️"
     colore_saldo = "#4caf82" if saldo_mese >= 0 else "#e05a5a"
+    segno_saldo_mese = "+" if saldo_mese >= 0 else ""
     current_month_expenses.sort(key=lambda x: x[0], reverse=True)
     schede_html = ""
     if not current_month_expenses:
@@ -7303,7 +7372,7 @@ def html_lista_spese_mensili(self):
                     <span class="op-arrow">▶</span>
                     <span class="op-date">{data_str}</span>
                     <span class="op-cat">{cat}</span>
-                    <span class="op-amt" style="color:{colore_imp};">{segno}€{_fmt_it(imp)}</span>
+                    <span class="op-amt" style="color:{colore_imp};">€ {segno}{_fmt_it(imp)}</span>
                 </div>
                 <div id="{details_id}" class="op-details">
                     <div class="op-row"><span class="op-lbl">Tipo</span><span>{tipo}</span></div>
@@ -7459,16 +7528,16 @@ def html_lista_spese_mensili(self):
         <div class="summary-grid">
             <div class="sg-box">
                 <span class="sg-label">Entrate</span>
-                <span class="sg-val" style="color:var(--green);">+€{_fmt_it(tot_entrate)}</span>
+                <span class="sg-val" style="color:var(--green);">€ +{_fmt_it(tot_entrate)}</span>
             </div>
             <div class="sg-box">
                 <span class="sg-label">Uscite</span>
-                <span class="sg-val" style="color:var(--red);">-€{_fmt_it(tot_uscite)}</span>
+                <span class="sg-val" style="color:var(--red);">€ -{_fmt_it(tot_uscite)}</span>
             </div>
         </div>
         <div class="saldo-row">
             <div class="saldo-lbl">Saldo attuale</div>
-            <div class="saldo-num" style="color:{colore_saldo};">€{_fmt_it(saldo_mese)}</div>
+            <div class="saldo-num" style="color:{colore_saldo};">€ {segno_saldo_mese}{_fmt_it(saldo_mese)}</div>
         </div>
     </div>
     {schede_html}
@@ -7510,7 +7579,7 @@ def html_lista_spese_mensili(self):
     let dData = null, dIdx = null, dHaPdf = false;
     function apriModal(data, idx, cat, imp, ha_pdf) {{
         dData = data; dIdx = idx; dHaPdf = (ha_pdf === '1' || ha_pdf === 1);
-        document.getElementById("modalText").innerHTML = "Vuoi eliminare <b>" + cat + "</b> da <b>€" + imp + "</b>?";
+        document.getElementById("modalText").innerHTML = "Vuoi eliminare <b>" + cat + "</b> da <b>€ " + imp + "</b>?";
         document.getElementById("deleteModal").style.display = "flex";
     }}
     function closeDeleteModal() {{ document.getElementById("deleteModal").style.display = "none"; }}
@@ -7586,6 +7655,7 @@ def stats_mensili_html(self):
     saldo = entrate - uscite
     saldo_colore = "#4caf82" if saldo >= 0 else "#e05a5a"
     meteo_saldo = "☀️" if saldo >= 0 else "🌧️"
+    segno_saldo = "+" if saldo >= 0 else ""
 
     def genera_html_categorie(categorie_totals, raw_dettaglio, prefix, counts_dict):
         html_content = ""
@@ -7599,8 +7669,9 @@ def stats_mensili_html(self):
             if voci_dettaglio:
                 arrow_button_html = f"""<button type="button" class="cat-arrow-btn" onclick="toggleCat('{dettagli_id}', this)" aria-expanded="false"><span class="cat-arrow">▶</span></button>"""
             color_class = "amt-income" if prefix == "entrate" else "amt-expense"
+            segno_cat = "+" if prefix == "entrate" else "-"
             dettaglio_items_html = ''.join(
-                f'<li class="det-item"><span class="det-text">{data.strftime("%d-%m-%Y")}{" — " + desc if desc else ""}</span><span class="det-amt {color_class}">€{_fmt_it(imp)}</span></li>'
+                f'<li class="det-item"><span class="det-text">{data.strftime("%d-%m-%Y")}{" — " + desc if desc else ""}</span><span class="det-amt {color_class}">€ {segno_cat}{_fmt_it(imp)}</span></li>'
                 for data, desc, imp, *_ in voci_dettaglio
             )
             if not dettaglio_items_html:
@@ -7610,14 +7681,14 @@ def stats_mensili_html(self):
             sfora_budget = budget_cat > 0 and totale > budget_cat
             budget_info_html = ''
             if budget_cat > 0:
-                budget_info_html = f'<span class="cat-budget{" over" if sfora_budget else ""}">{"⚠️ " if sfora_budget else ""}budget €{_fmt_it(budget_cat)}</span>'
+                budget_info_html = f'<span class="cat-budget{" over" if sfora_budget else ""}">{"⚠️ " if sfora_budget else ""}budget € {_fmt_it(budget_cat)}</span>'
             item_class = "cat-item over-budget" if sfora_budget else "cat-item"
             html_content += f"""
             <li class="{item_class}">
                 <div class="cat-summary">
                     {arrow_button_html}
                     <span class="cat-name"><span class="cat-name-row">{cat} <small>({num_ops})</small></span>{budget_info_html}</span>
-                    <span class="cat-total {color_class}">€{_fmt_it(totale)}</span>
+                    <span class="cat-total {color_class}">€ {segno_cat}{_fmt_it(totale)}</span>
                 </div>
                 <ul id="{dettagli_id}" class="cat-details hidden">{dettaglio_items_html}</ul>
             </li>"""
@@ -7766,16 +7837,16 @@ def stats_mensili_html(self):
         <div class="stats-grid">
             <div class="stat-box">
                 <span class="stat-label">Entrate</span>
-                <span class="stat-val amt-income">+€{_fmt_it(entrate)}</span>
+                <span class="stat-val amt-income">€ +{_fmt_it(entrate)}</span>
             </div>
             <div class="stat-box">
                 <span class="stat-label">Uscite</span>
-                <span class="stat-val amt-expense">-€{_fmt_it(uscite)}</span>
+                <span class="stat-val amt-expense">€ -{_fmt_it(uscite)}</span>
             </div>
         </div>
         <div class="saldo-row">
             <div class="saldo-label">Saldo attuale</div>
-            <div class="saldo-val" style="color:{saldo_colore};">€{_fmt_it(saldo)}</div>
+            <div class="saldo-val" style="color:{saldo_colore};">€ {segno_saldo}{_fmt_it(saldo)}</div>
         </div>
     </div>
     <button type="button" class="sec-toggle" onclick="toggleSec('usciteCatContent', this)">
@@ -7869,7 +7940,7 @@ def modifica_voce_form(self, params):
         _conti_lista_m = _db_portaf_m.get("conti", [])
         conti_options_mod = '<option value="">(nessuno)</option>\n' + "\n".join(
             f'<option value="{c.get("nome","")}" {"selected" if c.get("nome","") == _conto_corrente else ""}>'
-            f'{c.get("nome","")}\u2002(\u20ac{_fmt_it(float(c.get("saldo",0)))})</option>'
+            f'{c.get("nome","")}\u2002(\u20ac {_fmt_it(float(c.get("saldo",0)))})</option>'
             for c in _conti_lista_m
         )
         mostra_conto_mod = "block" if _conti_lista_m else "none"

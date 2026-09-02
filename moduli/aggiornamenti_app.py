@@ -31,6 +31,7 @@ LIBRERIE_PIP_INFO = [
     ("certifi",      "Certificati SSL"),
     ("yfinance",     "Mercati Finanziari"),
     ("tkinterdnd2",  "Drag & Drop documenti"),
+    ("webauthn",     "Autenticazione biometrica"),
 ]
 
 # Controllo Manuale Forzato dell'Aggiornamento Software (conferma utente + riavvio)
