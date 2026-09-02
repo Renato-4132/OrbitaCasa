@@ -227,7 +227,6 @@ def registra_tutti_i_moduli(GestioneSpese):
     from moduli.toggle_stats_view import toggle_stats_view
     _registra(toggle_stats_view)
 
-
     from moduli.webauthn_login import html_webauthn_web
     _registra(html_webauthn_web)
 
@@ -368,6 +367,7 @@ def registra_tutti_i_moduli(GestioneSpese):
         html_info_sys, html_form, html_saluto, html_fairshare_web, documenti_pdf_web, documenti_personali_web, genera_html_utenze,
         genera_html_consultazione, pagina_menu_esplora, add_categoria_web, modifica_categoria_web, cancella_categoria_web,
         refresh_categorie_web, html_gestione_categorie, pagina_fondo_risparmio_web, pagina_grafici_web, html_lista_spese_mensili,
+        html_scadenze_mese,
         stats_mensili_html, modifica_voce_form, cancella_voce_web, aggiungi_voce_web, carica_db_web, analizza_pdf_web,
         ricalcola_operazioni_web, notifica_modifica_web, pianifica_sincro_web,
         manda_push, get_dati_entrate_uscite_tutti_gli_anni_json, get_dati_saldo_annuale_json,
@@ -378,7 +378,7 @@ def registra_tutti_i_moduli(GestioneSpese):
     html_form, html_saluto, html_fairshare_web, documenti_pdf_web, documenti_personali_web, 
     genera_html_utenze, genera_html_consultazione, pagina_menu_esplora, add_categoria_web, 
     modifica_categoria_web, cancella_categoria_web, refresh_categorie_web, html_gestione_categorie, 
-    pagina_fondo_risparmio_web, pagina_grafici_web, html_lista_spese_mensili, stats_mensili_html, 
+    pagina_fondo_risparmio_web, pagina_grafici_web, html_lista_spese_mensili, html_scadenze_mese, stats_mensili_html, 
     modifica_voce_form, cancella_voce_web, aggiungi_voce_web, carica_db_web, analizza_pdf_web, 
     ricalcola_operazioni_web, notifica_modifica_web, pianifica_sincro_web,
     manda_push, get_dati_entrate_uscite_tutti_gli_anni_json, get_dati_saldo_annuale_json,
@@ -408,4 +408,3 @@ def registra_tutti_i_moduli(GestioneSpese):
     _registra(_gami_carica, _gami_salva, _gami_estendi_licenza, aggiorna_streak_gamification, registra_azione_gamification,
         annulla_azione_gamification, aggiorna_badge_header,
         _gami_nome_scope, _gami_mostra_notifiche_badge, mostra_dettaglio_gamification)
-

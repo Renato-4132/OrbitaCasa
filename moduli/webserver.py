@@ -182,6 +182,11 @@ def _crea_flask_app(self):
     def lista():
         return html_resp(tk_app.html_lista_spese_mensili())
 
+    @flask_app.route("/scadenze_web")
+    @richiede_login
+    def scadenze_web():
+        return html_resp(tk_app.html_scadenze_mese())
+
     @flask_app.route("/utenze")
     @richiede_login
     def utenze():
@@ -1823,6 +1828,7 @@ def pagina_risultati_avanzati(self, params):
         <a href="/stats">📊 Bilancio Mese</a>
         <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
         <a href="/grafici_web">📅 Grafici e Statistiche</a>
+        <a href="/scadenze_web">📅 Scadenze del Mese</a>
         <a href="/menu_esplora">🔍 Esplora</a>
         <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
         <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
@@ -2103,6 +2109,7 @@ def html_info_sys(self):
         <a href="/stats">📊 Bilancio Mese</a>
         <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
         <a href="/grafici_web">📅 Grafici e Statistiche</a>
+        <a href="/scadenze_web">📅 Scadenze del Mese</a>
         <a href="/menu_esplora">🔍 Esplora</a>
         <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
         <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
@@ -2558,6 +2565,7 @@ def html_form(self):
         <a href="/stats">📊 Bilancio Mese</a>
         <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
         <a href="/grafici_web">📅 Grafici e Statistiche</a>
+        <a href="/scadenze_web">📅 Scadenze del Mese</a>
         <a href="/menu_esplora">🔍 Esplora</a>
         <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
         <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
@@ -3318,6 +3326,7 @@ def html_fairshare_web(self):
         <a href="/stats">📊 Bilancio Mese</a>
         <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
         <a href="/grafici_web">📅 Grafici e Statistiche</a>
+        <a href="/scadenze_web">📅 Scadenze del Mese</a>
         <a href="/menu_esplora">🔍 Esplora</a>
         <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
         <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
@@ -3838,6 +3847,7 @@ def documenti_pdf_web(self):
         <a href="/stats">📊 Bilancio Mese</a>
         <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
         <a href="/grafici_web">📅 Grafici e Statistiche</a>
+        <a href="/scadenze_web">📅 Scadenze del Mese</a>
         <a href="/menu_esplora">🔍 Esplora</a>
         <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
         <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
@@ -4285,6 +4295,7 @@ def documenti_personali_web(self):
         <a href="/stats">📊 Bilancio Mese</a>
         <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
         <a href="/grafici_web">📅 Grafici e Statistiche</a>
+        <a href="/scadenze_web">📅 Scadenze del Mese</a>
         <a href="/menu_esplora">🔍 Esplora</a>
         <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
         <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
@@ -4708,6 +4719,7 @@ def genera_html_utenze(self, percorso_db, anno):
         <a href="/stats">📊 Bilancio Mese</a>
         <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
         <a href="/grafici_web">📅 Grafici e Statistiche</a>
+        <a href="/scadenze_web">📅 Scadenze del Mese</a>
         <a href="/menu_esplora">🔍 Esplora</a>
         <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
         <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
@@ -4999,6 +5011,7 @@ def genera_html_consultazione(self, file_selezionato=None):
         <a href="/stats">📊 Bilancio Mese</a>
         <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
         <a href="/grafici_web">📅 Grafici e Statistiche</a>
+        <a href="/scadenze_web">📅 Scadenze del Mese</a>
         <a href="/menu_esplora">🔍 Esplora</a>
         <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
         <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
@@ -5233,6 +5246,7 @@ def pagina_menu_esplora(self):
         <a href="/stats">📊 Bilancio Mese</a>
         <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
         <a href="/grafici_web">📅 Grafici e Statistiche</a>
+        <a href="/scadenze_web">📅 Scadenze del Mese</a>
         <a href="/menu_esplora">🔍 Esplora</a>
         <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
         <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
@@ -5596,6 +5610,7 @@ def pagina_cambia_profilo_web(self):
         <a href="/stats">📊 Bilancio Mese</a>
         <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
         <a href="/grafici_web">📅 Grafici e Statistiche</a>
+        <a href="/scadenze_web">📅 Scadenze del Mese</a>
         <a href="/menu_esplora">🔍 Esplora</a>
         <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
         <a href="/utenze">💧 Utenze</a>
@@ -6125,6 +6140,7 @@ def html_gestione_categorie(self):
         <a href="/stats">📊 Bilancio Mese</a>
         <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
         <a href="/grafici_web">📅 Grafici e Statistiche</a>
+        <a href="/scadenze_web">📅 Scadenze del Mese</a>
         <a href="/menu_esplora">🔍 Esplora</a>
         <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
         <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
@@ -6620,6 +6636,7 @@ def pagina_fondo_risparmio_web(self):
     <a href="/stats">📊 Bilancio Mese</a>
     <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
     <a href="/grafici_web">📅 Grafici e Statistiche</a>
+    <a href="/scadenze_web">📅 Scadenze del Mese</a>
     <a href="/menu_esplora">🔍 Esplora</a>
     <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
     <a href="/utenze?anno={nav_anno}">💧 Utenze</a>
@@ -7114,6 +7131,7 @@ def pagina_grafici_web(self):
         <a href="/stats">📊 Bilancio Mese</a>
         <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
         <a href="/grafici_web">📅 Grafici e Statistiche</a>
+        <a href="/scadenze_web">📅 Scadenze del Mese</a>
         <a href="/menu_esplora">🔍 Esplora</a>
         <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
         <a href="/utenze?anno={anno_corrente_format}">💧 Utenze</a>
@@ -7317,6 +7335,284 @@ def pagina_grafici_web(self):
 </body>
 </html>"""
 
+# Html Genera la pagina web delle scadenze/ricorrenze del mese corrente (equivalente web del popup scadenze_mese)
+def html_scadenze_mese(self):
+    import datetime
+    from moduli.modello_spesa import campo
+    def calcola_data_fine(data_inizio, n_volte, periodo):
+        if not data_inizio or not isinstance(n_volte, int) or n_volte < 1:
+            return "N/D"
+        periodo = periodo.lower().strip()
+        if periodo == "ogni giorno":
+            data_fine_obj = data_inizio + datetime.timedelta(days=n_volte - 1)
+        elif periodo == "ogni mese":
+            total_months = data_inizio.month + n_volte - 1
+            anno_fine = data_inizio.year + (total_months - 1) // 12
+            mese_fine = (total_months - 1) % 12 + 1
+            giorno_inizio = data_inizio.day
+            try:
+                data_fine_obj = datetime.date(anno_fine, mese_fine, giorno_inizio)
+            except ValueError:
+                if mese_fine == 12:
+                    primo_giorno_mese_successivo = datetime.date(anno_fine + 1, 1, 1)
+                else:
+                    primo_giorno_mese_successivo = datetime.date(anno_fine, mese_fine + 1, 1)
+                ultimo_giorno_mese_fine = (primo_giorno_mese_successivo - datetime.timedelta(days=1)).day
+                data_fine_obj = datetime.date(anno_fine, mese_fine, ultimo_giorno_mese_fine)
+        elif periodo == "ogni anno":
+            anno_fine = data_inizio.year + n_volte - 1
+            try:
+                data_fine_obj = data_inizio.replace(year=anno_fine)
+            except ValueError:
+                data_fine_obj = data_inizio.replace(year=anno_fine, day=28)
+        else:
+            return "N/D"
+        return data_fine_obj.strftime("%d-%m-%Y")
+    oggi = datetime.date.today()
+    mese_corrente = oggi.month
+    anno_corrente = oggi.year
+    mesi_italiani = [
+        "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
+        "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"
+    ]
+    mese_nome = mesi_italiani[mese_corrente - 1]
+    righe = []
+    for item_id, dati in self.ricorrenze.items():
+        try:
+            ric_type = dati.get("tipo", "").lower()
+            n = dati.get("n", 0)
+            data_inizio = datetime.datetime.strptime(dati.get("data_inizio", ""), "%d-%m-%Y").date()
+            categoria = dati.get("cat", "N/D")
+            descrizione_base = dati.get("desc", "—")
+            tipo_voce = dati.get("tipo_voce", "N/D")
+            importo_base = float(str(dati.get("imp", "0")).replace(",", "."))
+            date_nel_mese = []
+            for i in range(n):
+                if ric_type == "ogni mese":
+                    mese = (data_inizio.month - 1 + i) % 12 + 1
+                    anno = data_inizio.year + (data_inizio.month - 1 + i) // 12
+                    giorno = min(
+                        data_inizio.day,
+                        [31, 29 if anno % 4 == 0 and (anno % 100 != 0 or anno % 400 == 0) else 28,
+                         31, 30, 31, 30, 31, 31, 30, 31, 30, 31][mese - 1]
+                    )
+                    data_movimento = datetime.date(anno, mese, giorno)
+                elif ric_type == "ogni anno":
+                    try:
+                        data_movimento = data_inizio.replace(year=data_inizio.year + i)
+                    except ValueError:
+                        data_movimento = data_inizio.replace(year=data_inizio.year + i, day=28)
+                else:
+                    data_movimento = data_inizio + datetime.timedelta(days=i)
+                if data_movimento.month == mese_corrente and data_movimento.year == anno_corrente:
+                    date_nel_mese.append((i + 1, data_movimento))
+            data_fine_serie = calcola_data_fine(data_inizio, n, ric_type)
+            for indice, data_movimento in date_nel_mese:
+                voce_trovata = False
+                importo_effettivo = importo_base
+                if data_movimento in self.spese:
+                    for voce in self.spese[data_movimento]:
+                        if len(voce) >= 5 and voce[4] == item_id:
+                            importo_effettivo = voce[2]
+                            voce_trovata = True
+                            break
+                pagato = data_movimento <= oggi and voce_trovata
+                righe.append({
+                    "data": data_movimento, "categoria": categoria, "descrizione": descrizione_base,
+                    "importo": importo_effettivo, "tipo": tipo_voce, "scadenza_serie": data_fine_serie,
+                    "pagato": pagato, "trovata": voce_trovata, "progressione": f"{indice}/{n}",
+                })
+        except Exception as e:
+            print(f"Errore nella ricorrenza con ID {item_id}: {e}")
+            continue
+    fine_mese = datetime.date(anno_corrente, mese_corrente, 28)
+    while True:
+        try:
+            fine_mese = fine_mese.replace(day=fine_mese.day + 1)
+        except ValueError:
+            break
+    for data_voce in sorted(self.spese.keys()):
+        if oggi <= data_voce <= fine_mese:
+            for voce in self.spese[data_voce]:
+                if len(voce) < 5 or voce[4] not in self.ricorrenze:
+                    try:
+                        categoria, descrizione, importo, tipo_voce = voce[:4]
+                        righe.append({
+                            "data": data_voce, "categoria": categoria, "descrizione": descrizione,
+                            "importo": importo, "tipo": tipo_voce, "scadenza_serie": data_voce.strftime("%d-%m-%Y"),
+                            "pagato": data_voce <= oggi, "trovata": True, "progressione": "—",
+                        })
+                    except Exception as e:
+                        print(f"Errore nella voce normale del {data_voce}: {e}")
+                        continue
+    righe.sort(key=lambda r: r["data"])
+    righe_html = ""
+    if not righe:
+        righe_html = "<p style='text-align:center; color:#555; padding:20px; font-style:italic;'>Nessuna scadenza per questo mese.</p>"
+    else:
+        for r in righe:
+            colore = "#4caf82" if r["tipo"].strip().lower() != "uscita" and r["trovata"] else ("#e05a5a" if r["tipo"].strip().lower() == "uscita" else "#888")
+            segno = "-" if r["tipo"].strip().lower() == "uscita" else "+"
+            stato_icona = "✔️" if r["pagato"] else "❌"
+            stato_testo = "Pagato" if r["pagato"] else "Da pagare"
+            valore_importo = f"{segno}€{_fmt_it(r['importo'])}" if r["trovata"] else "—"
+            righe_html += f"""
+            <div class="scad-item">
+                <div class="scad-date">{r['data'].strftime('%d-%m-%Y')}</div>
+                <div class="scad-body">
+                    <div class="scad-top">
+                        <span class="scad-cat">{r['categoria']}</span>
+                        <span class="scad-amt" style="color:{colore};">{valore_importo}</span>
+                    </div>
+                    <div class="scad-desc">{r['descrizione']}</div>
+                    <div class="scad-meta">
+                        <span class="scad-badge">{stato_icona} {stato_testo}</span>
+                        <span class="scad-badge">{r['progressione']}</span>
+                        <span class="scad-badge">{r['tipo']}</span>
+                    </div>
+                </div>
+            </div>"""
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>📅 Scadenze del Mese</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+    (function() {{
+        if (localStorage.getItem('theme') === 'light')
+            document.documentElement.classList.add('light');
+    }})();
+</script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+<style>
+    :root {{
+        --bg:#050505; --surface:#0f0f0f; --surface2:#161616; --surface3:#1e1e1e;
+        --border:rgba(255,255,255,0.07); --gold:#c9a84c; --blue:#63a0f0;
+        --green:#4caf82; --red:#e05a5a; --text:#e8e8e8; --text-dim:#555; --text-mid:#888;
+        --radius-lg:18px;
+    }}
+    :root.light {{
+        --bg:#f5f5f0; --surface:#ffffff; --surface2:#f0efe8; --surface3:#e8e7df;
+        --border:rgba(0,0,0,0.09); --gold:#b8902a; --blue:#3d7fd4;
+        --green:#3a9068; --red:#cc3333; --text:#1a1a1a; --text-dim:#999; --text-mid:#555;
+    }}
+    * {{ box-sizing:border-box; margin:0; padding:0; }}
+    body {{ font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text);
+        min-height:100vh; padding-bottom:50px; transition:background 0.3s,color 0.3s;
+        background-image:
+            radial-gradient(ellipse 60% 40% at 50% -10%, rgba(99,160,240,0.07) 0%, transparent 70%),
+            radial-gradient(ellipse 40% 30% at 80% 80%, rgba(201,168,76,0.04) 0%, transparent 60%); }}
+    header {{ padding:14px 16px 12px; display:flex; align-items:center; justify-content:center;
+        border-bottom:1px solid var(--border); background:rgba(5,5,5,0.95);
+        backdrop-filter:blur(20px); position:sticky; top:0; z-index:100; }}
+    :root.light header {{ background:rgba(245,245,240,0.95); }}
+    .menu-btn {{ position:absolute; left:14px; top:50%; transform:translateY(-50%);
+        background:var(--surface3); border:1px solid var(--border); color:var(--gold);
+        width:36px; height:36px; border-radius:10px; font-size:1em;
+        cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; }}
+    .menu-btn:hover {{ border-color:var(--gold); }}
+    .header-title {{ font-family:'DM Sans',sans-serif; font-size:1em; font-weight:700; color:var(--text); }}
+    .theme-toggle {{
+        position:absolute; right:14px; top:50%; transform:translateY(-50%);
+        background:var(--surface3); border:1px solid var(--border);
+        border-radius:8px; width:34px; height:34px;
+        display:flex; align-items:center; justify-content:center;
+        cursor:pointer; font-size:1em; transition:all 0.2s; }}
+    .theme-toggle:hover {{ border-color:var(--gold); }}
+    .nav-dropdown {{ position:absolute; top:calc(100% + 6px); left:10px;
+        background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-lg);
+        display:none; z-index:1000; width:270px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,0.7); }}
+    .nav-dropdown a {{ display:flex; align-items:center; gap:10px; padding:10px 16px;
+        text-decoration:none; color:var(--text-mid); border-bottom:1px solid var(--border);
+        font-size:0.87em; transition:all 0.15s; }}
+    .nav-dropdown a:last-child {{ border-bottom:none; }}
+    .nav-dropdown a:hover {{ background:var(--surface3); color:var(--text); padding-left:22px; }}
+    main {{ padding:14px; max-width:580px; margin:0 auto; animation:fadeIn 0.3s ease; }}
+    @keyframes fadeIn {{ from {{ opacity:0; transform:translateY(8px); }} to {{ opacity:1; transform:translateY(0); }} }}
+    .summary-card {{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
+        padding:16px 18px; margin-bottom:12px; text-align:center; position:relative; overflow:hidden; }}
+    .summary-card::before {{ content:''; position:absolute; top:0; left:0; right:0; height:2px;
+        background:linear-gradient(90deg, transparent, var(--gold), var(--blue), transparent); }}
+    .summary-title {{ font-family:'DM Sans',sans-serif; font-size:1.05em; font-weight:800; }}
+    .scad-item {{ background:var(--surface); border:1px solid var(--border); border-radius:12px;
+        margin-bottom:8px; display:flex; overflow:hidden; }}
+    .scad-date {{ background:var(--surface3); color:var(--text-dim); font-size:0.72em; font-weight:700;
+        writing-mode:vertical-rl; text-orientation:mixed; padding:10px 6px; flex-shrink:0;
+        display:flex; align-items:center; justify-content:center; letter-spacing:1px; }}
+    .scad-body {{ padding:10px 14px; flex:1; min-width:0; }}
+    .scad-top {{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; }}
+    .scad-cat {{ font-family:'DM Sans',sans-serif; font-weight:700; font-size:0.9em; }}
+    .scad-amt {{ font-weight:700; font-size:0.9em; flex-shrink:0; }}
+    .scad-desc {{ font-size:0.78em; color:var(--text-mid); margin-top:2px; }}
+    .scad-meta {{ display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }}
+    .scad-badge {{ background:var(--surface2); border:1px solid var(--border); border-radius:6px;
+        padding:2px 8px; font-size:0.68em; color:var(--text-dim); }}
+    .btn-home {{ display:block; text-align:center; padding:13px; margin-top:12px;
+        background:linear-gradient(135deg, var(--gold) 0%, #8a6820 100%);
+        color:#000; border-radius:10px; text-decoration:none;
+        font-family:'DM Sans',sans-serif; font-weight:700; font-size:0.9em;
+        line-height:1.5; transition:all 0.2s; }}
+    .btn-home:hover {{ transform:translateY(-1px); box-shadow:0 6px 20px rgba(201,168,76,0.25); }}
+</style>
+</head>
+<body>
+<header>
+    <button class="menu-btn" onclick="toggleMenu(event)">⚙️</button>
+    <div id="extraMenu" class="nav-dropdown">
+        <a href="/">🏠 Aggiungi Operazione</a>
+        <a href="/lista">📈 Gestione Movimenti Mese</a>
+        <a href="/stats">📊 Bilancio Mese</a>
+        <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+        <a href="/grafici_web">📅 Grafici e Statistiche</a>
+        <a href="/scadenze_web">📅 Scadenze del Mese</a>
+        <a href="/menu_esplora">🔍 Esplora</a>
+        <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
+        <a href="/utenze?anno={oggi.year}">💧 Utenze</a>
+        <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
+        <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+        <a href="/fairshare_web">⚖️ FairShare</a>
+        <a href="/consultazione_supermercati">🛒 Supermercati</a>
+        <a href="/info_sys_web">📡 Monitor Server</a>
+        <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
+        <a href="/logoff">🔓 Logout</a>
+    </div>
+    <div class="header-title">📅 Scadenze del Mese</div>
+    <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Cambia tema">🌙</button>
+</header>
+<main>
+    <div class="summary-card">
+        <div class="summary-title">Scadenze di {mese_nome} {anno_corrente}</div>
+    </div>
+    {righe_html}
+    <a href="/" class="btn-home">🏠 Torna alla Home</a>
+</main>
+<script>
+    function applyTheme(t) {{
+        const root = document.documentElement;
+        const btn  = document.getElementById('themeBtn');
+        if (t === 'light') {{ root.classList.add('light'); if (btn) btn.textContent = '🌙'; }}
+        else               {{ root.classList.remove('light'); if (btn) btn.textContent = '☀️'; }}
+    }}
+    function toggleTheme() {{
+        const next = (localStorage.getItem('theme') || 'dark') === 'dark' ? 'light' : 'dark';
+        localStorage.setItem('theme', next);
+        applyTheme(next);
+    }}
+    applyTheme(localStorage.getItem('theme') || 'dark');
+    function toggleMenu(e) {{
+        e.stopPropagation();
+        const m = document.getElementById("extraMenu");
+        m.style.display = (m.style.display === "block") ? "none" : "block";
+    }}
+    document.addEventListener("click", function(e) {{
+        const m = document.getElementById("extraMenu");
+        if (m && m.style.display === "block" && !m.contains(e.target)) m.style.display = "none";
+    }});
+</script>
+</body>
+</html>"""
+
 # Html Genera la pagina web dei movimenti del mese corrente con riepilogo entrate/uscite/saldo e azioni di modifica e cancellazione
 def html_lista_spese_mensili(self):
     import datetime
@@ -7508,6 +7804,7 @@ def html_lista_spese_mensili(self):
         <a href="/stats">📊 Bilancio Mese</a>
         <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
         <a href="/grafici_web">📅 Grafici e Statistiche</a>
+        <a href="/scadenze_web">📅 Scadenze del Mese</a>
         <a href="/menu_esplora">🔍 Esplora</a>
         <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
         <a href="/utenze?anno={oggi.year}">💧 Utenze</a>
@@ -7817,6 +8114,7 @@ def stats_mensili_html(self):
         <a href="/stats">📊 Bilancio Mese</a>
         <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
         <a href="/grafici_web">📅 Grafici e Statistiche</a>
+        <a href="/scadenze_web">📅 Scadenze del Mese</a>
         <a href="/menu_esplora">🔍 Esplora</a>
         <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
         <a href="/utenze?anno={datetime.date.today().year}">💧 Utenze</a>
