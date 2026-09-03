@@ -319,8 +319,14 @@ def html_webauthn_web(self):
     .btn-registra:hover {{ transform: translateY(-1px); box-shadow: 0 6px 18px rgba(201,168,76,0.25); }}
     #msg {{ font-size: 0.8em; margin-top: 10px; min-height: 18px; color: var(--text-mid); text-align: center; }}
     .footer {{ padding: 14px 20px; border-top: 1px solid var(--border); text-align: center; }}
-    .back-link {{ font-size: 0.75em; color: var(--text-dim); text-decoration: none; transition: color 0.2s; }}
-    .back-link:hover {{ color: var(--blue); }}
+    .btn-home {{
+        display: block; text-align: center; padding: 13px;
+        background: linear-gradient(135deg, var(--gold) 0%, #8a6820 100%);
+        color: #000; border-radius: 10px; text-decoration: none;
+        font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 0.9em;
+        line-height: 1.5; letter-spacing: 0.5px; transition: all 0.2s;
+    }}
+    .btn-home:hover {{ transform: translateY(-1px); box-shadow: 0 6px 20px rgba(201,168,76,0.25); }}
 </style>
 </head>
 <body>
@@ -336,7 +342,7 @@ def html_webauthn_web(self):
         <div id="msg"></div>
     </div>
     <div class="footer">
-        <a href="/info_sys_web" class="back-link">← Torna al Monitor</a>
+        <a href="/" class="btn-home">🏠 Torna alla Home</a>
     </div>
 </div>
 <script>

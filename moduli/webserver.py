@@ -1157,6 +1157,14 @@ def html_cambia_pw_web(self):
     .footer {{ padding: 14px 20px; border-top: 1px solid var(--border); text-align: center; }}
     .back-link {{ font-size: 0.75em; color: var(--text-dim); text-decoration: none; transition: color 0.2s; }}
     .back-link:hover {{ color: var(--blue); }}
+    .btn-home {{
+        display: block; text-align: center; padding: 14px;
+        background: linear-gradient(135deg, var(--gold) 0%, #8a6820 100%);
+        color: #000; border-radius: 10px; text-decoration: none;
+        font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 0.9em;
+        line-height: 1.5; letter-spacing: 0.5px; margin-top: 4px; transition: all 0.2s;
+    }}
+    .btn-home:hover {{ transform: translateY(-1px); box-shadow: 0 6px 20px rgba(201,168,76,0.25); }}
 </style>
 </head>
 <body>
@@ -1188,7 +1196,7 @@ def html_cambia_pw_web(self):
         </form>
     </div>
     <div class="footer">
-        <a href="/info_sys_web" class="back-link">← Torna al Monitor</a>
+        <a href="/" class="btn-home">🏠 Torna alla Home</a>
     </div>
 </div>
 <script>
@@ -1739,6 +1747,13 @@ def pagina_risultati_avanzati(self, params):
     }}
     .nav-dropdown a:last-child {{ border-bottom: none; }}
     .nav-dropdown a:hover {{ background: var(--surface3); color: var(--text); padding-left: 24px; }}
+    .nav-group-btn {{ display:flex; justify-content:space-between; align-items:center; width:100%;
+        padding:8px 16px; background:none; border:none; font-family:inherit; color:var(--gold);
+        font-size:0.7em; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; opacity:0.85; }}
+    .nav-group-btn:hover {{ opacity:1; background:var(--surface3); }}
+    .nav-arrow {{ font-size:0.85em; transition:transform 0.15s; }}
+    .nav-group-items {{ display:none; flex-direction:column; }}
+    .nav-group-items.open {{ display:flex; }}
     main {{ padding: 16px; max-width: 640px; margin: 0 auto; animation: fadeIn 0.3s ease; }}
     @keyframes fadeIn {{ from {{ opacity: 0; transform: translateY(8px); }} to {{ opacity: 1; transform: translateY(0); }} }}
     .riepilogo {{
@@ -1823,22 +1838,44 @@ def pagina_risultati_avanzati(self, params):
 <header>
     <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
-        <a href="/">🏠 Aggiungi Operazione</a>
-        <a href="/lista">📈 Gestione Movimenti Mese</a>
-        <a href="/stats">📊 Bilancio Mese</a>
-        <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
-        <a href="/grafici_web">📅 Grafici e Statistiche</a>
-        <a href="/scadenze_web">📅 Scadenze del Mese</a>
-        <a href="/menu_esplora">🔍 Esplora</a>
-        <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
-        <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
-        <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-        <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
-        <a href="/fairshare_web">⚖️ FairShare</a>
-        <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
-        <a href="/info_sys_web">📡 Monitor Server</a>
-        <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
-        <a href="/logoff">🔓 Logout</a>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/lista">📈 Gestione Movimenti Mese</a>
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/scadenze_web">📅 Scadenze del Mese</a>
+                <a href="/fairshare_web">⚖️ FairShare</a>
+                <a href="/menu_esplora">🔍 Esplora</a>
+                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
+                <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
+                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/info_sys_web">📡 Monitor Server</a>
+                <a href="/cambia_pw_web">🔑 Cambia Password</a>
+                <a href="/webauthn_web">👆 Biometrico</a>
+                <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
+                <a href="/logoff">🔓 Logout</a>
+            </div>
+        </div>
     </div>
     <div class="header-title">🔍 Risultati Ricerca</div>
     <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Cambia tema">🌙</button>
@@ -1906,6 +1943,19 @@ def pagina_risultati_avanzati(self, params):
             headers: {{ 'Content-Type': 'application/x-www-form-urlencoded' }},
             body: 'data=' + encodeURIComponent(dData) + '&idx=' + encodeURIComponent(dIdx) + '&elimina_pdf=' + elimina_pdf
         }}).then(() => window.location.reload());
+    }}
+    function toggleNavGroup(btn, ev) {{
+        if (ev) ev.stopPropagation();
+        const items = btn.nextElementSibling;
+        const giaAperto = items.classList.contains('open');
+        btn.closest('.nav-dropdown').querySelectorAll('.nav-group-items.open').forEach(function(el) {{
+            el.classList.remove('open');
+            el.previousElementSibling.querySelector('.nav-arrow').textContent = '▶';
+        }});
+        if (!giaAperto) {{
+            items.classList.add('open');
+            btn.querySelector('.nav-arrow').textContent = '▼';
+        }}
     }}
     function toggleMenu() {{
         const m = document.getElementById("extraMenu");
@@ -2049,6 +2099,13 @@ def html_info_sys(self):
     }}
     .nav-dropdown a:last-child {{ border-bottom: none; }}
     .nav-dropdown a:hover {{ background: var(--surface3); color: var(--text); padding-left: 22px; }}
+    .nav-group-btn {{ display:flex; justify-content:space-between; align-items:center; width:100%;
+        padding:8px 16px; background:none; border:none; font-family:inherit; color:var(--gold);
+        font-size:0.7em; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; opacity:0.85; }}
+    .nav-group-btn:hover {{ opacity:1; background:var(--surface3); }}
+    .nav-arrow {{ font-size:0.85em; transition:transform 0.15s; }}
+    .nav-group-items {{ display:none; flex-direction:column; }}
+    .nav-group-items.open {{ display:flex; }}
     main {{ padding: 14px 14px 0; max-width: 560px; margin: 0 auto; animation: fadeIn 0.3s ease; }}
     @keyframes fadeIn {{ from {{ opacity: 0; transform: translateY(8px); }} to {{ opacity: 1; transform: translateY(0); }} }}
     .card {{
@@ -2104,22 +2161,44 @@ def html_info_sys(self):
 <header>
     <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
-        <a href="/">🏠 Aggiungi Operazione</a>
-        <a href="/lista">📈 Gestione Movimenti Mese</a>
-        <a href="/stats">📊 Bilancio Mese</a>
-        <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
-        <a href="/grafici_web">📅 Grafici e Statistiche</a>
-        <a href="/scadenze_web">📅 Scadenze del Mese</a>
-        <a href="/menu_esplora">🔍 Esplora</a>
-        <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
-        <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
-        <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-        <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
-        <a href="/fairshare_web">⚖️ FairShare</a>
-        <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
-        <a href="/info_sys_web">📡 Monitor Server</a>
-        <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
-        <a href="/logoff">🔓 Logout</a>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/lista">📈 Gestione Movimenti Mese</a>
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/scadenze_web">📅 Scadenze del Mese</a>
+                <a href="/fairshare_web">⚖️ FairShare</a>
+                <a href="/menu_esplora">🔍 Esplora</a>
+                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
+                <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
+                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/info_sys_web">📡 Monitor Server</a>
+                <a href="/cambia_pw_web">🔑 Cambia Password</a>
+                <a href="/webauthn_web">👆 Biometrico</a>
+                <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
+                <a href="/logoff">🔓 Logout</a>
+            </div>
+        </div>
     </div>
     <div class="header-title">📡 Monitor Server</div>
     <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Cambia tema">🌙</button>
@@ -2148,8 +2227,6 @@ def html_info_sys(self):
             <a href="https://github.com/Renato-4132/OrbitaCasa/blob/main/" target="_blank" class="log-link">🐙 GitHub</a>
             <a href="mailto:helporbitacasa@gmail.com" class="log-link">✉️ Supporto</a>
             <a href="/log_web" class="log-link">📋 Log</a>
-            <a href="/cambia_pw_web" class="log-link">🔑 Pwd</a>
-            <a href="/webauthn_web" class="log-link">👆 Biometrico</a>
         </div>
     </div>
     <a href="/" class="btn-home">🏠 Torna alla Home</a>
@@ -2167,6 +2244,19 @@ def html_info_sys(self):
         applyTheme(next);
     }}
     applyTheme(localStorage.getItem('theme') || 'dark');
+    function toggleNavGroup(btn, ev) {{
+        if (ev) ev.stopPropagation();
+        const items = btn.nextElementSibling;
+        const giaAperto = items.classList.contains('open');
+        btn.closest('.nav-dropdown').querySelectorAll('.nav-group-items.open').forEach(function(el) {{
+            el.classList.remove('open');
+            el.previousElementSibling.querySelector('.nav-arrow').textContent = '▶';
+        }});
+        if (!giaAperto) {{
+            items.classList.add('open');
+            btn.querySelector('.nav-arrow').textContent = '▼';
+        }}
+    }}
     function toggleMenu() {{
         const m = document.getElementById("extraMenu");
         m.style.display = m.style.display === "block" ? "none" : "block";
@@ -2384,6 +2474,13 @@ def html_form(self):
     }}
     .nav-dropdown a:last-child {{ border-bottom: none; }}
     .nav-dropdown a:hover {{ background: var(--surface3); color: var(--text); padding-left: 22px; }}
+    .nav-group-btn {{ display:flex; justify-content:space-between; align-items:center; width:100%;
+        padding:8px 16px; background:none; border:none; font-family:inherit; color:var(--gold);
+        font-size:0.7em; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; opacity:0.85; }}
+    .nav-group-btn:hover {{ opacity:1; background:var(--surface3); }}
+    .nav-arrow {{ font-size:0.85em; transition:transform 0.15s; }}
+    .nav-group-items {{ display:none; flex-direction:column; }}
+    .nav-group-items.open {{ display:flex; }}
     main {{ padding: 0 14px; max-width: 480px; margin: 0 auto; padding-bottom: 20px; animation: fadeIn 0.3s ease; }}
     @keyframes fadeIn {{ from {{ opacity: 0; transform: translateY(6px); }} to {{ opacity: 1; transform: translateY(0); }} }}
     .saldo-card {{
@@ -2560,22 +2657,44 @@ def html_form(self):
 <header>
     <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
-        <a href="/">🏠 Aggiungi Operazione</a>
-        <a href="/lista">📈 Gestione Movimenti Mese</a>
-        <a href="/stats">📊 Bilancio Mese</a>
-        <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
-        <a href="/grafici_web">📅 Grafici e Statistiche</a>
-        <a href="/scadenze_web">📅 Scadenze del Mese</a>
-        <a href="/menu_esplora">🔍 Esplora</a>
-        <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
-        <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
-        <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-        <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
-        <a href="/fairshare_web">⚖️ FairShare</a>
-        <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
-        <a href="/info_sys_web">📡 Monitor Server</a>
-        <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
-        <a href="/logoff">🔓 Logout</a>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/lista">📈 Gestione Movimenti Mese</a>
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/scadenze_web">📅 Scadenze del Mese</a>
+                <a href="/fairshare_web">⚖️ FairShare</a>
+                <a href="/menu_esplora">🔍 Esplora</a>
+                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
+                <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
+                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/info_sys_web">📡 Monitor Server</a>
+                <a href="/cambia_pw_web">🔑 Cambia Password</a>
+                <a href="/webauthn_web">👆 Biometrico</a>
+                <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
+                <a href="/logoff">🔓 Logout</a>
+            </div>
+        </div>
     </div>
     <div>
         <div class="header-title">🏠 Inserisci Operazione</div>
@@ -2757,6 +2876,19 @@ def html_form(self):
         const isOpen = content.style.display === "block";
         content.style.display = isOpen ? "none" : "block";
         if (arrow) arrow.innerHTML = isOpen ? "▼" : "▲";
+    }}
+    function toggleNavGroup(btn, ev) {{
+        if (ev) ev.stopPropagation();
+        const items = btn.nextElementSibling;
+        const giaAperto = items.classList.contains('open');
+        btn.closest('.nav-dropdown').querySelectorAll('.nav-group-items.open').forEach(function(el) {{
+            el.classList.remove('open');
+            el.previousElementSibling.querySelector('.nav-arrow').textContent = '▶';
+        }});
+        if (!giaAperto) {{
+            items.classList.add('open');
+            btn.querySelector('.nav-arrow').textContent = '▼';
+        }}
     }}
     function toggleMenu() {{
         const m = document.getElementById("extraMenu");
@@ -3243,6 +3375,13 @@ def html_fairshare_web(self):
     }}
     .nav-dropdown a:last-child {{ border-bottom:none; }}
     .nav-dropdown a:hover {{ background:var(--surface3); color:var(--text); padding-left:22px; }}
+    .nav-group-btn {{ display:flex; justify-content:space-between; align-items:center; width:100%;
+        padding:8px 16px; background:none; border:none; font-family:inherit; color:var(--gold);
+        font-size:0.7em; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; opacity:0.85; }}
+    .nav-group-btn:hover {{ opacity:1; background:var(--surface3); }}
+    .nav-arrow {{ font-size:0.85em; transition:transform 0.15s; }}
+    .nav-group-items {{ display:none; flex-direction:column; }}
+    .nav-group-items.open {{ display:flex; }}
     main {{ padding:12px 14px; max-width:680px; margin:0 auto; }}
     .filtri {{ display:flex; gap:8px; flex-wrap:wrap; margin:12px 0; }}
     .filtri select {{
@@ -3321,22 +3460,44 @@ def html_fairshare_web(self):
 <header>
     <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
-        <a href="/">🏠 Aggiungi Operazione</a>
-        <a href="/lista">📈 Gestione Movimenti Mese</a>
-        <a href="/stats">📊 Bilancio Mese</a>
-        <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
-        <a href="/grafici_web">📅 Grafici e Statistiche</a>
-        <a href="/scadenze_web">📅 Scadenze del Mese</a>
-        <a href="/menu_esplora">🔍 Esplora</a>
-        <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
-        <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
-        <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-        <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
-        <a href="/fairshare_web">⚖️ FairShare</a>
-        <a href="/consultazione_supermercati">🛒 Supermercati</a>
-        <a href="/info_sys_web">📡 Monitor Server</a>
-        <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
-        <a href="/logoff">🔓 Logout</a>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/lista">📈 Gestione Movimenti Mese</a>
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/scadenze_web">📅 Scadenze del Mese</a>
+                <a href="/fairshare_web">⚖️ FairShare</a>
+                <a href="/menu_esplora">🔍 Esplora</a>
+                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
+                <a href="/consultazione_supermercati">🛒 Supermercati</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
+                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/info_sys_web">📡 Monitor Server</a>
+                <a href="/cambia_pw_web">🔑 Cambia Password</a>
+                <a href="/webauthn_web">👆 Biometrico</a>
+                <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
+                <a href="/logoff">🔓 Logout</a>
+            </div>
+        </div>
     </div>
     <div style="text-align:center">
         <div style="font-size:0.95em;font-weight:700">⚖️ FairShare</div>
@@ -3423,6 +3584,19 @@ def html_fairshare_web(self):
     }}
     applyTheme(localStorage.getItem('theme')||'dark');
 
+    function toggleNavGroup(btn, ev) {{
+        if (ev) ev.stopPropagation();
+        const items = btn.nextElementSibling;
+        const giaAperto = items.classList.contains('open');
+        btn.closest('.nav-dropdown').querySelectorAll('.nav-group-items.open').forEach(function(el) {{
+            el.classList.remove('open');
+            el.previousElementSibling.querySelector('.nav-arrow').textContent = '▶';
+        }});
+        if (!giaAperto) {{
+            items.classList.add('open');
+            btn.querySelector('.nav-arrow').textContent = '▼';
+        }}
+    }}
     function toggleMenu() {{
         const m = document.getElementById("extraMenu");
         m.style.display = m.style.display==="block" ? "none" : "block";
@@ -3741,6 +3915,13 @@ def documenti_pdf_web(self):
     }}
     .nav-dropdown a:last-child {{ border-bottom:none; }}
     .nav-dropdown a:hover {{ background:var(--surface3); color:var(--text); padding-left:22px; }}
+    .nav-group-btn {{ display:flex; justify-content:space-between; align-items:center; width:100%;
+        padding:8px 16px; background:none; border:none; font-family:inherit; color:var(--gold);
+        font-size:0.7em; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; opacity:0.85; }}
+    .nav-group-btn:hover {{ opacity:1; background:var(--surface3); }}
+    .nav-arrow {{ font-size:0.85em; transition:transform 0.15s; }}
+    .nav-group-items {{ display:none; flex-direction:column; }}
+    .nav-group-items.open {{ display:flex; }}
     main {{ padding:14px; max-width:680px; margin:0 auto; animation:fadeIn 0.3s ease; }}
     @keyframes fadeIn {{ from {{ opacity:0; transform:translateY(8px); }} to {{ opacity:1; transform:translateY(0); }} }}
     .filter-card {{
@@ -3842,22 +4023,44 @@ def documenti_pdf_web(self):
 <header>
     <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
-        <a href="/">🏠 Aggiungi Operazione</a>
-        <a href="/lista">📈 Gestione Movimenti Mese</a>
-        <a href="/stats">📊 Bilancio Mese</a>
-        <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
-        <a href="/grafici_web">📅 Grafici e Statistiche</a>
-        <a href="/scadenze_web">📅 Scadenze del Mese</a>
-        <a href="/menu_esplora">🔍 Esplora</a>
-        <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
-        <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
-        <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-        <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
-        <a href="/fairshare_web">⚖️ FairShare</a>
-        <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
-        <a href="/info_sys_web">📡 Monitor Server</a>
-        <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
-        <a href="/logoff">🔓 Logout</a>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/lista">📈 Gestione Movimenti Mese</a>
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/scadenze_web">📅 Scadenze del Mese</a>
+                <a href="/fairshare_web">⚖️ FairShare</a>
+                <a href="/menu_esplora">🔍 Esplora</a>
+                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
+                <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
+                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/info_sys_web">📡 Monitor Server</a>
+                <a href="/cambia_pw_web">🔑 Cambia Password</a>
+                <a href="/webauthn_web">👆 Biometrico</a>
+                <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
+                <a href="/logoff">🔓 Logout</a>
+            </div>
+        </div>
     </div>
     <div class="header-title">🗄️ Documenti Contabili</div>
     <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Cambia tema">🌙</button>
@@ -4016,6 +4219,19 @@ def documenti_pdf_web(self):
             btn(i, i, i===currentPage, false);
         }}
         btn('▶', currentPage+1, false, currentPage===pages);
+    }}
+    function toggleNavGroup(btn, ev) {{
+        if (ev) ev.stopPropagation();
+        const items = btn.nextElementSibling;
+        const giaAperto = items.classList.contains('open');
+        btn.closest('.nav-dropdown').querySelectorAll('.nav-group-items.open').forEach(function(el) {{
+            el.classList.remove('open');
+            el.previousElementSibling.querySelector('.nav-arrow').textContent = '▶';
+        }});
+        if (!giaAperto) {{
+            items.classList.add('open');
+            btn.querySelector('.nav-arrow').textContent = '▼';
+        }}
     }}
     function toggleMenu() {{
         const m = document.getElementById("extraMenu");
@@ -4176,6 +4392,13 @@ def documenti_personali_web(self):
     }}
     .nav-dropdown a:last-child {{ border-bottom:none; }}
     .nav-dropdown a:hover {{ background:var(--surface3); color:var(--text); padding-left:22px; }}
+    .nav-group-btn {{ display:flex; justify-content:space-between; align-items:center; width:100%;
+        padding:8px 16px; background:none; border:none; font-family:inherit; color:var(--gold);
+        font-size:0.7em; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; opacity:0.85; }}
+    .nav-group-btn:hover {{ opacity:1; background:var(--surface3); }}
+    .nav-arrow {{ font-size:0.85em; transition:transform 0.15s; }}
+    .nav-group-items {{ display:none; flex-direction:column; }}
+    .nav-group-items.open {{ display:flex; }}
     main {{ padding:14px; max-width:680px; margin:0 auto; animation:fadeIn 0.3s ease; }}
     @keyframes fadeIn {{ from {{ opacity:0; transform:translateY(8px); }} to {{ opacity:1; transform:translateY(0); }} }}
     .filter-card {{
@@ -4290,22 +4513,44 @@ def documenti_personali_web(self):
 <header>
     <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
-        <a href="/">🏠 Aggiungi Operazione</a>
-        <a href="/lista">📈 Gestione Movimenti Mese</a>
-        <a href="/stats">📊 Bilancio Mese</a>
-        <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
-        <a href="/grafici_web">📅 Grafici e Statistiche</a>
-        <a href="/scadenze_web">📅 Scadenze del Mese</a>
-        <a href="/menu_esplora">🔍 Esplora</a>
-        <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
-        <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
-        <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-        <a href="/documenti_personali_web">📄 Documenti Personali</a>
-        <a href="/fairshare_web">⚖️ FairShare</a>
-        <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
-        <a href="/info_sys_web">📡 Monitor Server</a>
-        <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
-        <a href="/logoff">🔓 Logout</a>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/lista">📈 Gestione Movimenti Mese</a>
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/scadenze_web">📅 Scadenze del Mese</a>
+                <a href="/fairshare_web">⚖️ FairShare</a>
+                <a href="/menu_esplora">🔍 Esplora</a>
+                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
+                <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
+                <a href="/documenti_personali_web">📄 Documenti Personali</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/info_sys_web">📡 Monitor Server</a>
+                <a href="/cambia_pw_web">🔑 Cambia Password</a>
+                <a href="/webauthn_web">👆 Biometrico</a>
+                <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
+                <a href="/logoff">🔓 Logout</a>
+            </div>
+        </div>
     </div>
     <div class="header-title">📄 Documenti Personali</div>
     <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Cambia tema">🌙</button>
@@ -4464,6 +4709,19 @@ def documenti_personali_web(self):
             btn(i, i, i===currentPage, false);
         }}
         btn('▶', currentPage+1, false, currentPage===pages);
+    }}
+    function toggleNavGroup(btn, ev) {{
+        if (ev) ev.stopPropagation();
+        const items = btn.nextElementSibling;
+        const giaAperto = items.classList.contains('open');
+        btn.closest('.nav-dropdown').querySelectorAll('.nav-group-items.open').forEach(function(el) {{
+            el.classList.remove('open');
+            el.previousElementSibling.querySelector('.nav-arrow').textContent = '▶';
+        }});
+        if (!giaAperto) {{
+            items.classList.add('open');
+            btn.querySelector('.nav-arrow').textContent = '▼';
+        }}
     }}
     function toggleMenu() {{
         const m = document.getElementById("extraMenu");
@@ -4642,6 +4900,13 @@ def genera_html_utenze(self, percorso_db, anno):
     }}
     .nav-dropdown a:last-child {{ border-bottom:none; }}
     .nav-dropdown a:hover {{ background:var(--surface3); color:var(--text); padding-left:22px; }}
+    .nav-group-btn {{ display:flex; justify-content:space-between; align-items:center; width:100%;
+        padding:8px 16px; background:none; border:none; font-family:inherit; color:var(--gold);
+        font-size:0.7em; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; opacity:0.85; }}
+    .nav-group-btn:hover {{ opacity:1; background:var(--surface3); }}
+    .nav-arrow {{ font-size:0.85em; transition:transform 0.15s; }}
+    .nav-group-items {{ display:none; flex-direction:column; }}
+    .nav-group-items.open {{ display:flex; }}
     main {{ padding:14px; max-width:580px; margin:0 auto; animation:fadeIn 0.3s ease; }}
     @keyframes fadeIn {{ from {{ opacity:0; transform:translateY(8px); }} to {{ opacity:1; transform:translateY(0); }} }}
     .anno-select {{
@@ -4714,22 +4979,44 @@ def genera_html_utenze(self, percorso_db, anno):
 <header>
     <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
-        <a href="/">🏠 Aggiungi Operazione</a>
-        <a href="/lista">📈 Gestione Movimenti Mese</a>
-        <a href="/stats">📊 Bilancio Mese</a>
-        <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
-        <a href="/grafici_web">📅 Grafici e Statistiche</a>
-        <a href="/scadenze_web">📅 Scadenze del Mese</a>
-        <a href="/menu_esplora">🔍 Esplora</a>
-        <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
-        <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
-        <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-        <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
-        <a href="/fairshare_web">⚖️ FairShare</a>
-        <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
-        <a href="/info_sys_web">📡 Monitor Server</a>
-        <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
-        <a href="/logoff">🔓 Logout</a>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/lista">📈 Gestione Movimenti Mese</a>
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/scadenze_web">📅 Scadenze del Mese</a>
+                <a href="/fairshare_web">⚖️ FairShare</a>
+                <a href="/menu_esplora">🔍 Esplora</a>
+                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
+                <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
+                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/info_sys_web">📡 Monitor Server</a>
+                <a href="/cambia_pw_web">🔑 Cambia Password</a>
+                <a href="/webauthn_web">👆 Biometrico</a>
+                <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
+                <a href="/logoff">🔓 Logout</a>
+            </div>
+        </div>
     </div>
     <div class="header-title">💧 Utenze — {anno}</div>
     <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Cambia tema">🌙</button>
@@ -4752,6 +5039,19 @@ def genera_html_utenze(self, percorso_db, anno):
         applyTheme(next);
     }}
     applyTheme(localStorage.getItem('theme') || 'dark');
+    function toggleNavGroup(btn, ev) {{
+        if (ev) ev.stopPropagation();
+        const items = btn.nextElementSibling;
+        const giaAperto = items.classList.contains('open');
+        btn.closest('.nav-dropdown').querySelectorAll('.nav-group-items.open').forEach(function(el) {{
+            el.classList.remove('open');
+            el.previousElementSibling.querySelector('.nav-arrow').textContent = '▶';
+        }});
+        if (!giaAperto) {{
+            items.classList.add('open');
+            btn.querySelector('.nav-arrow').textContent = '▼';
+        }}
+    }}
     function toggleMenu() {{
         const m = document.getElementById("extraMenu");
         m.style.display = m.style.display === "block" ? "none" : "block";
@@ -4946,6 +5246,13 @@ def genera_html_consultazione(self, file_selezionato=None):
     }}
     .nav-dropdown a:last-child {{ border-bottom:none; }}
     .nav-dropdown a:hover {{ background:var(--surface3); color:var(--text); padding-left:22px; }}
+    .nav-group-btn {{ display:flex; justify-content:space-between; align-items:center; width:100%;
+        padding:8px 16px; background:none; border:none; font-family:inherit; color:var(--gold);
+        font-size:0.7em; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; opacity:0.85; }}
+    .nav-group-btn:hover {{ opacity:1; background:var(--surface3); }}
+    .nav-arrow {{ font-size:0.85em; transition:transform 0.15s; }}
+    .nav-group-items {{ display:none; flex-direction:column; }}
+    .nav-group-items.open {{ display:flex; }}
     main {{ padding:14px; max-width:680px; margin:0 auto; animation:fadeIn 0.3s ease; }}
     @keyframes fadeIn {{ from {{ opacity:0; transform:translateY(8px); }} to {{ opacity:1; transform:translateY(0); }} }}
     .section-card {{
@@ -5006,22 +5313,44 @@ def genera_html_consultazione(self, file_selezionato=None):
 <header>
     <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
-        <a href="/">🏠 Aggiungi Operazione</a>
-        <a href="/lista">📈 Gestione Movimenti Mese</a>
-        <a href="/stats">📊 Bilancio Mese</a>
-        <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
-        <a href="/grafici_web">📅 Grafici e Statistiche</a>
-        <a href="/scadenze_web">📅 Scadenze del Mese</a>
-        <a href="/menu_esplora">🔍 Esplora</a>
-        <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
-        <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
-        <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-        <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
-        <a href="/fairshare_web">⚖️ FairShare</a>
-        <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
-        <a href="/info_sys_web">📡 Monitor Server</a>
-        <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
-        <a href="/logoff">🔓 Logout</a>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/lista">📈 Gestione Movimenti Mese</a>
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/scadenze_web">📅 Scadenze del Mese</a>
+                <a href="/fairshare_web">⚖️ FairShare</a>
+                <a href="/menu_esplora">🔍 Esplora</a>
+                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
+                <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
+                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/info_sys_web">📡 Monitor Server</a>
+                <a href="/cambia_pw_web">🔑 Cambia Password</a>
+                <a href="/webauthn_web">👆 Biometrico</a>
+                <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
+                <a href="/logoff">🔓 Logout</a>
+            </div>
+        </div>
     </div>
     <div class="header-title">🛒 Gestione Supermercati</div>
     <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Cambia tema">🌙</button>
@@ -5060,6 +5389,19 @@ def genera_html_consultazione(self, file_selezionato=None):
         applyTheme(next);
     }}
     applyTheme(localStorage.getItem('theme') || 'dark');
+    function toggleNavGroup(btn, ev) {{
+        if (ev) ev.stopPropagation();
+        const items = btn.nextElementSibling;
+        const giaAperto = items.classList.contains('open');
+        btn.closest('.nav-dropdown').querySelectorAll('.nav-group-items.open').forEach(function(el) {{
+            el.classList.remove('open');
+            el.previousElementSibling.querySelector('.nav-arrow').textContent = '▶';
+        }});
+        if (!giaAperto) {{
+            items.classList.add('open');
+            btn.querySelector('.nav-arrow').textContent = '▼';
+        }}
+    }}
     function toggleMenu() {{
         const m = document.getElementById("extraMenu");
         m.style.display = m.style.display === "block" ? "none" : "block";
@@ -5170,6 +5512,13 @@ def pagina_menu_esplora(self):
     }}
     .nav-dropdown a:last-child {{ border-bottom:none; }}
     .nav-dropdown a:hover {{ background:var(--surface3); color:var(--text); padding-left:22px; }}
+    .nav-group-btn {{ display:flex; justify-content:space-between; align-items:center; width:100%;
+        padding:8px 16px; background:none; border:none; font-family:inherit; color:var(--gold);
+        font-size:0.7em; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; opacity:0.85; }}
+    .nav-group-btn:hover {{ opacity:1; background:var(--surface3); }}
+    .nav-arrow {{ font-size:0.85em; transition:transform 0.15s; }}
+    .nav-group-items {{ display:none; flex-direction:column; }}
+    .nav-group-items.open {{ display:flex; }}
     main {{ padding:14px; max-width:560px; margin:0 auto; animation:fadeIn 0.3s ease; }}
     @keyframes fadeIn {{ from {{ opacity:0; transform:translateY(8px); }} to {{ opacity:1; transform:translateY(0); }} }}
     .form-card {{
@@ -5241,22 +5590,44 @@ def pagina_menu_esplora(self):
 <header>
     <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
-        <a href="/">🏠 Aggiungi Operazione</a>
-        <a href="/lista">📈 Gestione Movimenti Mese</a>
-        <a href="/stats">📊 Bilancio Mese</a>
-        <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
-        <a href="/grafici_web">📅 Grafici e Statistiche</a>
-        <a href="/scadenze_web">📅 Scadenze del Mese</a>
-        <a href="/menu_esplora">🔍 Esplora</a>
-        <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
-        <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
-        <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-        <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
-        <a href="/fairshare_web">⚖️ FairShare</a>
-        <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
-        <a href="/info_sys_web">📡 Monitor Server</a>
-        <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
-        <a href="/logoff">🔓 Logout</a>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/lista">📈 Gestione Movimenti Mese</a>
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/scadenze_web">📅 Scadenze del Mese</a>
+                <a href="/fairshare_web">⚖️ FairShare</a>
+                <a href="/menu_esplora">🔍 Esplora</a>
+                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
+                <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
+                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/info_sys_web">📡 Monitor Server</a>
+                <a href="/cambia_pw_web">🔑 Cambia Password</a>
+                <a href="/webauthn_web">👆 Biometrico</a>
+                <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
+                <a href="/logoff">🔓 Logout</a>
+            </div>
+        </div>
     </div>
     <div class="header-title">🔎 Esplorazione Avanzata</div>
     <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Cambia tema">🌙</button>
@@ -5336,6 +5707,19 @@ def pagina_menu_esplora(self):
         applyTheme(next);
     }}
     applyTheme(localStorage.getItem('theme') || 'dark');
+    function toggleNavGroup(btn, ev) {{
+        if (ev) ev.stopPropagation();
+        const items = btn.nextElementSibling;
+        const giaAperto = items.classList.contains('open');
+        btn.closest('.nav-dropdown').querySelectorAll('.nav-group-items.open').forEach(function(el) {{
+            el.classList.remove('open');
+            el.previousElementSibling.querySelector('.nav-arrow').textContent = '▶';
+        }});
+        if (!giaAperto) {{
+            items.classList.add('open');
+            btn.querySelector('.nav-arrow').textContent = '▼';
+        }}
+    }}
     function toggleMenu() {{
         const m = document.getElementById("extraMenu");
         m.style.display = m.style.display === "block" ? "none" : "block";
@@ -5515,6 +5899,13 @@ def pagina_cambia_profilo_web(self):
     }}
     .nav-dropdown a:last-child {{ border-bottom:none; }}
     .nav-dropdown a:hover {{ background:var(--surface3); color:var(--text); padding-left:22px; }}
+    .nav-group-btn {{ display:flex; justify-content:space-between; align-items:center; width:100%;
+        padding:8px 16px; background:none; border:none; font-family:inherit; color:var(--gold);
+        font-size:0.7em; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; opacity:0.85; }}
+    .nav-group-btn:hover {{ opacity:1; background:var(--surface3); }}
+    .nav-arrow {{ font-size:0.85em; transition:transform 0.15s; }}
+    .nav-group-items {{ display:none; flex-direction:column; }}
+    .nav-group-items.open {{ display:flex; }}
     main {{ padding:14px; max-width:480px; margin:0 auto; animation:fadeIn 0.3s ease; }}
     @keyframes fadeIn {{ from {{ opacity:0; transform:translateY(8px); }} to {{ opacity:1; transform:translateY(0); }} }}
     .sec-card {{
@@ -5579,13 +5970,12 @@ def pagina_cambia_profilo_web(self):
         color:var(--red); font-size:0.82em; padding:10px 13px; border-radius:10px;
         margin-bottom:14px; display:none;
     }}
-    .btn-home {{
-        display:block; text-align:center; padding:12px 13px; margin-top:6px;
-        background:var(--surface); border:1px solid var(--border);
-        color:var(--text-mid); border-radius:9px; text-decoration:none;
-        font-family:'DM Sans',sans-serif; font-weight:700; font-size:0.88em; transition:all 0.2s;
-    }}
-    .btn-home:hover {{ border-color:var(--border-active); color:var(--text); }}
+    .btn-home {{ display:block; text-align:center; padding:13px; margin-top:12px;
+        background:linear-gradient(135deg, var(--gold) 0%, #8a6820 100%);
+        color:#000; border-radius:10px; text-decoration:none;
+        font-family:'DM Sans',sans-serif; font-weight:700; font-size:0.9em;
+        line-height:1.5; transition:all 0.2s; }}
+    .btn-home:hover {{ transform:translateY(-1px); box-shadow:0 6px 20px rgba(201,168,76,0.25); }}
     .modal-overlay {{ display:none; position:fixed; inset:0;
         background:rgba(0,0,0,0.75); backdrop-filter:blur(6px);
         z-index:3000; align-items:center; justify-content:center; }}
@@ -5605,22 +5995,44 @@ def pagina_cambia_profilo_web(self):
 <header>
     <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
-        <a href="/">🏠 Aggiungi Operazione</a>
-        <a href="/lista">📈 Gestione Movimenti Mese</a>
-        <a href="/stats">📊 Bilancio Mese</a>
-        <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
-        <a href="/grafici_web">📅 Grafici e Statistiche</a>
-        <a href="/scadenze_web">📅 Scadenze del Mese</a>
-        <a href="/menu_esplora">🔍 Esplora</a>
-        <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
-        <a href="/utenze">💧 Utenze</a>
-        <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-        <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
-        <a href="/fairshare_web">⚖️ FairShare</a>
-        <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
-        <a href="/info_sys_web">📡 Monitor Server</a>
-        <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
-        <a href="/logoff">🔓 Logout</a>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/lista">📈 Gestione Movimenti Mese</a>
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/scadenze_web">📅 Scadenze del Mese</a>
+                <a href="/fairshare_web">⚖️ FairShare</a>
+                <a href="/menu_esplora">🔍 Esplora</a>
+                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/utenze">💧 Utenze</a>
+                <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
+                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/info_sys_web">📡 Monitor Server</a>
+                <a href="/cambia_pw_web">🔑 Cambia Password</a>
+                <a href="/webauthn_web">👆 Biometrico</a>
+                <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
+                <a href="/logoff">🔓 Logout</a>
+            </div>
+        </div>
     </div>
     <div class="header-title">👤 Cambia Profilo</div>
     <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Cambia tema">🌙</button>
@@ -5673,6 +6085,19 @@ def pagina_cambia_profilo_web(self):
         applyTheme(next);
     }}
     applyTheme(localStorage.getItem('theme') || 'dark');
+    function toggleNavGroup(btn, ev) {{
+        if (ev) ev.stopPropagation();
+        const items = btn.nextElementSibling;
+        const giaAperto = items.classList.contains('open');
+        btn.closest('.nav-dropdown').querySelectorAll('.nav-group-items.open').forEach(function(el) {{
+            el.classList.remove('open');
+            el.previousElementSibling.querySelector('.nav-arrow').textContent = '▶';
+        }});
+        if (!giaAperto) {{
+            items.classList.add('open');
+            btn.querySelector('.nav-arrow').textContent = '▼';
+        }}
+    }}
     function toggleMenu() {{
         const m = document.getElementById("extraMenu");
         m.style.display = m.style.display === "block" ? "none" : "block";
@@ -6011,6 +6436,13 @@ def html_gestione_categorie(self):
     }}
     .nav-dropdown a:last-child {{ border-bottom:none; }}
     .nav-dropdown a:hover {{ background:var(--surface3); color:var(--text); padding-left:22px; }}
+    .nav-group-btn {{ display:flex; justify-content:space-between; align-items:center; width:100%;
+        padding:8px 16px; background:none; border:none; font-family:inherit; color:var(--gold);
+        font-size:0.7em; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; opacity:0.85; }}
+    .nav-group-btn:hover {{ opacity:1; background:var(--surface3); }}
+    .nav-arrow {{ font-size:0.85em; transition:transform 0.15s; }}
+    .nav-group-items {{ display:none; flex-direction:column; }}
+    .nav-group-items.open {{ display:flex; }}
     main {{ padding:14px; max-width:480px; margin:0 auto; animation:fadeIn 0.3s ease; }}
     @keyframes fadeIn {{ from {{ opacity:0; transform:translateY(8px); }} to {{ opacity:1; transform:translateY(0); }} }}
     .sec-card {{
@@ -6095,6 +6527,19 @@ def html_gestione_categorie(self):
         localStorage.setItem('theme', next);
         applyTheme(next);
     }}
+    function toggleNavGroup(btn, ev) {{
+        if (ev) ev.stopPropagation();
+        const items = btn.nextElementSibling;
+        const giaAperto = items.classList.contains('open');
+        btn.closest('.nav-dropdown').querySelectorAll('.nav-group-items.open').forEach(function(el) {{
+            el.classList.remove('open');
+            el.previousElementSibling.querySelector('.nav-arrow').textContent = '▶';
+        }});
+        if (!giaAperto) {{
+            items.classList.add('open');
+            btn.querySelector('.nav-arrow').textContent = '▼';
+        }}
+    }}
     function toggleMenu() {{
         const m = document.getElementById("extraMenu");
         m.style.display = m.style.display === "block" ? "none" : "block";
@@ -6135,22 +6580,44 @@ def html_gestione_categorie(self):
 <header>
     <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
-        <a href="/">🏠 Aggiungi Operazione</a>
-        <a href="/lista">📈 Gestione Movimenti Mese</a>
-        <a href="/stats">📊 Bilancio Mese</a>
-        <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
-        <a href="/grafici_web">📅 Grafici e Statistiche</a>
-        <a href="/scadenze_web">📅 Scadenze del Mese</a>
-        <a href="/menu_esplora">🔍 Esplora</a>
-        <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
-        <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
-        <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-        <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
-        <a href="/fairshare_web">⚖️ FairShare</a>
-        <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
-        <a href="/info_sys_web">📡 Monitor Server</a>
-        <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
-        <a href="/logoff">🔓 Logout</a>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/lista">📈 Gestione Movimenti Mese</a>
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/scadenze_web">📅 Scadenze del Mese</a>
+                <a href="/fairshare_web">⚖️ FairShare</a>
+                <a href="/menu_esplora">🔍 Esplora</a>
+                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
+                <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
+                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/info_sys_web">📡 Monitor Server</a>
+                <a href="/cambia_pw_web">🔑 Cambia Password</a>
+                <a href="/webauthn_web">👆 Biometrico</a>
+                <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
+                <a href="/logoff">🔓 Logout</a>
+            </div>
+        </div>
     </div>
     <div class="header-title">⚙️ Gestione Categorie</div>
     <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Cambia tema">🌙</button>
@@ -6518,6 +6985,13 @@ def pagina_fondo_risparmio_web(self):
     }}
     .nav-dropdown a:last-child {{ border-bottom:none; }}
     .nav-dropdown a:hover {{ background:var(--surface3); color:var(--text); padding-left:22px; }}
+    .nav-group-btn {{ display:flex; justify-content:space-between; align-items:center; width:100%;
+        padding:8px 16px; background:none; border:none; font-family:inherit; color:var(--gold);
+        font-size:0.7em; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; opacity:0.85; }}
+    .nav-group-btn:hover {{ opacity:1; background:var(--surface3); }}
+    .nav-arrow {{ font-size:0.85em; transition:transform 0.15s; }}
+    .nav-group-items {{ display:none; flex-direction:column; }}
+    .nav-group-items.open {{ display:flex; }}
     main {{ padding:14px; max-width:860px; margin:0 auto; animation:fadeIn 0.3s ease; }}
     @keyframes fadeIn {{ from {{ opacity:0; transform:translateY(8px); }} to {{ opacity:1; transform:translateY(0); }} }}
     .tabs {{ display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }}
@@ -6603,6 +7077,19 @@ def pagina_fondo_risparmio_web(self):
         localStorage.setItem('theme', next);
         applyTheme(next);
     }}
+    function toggleNavGroup(btn, ev) {{
+        if (ev) ev.stopPropagation();
+        const items = btn.nextElementSibling;
+        const giaAperto = items.classList.contains('open');
+        btn.closest('.nav-dropdown').querySelectorAll('.nav-group-items.open').forEach(function(el) {{
+            el.classList.remove('open');
+            el.previousElementSibling.querySelector('.nav-arrow').textContent = '▶';
+        }});
+        if (!giaAperto) {{
+            items.classList.add('open');
+            btn.querySelector('.nav-arrow').textContent = '▼';
+        }}
+    }}
     function toggleMenu() {{
         const m = document.getElementById("extraMenu");
         m.style.display = m.style.display === "block" ? "none" : "block";
@@ -6631,22 +7118,44 @@ def pagina_fondo_risparmio_web(self):
 <header>
 <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
 <div id="extraMenu" class="nav-dropdown">
-    <a href="/">🏠 Aggiungi Operazione</a>
-    <a href="/lista">📈 Gestione Movimenti Mese</a>
-    <a href="/stats">📊 Bilancio Mese</a>
-    <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
-    <a href="/grafici_web">📅 Grafici e Statistiche</a>
-    <a href="/scadenze_web">📅 Scadenze del Mese</a>
-    <a href="/menu_esplora">🔍 Esplora</a>
-    <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
-    <a href="/utenze?anno={nav_anno}">💧 Utenze</a>
-    <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-    <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
-    <a href="/fairshare_web">⚖️ FairShare</a>
-    <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
-    <a href="/info_sys_web">📡 Monitor Server</a>
-    <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
-    <a href="/logoff">🔓 Logout</a>
+    <div class="nav-group">
+        <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+        <div class="nav-group-items">
+            <a href="/">🏠 Aggiungi Operazione</a>
+            <a href="/lista">📈 Gestione Movimenti Mese</a>
+            <a href="/stats">📊 Bilancio Mese</a>
+            <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+            <a href="/scadenze_web">📅 Scadenze del Mese</a>
+            <a href="/fairshare_web">⚖️ FairShare</a>
+            <a href="/menu_esplora">🔍 Esplora</a>
+            <a href="/grafici_web">📅 Grafici e Statistiche</a>
+            <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
+        </div>
+    </div>
+    <div class="nav-group">
+        <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+        <div class="nav-group-items">
+            <a href="/utenze?anno={nav_anno}">💧 Utenze</a>
+            <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+        </div>
+    </div>
+    <div class="nav-group">
+        <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+        <div class="nav-group-items">
+            <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
+            <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+        </div>
+    </div>
+    <div class="nav-group">
+        <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+        <div class="nav-group-items">
+            <a href="/info_sys_web">📡 Monitor Server</a>
+            <a href="/cambia_pw_web">🔑 Cambia Password</a>
+            <a href="/webauthn_web">👆 Biometrico</a>
+            <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
+            <a href="/logoff">🔓 Logout</a>
+        </div>
+    </div>
 </div>
 <div class="header-title">💰 Fondo Risparmio {oggi_formattata}</div>
 <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Cambia tema">🌙</button>
@@ -7047,6 +7556,13 @@ def pagina_grafici_web(self):
     }}
     .nav-dropdown a:last-child {{ border-bottom:none; }}
     .nav-dropdown a:hover {{ background:var(--surface3); color:var(--text); padding-left:22px; }}
+    .nav-group-btn {{ display:flex; justify-content:space-between; align-items:center; width:100%;
+        padding:8px 16px; background:none; border:none; font-family:inherit; color:var(--gold);
+        font-size:0.7em; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; opacity:0.85; }}
+    .nav-group-btn:hover {{ opacity:1; background:var(--surface3); }}
+    .nav-arrow {{ font-size:0.85em; transition:transform 0.15s; }}
+    .nav-group-items {{ display:none; flex-direction:column; }}
+    .nav-group-items.open {{ display:flex; }}
     .main-container {{ max-width:960px; margin:0 auto; padding:14px; animation:fadeIn 0.3s ease; }}
     @keyframes fadeIn {{ from {{ opacity:0; transform:translateY(8px); }} to {{ opacity:1; transform:translateY(0); }} }}
     .tab-bar {{ display:flex; flex-wrap:wrap; gap:4px; margin-bottom:0; padding:0; }}
@@ -7126,22 +7642,44 @@ def pagina_grafici_web(self):
 <header>
     <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
-        <a href="/">🏠 Aggiungi Operazione</a>
-        <a href="/lista">📈 Gestione Movimenti Mese</a>
-        <a href="/stats">📊 Bilancio Mese</a>
-        <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
-        <a href="/grafici_web">📅 Grafici e Statistiche</a>
-        <a href="/scadenze_web">📅 Scadenze del Mese</a>
-        <a href="/menu_esplora">🔍 Esplora</a>
-        <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
-        <a href="/utenze?anno={anno_corrente_format}">💧 Utenze</a>
-        <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-        <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
-        <a href="/fairshare_web">⚖️ FairShare</a>
-        <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
-        <a href="/info_sys_web">📡 Monitor Server</a>
-        <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
-        <a href="/logoff">🔓 Logout</a>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/lista">📈 Gestione Movimenti Mese</a>
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/scadenze_web">📅 Scadenze del Mese</a>
+                <a href="/fairshare_web">⚖️ FairShare</a>
+                <a href="/menu_esplora">🔍 Esplora</a>
+                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/utenze?anno={anno_corrente_format}">💧 Utenze</a>
+                <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
+                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/info_sys_web">📡 Monitor Server</a>
+                <a href="/cambia_pw_web">🔑 Cambia Password</a>
+                <a href="/webauthn_web">👆 Biometrico</a>
+                <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
+                <a href="/logoff">🔓 Logout</a>
+            </div>
+        </div>
     </div>
     <div class="header-title">📊 Grafici e Statistiche</div>
     <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Cambia tema">🌙</button>
@@ -7255,6 +7793,19 @@ def pagina_grafici_web(self):
                 <span class="legend-pct">${{pct}}%</span>
             </div>`;
         }}).join('');
+    }}
+    function toggleNavGroup(btn, ev) {{
+        if (ev) ev.stopPropagation();
+        const items = btn.nextElementSibling;
+        const giaAperto = items.classList.contains('open');
+        btn.closest('.nav-dropdown').querySelectorAll('.nav-group-items.open').forEach(function(el) {{
+            el.classList.remove('open');
+            el.previousElementSibling.querySelector('.nav-arrow').textContent = '▶';
+        }});
+        if (!giaAperto) {{
+            items.classList.add('open');
+            btn.querySelector('.nav-arrow').textContent = '▼';
+        }}
     }}
     function toggleMenu() {{
         const m = document.getElementById("extraMenu");
@@ -7528,6 +8079,13 @@ def html_scadenze_mese(self):
         font-size:0.87em; transition:all 0.15s; }}
     .nav-dropdown a:last-child {{ border-bottom:none; }}
     .nav-dropdown a:hover {{ background:var(--surface3); color:var(--text); padding-left:22px; }}
+    .nav-group-btn {{ display:flex; justify-content:space-between; align-items:center; width:100%;
+        padding:8px 16px; background:none; border:none; font-family:inherit; color:var(--gold);
+        font-size:0.7em; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; opacity:0.85; }}
+    .nav-group-btn:hover {{ opacity:1; background:var(--surface3); }}
+    .nav-arrow {{ font-size:0.85em; transition:transform 0.15s; }}
+    .nav-group-items {{ display:none; flex-direction:column; }}
+    .nav-group-items.open {{ display:flex; }}
     main {{ padding:14px; max-width:580px; margin:0 auto; animation:fadeIn 0.3s ease; }}
     @keyframes fadeIn {{ from {{ opacity:0; transform:translateY(8px); }} to {{ opacity:1; transform:translateY(0); }} }}
     .summary-card {{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
@@ -7560,22 +8118,44 @@ def html_scadenze_mese(self):
 <header>
     <button class="menu-btn" onclick="toggleMenu(event)">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
-        <a href="/">🏠 Aggiungi Operazione</a>
-        <a href="/lista">📈 Gestione Movimenti Mese</a>
-        <a href="/stats">📊 Bilancio Mese</a>
-        <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
-        <a href="/grafici_web">📅 Grafici e Statistiche</a>
-        <a href="/scadenze_web">📅 Scadenze del Mese</a>
-        <a href="/menu_esplora">🔍 Esplora</a>
-        <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
-        <a href="/utenze?anno={oggi.year}">💧 Utenze</a>
-        <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-        <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
-        <a href="/fairshare_web">⚖️ FairShare</a>
-        <a href="/consultazione_supermercati">🛒 Supermercati</a>
-        <a href="/info_sys_web">📡 Monitor Server</a>
-        <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
-        <a href="/logoff">🔓 Logout</a>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/lista">📈 Gestione Movimenti Mese</a>
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/scadenze_web">📅 Scadenze del Mese</a>
+                <a href="/fairshare_web">⚖️ FairShare</a>
+                <a href="/menu_esplora">🔍 Esplora</a>
+                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/utenze?anno={oggi.year}">💧 Utenze</a>
+                <a href="/consultazione_supermercati">🛒 Supermercati</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
+                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/info_sys_web">📡 Monitor Server</a>
+                <a href="/cambia_pw_web">🔑 Cambia Password</a>
+                <a href="/webauthn_web">👆 Biometrico</a>
+                <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
+                <a href="/logoff">🔓 Logout</a>
+            </div>
+        </div>
     </div>
     <div class="header-title">📅 Scadenze del Mese</div>
     <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Cambia tema">🌙</button>
@@ -7600,6 +8180,19 @@ def html_scadenze_mese(self):
         applyTheme(next);
     }}
     applyTheme(localStorage.getItem('theme') || 'dark');
+    function toggleNavGroup(btn, ev) {{
+        if (ev) ev.stopPropagation();
+        const items = btn.nextElementSibling;
+        const giaAperto = items.classList.contains('open');
+        btn.closest('.nav-dropdown').querySelectorAll('.nav-group-items.open').forEach(function(el) {{
+            el.classList.remove('open');
+            el.previousElementSibling.querySelector('.nav-arrow').textContent = '▶';
+        }});
+        if (!giaAperto) {{
+            items.classList.add('open');
+            btn.querySelector('.nav-arrow').textContent = '▼';
+        }}
+    }}
     function toggleMenu(e) {{
         e.stopPropagation();
         const m = document.getElementById("extraMenu");
@@ -7742,6 +8335,13 @@ def html_lista_spese_mensili(self):
         font-size:0.87em; transition:all 0.15s; }}
     .nav-dropdown a:last-child {{ border-bottom:none; }}
     .nav-dropdown a:hover {{ background:var(--surface3); color:var(--text); padding-left:22px; }}
+    .nav-group-btn {{ display:flex; justify-content:space-between; align-items:center; width:100%;
+        padding:8px 16px; background:none; border:none; font-family:inherit; color:var(--gold);
+        font-size:0.7em; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; opacity:0.85; }}
+    .nav-group-btn:hover {{ opacity:1; background:var(--surface3); }}
+    .nav-arrow {{ font-size:0.85em; transition:transform 0.15s; }}
+    .nav-group-items {{ display:none; flex-direction:column; }}
+    .nav-group-items.open {{ display:flex; }}
     main {{ padding:14px; max-width:580px; margin:0 auto; animation:fadeIn 0.3s ease; }}
     @keyframes fadeIn {{ from {{ opacity:0; transform:translateY(8px); }} to {{ opacity:1; transform:translateY(0); }} }}
     .summary-card {{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
@@ -7799,22 +8399,44 @@ def html_lista_spese_mensili(self):
 <header>
     <button class="menu-btn" onclick="toggleMenu(event)">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
-        <a href="/">🏠 Aggiungi Operazione</a>
-        <a href="/lista">📈 Gestione Movimenti Mese</a>
-        <a href="/stats">📊 Bilancio Mese</a>
-        <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
-        <a href="/grafici_web">📅 Grafici e Statistiche</a>
-        <a href="/scadenze_web">📅 Scadenze del Mese</a>
-        <a href="/menu_esplora">🔍 Esplora</a>
-        <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
-        <a href="/utenze?anno={oggi.year}">💧 Utenze</a>
-        <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-        <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
-        <a href="/fairshare_web">⚖️ FairShare</a>
-        <a href="/consultazione_supermercati">🛒 Supermercati</a>
-        <a href="/info_sys_web">📡 Monitor Server</a>
-        <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
-        <a href="/logoff">🔓 Logout</a>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/lista">📈 Gestione Movimenti Mese</a>
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/scadenze_web">📅 Scadenze del Mese</a>
+                <a href="/fairshare_web">⚖️ FairShare</a>
+                <a href="/menu_esplora">🔍 Esplora</a>
+                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/utenze?anno={oggi.year}">💧 Utenze</a>
+                <a href="/consultazione_supermercati">🛒 Supermercati</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
+                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/info_sys_web">📡 Monitor Server</a>
+                <a href="/cambia_pw_web">🔑 Cambia Password</a>
+                <a href="/webauthn_web">👆 Biometrico</a>
+                <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
+                <a href="/logoff">🔓 Logout</a>
+            </div>
+        </div>
     </div>
     <div class="header-title">📈 Gestione Movimenti Mese</div>
     <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Cambia tema">🌙</button>
@@ -7895,6 +8517,19 @@ def html_lista_spese_mensili(self):
             headers: {{ 'Content-Type': 'application/x-www-form-urlencoded' }},
             body: 'data=' + encodeURIComponent(dData) + '&idx=' + encodeURIComponent(dIdx) + '&elimina_pdf=' + elimina_pdf
         }}).then(() => window.location.reload());
+    }}
+    function toggleNavGroup(btn, ev) {{
+        if (ev) ev.stopPropagation();
+        const items = btn.nextElementSibling;
+        const giaAperto = items.classList.contains('open');
+        btn.closest('.nav-dropdown').querySelectorAll('.nav-group-items.open').forEach(function(el) {{
+            el.classList.remove('open');
+            el.previousElementSibling.querySelector('.nav-arrow').textContent = '▶';
+        }});
+        if (!giaAperto) {{
+            items.classList.add('open');
+            btn.querySelector('.nav-arrow').textContent = '▼';
+        }}
     }}
     function toggleMenu(e) {{
         e.stopPropagation();
@@ -8045,6 +8680,13 @@ def stats_mensili_html(self):
         font-size:0.87em; transition:all 0.15s; }
     .nav-dropdown a:last-child { border-bottom:none; }
     .nav-dropdown a:hover { background:var(--surface3); color:var(--text); padding-left:22px; }
+    .nav-group-btn { display:flex; justify-content:space-between; align-items:center; width:100%;
+        padding:8px 16px; background:none; border:none; font-family:inherit; color:var(--gold);
+        font-size:0.7em; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; opacity:0.85; }
+    .nav-group-btn:hover { opacity:1; background:var(--surface3); }
+    .nav-arrow { font-size:0.85em; transition:transform 0.15s; }
+    .nav-group-items { display:none; flex-direction:column; }
+    .nav-group-items.open { display:flex; }
     main { padding:14px; max-width:580px; margin:0 auto; animation:fadeIn 0.3s ease; }
     @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
     .btn-home { display:block; text-align:center; padding:13px; margin-top:12px;
@@ -8109,22 +8751,44 @@ def stats_mensili_html(self):
 <header>
     <button class="menu-btn" onclick="toggleMenu(event)">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
-        <a href="/">🏠 Aggiungi Operazione</a>
-        <a href="/lista">📈 Gestione Movimenti Mese</a>
-        <a href="/stats">📊 Bilancio Mese</a>
-        <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
-        <a href="/grafici_web">📅 Grafici e Statistiche</a>
-        <a href="/scadenze_web">📅 Scadenze del Mese</a>
-        <a href="/menu_esplora">🔍 Esplora</a>
-        <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
-        <a href="/utenze?anno={datetime.date.today().year}">💧 Utenze</a>
-        <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-        <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
-        <a href="/fairshare_web">⚖️ FairShare</a>
-        <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
-        <a href="/info_sys_web">📡 Monitor Server</a>
-        <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
-        <a href="/logoff">🔓 Logout</a>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/lista">📈 Gestione Movimenti Mese</a>
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/scadenze_web">📅 Scadenze del Mese</a>
+                <a href="/fairshare_web">⚖️ FairShare</a>
+                <a href="/menu_esplora">🔍 Esplora</a>
+                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/utenze?anno={datetime.date.today().year}">💧 Utenze</a>
+                <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
+                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/info_sys_web">📡 Monitor Server</a>
+                <a href="/cambia_pw_web">🔑 Cambia Password</a>
+                <a href="/webauthn_web">👆 Biometrico</a>
+                <a href="/cambia_profilo_web">👤 Cambia Profilo</a>
+                <a href="/logoff">🔓 Logout</a>
+            </div>
+        </div>
     </div>
     <div class="header-title">⚖️ Andamento Mensile</div>
     <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Cambia tema">🌙</button>
@@ -8176,6 +8840,19 @@ def stats_mensili_html(self):
         applyTheme(next);
     }}
     applyTheme(localStorage.getItem('theme') || 'dark');
+    function toggleNavGroup(btn, ev) {{
+        if (ev) ev.stopPropagation();
+        const items = btn.nextElementSibling;
+        const giaAperto = items.classList.contains('open');
+        btn.closest('.nav-dropdown').querySelectorAll('.nav-group-items.open').forEach(function(el) {{
+            el.classList.remove('open');
+            el.previousElementSibling.querySelector('.nav-arrow').textContent = '▶';
+        }});
+        if (!giaAperto) {{
+            items.classList.add('open');
+            btn.querySelector('.nav-arrow').textContent = '▼';
+        }}
+    }}
     function toggleMenu(e) {{
         e.stopPropagation();
         const m = document.getElementById("extraMenu");
