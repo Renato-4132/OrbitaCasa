@@ -829,7 +829,7 @@ class GestioneSpese(tk.Tk):
             valori = self.tree_ricorrenti.item(item, "values")
             if not valori: return
             categoria = str(valori[0]).strip()
-            importo_val = _parse_it_float(valori[1])
+            importo_val = _parse_it_float(str(valori[1]).replace("+", "").replace("-", "").strip())
             cat_match = next((c for c in self.categorie if c.strip().lower() == categoria.lower()), None)
             if cat_match:
                 self.cat_sel.set(cat_match)
@@ -840,7 +840,7 @@ class GestioneSpese(tk.Tk):
                 self.imp_entry.insert(0, _fmt_it_safe(importo_val))
             except ValueError: pass
             self.desc_entry.delete(0, tk.END)
-        columns_info = {"Categoria": "Spese da riconfermare", "Ultima": "Ultima (€)", "Frequenza": "Frequenza"}
+        columns_info = {"Categoria": "Movimenti da riconfermare", "Ultima": "Ultima (€)", "Frequenza": "Frequenza"}
         for col in self.tree_ricorrenti["columns"]:
             self.tree_ricorrenti.heading(
                 col, 
@@ -1916,12 +1916,17 @@ class GestioneSpese(tk.Tk):
                     if len(voce) > 2 and str(voce[0]).strip().title() == cat:
                         try:
                             imp = float(voce[2])
+                            tipo_voce = campo(voce, "tipo", "Uscita").strip().title() or "Uscita"
                             importi.append(imp)
                             if ultima is None or dd > ultima[0]:
-                                ultima = (dd, imp)
+                                ultima = (dd, imp, tipo_voce)
                         except:
                             continue
-            ultima_spesa = f"€{_fmt_it_safe(ultima[1])}" if ultima else "N/D"
+            if ultima:
+                segno = "+" if ultima[2] == "Entrata" else "-"
+                ultima_spesa = f"{segno}{_fmt_it_safe(ultima[1])}"
+            else:
+                ultima_spesa = "N/D"
             freq = len(importi)
             self.tree_ricorrenti.insert("", "end", values=(cat, ultima_spesa, f"{freq} volte/anno"))
 
@@ -6085,7 +6090,7 @@ class GestioneSpese(tk.Tk):
             CUSTOM_FILE, PESO_FILE, FABB_FILE, PEDOMETRO_FILE, STUDIO_CLIENTI,
             STUDIO_APPUNTAMENTI, STUDIO_PRESTAZIONI, STUDIO_FATTURE, STUDIO_EMITTENTE,
             STUDIO_CASSA, STUDIO_MAGAZZINO, IMMOBIL_FILE, FR_FILE, PORTAFOGLIO_BANCARIO,
-            SCHEDULE_FILE, VEICOLI_FILE, GAMIFICATION_FILE, CREDENTIALS_FILE
+            SCHEDULE_FILE, VEICOLI_FILE, GAMIFICATION_FILE, CREDENTIALS_FILE, PENSIONE_FILE
         ]
         file_copiati = 0
         for f in lista_file:
@@ -6210,7 +6215,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "607ccc60ac1c1920c246d7875cb93820eed8e09fbfcefb22916f8652cbc6add3"
+        E_H_B = "28a094c802b49fd15ac5759c19f16be7c5b150e56fc897e9f6a5b6d5084d8a78"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
