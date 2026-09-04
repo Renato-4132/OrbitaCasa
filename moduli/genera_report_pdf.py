@@ -25,7 +25,7 @@ def genera_report_pdf(self):
     sel.title("Report PDF — Seleziona Periodo")
     sel.withdraw()
     self.update_idletasks()
-    w, h = 500, 240
+    w, h = 700, 240
     x = self.winfo_rootx() + (self.winfo_width()  // 2) - (w // 2)
     y = self.winfo_rooty() + (self.winfo_height() // 2) - (h // 2)
     sel.geometry(f"{w}x{h}+{max(0, x)}+{max(0, y)}")
@@ -57,16 +57,18 @@ def genera_report_pdf(self):
     sep = ttk.Frame(sel, height=1)
     sep.pack(fill=tk.X, padx=20, pady=(8, 4))
     sezioni_var = {
-        "mesi":        tk.BooleanVar(value=True),
-        "categorie":   tk.BooleanVar(value=True),
-        "storico":     tk.BooleanVar(value=True),
-        "portafoglio": tk.BooleanVar(value=True),
+        "mesi":           tk.BooleanVar(value=True),
+        "categorie":      tk.BooleanVar(value=True),
+        "storico":        tk.BooleanVar(value=True),
+        "portafoglio":    tk.BooleanVar(value=True),
+        "trasferimenti":  tk.BooleanVar(value=True),
     }
     sezioni_lbl = {
-        "mesi":        "Dettaglio mesi",
-        "categorie":   "Categorie",
-        "storico":     "Bilancio storico",
-        "portafoglio": "Portafoglio bancario",
+        "mesi":           "Dettaglio mesi",
+        "categorie":      "Categorie",
+        "storico":        "Bilancio storico",
+        "portafoglio":    "Portafoglio bancario",
+        "trasferimenti":  "Movimenti tra conti",
     }
     ttk.Label(sel, text="Sezioni da includere:", font=("Arial", 8, "bold"),
               anchor="w").pack(padx=20, anchor="w")

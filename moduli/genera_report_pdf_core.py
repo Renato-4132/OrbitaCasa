@@ -20,7 +20,7 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
     import datetime, tempfile, os, json
     from collections import defaultdict
     if sezioni is None:
-        sezioni = {"mesi": True, "categorie": True, "storico": True, "portafoglio": True}
+        sezioni = {"mesi": True, "categorie": True, "storico": True, "portafoglio": True, "trasferimenti": True}
     oggi      = datetime.date.today()
     anno_curr = anno_a if anno_a is not None else oggi.year
     if anno_da is None:
@@ -50,6 +50,26 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
             continue
         if _cnome:
             _agganci[(_data_t, _imp_t, _tipo_t)].append(_cnome)
+    trasf_tra_conti = []
+    for _t in _db_p.get("trasferimenti", []):
+        _da_id = _t.get("da", "")
+        _a_id  = _t.get("a", "")
+        if _da_id in ("__spese__", "Contabilità") or _a_id in ("__spese__", "Contabilità"):
+            continue
+        try:
+            _d_trasf = datetime.datetime.strptime(_t.get("data", ""), "%d-%m-%Y").date()
+        except Exception:
+            continue
+        if not (anno_da <= _d_trasf.year <= anno_curr) or (mese_filtro and _d_trasf.month != mese_filtro):
+            continue
+        trasf_tra_conti.append({
+            "data":    _d_trasf,
+            "da":      _id_a_nome.get(_da_id, "?"),
+            "a":       _id_a_nome.get(_a_id, "?"),
+            "importo": round(float(_t.get("importo", 0)), 2),
+            "note":    _t.get("note", ""),
+        })
+    trasf_tra_conti.sort(key=lambda r: r["data"], reverse=True)
     def _nome_conto(data_obj, val, t_tipo):
         key   = (data_obj.strftime("%d-%m-%Y"), round(val, 2), t_tipo)
         lista = _agganci.get(key, [])
@@ -444,6 +464,46 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
                 [{"valori": [cat_st_val[c] for c in cat_s_sorted], "colore": C_DARKRED, "label": "Uscite"}],
                 altezza_barra=16, gap=4
             )
+    if sezioni.get("trasferimenti", True) and trasf_tra_conti:
+        page = nuova_pagina()
+        header_pagina(page, f"Movimenti tra Conti — {_titolo_periodo}", current_folder)
+        cy = 68
+        tot_trasf = sum(r["importo"] for r in trasf_tra_conti)
+        def intestazione_trasf(p, y):
+            p.draw_rect(fitz.Rect(MARG, y, W - MARG, y + 16),
+                        color=None, fill=C_HEADER)
+            p.insert_text((MARG + 4,   y + 11), "Data",     fontsize=7, color=C_WHITE, fontname="Helvetica-Bold")
+            p.insert_text((MARG + 70,  y + 11), "Da conto", fontsize=7, color=C_WHITE, fontname="Helvetica-Bold")
+            p.insert_text((MARG + 220, y + 11), "A conto",  fontsize=7, color=C_WHITE, fontname="Helvetica-Bold")
+            p.insert_text((MARG + 370, y + 11), "Note",     fontsize=7, color=C_WHITE, fontname="Helvetica-Bold")
+            p.insert_text((W-MARG-60,  y + 11), "Importo",  fontsize=7, color=C_WHITE, fontname="Helvetica-Bold")
+            return y + 18
+        cy = intestazione_trasf(page, cy)
+        for i, r in enumerate(trasf_tra_conti):
+            if cy > H - 50:
+                page = nuova_pagina()
+                header_pagina(page, f"Movimenti tra Conti — {_titolo_periodo}", current_folder)
+                cy = 68
+                cy = intestazione_trasf(page, cy)
+            bg = C_WHITE if i % 2 == 0 else (0.96, 0.97, 0.98)
+            page.draw_rect(fitz.Rect(MARG, cy, W - MARG, cy + 13), color=None, fill=bg)
+            nota_corta = r["note"][:30] + "…" if len(r["note"]) > 30 else r["note"]
+            c_da = colore_conto.get(r["da"], C_SUBTEXT)
+            c_a  = colore_conto.get(r["a"],  C_SUBTEXT)
+            page.insert_text((MARG + 4,   cy + 10), r["data"].strftime("%d/%m/%Y"), fontsize=7,   color=C_TEXT,    fontname="Helvetica")
+            page.insert_text((MARG + 70,  cy + 10), r["da"][:22],                    fontsize=6.5, color=c_da,      fontname="Helvetica-Bold")
+            page.insert_text((MARG + 220, cy + 10), r["a"][:22],                     fontsize=6.5, color=c_a,       fontname="Helvetica-Bold")
+            page.insert_text((MARG + 370, cy + 10), nota_corta,                      fontsize=6.5, color=C_SUBTEXT, fontname="Helvetica")
+            page.insert_text((W-MARG-60,  cy + 10), f"€{_fmt_it(r['importo'])}",     fontsize=7,   color=C_BLUE,    fontname="Helvetica-Bold")
+            cy += 13
+        cy += 8
+        if cy + 20 > H - MARG:
+            page = nuova_pagina()
+            header_pagina(page, f"Movimenti tra Conti — {_titolo_periodo}", current_folder)
+            cy = 68
+        page.draw_rect(fitz.Rect(MARG + 8, cy, W - MARG - 8, cy + 20), color=None, fill=C_HEADER)
+        page.insert_text((MARG + 18, cy + 14), "TOTALE MOVIMENTI TRA CONTI", fontsize=8, color=C_WHITE, fontname="Helvetica-Bold")
+        page.insert_text((W - MARG - 85, cy + 14), f"€ {_fmt_it(tot_trasf)}", fontsize=9, color=C_BLUE, fontname="Helvetica-Bold")
     if sezioni.get("mesi", True):
         for m in mesi_attivi:
             righe_in  = movimenti_per_id.get(f"curr_m_{m}_in",  [])
