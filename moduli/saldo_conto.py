@@ -500,13 +500,19 @@ def open_saldo_conto(self):
                 ricarica_tree()
                 reset_form()
                 self.show_toast("Conto salvato.")
-                if hasattr(self, 'cb_conto'):
-                    self.cb_conto['values'] = [c.get("nome", "?") for c in db_now.get("conti", [])]
-                if hasattr(self, 'cb_conto_movimento'):
-                    _n = ["(nessuno)"] + [c.get("nome", "?") for c in db_now.get("conti", [])]
-                    self.cb_conto_movimento['values'] = _n
-                    _nuovo_princ = next((c.get("nome","") for c in db_now.get("conti",[]) if c.get("principale")), "(nessuno)")
-                    self.v_conto_movimento.set(_nuovo_princ)
+                try:
+                    if hasattr(self, 'cb_conto'):
+                        self.cb_conto['values'] = [c.get("nome", "?") for c in db_now.get("conti", [])]
+                except Exception:
+                    pass
+                try:
+                    if hasattr(self, 'cb_conto_movimento'):
+                        _n = ["(nessuno)", "📂 Portafoglio", "───────────"] + [c.get("nome", "?") for c in db_now.get("conti", [])]
+                        self.cb_conto_movimento['values'] = _n
+                        _nuovo_princ = next((c.get("nome","") for c in db_now.get("conti",[]) if c.get("principale")), "(nessuno)")
+                        self.v_conto_movimento.set(_nuovo_princ)
+                except Exception:
+                    pass
                 build_riepilogo()
             def elimina_conto():
                 if not sel_id[0]:
