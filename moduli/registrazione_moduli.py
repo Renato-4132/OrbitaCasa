@@ -214,12 +214,12 @@ def registra_tutti_i_moduli(GestioneSpese):
 
     from moduli.schedulatore import (
         apri_schedulatore, _tick_scheduler, _esegui_scheduler, _genera_testo_ricorrenti_mancanti, _genera_testo_estratto_mensile,
-        _genera_testo_estratto_annuale, _calcola_saldo_mese_corrente, _genera_testo_allerta_saldo, _invia_email_scheduler,
+        _genera_testo_estratto_annuale, _genera_testo_estratto_trasferimenti, _calcola_saldo_mese_corrente, _genera_testo_allerta_saldo, _invia_email_scheduler,
         _genera_testo_scadenze_veicoli, _genera_testo_riepilogo_cronologico,
         _calcola_sforamenti_budget, _genera_testo_sforamento_budget,)
     _registra(apri_schedulatore, _tick_scheduler, _esegui_scheduler,
               _genera_testo_ricorrenti_mancanti, _genera_testo_estratto_mensile,
-              _genera_testo_estratto_annuale, _calcola_saldo_mese_corrente,
+              _genera_testo_estratto_annuale, _genera_testo_estratto_trasferimenti, _calcola_saldo_mese_corrente,
               _genera_testo_allerta_saldo, _invia_email_scheduler, _genera_testo_scadenze_veicoli,
               _genera_testo_riepilogo_cronologico,
               _calcola_sforamenti_budget, _genera_testo_sforamento_budget)

@@ -26,6 +26,7 @@ def apri_schedulatore(self):
     TIPI = [
         ("estratto_mensile",      "Estratto Mensile"),
         ("estratto_annuale",      "Estratto Annuale"),
+        ("estratto_trasferimenti","Trasferimenti tra Conti"),
         ("riepilogo_settimanale", "Riepilogo Settimanale"),
         ("giornaliero",           "Registro Giornaliero"),
         ("controllo_ricorrenti",  "Ricorrenti Mancanti"),
@@ -369,6 +370,8 @@ def apri_schedulatore(self):
             corpo = self._genera_testo_estratto_mensile()
         elif tipo == "estratto_annuale":
             corpo = self._genera_testo_estratto_annuale()
+        elif tipo == "estratto_trasferimenti":
+            corpo = self._genera_testo_estratto_trasferimenti()
         elif tipo in ("riepilogo_settimanale", "giornaliero"):
             corpo = self._genera_testo_riepilogo_cronologico(tipo)
         elif tipo == "promemoria_libero":
@@ -549,6 +552,8 @@ def _esegui_scheduler(self):
                         corpo_mail = self._genera_testo_estratto_mensile()
                     elif t == "estratto_annuale":
                         corpo_mail = self._genera_testo_estratto_annuale()
+                    elif t == "estratto_trasferimenti":
+                        corpo_mail = self._genera_testo_estratto_trasferimenti()
                     elif t == "riepilogo_settimanale" or t == "giornaliero":
                         corpo_mail = self._genera_testo_riepilogo_cronologico(t)
                     elif t == "controllo_ricorrenti":
@@ -893,6 +898,76 @@ def _genera_testo_estratto_mensile(self):
         lines.append("   " + "┈" * 28)
     lines.append("")
     lines.append(f"🔢 Totale movimenti: {len(movimenti)}")
+    lines.append("")
+    lines.append(f"📅 Report generato il {oggi.strftime('%d/%m/%Y')}")
+    return "\n".join(lines)
+
+def _genera_testo_estratto_trasferimenti(self):
+    import __main__ as _app
+    PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
+    oggi = datetime.date.today()
+    if oggi.day == 1:
+        # Il mese in corso è appena iniziato: mandiamo quello appena concluso.
+        primo_del_mese = oggi.replace(day=1)
+        ultimo_mese_prec = primo_del_mese - datetime.timedelta(days=1)
+        mese, anno = ultimo_mese_prec.month, ultimo_mese_prec.year
+    else:
+        mese, anno = oggi.month, oggi.year
+    mesi = ["GENNAIO", "FEBBRAIO", "MARZO", "APRILE", "MAGGIO", "GIUGNO",
+            "LUGLIO", "AGOSTO", "SETTEMBRE", "OTTOBRE", "NOVEMBRE", "DICEMBRE"]
+    nome_mese = mesi[mese - 1]
+    try:
+        with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as f:
+            db = json.load(f)
+    except Exception:
+        db = {"conti": [], "trasferimenti": []}
+    nome_da_id = {c["id"]: c.get("nome", "?") for c in db.get("conti", [])}
+    movimenti = []
+    saldo_conto = {}
+    for t in db.get("trasferimenti", []):
+        if "__spese__" in (t.get("da", ""), t.get("a", "")):
+            continue
+        try:
+            d = datetime.datetime.strptime(t.get("data", ""), "%d-%m-%Y").date()
+        except Exception:
+            continue
+        if d.year != anno or d.month != mese:
+            continue
+        imp = round(float(t.get("importo", 0)), 2)
+        da_n = nome_da_id.get(t.get("da", ""), "?")
+        a_n  = nome_da_id.get(t.get("a", ""), "?")
+        movimenti.append((d, da_n, a_n, imp, t.get("note", ""), bool(t.get("id_ricorrenza"))))
+        saldo_conto[da_n] = saldo_conto.get(da_n, 0.0) - imp
+        saldo_conto[a_n]  = saldo_conto.get(a_n, 0.0) + imp
+    movimenti.sort(key=lambda x: x[0])
+    lines = []
+    lines.append("")
+    lines.append(f"🔄 TRASFERIMENTI CONTI {nome_mese} {anno}")
+    lines.append("─" * 31)
+    lines.append("")
+    if not movimenti:
+        lines.append("Nessun trasferimento tra conti nel mese.")
+    else:
+        totale = sum(m[3] for m in movimenti)
+        lines.append(f"🔢 Movimenti: {len(movimenti)}")
+        lines.append(f"💶 Totale spostato: {_fmt_it(totale)} €")
+        lines.append("")
+        lines.append("📜 DETTAGLIO")
+        lines.append("─" * 31)
+        lines.append("")
+        for d, da_n, a_n, imp, note, ric in movimenti:
+            ric_s = " 🔁" if ric else ""
+            lines.append(f"↪ {_fmt_it(imp)} €  {d.strftime('%d/%m/%Y')}{ric_s}")
+            lines.append(f"   {da_n} → {a_n}")
+            if note:
+                lines.append(f"   📝 {note}")
+            lines.append("   " + "┈" * 28)
+        lines.append("")
+        lines.append("📊 NETTO TRASFERIMENTI (nel periodo)")
+        lines.append("─" * 31)
+        for nome, netto in sorted(saldo_conto.items(), key=lambda x: -x[1]):
+            segno = "🟢" if netto >= 0 else "🔴"
+            lines.append(f"{segno} {nome}: {_fmt_it(netto)} €")
     lines.append("")
     lines.append(f"📅 Report generato il {oggi.strftime('%d/%m/%Y')}")
     return "\n".join(lines)
