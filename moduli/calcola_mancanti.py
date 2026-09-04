@@ -135,7 +135,8 @@ def calcola_mancanti(self):
                 cat = cat_raw.strip().title()
                 importo = campo(voce, "importo", 0)
                 tipo = campo(voce, "tipo", "Uscita").strip().title() or "Uscita"
-                importi_categoria[cat] = importi_categoria.get(cat, 0) + importo
+                importo_netto = importo if tipo == "Entrata" else -importo
+                importi_categoria[cat] = importi_categoria.get(cat, 0) + importo_netto
                 conteggio_categoria[cat] = conteggio_categoria.get(cat, 0) + 1
                 risultati.setdefault(cat, set()).add(mese)
                 dati_mensili.setdefault(cat, {}).setdefault(mese, {"Entrata": 0, "Uscita": 0})
@@ -151,6 +152,9 @@ def calcola_mancanti(self):
             spesa_totale = importi_categoria.get(cat, 0)
             n_elementi = conteggio_categoria.get(cat, 1)
             media_spesa = spesa_totale / n_elementi
+            segno = "+" if spesa_totale >= 0 else "-"
+            spesa_totale_abs = abs(spesa_totale)
+            media_spesa_abs = abs(media_spesa)
             sorted_months = sorted(list(mesi_presenti))
             avg_interval = 0
             if len(sorted_months) > 1:
@@ -166,7 +170,7 @@ def calcola_mancanti(self):
                 cadenza = "Trimestrale";   tag_riga = "cadenza_trimestrale"
             else:
                 cadenza = "Irregolare";    tag_riga = "cadenza_irregolare"
-            valori_riga = [cat, f"€{_app._fmt_it(spesa_totale)}", f"€{_app._fmt_it(media_spesa)}", cadenza]
+            valori_riga = [cat, f"€ {segno}{_app._fmt_it(spesa_totale_abs)}", f"€ {segno}{_app._fmt_it(media_spesa_abs)}", cadenza]
             for mese_idx in range(1, 13):
                 simbolo = "✔" if mese_idx in mesi_presenti else "✖"
                 if mese_idx == oggi.month and anno == oggi.year:
@@ -206,7 +210,7 @@ def calcola_mancanti(self):
             self.cat_menu.set(cat_match)
             self.on_categoria_changed(manuale=False)
         try:
-            media_str = str(valori[2]).replace("€", "")
+            media_str = str(valori[2]).replace("€", "").replace("+", "").replace("-", "").strip()
             media_val = _app._parse_it_float(media_str)
             self.imp_entry.delete(0, tk.END)
             self.imp_entry.insert(0, f"{media_val:.2f}".replace(".", ","))
@@ -284,9 +288,11 @@ def calcola_mancanti(self):
                         continue
                     cat = cat_raw.strip().title()
                     importo = campo(voce, "importo", 0)
+                    tipo_voce = campo(voce, "tipo", "Uscita").strip().title() or "Uscita"
+                    importo_netto = importo if tipo_voce == "Entrata" else -importo
                     chiave = (cat, dd.month)
                     storico.setdefault(chiave, set()).add(dd.year)
-                    importi_storico.setdefault(chiave, []).append(importo)
+                    importi_storico.setdefault(chiave, []).append(importo_netto)
                     occorrenze_per_anno.setdefault(cat, {}).setdefault(dd.year, 0)
                     occorrenze_per_anno[cat][dd.year] += 1
         anni_per_cat = {}
@@ -316,8 +322,9 @@ def calcola_mancanti(self):
                 tag = "ann_futuro";   simbolo = "—"
             else:
                 tag = "ann_mancante"; simbolo = "✖"
+            segno = "+" if media >= 0 else "-"
             tree_annuali.insert("", "end",
-                                values=(cat, mesi_nomi[mese - 1], _app._fmt_it(media), n_anni, simbolo),
+                                values=(cat, mesi_nomi[mese - 1], f"€ {segno}{_app._fmt_it(abs(media))}", n_anni, simbolo),
                                 tags=(tag,))
         if not tree_annuali.get_children():
             tree_annuali.insert("", "end",
@@ -348,7 +355,7 @@ def calcola_mancanti(self):
             self.cat_menu.set(cat_match)
             self.on_categoria_changed(manuale=False)
         try:
-            media_str = str(valori[2]).replace("€", "")
+            media_str = str(valori[2]).replace("€", "").replace("+", "").replace("-", "").strip()
             media_val = _app._parse_it_float(media_str)
             self.imp_entry.delete(0, tk.END)
             self.imp_entry.insert(0, f"{media_val:.2f}".replace(".", ","))
