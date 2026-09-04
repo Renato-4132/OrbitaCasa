@@ -20,7 +20,7 @@ def open_saldo_conto(self):
             self._saldo_popup.lift()
             self._saldo_popup.focus_force()
             return
-        W, H = 1300, 650
+        W, H = 1366, 650
         bg   = self.COLOR_TOPLEVEL
         fg   = self.TEXT_COLOR
         popup = tk.Toplevel(self, bg=bg)
@@ -30,7 +30,8 @@ def open_saldo_conto(self):
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
         popup.geometry(f"{W}x{H}+{(sw-W)//2}+{(sh-H)//2}")
-        popup.resizable(False, False)
+        popup.resizable(True, True)
+        popup.minsize(1366, 650)
         popup.transient(self)
         popup.bind("<Escape>", lambda e: popup.destroy())
         def carica_db():
@@ -169,14 +170,19 @@ def open_saldo_conto(self):
             canvas_w = 640
             canvas_h = 40
             _min_bar = 70
-            if totale_conti > 0:
+            _char_px = 7
+            _pad_txt = 14
+            totale_abs = sum(abs(self._saldo_effettivo(c, db_now)) for c in conti) or 1
+            if totale_abs > 0:
                 _barre = []
                 for c in conti:
                     saldo_c = self._saldo_effettivo(c, db_now)
-                    if saldo_c <= 0:
+                    if saldo_c == 0:
                         continue
-                    w_bar = max(_min_bar, int((saldo_c / totale_conti) * 640))
-                    _barre.append((c, w_bar))
+                    nome_c = c.get("nome", "")
+                    w_testo = len(nome_c) * _char_px + _pad_txt
+                    w_bar = max(_min_bar, w_testo, int((abs(saldo_c) / totale_abs) * 640))
+                    _barre.append((c, w_bar, saldo_c))
                 canvas_w = sum(b[1] for b in _barre)
             else:
                 canvas_w = 640
@@ -186,13 +192,16 @@ def open_saldo_conto(self):
             cv.pack(anchor="w")
             if _barre:
                 x = 0
-                for c, w_bar in _barre:
-                    colore = TIPO_COLORI.get(c.get("tipo","altro"), "#A78BFA")
+                for c, w_bar, saldo_c in _barre:
+                    colore = "#E06C75" if saldo_c < 0 else TIPO_COLORI.get(c.get("tipo","altro"), "#A78BFA")
                     cv.create_rectangle(x, 0, x + w_bar - 2, canvas_h,
                                         fill=colore, outline="")
                     if w_bar > 15:
+                        nome_c = c.get("nome", "")
+                        max_chars = max(3, (w_bar - _pad_txt) // _char_px)
+                        nome_show = nome_c if len(nome_c) <= max_chars else nome_c[:max_chars - 1].rstrip() + "…"
                         cv.create_text(x + w_bar//2, canvas_h//2,
-                                       text=c.get("nome","")[:10],
+                                       text=nome_show,
                                        font=("Arial", 8, "bold"), fill="white")
                     x += w_bar
             else:
@@ -205,6 +214,12 @@ def open_saldo_conto(self):
                 fr.pack(side="left", padx=(0, 14))
                 tk.Frame(fr, bg=colore, width=12, height=12).pack(side="left", padx=(0, 3))
                 tk.Label(fr, text=tipo.capitalize(), font=("Arial", 8),
+                         bg=bg, fg=fg).pack(side="left")
+            if any(saldo_c < 0 for _, _, saldo_c in _barre):
+                fr_neg = tk.Frame(leg_f, bg=bg)
+                fr_neg.pack(side="left", padx=(0, 14))
+                tk.Frame(fr_neg, bg="#E06C75", width=12, height=12).pack(side="left", padx=(0, 3))
+                tk.Label(fr_neg, text="Negativo", font=("Arial", 8),
                          bg=bg, fg=fg).pack(side="left")
             ttk.Separator(tab_riepilogo, orient="horizontal").pack(fill=tk.X, padx=14, pady=8)
             bot_f = tk.Frame(tab_riepilogo, bg=bg)
