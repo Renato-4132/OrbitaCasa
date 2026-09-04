@@ -567,7 +567,7 @@ def modifica_categoria(self):
         del self.budget_annuale_categorie[old_nome]
     self.save_db()
     self.refresh_gui()
-    self.show_toast(f"Categoria '{old_nome}' rinominata in '{new_nome}' ({nuovo_tipo}). Budget: €{_fmt_it(budget_val)}" if budget_val > 0 else f"Categoria '{old_nome}' rinominata in '{new_nome}' ({nuovo_tipo}).")
+    self.show_toast(f"Categoria '{old_nome}' rinominata in '{new_nome}' ({nuovo_tipo}). Budget: € {_fmt_it(budget_val)}" if budget_val > 0 else f"Categoria '{old_nome}' rinominata in '{new_nome}' ({nuovo_tipo}).")
     self.aggiorna_combobox_categorie()
     self.reset_campi_categoria() 
     if hasattr(self, 'ricorrenza_popup') and self.ricorrenza_popup.winfo_exists():
@@ -789,11 +789,12 @@ def draw_top_categorie(self):
                     fill=fill, outline="", tags=tag_riga
             )
         x_fine_barra = bx + max(bar_w, 4)
+        segno_val = "+" if val >= 0 else ""
         if x_fine_barra > (w - 60): 
-                    c.create_text(x_fine_barra - 5, y, text=f"{_fmt_it(val)}€", anchor="e",
+                    c.create_text(x_fine_barra - 5, y, text=f"{segno_val}{_fmt_it(val)} €", anchor="e",
                                   fill="white", font=("Arial", 8, "bold"), tags=tag_riga)
         else:
-                    c.create_text(x_fine_barra + 5, y, text=f"{_fmt_it(val)}€", anchor="w",
+                    c.create_text(x_fine_barra + 5, y, text=f"{segno_val}{_fmt_it(val)} €", anchor="w",
                                   fill=self.TEXT_COLOR, font=("Arial", 8, "bold"), tags=tag_riga)
         voci = sorted(dettagli.get(cat, []), key=lambda x: x[0], reverse=True)
         tot_usc = sum(iv for _, iv, tv in voci if tv == "Uscita")
@@ -801,9 +802,9 @@ def draw_top_categorie(self):
         w_l = 13
         w_v = 12
         righe_dati = [
-                    f"{'[-] USCITE:':<{w_l}} {'-' + f'{_fmt_it(tot_usc)}':>{w_v}}€",
-                    f"{'[+] ENTRATE:':<{w_l}} {'+' + f'{_fmt_it(tot_ent)}':>{w_v}}€",
-                    f"{'[=] NETTO:':<{w_l}} {('+' if tot_ent-tot_usc >= 0 else '') + f'{_fmt_it(tot_ent-tot_usc)}':>{w_v}}€",
+                    f"{'[-] USCITE:':<{w_l}} {'-' + f'{_fmt_it(tot_usc)}':>{w_v}} €",
+                    f"{'[+] ENTRATE:':<{w_l}} {'+' + f'{_fmt_it(tot_ent)}':>{w_v}} €",
+                    f"{'[=] NETTO:':<{w_l}} {('+' if tot_ent-tot_usc >= 0 else '') + f'{_fmt_it(tot_ent-tot_usc)}':>{w_v}} €",
         ]
         voci_righe = []
         for d_v, imp_v, tipo_v in voci[:15]:
@@ -811,7 +812,7 @@ def draw_top_categorie(self):
                     s = "»" if tipo_v == "Uscita" else "«"
                     dt = d_v.strftime('%d/%m')
                     sinistra = f"{s} {dt}"
-                    destra = f"{p + f'{_fmt_it(imp_v)}':>{w_v}}€"
+                    destra = f"{p + f'{_fmt_it(imp_v)}':>{w_v}} €"
                     gap = w_l + w_v + 2 - len(sinistra) - len(destra)
                     voci_righe.append(sinistra + " " * max(gap, 1) + destra)
         col_w = max(len(r) for r in righe_dati + voci_righe) if (righe_dati + voci_righe) else 28
@@ -891,10 +892,21 @@ def mostra_storico_categoria(self, categoria):
              font=("Arial", 11, "bold")).pack(pady=(10, 4))
     c = tk.Canvas(popup, bg=self.COLOR_WIDGET_BG, highlightthickness=0)
     c.pack(fill=tk.BOTH, expand=True, padx=12, pady=(0, 4))
-    tk.Label(popup,
-             text=f"  Entrate: +{_fmt_it(totale_ent)}€   Uscite: -{_fmt_it(totale_usc)}€   Saldo: {segno_saldo}{_fmt_it(saldo)}€",
-             bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
-             font=("Arial", 8)).pack(pady=(0, 2))
+    colore_saldo = self.COLOR_GREEN_SMOOTH if saldo >= 0 else self.COLOR_RED_SMOOTH
+    frm_riepilogo = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
+    frm_riepilogo.pack(pady=(0, 2))
+    tk.Label(frm_riepilogo, text="  Entrate: ", bg=self.COLOR_TOPLEVEL,
+             fg=self.TEXT_COLOR, font=("Arial", 8)).pack(side="left")
+    tk.Label(frm_riepilogo, text=f"+{_fmt_it(totale_ent)} €", bg=self.COLOR_TOPLEVEL,
+             fg=self.COLOR_GREEN_SMOOTH, font=("Arial", 8, "bold")).pack(side="left")
+    tk.Label(frm_riepilogo, text="   Uscite: ", bg=self.COLOR_TOPLEVEL,
+             fg=self.TEXT_COLOR, font=("Arial", 8)).pack(side="left")
+    tk.Label(frm_riepilogo, text=f"-{_fmt_it(totale_usc)} €", bg=self.COLOR_TOPLEVEL,
+             fg=self.COLOR_RED_SMOOTH, font=("Arial", 8, "bold")).pack(side="left")
+    tk.Label(frm_riepilogo, text="   Saldo: ", bg=self.COLOR_TOPLEVEL,
+             fg=self.TEXT_COLOR, font=("Arial", 8)).pack(side="left")
+    tk.Label(frm_riepilogo, text=f"{segno_saldo}{_fmt_it(saldo)} €", bg=self.COLOR_TOPLEVEL,
+             fg=colore_saldo, font=("Arial", 8, "bold")).pack(side="left")
     tk.Label(popup,
              text="  Doppio clic → Dettaglio mese",
              bg=self.COLOR_TOPLEVEL, fg="gray",
@@ -923,7 +935,8 @@ def mostra_storico_categoria(self, categoria):
             fill = "#98C379" if val > 0 else "#E06C75" if val < 0 else self.COLOR_WIDGET_BG
             rect_id = c.create_rectangle(x1, y1, x2, y2, fill=fill, outline="")
             if val != 0:
-                c.create_text((x1+x2)/2, y1 - 10, text=f"{val:.0f}",
+                segno_mese = "+" if val >= 0 else ""
+                c.create_text((x1+x2)/2, y1 - 10, text=f"{segno_mese}{_fmt_it(val, ',.0f')}",
                               fill=self.TEXT_COLOR, font=("Arial", 7))
                 c.tag_bind(rect_id, "<Double-1>",
                            lambda e, m=i+1, a=now.year:
@@ -1498,7 +1511,7 @@ def gruppo_categorie(self):
         tot_uscite = 0.0
         for cat, dati in sorted(risultato.items(), key=lambda x: -(x[1]["entrate"] - x[1]["uscite"])):
             saldo = dati["entrate"] - dati["uscite"]
-            righe.append(f"{cat:<30} {dati['num']:>4}   {_fmt_it(dati['uscite'], '>12,.2f')}   {_fmt_it(dati['entrate'], '>12,.2f')}   {_fmt_it(saldo, '>12,.2f')}")
+            righe.append(f"{cat:<30} {dati['num']:>4}   {_fmt_it(dati['uscite'], '>12,.2f')}   {_fmt_it(dati['entrate'], '>12,.2f')}   {_fmt_it(saldo, '+12,.2f')}")
             totale += saldo
             tot_entrate += dati["entrate"]
             tot_uscite += dati["uscite"]
@@ -1509,7 +1522,7 @@ def gruppo_categorie(self):
         _larg_label = max(len(_label_entrate), len(_label_uscite), len(_label_saldo)) + 1
         righe.append(f"{_label_entrate:<{_larg_label}} {_fmt_it(tot_entrate, '>12,.2f')} €")
         righe.append(f"{_label_uscite:<{_larg_label}} {_fmt_it(tot_uscite, '>12,.2f')} €")
-        righe.append(f"{_label_saldo:<{_larg_label}} {_fmt_it(totale, '>12,.2f')} €")
+        righe.append(f"{_label_saldo:<{_larg_label}} {_fmt_it(totale, '+12,.2f')} €")
         text_output.insert("1.0", "\n".join(righe))
         text_output.config(state="disabled")
     def reset_campi():
