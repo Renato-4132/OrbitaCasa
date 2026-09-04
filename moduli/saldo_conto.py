@@ -3,6 +3,7 @@
 
 import os
 import json
+import uuid
 import datetime
 import tkinter as tk
 from tkinter import ttk, filedialog
@@ -11,6 +12,36 @@ from moduli.modello_spesa import campo
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
     return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+
+
+def _genera_date_ricorrenza_trasf(data_inizio, tipo, n):
+    date_list = []
+    for i in range(n):
+        if tipo == "Ogni giorno":
+            d = data_inizio + datetime.timedelta(days=i)
+        elif tipo == "Ogni settimana":
+            d = data_inizio + datetime.timedelta(weeks=i)
+        elif tipo == "Ogni mese":
+            month = (data_inizio.month - 1 + i) % 12 + 1
+            year = data_inizio.year + (data_inizio.month - 1 + i) // 12
+            giorni_mese = [31,
+                29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28,
+                31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+            day = min(data_inizio.day, giorni_mese[month - 1])
+            try:
+                d = datetime.date(year, month, day)
+            except Exception:
+                d = datetime.date(year, month, 1)
+        elif tipo == "Ogni anno":
+            year = data_inizio.year + i
+            try:
+                d = datetime.date(year, data_inizio.month, data_inizio.day)
+            except Exception:
+                d = datetime.date(year, data_inizio.month, 1)
+        else:
+            break
+        date_list.append(d)
+    return date_list
 
 
 def open_saldo_conto(self):
@@ -558,22 +589,66 @@ def open_saldo_conto(self):
             nomi_conti = [c["nome"] for c in conti]
             id_da_nome = {c["nome"]: c["id"] for c in conti}
             nome_da_id = {c["id"]: c["nome"] for c in conti}
+            def _key_data(t):
+                try:
+                    return datetime.datetime.strptime(t.get("data",""), "%d-%m-%Y").date()
+                except Exception:
+                    return datetime.date.min
+            date_trasf_f = []
+            for _tf in trasf:
+                if "__spese__" in (_tf.get("da",""), _tf.get("a","")):
+                    continue
+                try:
+                    date_trasf_f.append(datetime.datetime.strptime(_tf.get("data",""), "%d-%m-%Y").date())
+                except Exception:
+                    pass
+            anni_trasf_f = sorted({d.year for d in date_trasf_f}, reverse=True) or [datetime.date.today().year]
+            MESI_T = ["Tutti","Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno",
+                      "Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"]
+            v_f_anno  = tk.StringVar(value="Tutti")
+            v_f_mese  = tk.StringVar(value="Tutti")
+            v_f_conto = tk.StringVar(value="Tutti")
+            v_f_tipo  = tk.StringVar(value="Tutti")
+            tb_t = tk.Frame(tab_trasferimenti, bg=bg)
+            tb_t.pack(fill=tk.X, padx=10, pady=(8,0))
+            def _lbl_filt_t(testo):
+                tk.Label(tb_t, text=testo, font=("Arial", 9, "bold"),
+                         bg=bg, fg=fg).pack(side="left", padx=(6,2))
+            _lbl_filt_t("Anno:")
+            ttk.Combobox(tb_t, textvariable=v_f_anno,
+                         values=["Tutti"] + [str(a) for a in anni_trasf_f],
+                         state="readonly", width=7, style="Border.TCombobox").pack(side="left", padx=(0,8))
+            _lbl_filt_t("Mese:")
+            ttk.Combobox(tb_t, textvariable=v_f_mese, values=MESI_T,
+                         state="readonly", width=12, style="Border.TCombobox").pack(side="left", padx=(0,8))
+            _lbl_filt_t("Conto:")
+            ttk.Combobox(tb_t, textvariable=v_f_conto,
+                         values=["Tutti"] + nomi_conti,
+                         state="readonly", width=14, style="Border.TCombobox").pack(side="left", padx=(0,8))
+            _lbl_filt_t("Tipo:")
+            ttk.Combobox(tb_t, textvariable=v_f_tipo,
+                         values=["Tutti", "Solo singoli", "Solo ricorrenti"],
+                         state="readonly", width=13, style="Border.TCombobox").pack(side="left")
+            _btn(tb_t, "salva", "Esporta", lambda: _esporta_trasferimenti_testo(),
+                 side="right", padx=10)
             top = tk.Frame(tab_trasferimenti, bg=bg)
             top.pack(fill=tk.BOTH, expand=True, padx=10, pady=8)
             lf_tree = ttk.LabelFrame(top, text="Trasferimenti", padding=6)
             lf_tree.pack(side="left", fill=tk.BOTH, expand=True, padx=(0,6))
-            cols = ("data","da","a","importo","note")
+            cols = ("data","da","a","importo","note","ric")
             tree = ttk.Treeview(lf_tree, columns=cols, show="headings", height=14, selectmode='browse')
             tree.heading("data",    text="Data")
             tree.heading("da",      text="Da conto")
             tree.heading("a",       text="A conto")
             tree.heading("importo", text="Importo €")
             tree.heading("note",    text="Note")
+            tree.heading("ric",     text="🔁")
             tree.column("data",    width=90,  anchor="center")
             tree.column("da",      width=120, anchor="w")
             tree.column("a",       width=120, anchor="w")
             tree.column("importo", width=90,  anchor="e")
-            tree.column("note",    width=160, anchor="w")
+            tree.column("note",    width=140, anchor="w")
+            tree.column("ric",     width=30,  anchor="center")
             for col in cols:
                 tree.heading(col, command=lambda _col=col: self.treeview_sort_column(tree, _col, False))
             vsb = ttk.Scrollbar(lf_tree, orient="vertical", command=tree.yview)
@@ -583,17 +658,137 @@ def open_saldo_conto(self):
             def ricarica_tree_t():
                 tree.delete(*tree.get_children())
                 db_r = carica_db()
-                for t in sorted(db_r.get("trasferimenti",[]),
-                                key=lambda x: x.get("data",""), reverse=True):
-                    if "__spese__" in (t.get("da",""), t.get("a","")):
-                        continue
-                    da_n = nome_da_id.get(t.get("da",""),"?")
-                    a_n  = nome_da_id.get(t.get("a",""),"?")
-                    tree.insert("", "end", iid=t["id"],
-                                values=(t.get("data",""), da_n, a_n,
-                                        f"{_fmt_it(float(t.get('importo',0)))}",
-                                        t.get("note","")))
+                lista = [t for t in db_r.get("trasferimenti", [])
+                         if "__spese__" not in (t.get("da",""), t.get("a",""))]
+                try:
+                    anno_f = int(v_f_anno.get())
+                except ValueError:
+                    anno_f = None
+                mese_f  = MESI_T.index(v_f_mese.get()) if v_f_mese.get() != "Tutti" else 0
+                conto_f = v_f_conto.get()
+                tipo_f  = v_f_tipo.get()
+                def _passa_filtro(t):
+                    try:
+                        d = datetime.datetime.strptime(t.get("data",""), "%d-%m-%Y").date()
+                    except Exception:
+                        d = None
+                    if anno_f is not None and (d is None or d.year != anno_f):
+                        return False
+                    if mese_f and (d is None or d.month != mese_f):
+                        return False
+                    if conto_f != "Tutti":
+                        c_id = id_da_nome.get(conto_f)
+                        if t.get("da") != c_id and t.get("a") != c_id:
+                            return False
+                    if tipo_f == "Solo singoli" and t.get("id_ricorrenza"):
+                        return False
+                    if tipo_f == "Solo ricorrenti" and not t.get("id_ricorrenza"):
+                        return False
+                    return True
+                lista = [t for t in lista if _passa_filtro(t)]
+                singoli, gruppi = [], {}
+                for t in lista:
+                    ric_id = t.get("id_ricorrenza")
+                    if ric_id:
+                        gruppi.setdefault(ric_id, []).append(t)
+                    else:
+                        singoli.append(t)
+                righe = list(singoli)
+                for ric_id, occ in gruppi.items():
+                    righe.append({"__gruppo__": ric_id,
+                                  "occ": sorted(occ, key=_key_data)})
+                righe.sort(key=lambda r: _key_data(r["occ"][0]) if "__gruppo__" in r
+                           else _key_data(r), reverse=True)
+                for r in righe:
+                    if "__gruppo__" in r:
+                        occ = r["occ"]
+                        primo, ultimo = occ[0], occ[-1]
+                        periodo = (f"{primo.get('data','')} → {ultimo.get('data','')}"
+                                   if len(occ) > 1 else primo.get("data",""))
+                        gid = f"grp_{r['__gruppo__']}"
+                        tree.insert("", "end", iid=gid, open=False,
+                                    values=(periodo,
+                                            nome_da_id.get(primo.get("da",""), "?"),
+                                            nome_da_id.get(primo.get("a",""), "?"),
+                                            f"{_fmt_it(float(primo.get('importo',0)))}",
+                                            f"{primo.get('note','')} ({primo.get('ricorrenza_tipo','').lower()})",
+                                            f"🔁 x{len(occ)}"))
+                        for o in occ:
+                            tree.insert(gid, "end", iid=o["id"],
+                                        values=(o.get("data",""),
+                                                nome_da_id.get(o.get("da",""), "?"),
+                                                nome_da_id.get(o.get("a",""), "?"),
+                                                f"{_fmt_it(float(o.get('importo',0)))}",
+                                                o.get("note",""),
+                                                f"{o.get('ricorrenza_seq','?')}/{o.get('ricorrenza_totale','?')}"))
+                    else:
+                        tree.insert("", "end", iid=r["id"],
+                                    values=(r.get("data",""),
+                                            nome_da_id.get(r.get("da",""), "?"),
+                                            nome_da_id.get(r.get("a",""), "?"),
+                                            f"{_fmt_it(float(r.get('importo',0)))}",
+                                            r.get("note",""), ""))
+            for _v in (v_f_anno, v_f_mese, v_f_conto, v_f_tipo):
+                _v.trace_add("write", lambda *_a: ricarica_tree_t())
             ricarica_tree_t()
+            def _filtro_attivo_trasf(t):
+                try:
+                    anno_f = int(v_f_anno.get())
+                except ValueError:
+                    anno_f = None
+                mese_f  = MESI_T.index(v_f_mese.get()) if v_f_mese.get() != "Tutti" else 0
+                conto_f = v_f_conto.get()
+                tipo_f  = v_f_tipo.get()
+                try:
+                    d = datetime.datetime.strptime(t.get("data",""), "%d-%m-%Y").date()
+                except Exception:
+                    d = None
+                if anno_f is not None and (d is None or d.year != anno_f):
+                    return False
+                if mese_f and (d is None or d.month != mese_f):
+                    return False
+                if conto_f != "Tutti":
+                    c_id = id_da_nome.get(conto_f)
+                    if t.get("da") != c_id and t.get("a") != c_id:
+                        return False
+                if tipo_f == "Solo singoli" and t.get("id_ricorrenza"):
+                    return False
+                if tipo_f == "Solo ricorrenti" and not t.get("id_ricorrenza"):
+                    return False
+                return True
+            def _esporta_trasferimenti_testo():
+                db_r = carica_db()
+                lista = [t for t in db_r.get("trasferimenti", [])
+                         if "__spese__" not in (t.get("da",""), t.get("a",""))]
+                lista = sorted((t for t in lista if _filtro_attivo_trasf(t)),
+                                key=_key_data)
+                w_data, w_da, w_a, w_imp, w_note, w_ric = 10, 18, 18, 14, 24, 20
+                header = (f"{'Data':<{w_data}} {'Da conto':<{w_da}} {'A conto':<{w_a}} "
+                          f"{'Importo (€)':>{w_imp}} {'Note':<{w_note}} {'Ric.':<{w_ric}}")
+                sep = "─" * len(header)
+                lines = ["═" * len(header), "TRASFERIMENTI".center(len(header)),
+                          "═" * len(header), "", header, sep]
+                totale = 0.0
+                if not lista:
+                    lines.append("Nessun trasferimento nel periodo/filtro selezionato.")
+                else:
+                    for t in lista:
+                        da_n = nome_da_id.get(t.get("da",""), "?")
+                        a_n  = nome_da_id.get(t.get("a",""), "?")
+                        imp  = float(t.get("importo", 0))
+                        totale += imp
+                        ric = (f"{t.get('ricorrenza_seq','?')}/{t.get('ricorrenza_totale','?')} "
+                               f"{t.get('ricorrenza_tipo','')}") if t.get("id_ricorrenza") else ""
+                        lines.append(f"{t.get('data',''):<{w_data}} {da_n:<{w_da}.{w_da}} "
+                                     f"{a_n:<{w_a}.{w_a}} {_fmt_it(imp, f'>{w_imp},.2f')} "
+                                     f"{t.get('note',''):<{w_note}.{w_note}} {ric:<{w_ric}.{w_ric}}")
+                lines.append(sep)
+                lines.append(f"Totale movimenti: {len(lista)}")
+                lines.append(f"Totale importi:   {_fmt_it(totale, ',.2f')} €")
+                lines.append("═" * len(header))
+                oggi = datetime.date.today()
+                self.show_export_preview("\n".join(lines),
+                    default_filename=f"Trasferimenti_{oggi.strftime('%d-%m-%Y')}.txt")
             lf_form = ttk.LabelFrame(top, text="Nuovo trasferimento", padding=10)
             lf_form.pack(side="left", fill=tk.Y, ipadx=4)
             v_data   = tk.StringVar(value=datetime.date.today().strftime("%d-%m-%Y"))
@@ -601,6 +796,9 @@ def open_saldo_conto(self):
             v_a      = tk.StringVar(value=nomi_conti[1] if len(nomi_conti)>1 else "")
             v_imp    = tk.StringVar()
             v_note   = tk.StringVar()
+            v_ric_tipo = tk.StringVar(value="Nessuna")
+            v_ric_n    = tk.IntVar(value=1)
+            RIC_OPZIONI = ["Nessuna", "Ogni giorno", "Ogni settimana", "Ogni mese", "Ogni anno"]
             def _row(parent, testo, widget_fn, row):
                 tk.Label(parent, text=testo, font=("Arial", 9, "bold"),
                          bg=bg, fg=fg, anchor="w").grid(row=row, column=0,
@@ -634,10 +832,38 @@ def open_saldo_conto(self):
                  validate="key", validatecommand=(p.register(lambda s: len(s)<=9), "%P")), 3)
             _row(lf_form, "Note:",     lambda p: ttk.Entry(p, textvariable=v_note, width=18,
                  validate="key", validatecommand=(p.register(lambda s: len(s)<=20), "%P")), 4)
+            cb_ric_tipo = _row(lf_form, "Ripeti:", lambda p: ttk.Combobox(p, textvariable=v_ric_tipo,
+                 values=RIC_OPZIONI, state="readonly", width=14, style="Border.TCombobox"), 5)
+            def _valida_ric_n(s):
+                if s == "": return True
+                return s.isdigit() and len(s) <= 3
+            ric_n_frame = tk.Frame(lf_form, bg=bg)
+            ric_n_frame.grid(row=6, column=0, columnspan=3, sticky="w", pady=(0,3))
+            tk.Label(ric_n_frame, text="Ripeti volte:", font=("Arial", 9, "bold"),
+                     bg=bg, fg=fg).pack(side="left", padx=(0,6))
+            ent_ric_n = ttk.Entry(ric_n_frame, textvariable=v_ric_n, width=5,
+                                   validate="key", validatecommand=(popup.register(_valida_ric_n), "%P"))
+            ent_ric_n.pack(side="left")
+            tk.Label(ric_n_frame, text="  (la Data è l'inizio della serie)", font=("Arial", 8),
+                     bg=bg, fg=fg).pack(side="left", padx=(6,0))
+            def _aggiorna_stato_ric(*_a):
+                stato = "disabled" if v_ric_tipo.get() == "Nessuna" else "normal"
+                ent_ric_n.configure(state=stato)
+            v_ric_tipo.trace_add("write", _aggiorna_stato_ric)
+            _aggiorna_stato_ric()
+            def _sblocca_ricorrenza():
+                cb_ric_tipo.configure(state="readonly")
+            def _blocca_ricorrenza():
+                v_ric_tipo.set("Nessuna")
+                cb_ric_tipo.configure(state="disabled")
+                ent_ric_n.configure(state="disabled")
             def on_sel_t(e):
                 sel = tree.selection()
                 if not sel: return
                 iid = sel[0]
+                if iid.startswith("grp_"):
+                    sel_id[0] = None
+                    return
                 db_r = carica_db()
                 t = next((x for x in db_r["trasferimenti"] if x["id"]==iid), None)
                 if t:
@@ -647,13 +873,17 @@ def open_saldo_conto(self):
                     v_imp.set(f"{float(t.get('importo', 0)):.2f}".replace(".", ","))
                     v_note.set(t.get("note",""))
                     sel_id[0] = iid
+                    _blocca_ricorrenza()
             tree.bind("<<TreeviewSelect>>", on_sel_t)
             def reset_t():
                 v_data.set(datetime.date.today().strftime("%d-%m-%Y"))
                 v_da.set(nomi_conti[0] if nomi_conti else "")
                 v_a.set(nomi_conti[1] if len(nomi_conti)>1 else "")
                 v_imp.set(""); v_note.set("")
+                v_ric_tipo.set("Nessuna")
+                v_ric_n.set(1)
                 sel_id[0] = None
+                _sblocca_ricorrenza()
             def salva_trasf():
                 if not nomi_conti:
                     self.show_toast("Aggiungi prima i conti nel tab 🏦 Conti.")
@@ -681,7 +911,15 @@ def open_saldo_conto(self):
                         vecchio["a"]       = a_id
                         vecchio["importo"] = imp
                         vecchio["note"]    = v_note.get().strip()
-                else:
+                    salva_db(db_r)
+                    ricarica_tree_t()
+                    reset_t()
+                    build_riepilogo()
+                    build_conti()
+                    self.show_toast("Trasferimento salvato.")
+                    return
+                ric_tipo = v_ric_tipo.get()
+                if ric_tipo == "Nessuna":
                     db_r["trasferimenti"].append({
                         "id":      nuovo_id("t", db_r["trasferimenti"]),
                         "data":    v_data.get(),
@@ -690,30 +928,143 @@ def open_saldo_conto(self):
                         "importo": round(float(imp), 2),
                         "note":    v_note.get().strip()
                     })
+                    salva_db(db_r)
+                    ricarica_tree_t()
+                    reset_t()
+                    build_riepilogo()
+                    build_conti()
+                    self.show_toast("Trasferimento salvato.")
+                    return
+                try:
+                    data_inizio = datetime.datetime.strptime(v_data.get(), "%d-%m-%Y").date()
+                except Exception:
+                    self.show_toast("Data non valida.")
+                    return
+                try:
+                    n = int(v_ric_n.get())
+                    if n <= 0 or n > 120:
+                        raise ValueError
+                except Exception:
+                    self.show_toast("Numero ripetizioni non valido (1-120).")
+                    return
+                date_list = _genera_date_ricorrenza_trasf(data_inizio, ric_tipo, n)
+                if not date_list:
+                    self.show_toast("Ricorrenza non valida.")
+                    return
+                ric_id = str(uuid.uuid4())
+                note_base = v_note.get().strip()
+                for i, d in enumerate(date_list, start=1):
+                    db_r["trasferimenti"].append({
+                        "id":              nuovo_id("t", db_r["trasferimenti"]),
+                        "data":            d.strftime("%d-%m-%Y"),
+                        "da":              da_id,
+                        "a":               a_id,
+                        "importo":         round(float(imp), 2),
+                        "note":            note_base,
+                        "id_ricorrenza":   ric_id,
+                        "ricorrenza_tipo": ric_tipo,
+                        "ricorrenza_seq":  i,
+                        "ricorrenza_totale": n,
+                    })
                 salva_db(db_r)
                 ricarica_tree_t()
                 reset_t()
                 build_riepilogo()
                 build_conti()
-                self.show_toast("Trasferimento salvato.")
+                self.riproduci_beep()
+                self.show_custom_info("Bonifico Ricorrente Programmato",
+                    f"Sono stati generati {n} bonifici ({ric_tipo.lower()}) "
+                    f"a partire dal {data_inizio.strftime('%d/%m/%Y')}.")
             def elimina_trasf():
+                sel = tree.selection()
+                if sel and sel[0].startswith("grp_"):
+                    ric_id = sel[0][len("grp_"):]
+                    db_r = carica_db()
+                    n_occ = len([t for t in db_r["trasferimenti"] if t.get("id_ricorrenza") == ric_id])
+                    if not self.show_custom_askyesno("Elimina", f"Eliminare l'intera serie ricorrente ({n_occ} bonifici)?"):
+                        return
+                    db_r["trasferimenti"] = [t for t in db_r["trasferimenti"] if t.get("id_ricorrenza") != ric_id]
+                    salva_db(db_r)
+                    ricarica_tree_t()
+                    reset_t()
+                    build_riepilogo()
+                    build_conti()
+                    self.show_toast("Serie ricorrente eliminata.")
+                    return
                 if not sel_id[0]:
                     self.show_toast("Seleziona un trasferimento da eliminare.")
                     return
-                if not self.show_custom_askyesno("Elimina", "Eliminare questo trasferimento e ripristinare i saldi?"):
-                    return
                 db_r = carica_db()
                 vecchio = next((t for t in db_r["trasferimenti"] if t["id"] == sel_id[0]), None)
-                if vecchio:
+                if not vecchio:
+                    return
+                ric_id = vecchio.get("id_ricorrenza")
+                if not ric_id:
+                    if not self.show_custom_askyesno("Elimina", "Eliminare questo trasferimento e ripristinare i saldi?"):
+                        return
                     db_r["trasferimenti"] = [t for t in db_r["trasferimenti"] if t["id"] != sel_id[0]]
+                    salva_db(db_r)
+                    ricarica_tree_t()
+                    reset_t()
+                    build_riepilogo()
+                    build_conti()
+                    self.show_toast("Trasferimento eliminato.")
+                    return
+                totale_serie = len([t for t in db_r["trasferimenti"] if t.get("id_ricorrenza") == ric_id])
+                scelta = _chiedi_ambito_eliminazione_ricorrenza(totale_serie)
+                if scelta is None:
+                    return
+                if scelta == "serie":
+                    db_r["trasferimenti"] = [t for t in db_r["trasferimenti"] if t.get("id_ricorrenza") != ric_id]
+                    msg_ok = f"Serie ricorrente eliminata ({totale_serie} bonifici)."
+                else:
+                    db_r["trasferimenti"] = [t for t in db_r["trasferimenti"] if t["id"] != sel_id[0]]
+                    msg_ok = "Occorrenza eliminata."
                 salva_db(db_r)
                 ricarica_tree_t()
                 reset_t()
                 build_riepilogo()
                 build_conti()
-                self.show_toast("Trasferimento eliminato.")
+                self.show_toast(msg_ok)
+            def _chiedi_ambito_eliminazione_ricorrenza(totale_serie):
+                risultato = {"valore": None}
+                dlg = tk.Toplevel(popup, bg=bg)
+                dlg.transient(popup)
+                dlg.title("Elimina bonifico ricorrente")
+                dlg.resizable(False, False)
+                W2, H2 = 420, 200
+                popup.update_idletasks()
+                x = popup.winfo_rootx() + (popup.winfo_width() // 2) - (W2 // 2)
+                y = popup.winfo_rooty() + (popup.winfo_height() // 2) - (H2 // 2)
+                dlg.geometry(f"{W2}x{H2}+{max(0,x)}+{max(0,y)}")
+                tk.Label(dlg, text="Questo bonifico fa parte di una serie ricorrente\n\n"
+                                    f"{totale_serie} occorrenze totali.",
+                         bg=bg, fg=fg, font=("Arial", 9, "bold"), justify="center").pack(pady=(16, 10))
+                bf = tk.Frame(dlg, bg=bg)
+                bf.pack(pady=6)
+                def _scegli(v):
+                    risultato["valore"] = v
+                    dlg.destroy()
+                def _crea_btn_dlg(parent, ico_key, testo, cmd):
+                    img = self.icone_gui.get(ico_key)
+                    b = ttk.Label(parent, text=f" {testo}", image=img, compound="left",
+                                  background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
+                                  cursor="hand2", padding=(10, 5))
+                    if img:
+                        b.image = img
+                    b.pack(fill=tk.X, padx=20, pady=3)
+                    b.bind("<Button-1>", lambda e: cmd())
+                    return b
+
+                _crea_btn_dlg(bf, "cancella", "Solo questa occorrenza", lambda: _scegli("singola"))
+                _crea_btn_dlg(bf, "reset_campo", f"Tutta la serie ({totale_serie})", lambda: _scegli("serie"))
+                _crea_btn_dlg(bf, "chiudi", "Annulla", lambda: _scegli(None))
+                dlg.protocol("WM_DELETE_WINDOW", lambda: _scegli(None))
+                dlg.bind("<Escape>", lambda e: _scegli(None))
+                dlg.wait_window()
+                return risultato["valore"]
             btn_f = tk.Frame(lf_form, bg=bg)
-            btn_f.grid(row=5, column=0, columnspan=3, pady=(10,0))
+            btn_f.grid(row=7, column=0, columnspan=3, pady=(10,0))
             _btn(btn_f, "aggiungi", "Nuovo",   reset_t)
             _btn(btn_f, "salva",    "Salva",   salva_trasf)
             _btn(btn_f, "cancella", "Elimina", elimina_trasf)
