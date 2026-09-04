@@ -288,6 +288,7 @@ def pop_finanze(self):
     ) 
     self._add_m_item(m, "Portafoglio Bancario", "saldo", self.open_saldo_conto, "Ctrl+S")
     self._add_m_item(m, "Portafoglio Investimenti", "lavoro", self.apri_portafoglio) 
+    self._add_m_item(m, "Fondo Pensione", "badge_maestro", self.apri_fondo_pensione) 
     self._add_m_item(m, "Calcolo Mutuo/Prestiti", "banca", self.calcolo_mutuo_prestito, "Ctrl+O") 
     m.add_separator() 
     self._add_m_item(m, "Bilancio Giorno", "calendario", self.export_giorno_forzato, "Alt+J") 

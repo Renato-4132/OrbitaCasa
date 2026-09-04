@@ -33,6 +33,7 @@ def _elenco_file_variabili(_app):
         ("FairShare - Partecipanti",          "Elenco partecipanti alle spese condivise (fairshare.json)", "PARTECIPANTI", False),
         ("FairShare - Stato Condiviso",       "Saldi e stato delle spese condivise (fairshare_state.json)", "FAIRSHARE_STATE", False),
         ("Fondo Risparmio",                   "Obiettivi e progressi del fondo risparmio (fondo_risparmio.json)", "FR_FILE", False),
+        ("Fondo Pensione",                     "Dati anagrafica, versamenti, valorizzazioni e riscatti del fondo pensione (fondo_pensione.json)", "PENSIONE_FILE", False),
         ("Piano Dieta",                       "Piano alimentare impostato (dieta_piano.json)", "DIETA_FILE", False),
         ("Alimenti Personalizzati",           "Alimenti custom aggiunti al database dieta (alimenti_custom.json)", "CUSTOM_FILE", False),
         ("Storico Peso",                      "Storico del peso corporeo registrato (peso_storico.json)", "PESO_FILE", False),

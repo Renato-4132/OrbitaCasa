@@ -173,6 +173,9 @@ def registra_tutti_i_moduli(GestioneSpese):
     from moduli.fondo_risparmio import apri_fondo_risparmio
     _registra(apri_fondo_risparmio)
 
+    from moduli.pensione import apri_fondo_pensione
+    _registra(apri_fondo_pensione)
+
     from moduli.calcolo_mutuo_prestito import calcolo_mutuo_prestito
     _registra(calcolo_mutuo_prestito)
 
