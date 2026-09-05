@@ -778,7 +778,7 @@ def draw_saldo_chart(self, event=None):
             label_periodo = f"({anno_corrente})"
             titolo_grafico = f"Saldo Netto Mensile {label_periodo}"
 
-        tid = canvas.create_text(CHART_LEFT, 14,
+        tid = canvas.create_text(10, 14,
                             text=titolo_grafico,
                             font=("Arial", 8, "bold"), fill=self.TEXT_COLOR, anchor="w")
         bbox = canvas.bbox(tid)
