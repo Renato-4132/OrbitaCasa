@@ -22,8 +22,8 @@ def mostra_analisi_grafici(self):
         canvas.update_idletasks()
         larghezza = canvas.winfo_width()
         altezza = canvas.winfo_height()
-        margine_h = 20   # margine laterale (sinistra/destra) - piccolo per usare lo spazio ai lati
-        margine_v = 55   # margine verticale (sopra/sotto) - spazio per le etichette sotto le barre
+        margine_h = 20
+        margine_v = 55
         if isinstance(dati, dict):
             elementi = list(dati.items())
         else:
@@ -31,10 +31,10 @@ def mostra_analisi_grafici(self):
         max_val = max(abs(val) for _, val in elementi) if elementi else 1
         scala = (altezza - margine_v * 2) / (max_val * 1.5) if max_val > 0 else 0
         n = max(len(elementi), 1)
-        PAIR_GAP = 5    # spazio (px) tra le due barre della stessa coppia Entrata/Uscita
-        GROUP_GAP = 10  # spazio (px) tra una coppia e la successiva (anno diverso)
+        PAIR_GAP = 5
+        GROUP_GAP = 10
         numero_gruppi = max((n + 1) // 2, 1)
-        numero_pair_gap = n // 2          # una per ogni coppia completa
+        numero_pair_gap = n // 2
         numero_group_gap = max(numero_gruppi - 1, 0)
         spazio_extra = numero_pair_gap * PAIR_GAP + numero_group_gap * GROUP_GAP
         larghezza_barra = (larghezza - margine_h * 2 - spazio_extra) / n
