@@ -15,6 +15,9 @@ TIPI_VERSAMENTO   = ["TFR", "Lavoratore", "Datore di Lavoro", "Volontario"]
 TIPI_RISCATTO     = ["Anticipazione", "Riscatto Parziale", "Riscatto Totale", "Trasferimento ad altro fondo"]
 TIPI_PIANO        = ["Negoziale", "Aperto", "PIP"]
 LIMITE_DEDUCIBILE_ANNUO = 5164.57
+ALIQUOTA_PRESTAZIONE_BASE = 0.15
+ALIQUOTA_PRESTAZIONE_MIN  = 0.09
+RIDUZIONE_ALIQUOTA_ANNUA  = 0.003
 COLORE_VERSATO    = "#4A90D9"
 COLORE_CONTROVAL  = "#50C878"
 COLORE_TFR_TEO    = "#C45E00"
@@ -43,6 +46,10 @@ def apri_fondo_pensione(self):
                 "nome_fondo": "", "gestore": "", "comparto": "",
                 "tipo": "Negoziale", "data_adesione": "", "note": "",
                 "tasso_inflazione_stimato": 2.0,
+                "data_pensione": "",
+                "versamento_annuo_stimato": 0.0,
+                "rendimento_atteso_pct": 3.0,
+                "costo_gestione_pct": 1.0,
             },
             "versamenti": [],
             "valorizzazioni": [],
@@ -85,7 +92,7 @@ def apri_fondo_pensione(self):
     win.withdraw()
     win.title("Fondo Pensione")
     win.configure(bg=self.COLOR_BACKGROUND)
-    w_win, h_win = 1320, 650
+    w_win, h_win = 1320, 660
     self.update_idletasks()
     root_x = self.winfo_rootx()
     root_y = self.winfo_rooty()
@@ -175,6 +182,9 @@ def apri_fondo_pensione(self):
             if v.get("tipo") in ("Lavoratore", "Datore di Lavoro", "Volontario")
             and _key_data_str(v.get("data", "")).year == oggi.year
         )
+        anni_iscr_oggi = _anni_iscrizione(oggi)
+        aliquota_oggi = _aliquota_prestazione(anni_iscr_oggi)
+        controvalore_netto_oggi = controvalore * (1 - aliquota_oggi)
         return {
             "per_tipo":            per_tipo,
             "tot_versato":         tot_versato,
@@ -184,6 +194,9 @@ def apri_fondo_pensione(self):
             "rendimento_eur":      rendimento_eur,
             "rendimento_pct":      rendimento_pct,
             "tot_deducibile_anno": tot_deducibile_anno,
+            "anni_iscrizione_oggi":       anni_iscr_oggi,
+            "aliquota_prestazione_oggi":  aliquota_oggi,
+            "controvalore_netto_oggi":    controvalore_netto_oggi,
         }
 
     def _confronto_tfr():
@@ -205,6 +218,58 @@ def apri_fondo_pensione(self):
             tot_teorico += imp * ((1 + tasso_annuo) ** anni)
         return tot_tfr, tot_teorico, tasso_annuo
 
+    def _anni_iscrizione(rif=None):
+        ades = _key_data_str(db.get("anagrafica", {}).get("data_adesione", ""))
+        if ades == datetime.date.min:
+            return 0.0
+        fine = rif or datetime.date.today()
+        return max((fine - ades).days / 365.25, 0.0)
+
+    def _aliquota_prestazione(anni):
+        if anni <= 15:
+            return ALIQUOTA_PRESTAZIONE_BASE
+        riduzione = RIDUZIONE_ALIQUOTA_ANNUA * (anni - 15)
+        return max(ALIQUOTA_PRESTAZIONE_BASE - riduzione, ALIQUOTA_PRESTAZIONE_MIN)
+
+    def _proiezione_pensione():
+        anag = db.get("anagrafica", {})
+        data_pens = _key_data_str(anag.get("data_pensione", ""))
+        oggi = datetime.date.today()
+        if data_pens == datetime.date.min or data_pens <= oggi:
+            return None
+        tot = _totali()
+        capitale = tot["controvalore"]
+        try:
+            vers_annuo = float(anag.get("versamento_annuo_stimato", 0.0))
+        except (TypeError, ValueError):
+            vers_annuo = 0.0
+        try:
+            rend_pct = float(anag.get("rendimento_atteso_pct", 3.0)) / 100.0
+        except (TypeError, ValueError):
+            rend_pct = 0.03
+        try:
+            costo_pct = float(anag.get("costo_gestione_pct", 1.0)) / 100.0
+        except (TypeError, ValueError):
+            costo_pct = 0.01
+        tasso_netto = rend_pct - costo_pct
+        anni_mancanti = (data_pens - oggi).days / 365.25
+        n_anni_interi = int(anni_mancanti)
+        for _ in range(n_anni_interi):
+            capitale = capitale * (1 + tasso_netto) + vers_annuo
+        frazione = anni_mancanti - n_anni_interi
+        capitale += capitale * tasso_netto * frazione + vers_annuo * frazione
+        anni_iscr_a_pensione = _anni_iscrizione(data_pens)
+        aliquota = _aliquota_prestazione(anni_iscr_a_pensione)
+        capitale_netto = capitale * (1 - aliquota)
+        return {
+            "anni_mancanti":         anni_mancanti,
+            "capitale_lordo":        capitale,
+            "aliquota_prestazione":  aliquota,
+            "capitale_netto":        capitale_netto,
+            "tasso_netto_annuo":     tasso_netto,
+            "anni_iscrizione":       anni_iscr_a_pensione,
+        }
+
     def _build_lista_crud(parent, titolo, chiave, prefisso, colonne, campi_form, after_change=None):
         for w in parent.winfo_children():
             w.destroy()
@@ -213,6 +278,41 @@ def apri_fondo_pensione(self):
         top.pack(fill=tk.BOTH, expand=True, padx=10, pady=8)
         lf_tree = ttk.LabelFrame(top, text=titolo, padding=6)
         lf_tree.pack(side="left", fill=tk.BOTH, expand=True, padx=(0, 6))
+        tb_e = tk.Frame(lf_tree, bg=bg)
+        tb_e.pack(fill=tk.X, pady=(0, 4))
+
+        def _esporta_testo():
+            lista = sorted(db.get(chiave, []), key=lambda x: _key_data_str(x.get("data", "")))
+            larghezze = {c["key"]: max(c["larghezza"] // 8, len(c["label"]) + 2) for c in colonne}
+            header = " ".join(f"{c['label']:<{larghezze[c['key']]}}" for c in colonne)
+            sep = "─" * len(header)
+            lines = ["═" * len(header), titolo.upper().center(len(header)),
+                      "═" * len(header), "", header, sep]
+            totale = 0.0
+            if not lista:
+                lines.append("Nessuna voce presente.")
+            else:
+                for r in lista:
+                    riga = []
+                    for c in colonne:
+                        val = r.get(c["key"], "")
+                        if c["key"] in money_keys:
+                            imp = float(val or 0)
+                            totale += imp
+                            val = _fmt_it(imp)
+                        w_c = larghezze[c["key"]]
+                        riga.append(f"{str(val):<{w_c}.{w_c}}")
+                    lines.append(" ".join(riga))
+            lines.append(sep)
+            lines.append(f"Totale voci: {len(lista)}")
+            if money_keys:
+                lines.append(f"Totale importi: {_fmt_it(totale)} €")
+            lines.append("═" * len(header))
+            oggi = datetime.date.today()
+            self.show_export_preview("\n".join(lines),
+                default_filename=f"{titolo.replace('/', '_').replace(' ', '_')}_{oggi.strftime('%d-%m-%Y')}.txt")
+
+        _btn(tb_e, "salva", "Esporta", _esporta_testo, side="right", padx=10)
         cols = [c["key"] for c in colonne]
         tree = ttk.Treeview(lf_tree, columns=cols, show="headings", height=16, selectmode="browse")
         for c in colonne:
@@ -239,8 +339,18 @@ def apri_fondo_pensione(self):
                                  width=campo.get("larghezza", 18), style="Border.TCombobox")
             elif campo["tipo"] == "data":
                 v = tk.StringVar(value=datetime.date.today().strftime("%d-%m-%Y"))
-                w = ttk.Entry(lf_form, textvariable=v, width=campo.get("larghezza", 14),
+                frm_w = tk.Frame(lf_form, bg=bg)
+                w = ttk.Entry(frm_w, textvariable=v, width=campo.get("larghezza", 14),
                              validate="key", validatecommand=(lf_form.register(_valida_data), "%P"))
+                w.pack(side="left")
+                def _apri_cal(e=None, _w=w, _v=v):
+                    self.mostra_calendario_popup_semplice(_w, _v)
+                img_cal = self.icone_gui.get("calendario")
+                lbl_cal = tk.Label(frm_w, image=img_cal, cursor="hand2", bg=bg)
+                if img_cal:
+                    lbl_cal.image = img_cal
+                lbl_cal.pack(side="left", padx=(4, 0))
+                lbl_cal.bind("<Button-1>", _apri_cal)
             elif campo["tipo"] == "importo":
                 v = tk.StringVar(value="")
                 w = ttk.Entry(lf_form, textvariable=v, width=campo.get("larghezza", 14),
@@ -250,16 +360,10 @@ def apri_fondo_pensione(self):
                 maxchar = campo.get("maxchar", 40)
                 w = ttk.Entry(lf_form, textvariable=v, width=campo.get("larghezza", 20),
                              validate="key", validatecommand=(lf_form.register(lambda s, _m=maxchar: len(s) <= _m), "%P"))
-            w.grid(row=row_i, column=1, sticky="w", pady=3)
             if campo["tipo"] == "data":
-                def _apri_cal(e=None, _w=w, _v=v):
-                    self.mostra_calendario_popup_semplice(_w, _v)
-                img_cal = self.icone_gui.get("calendario")
-                lbl_cal = tk.Label(lf_form, image=img_cal, cursor="hand2", bg=bg)
-                if img_cal:
-                    lbl_cal.image = img_cal
-                lbl_cal.grid(row=row_i, column=2, padx=2)
-                lbl_cal.bind("<Button-1>", _apri_cal)
+                frm_w.grid(row=row_i, column=1, sticky="w", pady=3)
+            else:
+                w.grid(row=row_i, column=1, sticky="w", pady=3)
             vars_[key] = v
             row_i += 1
 
@@ -446,7 +550,7 @@ def apri_fondo_pensione(self):
                 cvs.create_text(W // 2, H // 2, text="Aggiungi almeno una valorizzazione per vedere il grafico.",
                                 font=("Arial", 9), fill="gray")
                 return
-            pad_l, pad_r, pad_t, pad_b = 60, 20, 20, 24
+            pad_l, pad_r, pad_t, pad_b = 60, 20, 34, 24
             max_v = max(max(p["versato"], p["controvalore"]) for p in punti) or 1.0
             step  = (W - pad_l - pad_r) / max(len(punti) - 1, 1)
 
@@ -472,11 +576,16 @@ def apri_fondo_pensione(self):
             for i, p in enumerate(punti):
                 cvs.create_text(pad_l + i * step, H - 10, text=p["data"].strftime("%m/%y"),
                                 font=("Arial", 7), fill=fg)
-            leg_y = pad_t - 8
-            cvs.create_rectangle(pad_l, leg_y, pad_l + 10, leg_y + 8, fill=COLORE_VERSATO, outline="")
-            cvs.create_text(pad_l + 14, leg_y + 4, text="Versato netto", anchor="w", font=("Arial", 7), fill=fg)
-            cvs.create_rectangle(pad_l + 100, leg_y, pad_l + 110, leg_y + 8, fill=COLORE_CONTROVAL, outline="")
-            cvs.create_text(pad_l + 114, leg_y + 4, text="Controvalore", anchor="w", font=("Arial", 7), fill=fg)
+            leg_y = 6
+            leg_font = ("Arial", 7)
+            leg_gap = 20  # spazio tra la fine di una voce e l'inizio dello swatch successivo
+            x = pad_l
+            cvs.create_rectangle(x, leg_y, x + 10, leg_y + 8, fill=COLORE_VERSATO, outline="")
+            txt1 = cvs.create_text(x + 14, leg_y + 4, text="Versato netto", anchor="w", font=leg_font, fill=fg)
+            x1, y1, x2, y2 = cvs.bbox(txt1)  # larghezza reale del testo appena disegnato, letta dal canvas stesso
+            x = x2 + leg_gap
+            cvs.create_rectangle(x, leg_y, x + 10, leg_y + 8, fill=COLORE_CONTROVAL, outline="")
+            cvs.create_text(x + 14, leg_y + 4, text="Controvalore", anchor="w", font=leg_font, fill=fg)
         cvs.bind("<Configure>", _draw_andamento)
         win.after(150, _draw_andamento)
 
@@ -485,7 +594,7 @@ def apri_fondo_pensione(self):
             w.destroy()
         anag = db.setdefault("anagrafica", _default_db()["anagrafica"])
         frm = ttk.LabelFrame(tab_anag, text="Dati del Piano", padding=14)
-        frm.pack(padx=16, pady=16, anchor="nw")
+        frm.pack(padx=16, pady=(16, 8), anchor="nw")
         v_nome  = tk.StringVar(value=anag.get("nome_fondo", ""))
         v_gest  = tk.StringVar(value=anag.get("gestore", ""))
         v_comp  = tk.StringVar(value=anag.get("comparto", ""))
@@ -493,6 +602,10 @@ def apri_fondo_pensione(self):
         v_ades  = tk.StringVar(value=anag.get("data_adesione", ""))
         v_infl  = tk.StringVar(value=f"{float(anag.get('tasso_inflazione_stimato', 2.0)):.2f}".replace(".", ","))
         v_note  = tk.StringVar(value=anag.get("note", ""))
+        v_pens       = tk.StringVar(value=anag.get("data_pensione", ""))
+        v_vers_stim  = tk.StringVar(value=f"{float(anag.get('versamento_annuo_stimato', 0.0)):.2f}".replace(".", ","))
+        v_rend_att   = tk.StringVar(value=f"{float(anag.get('rendimento_atteso_pct', 3.0)):.2f}".replace(".", ","))
+        v_costo_gest = tk.StringVar(value=f"{float(anag.get('costo_gestione_pct', 1.0)):.2f}".replace(".", ","))
 
         tk.Label(frm, text="Nome fondo:", font=("Arial", 9, "bold"), anchor="w",bg=bg, fg=fg).grid(row=0, column=0, sticky="w", padx=(0, 8), pady=5)
         ttk.Entry(frm, textvariable=v_nome, width=30).grid(row=0, column=1, sticky="w", pady=5)
@@ -525,6 +638,36 @@ def apri_fondo_pensione(self):
         tk.Label(frm, text="Note:", font=("Arial", 9, "bold"), anchor="w",bg=bg, fg=fg).grid(row=7, column=0, sticky="w", padx=(0, 8), pady=5)
         ttk.Entry(frm, textvariable=v_note, width=40).grid(row=7, column=1, sticky="w", pady=5)
 
+        frm2 = ttk.LabelFrame(tab_anag, text="Proiezione a Scadenza e Costi", padding=14)
+        frm2.pack(padx=16, pady=(0, 16), anchor="nw")
+        tk.Label(frm2, text="Data prevista pensionamento:", font=("Arial", 9, "bold"), anchor="w",
+                 bg=bg, fg=fg).grid(row=0, column=0, sticky="w", padx=(0, 8), pady=5)
+        frm_pens = tk.Frame(frm2, bg=bg)
+        frm_pens.grid(row=0, column=1, sticky="w", pady=5)
+        ent_pens = ttk.Entry(frm_pens, textvariable=v_pens, width=14,
+                     validate="key", validatecommand=(frm2.register(_valida_data), "%P"))
+        ent_pens.pack(side="left")
+        img_cal2 = self.icone_gui.get("calendario")
+        lbl_cal2 = tk.Label(frm_pens, image=img_cal2, cursor="hand2", bg=bg, fg=fg)
+        if img_cal2:
+            lbl_cal2.image = img_cal2
+        lbl_cal2.pack(side="left", padx=(4, 0))
+        lbl_cal2.bind("<Button-1>", lambda e: self.mostra_calendario_popup_semplice(ent_pens, v_pens))
+        tk.Label(frm2, text="Versamento annuo stimato €:", font=("Arial", 9, "bold"), anchor="w",
+                 bg=bg, fg=fg).grid(row=1, column=0, sticky="w", padx=(0, 8), pady=5)
+        ttk.Entry(frm2, textvariable=v_vers_stim, width=12,
+                 validate="key", validatecommand=(frm2.register(lambda s: len(s) <= 10), "%P")).grid(row=1, column=1, sticky="w", pady=5)
+        tk.Label(frm2, text="Rendimento atteso %/anno:", font=("Arial", 9, "bold"), anchor="w",
+                 bg=bg, fg=fg).grid(row=2, column=0, sticky="w", padx=(0, 8), pady=5)
+        ttk.Entry(frm2, textvariable=v_rend_att, width=10,
+                 validate="key", validatecommand=(frm2.register(lambda s: len(s) <= 6), "%P")).grid(row=2, column=1, sticky="w", pady=5)
+        tk.Label(frm2, text="Costo di gestione annuo % (ISC):", font=("Arial", 9, "bold"), anchor="w",
+                 bg=bg, fg=fg).grid(row=3, column=0, sticky="w", padx=(0, 8), pady=5)
+        ttk.Entry(frm2, textvariable=v_costo_gest, width=10,
+                 validate="key", validatecommand=(frm2.register(lambda s: len(s) <= 6), "%P")).grid(row=3, column=1, sticky="w", pady=5)
+        tk.Label(frm2, text="(usati per la proiezione stimata nella scheda Dashboard; l'ISC riduce il rendimento atteso)",
+                 font=("Arial", 7), bg=bg, fg=fg).grid(row=4, column=1, sticky="w")
+
         def salva_anag():
             try:
                 infl = float(v_infl.get().replace(",", "."))
@@ -537,6 +680,27 @@ def apri_fondo_pensione(self):
                 except ValueError:
                     self.show_toast("Data adesione non valida.")
                     return
+            if v_pens.get():
+                try:
+                    datetime.datetime.strptime(v_pens.get(), "%d-%m-%Y")
+                except ValueError:
+                    self.show_toast("Data pensionamento non valida.")
+                    return
+            try:
+                vers_stim = float(v_vers_stim.get().replace(",", ".") or 0)
+            except ValueError:
+                self.show_toast("Versamento annuo stimato non valido.")
+                return
+            try:
+                rend_att = float(v_rend_att.get().replace(",", "."))
+            except ValueError:
+                self.show_toast("Rendimento atteso non valido.")
+                return
+            try:
+                costo_gest = float(v_costo_gest.get().replace(",", "."))
+            except ValueError:
+                self.show_toast("Costo di gestione non valido.")
+                return
             db["anagrafica"] = {
                 "nome_fondo": v_nome.get().strip(),
                 "gestore":    v_gest.get().strip(),
@@ -545,6 +709,10 @@ def apri_fondo_pensione(self):
                 "data_adesione": v_ades.get().strip(),
                 "tasso_inflazione_stimato": infl,
                 "note":       v_note.get().strip(),
+                "data_pensione": v_pens.get().strip(),
+                "versamento_annuo_stimato": vers_stim,
+                "rendimento_atteso_pct": rend_att,
+                "costo_gestione_pct": costo_gest,
             }
             salva_db(db)
             self.show_toast("Dati piano salvati.")
