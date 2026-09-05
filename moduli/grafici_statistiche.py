@@ -699,7 +699,7 @@ def draw_saldo_chart(self, event=None):
                             "tipo": None
                         }
                     else:
-                        mese_index = i + 1  # 1-12
+                        mese_index = i + 1
                         mese_nome = mesi_completi[i]
                         anno = str(anno_corrente)
                         popup_title = f"Transazioni per {mese_nome} {anno} (Entrate e Uscite)"
