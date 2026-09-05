@@ -208,8 +208,6 @@ def open_saldo_conto(self):
                 _barre = []
                 for c in conti:
                     saldo_c = self._saldo_effettivo(c, db_now)
-                    if saldo_c == 0:
-                        continue
                     nome_c = c.get("nome", "")
                     w_testo = len(nome_c) * _char_px + _pad_txt
                     w_bar = max(_min_bar, w_testo, int((abs(saldo_c) / totale_abs) * 640))
@@ -515,8 +513,8 @@ def open_saldo_conto(self):
                             c["note"]       = v_note.get().strip()
                             break
                 else:
-                    if len(db_now.get("conti", [])) >= 7:
-                           self.show_toast("Limite raggiunto: massimo 7 conti consentiti.")
+                    if len(db_now.get("conti", [])) >= 10:
+                           self.show_toast("Limite raggiunto: massimo 10 conti consentiti.")
                            return
                     db_now["conti"].append({
                         "id":         nuovo_id("c", db_now["conti"]),
