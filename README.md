@@ -104,26 +104,30 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 37. **Analizzatore Semantico IA** — Analisi intelligente e confronto multi-documento
 38. **Webserver Remoto** — Consulta i dati da smartphone anche in remoto
 39. **Sistema di Backup Evoluto (PRG)** — Snapshot, backup incrementali e rollback integrato
+40. **Fondo Pensione** — Piano, versamenti per tipologia, valorizzazioni e riscatti/anticipazioni.
+41. **Portafoglio Bancario Multi-Conto** — Riepilogo di tutti i conti con distribuzione per categoria.
+42. **Trasferimenti tra Conti** — Pianifica trasferimenti singoli o in serie ricorrenti tra conti.
+43. **Notifiche Email Pianificate** — Report multipli programmabili con frequenza personalizzata.
 
 ---
 
 ## ⚫ Specialistiche e comfort
 
-40. **Archivio Documenti Personali** — Documenti sempre a portata di mano
-41. **Modulo Dieta** — Pasti, macronutrienti, peso e grafico BMI
-42. **Rubrica Vcard/Android** — Esporta/importa contatti dallo smartphone
-43. **Retention Automatica** — Rimuove automaticamente i dati più vecchi
-44. **Tasti Shortcut Personali** — Funzioni rapide con combinazioni di tasti
-45. **Temi Personalizzabili** — Interfaccia adattata al proprio stile
-46. **Smart Info Point** — Popup rapido sui movimenti al passaggio del mouse
-47. **Carosello Grafici** — Tour automatico degli andamenti all'avvio
-48. **Auto-Iconizza** — Riduzione a icona per inattività
-49. **Notifiche Auto-chiudenti** — Avvisi che scompaiono dopo tempo prestabilito
-50. **Aggiornamento Librerie Python** — Manutenzione automatica delle dipendenze
-51. **Licenza a Punti (Gamification)** — Usa l'app, sali di livello, allunghi la licenza gratuita
-52. **Streak & Livelli** — Da Novizio a Leggenda (e oltre): mantieni la costanza giorno dopo giorno e scala i livelli a vita
-53. **Badge Mese & Anno** — Oltre al livello a vita, guadagni riconoscimenti dedicati al mese e all'anno in corso
-54. **Gestione Multi-Profilo** — Ogni utente ha il proprio database, movimenti, categorie e credenziali.
+44. **Archivio Documenti Personali** — Documenti sempre a portata di mano
+45. **Modulo Dieta** — Pasti, macronutrienti, peso e grafico BMI
+46. **Rubrica Vcard/Android** — Esporta/importa contatti dallo smartphone
+47. **Retention Automatica** — Rimuove automaticamente i dati più vecchi
+48. **Tasti Shortcut Personali** — Funzioni rapide con combinazioni di tasti
+49. **Temi Personalizzabili** — Interfaccia adattata al proprio stile
+50. **Smart Info Point** — Popup rapido sui movimenti al passaggio del mouse
+51. **Carosello Grafici** — Tour automatico degli andamenti all'avvio
+52. **Auto-Iconizza** — Riduzione a icona per inattività
+53. **Notifiche Auto-chiudenti** — Avvisi che scompaiono dopo tempo prestabilito
+54. **Aggiornamento Librerie Python** — Manutenzione automatica delle dipendenze
+55. **Licenza a Punti (Gamification)** — Usa l'app, sali di livello, allunghi la licenza gratuita
+56. **Streak & Livelli** — Da Novizio a Leggenda (e oltre): mantieni la costanza giorno dopo giorno e scala i livelli a vita
+57. **Badge Mese & Anno** — Oltre al livello a vita, guadagni riconoscimenti dedicati al mese e all'anno in corso
+58. **Gestione Multi-Profilo** — Ogni utente ha il proprio database, movimenti, categorie e credenziali.
        
 ### 📺 [Guarda il Video](https://github.com/Renato-4132/OrbitaCasa/raw/main/OrbitaCasa.mp4)
 
