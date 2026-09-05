@@ -54,9 +54,10 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
     if _conti_em:
         ttk.Label(toolbar, text="Conto:", background=self.COLOR_WIDGET_BG,
                   foreground=self.TEXT_COLOR, font=("Arial", 9)).pack(side="left", padx=(12, 4))
-        ttk.Combobox(toolbar, textvariable=var_conto_em,
+        self._combo_conto_em = ttk.Combobox(toolbar, textvariable=var_conto_em,
                      values=["Tutti"] + _conti_em,
-                     state="readonly", style="Border.TCombobox", width=14).pack(side="left", padx=4)
+                     state="readonly", style="Border.TCombobox", width=14)
+        self._combo_conto_em.pack(side="left", padx=4)
     ttk.Label(toolbar, text="Periodo:", background=self.COLOR_WIDGET_BG,
               foreground=self.TEXT_COLOR, font=("Arial", 9)).pack(side="left", padx=(12, 4))
     var_periodo = tk.StringVar(value="tutto")
@@ -352,8 +353,16 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
     if mese:
         var_mese.set(f"{int(mese):02d}")
         var_periodo.set("mese")
-    if conto and conto in _conti_em:
-        var_conto_em.set(conto)
+    if conto:
+        _conto_norm_em = conto.strip().lower()
+        _match_conto_em = next((c for c in _conti_em if c.strip().lower() == _conto_norm_em), None)
+        if _match_conto_em is None and conto.strip():
+            _match_conto_em = conto.strip()
+            _conti_em.append(_match_conto_em)
+            if hasattr(self, '_combo_conto_em') and self._combo_conto_em.winfo_exists():
+                self._combo_conto_em['values'] = ["Tutti"] + _conti_em
+        if _match_conto_em:
+            var_conto_em.set(_match_conto_em)
     bot_f = tk.Frame(win, bg=self.COLOR_TOPLEVEL)
     bot_f.pack(fill=tk.X, side=tk.BOTTOM, pady=10)
     for testo, ico, cmd, side in [

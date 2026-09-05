@@ -167,6 +167,87 @@ def mostra_analisi_grafici(self):
         canvas.config(scrollregion=(0, 0, larghezza_contenuto, altezza))
         fissa_elementi()
         
+    def disegna_barre_conti(canvas, dati, colori):
+        if hasattr(canvas, "tooltip") and canvas.tooltip:
+            canvas.tooltip.destroy()
+            canvas.tooltip = None
+        canvas.delete("all")
+        canvas.update_idletasks()
+        LARGHEZZA_BARRA_FISSA = 80
+        margine_laterale = 50
+        margine_inferiore = 130
+        margine_superiore = 60
+        larghezza_visualizzata = canvas.winfo_width()
+        altezza = canvas.winfo_height()
+        if larghezza_visualizzata < 10:
+            canvas.after(100, lambda: disegna_barre_conti(canvas, dati, colori))
+            return
+        y_base = altezza - margine_inferiore
+        totale = sum(val for _, val in dati) if dati else 1
+        max_val = max(val for _, val in dati) if dati else 1
+        spazio_utile = altezza - margine_inferiore - margine_superiore
+        scala = spazio_utile / (max_val * 1.2) if max_val > 0 else 0
+        numero_barre = max(len(dati), 1)
+        larghezza_contenuto = margine_laterale * 2 + numero_barre * LARGHEZZA_BARRA_FISSA
+        x_offset = max(0, (larghezza_visualizzata - larghezza_contenuto) // 2)
+        anno_selezionato = canvas.anno_corrente
+        for i, (conto, valore) in enumerate(dati):
+            x0 = x_offset + margine_laterale + i * LARGHEZZA_BARRA_FISSA
+            x1 = x0 + LARGHEZZA_BARRA_FISSA * 0.6
+            altezza_pixel = valore * scala
+            if valore > 0 and altezza_pixel < 4:
+                altezza_pixel = 4
+            y1 = y_base - altezza_pixel
+            colore = colori.get(conto, "#888888")
+            rect = canvas.create_rectangle(x0, y_base, x1, y1, fill=colore)
+            nome_conto_reale = None if conto == "(Nessun conto)" else conto
+            canvas.tag_bind(rect, "<Double-1>",
+                            lambda e, c=nome_conto_reale: self.apri_estratti_metodo(conto=c))
+            percentuale = (valore / totale) * 100
+            canvas.create_text((x0 + x1) / 2, y1 - 12, text=f"{_fmt_it(valore)}", font=("Arial", 9), fill=self.TEXT_COLOR)
+            canvas.create_text((x0 + x1) / 2, y1 - 26, text=f"{percentuale:.1f}%", font=("Arial", 8), fill="gray")
+            canvas.create_text(
+                (x0 + x1) / 2,
+                y_base + 10,
+                text=conto,
+                font=("Arial", 9),
+                angle=45,
+                anchor="ne",
+                fill=colore
+            )
+            def show_tooltip(event, text=conto):
+                if hasattr(canvas, "tooltip") and canvas.tooltip:
+                    canvas.tooltip.destroy()
+                    canvas.tooltip = None
+                canvas.tooltip = tk.Toplevel(canvas)
+                canvas.tooltip.wm_overrideredirect(True)
+                canvas.tooltip.config(
+                    highlightthickness=1,
+                    highlightbackground=self.COLOR_HIGHLIGHT,
+                    bg=self.COLOR_TOOLTIP
+                )
+                try:
+                    canvas.tooltip.wm_geometry(f"+{event.x_root + 10}+{event.y_root + 10}")
+                except: pass
+                label = ttk.Label(canvas.tooltip, text=text, style="Tooltip.TLabel")
+                label.pack(ipadx=4)
+            def hide_tooltip(event):
+                if hasattr(canvas, "tooltip") and canvas.tooltip:
+                    canvas.tooltip.destroy()
+                    canvas.tooltip = None
+            canvas.tag_bind(rect, "<Enter>", show_tooltip)
+            canvas.tag_bind(rect, "<Leave>", hide_tooltip)
+        lbl_totale = tk.Label(canvas, text=f"Totale uscite: € {_fmt_it(totale)}", font=("Arial", 10, "bold"), bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR, padx=5)
+        win_totale = canvas.create_window(10, altezza - 25, window=lbl_totale, anchor="w", tags="fissato")
+        def fissa_elementi(event=None):
+            x_visibile = canvas.canvasx(10)
+            canvas.coords("fissato", x_visibile, altezza - 25)
+            canvas.tag_raise("fissato")
+        canvas.bind("<Configure>", fissa_elementi)
+        scrollbar_h4.config(command=lambda *args: [canvas.xview(*args), fissa_elementi()])
+        canvas.config(scrollregion=(0, 0, larghezza_contenuto, altezza))
+        fissa_elementi()
+
     def aggiorna_legenda_treeview(tree, dati, colori):
             for item in tree.get_children():
                     tree.delete(item)
@@ -323,6 +404,41 @@ def mostra_analisi_grafici(self):
             canvas2.delete("all")
             canvas2.update_idletasks()
             disegna_barre_categorie(canvas2, canvas2.dati_cache, canvas2.colori_cache)
+    def on_legenda_double_click_conti(event):
+        item_id = self.tree_legenda_conti.selection()
+        if not item_id:
+            return
+        valori = self.tree_legenda_conti.item(item_id[0], "values")
+        nome_conto = valori[0]
+        self.apri_estratti_metodo(conto=None if nome_conto == "(Nessun conto)" else nome_conto)
+    def aggiorna_tab4(event=None):
+        anno = selettore_anno4.get()
+        canvas4.anno_corrente = anno
+        conti = defaultdict(float)
+        for data, voci in self.spese.items():
+            if anno == "Tutti" or str(data.year) == anno:
+                for voce in voci:
+                    if not includi_futuri_graf_var.get() and data > datetime.date.today():
+                        continue
+                    if campo(voce, "tipo", "").strip().lower() == "uscita":
+                        nome_conto = campo(voce, "conto", "").strip() or "(Nessun conto)"
+                        conti[nome_conto] += float(campo(voce, "importo", 0.0))
+        tutti_conti = sorted(conti.items(), key=lambda x: x[1], reverse=True)
+        if not hasattr(self, '_colori_conti'):
+            self._colori_conti = {}
+        for conto, _ in tutti_conti:
+            if conto not in self._colori_conti:
+                self._colori_conti[conto] = f'#{random.randint(50,200):02x}{random.randint(50,200):02x}{random.randint(50,200):02x}'
+        colore = self._colori_conti
+        canvas4.dati_cache = tutti_conti
+        canvas4.colori_cache = colore
+        ridisegna_tab4()
+        aggiorna_legenda_treeview(self.tree_legenda_conti, tutti_conti, colore)
+    def ridisegna_tab4(event=None):
+        if hasattr(canvas4, "dati_cache"):
+            canvas4.delete("all")
+            canvas4.update_idletasks()
+            disegna_barre_conti(canvas4, canvas4.dati_cache, canvas4.colori_cache)
     def aggiorna_tab1(event=None):
         anno_selezionato = selettore_anno1.get()
         entrate = defaultdict(float)
@@ -507,6 +623,54 @@ def mostra_analisi_grafici(self):
     canvas3.pack(fill="both", expand=True, padx=10, pady=10)
     canvas3.selettore_rif = selettore_anno3
     canvas3.bind("<Configure>", ridisegna_tab3)
+    tab4 = ttk.Frame(notebook)
+    tab4.grid_columnconfigure(0, weight=3)
+    tab4.grid_columnconfigure(1, weight=1)
+    tab4.grid_rowconfigure(1, weight=1)
+    _add_tab(tab4, "banca", "Per Conto")
+    img_mouse_tab4 = self.icone_gui.get("mouse")
+    lbl_periodo_tab4 = tk.Label(
+            tab4,
+            text="Doppio clic → Mostra Estratto ",
+            image=img_mouse_tab4,
+            compound="right",
+            background=self.COLOR_WIDGET_BG,
+            foreground="gray",
+            font=("Arial", 9, "italic"),
+    )
+    lbl_periodo_tab4.image = img_mouse_tab4
+    lbl_periodo_tab4.grid(row=0, column=0, sticky="w", padx=10, pady=5)
+    selettore_anno4 = ttk.Combobox(tab4, values=["Tutti"] + [str(a) for a in anni], style="Border.TCombobox", state='readonly')
+    selettore_anno4.set("Tutti")
+    selettore_anno4.grid(row=0, column=0, sticky="n", pady=10)
+    selettore_anno4.bind("<<ComboboxSelected>>", aggiorna_tab4)
+    canvas_frame_scroll4 = ttk.Frame(tab4)
+    canvas_frame_scroll4.grid(row=1, column=0, sticky="nsew", padx=5, pady=(0, 10))
+    scrollbar_h4 = ttk.Scrollbar(canvas_frame_scroll4, orient="horizontal", style="Horizontal.TScrollbar")
+    scrollbar_h4.pack(side="bottom", fill="x")
+    canvas4 = tk.Canvas(canvas_frame_scroll4, bg=self.COLOR_WIDGET_BG, xscrollcommand=scrollbar_h4.set)
+    canvas4.pack(side="top", fill="both", expand=True)
+    scrollbar_h4.config(command=canvas4.xview)
+    canvas4.tooltip = None
+    canvas4.anno_corrente = selettore_anno4.get()
+    canvas4.bind("<Configure>", ridisegna_tab4)
+    frame_legenda4 = ttk.Frame(tab4)
+    frame_legenda4.grid(row=1, column=1, sticky="nsew", padx=5, pady=(0, 10))
+    lbl_leg4 = tk.Label(frame_legenda4, text="Legenda Conti", bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR, font=("Arial", 10, "bold"))
+    lbl_leg4.pack(pady=5)
+    columns4 = ("Conto", "Importo")
+    self.tree_legenda_conti = ttk.Treeview(frame_legenda4, columns=columns4, show="headings", selectmode="browse")
+    self.tree_legenda_conti.heading("Conto", text="Conto",
+        command=lambda: self.treeview_sort_column(self.tree_legenda_conti, "Conto", False))
+    self.tree_legenda_conti.heading("Importo", text="Importo",
+        command=lambda: self.treeview_sort_column(self.tree_legenda_conti, "Importo", False))
+    self.tree_legenda_conti.column("Conto", width=120, anchor="w")
+    self.tree_legenda_conti.column("Importo", width=80, anchor="e")
+    sb_legenda4 = ttk.Scrollbar(frame_legenda4, orient="vertical", command=self.tree_legenda_conti.yview, style="Vertical.TScrollbar")
+    self.tree_legenda_conti.configure(yscrollcommand=sb_legenda4.set)
+    sb_legenda4.pack(side="right", fill="y")
+    self.tree_legenda_conti.pack(side="left", fill="both", expand=True)
+    self.tree_legenda_conti.bind("<Double-1>", on_legenda_double_click_conti)
     frame_footer = ttk.Frame(self.grafico_analisi_popup)
     frame_footer.pack(side="bottom", fill="x", pady=(0, 15), padx=20)
     includi_futuri_graf_var = tk.BooleanVar(value=True)
@@ -514,7 +678,7 @@ def mostra_analisi_grafici(self):
         frame_footer,
         text="Includi movimenti futuri",
         variable=includi_futuri_graf_var,
-        command=lambda: (aggiorna_tab1(), aggiorna_tab2(), aggiorna_tab3())
+        command=lambda: (aggiorna_tab1(), aggiorna_tab2(), aggiorna_tab3(), aggiorna_tab4())
     ).pack(side="left", padx=10)
     img_chiudi_graf = self.icone_gui.get("chiudi")
     btn_chiudi_graf = tk.Label(frame_footer, compound="left", image=img_chiudi_graf, text="Chiudi" if img_chiudi_graf else "✖ Chiudi", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padx=15, pady=6, font=("Arial", 9, "bold"))
@@ -523,5 +687,6 @@ def mostra_analisi_grafici(self):
     aggiorna_tab3()
     aggiorna_tab2()
     aggiorna_tab1()
+    aggiorna_tab4()
     self.grafico_analisi_popup.deiconify()
 

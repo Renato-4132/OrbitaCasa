@@ -5,6 +5,7 @@ from collections import defaultdict
 import datetime
 import tkinter as tk
 from tkinter import ttk
+from moduli.modello_spesa import campo
 
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
@@ -72,7 +73,9 @@ def crea_grafico_categorie(self, id_righe_selezionate):
         'Entrata': 0.0, 
         'Uscita': 0.0,
         'Dettaglio_Entrata': defaultdict(float),
-        'Dettaglio_Uscita': defaultdict(float)
+        'Dettaglio_Uscita': defaultdict(float),
+        'Dettaglio_Entrata_Conto': defaultdict(float),
+        'Dettaglio_Uscita_Conto': defaultdict(float)
     })
     saldo_aggregato_totale = 0.0 
     for data_objeto, entries in self.spese.items():
@@ -98,23 +101,27 @@ def crea_grafico_categorie(self, id_righe_selezionate):
             if cat in categorie_da_elaborare:
                 try:
                     importo_numerico = float(imp)
-                    
+                    nome_conto = campo(entry, "conto", "").strip() or "(Nessun conto)"
                     if tipo_transazione_ricercato == "misto":
                         if "entrata" in tipo_lower:
                             spese_combinate[chiave_aggregazione]['Entrata'] += importo_numerico
                             spese_combinate[chiave_aggregazione]['Dettaglio_Entrata'][cat] += importo_numerico
+                            spese_combinate[chiave_aggregazione]['Dettaglio_Entrata_Conto'][nome_conto] += importo_numerico
                             saldo_aggregato_totale += importo_numerico
                         elif "uscita" in tipo_lower:
                             spese_combinate[chiave_aggregazione]['Uscita'] += abs(importo_numerico)
                             spese_combinate[chiave_aggregazione]['Dettaglio_Uscita'][cat] += abs(importo_numerico)
+                            spese_combinate[chiave_aggregazione]['Dettaglio_Uscita_Conto'][nome_conto] += abs(importo_numerico)
                             saldo_aggregato_totale -= abs(importo_numerico)
                     elif tipo_transazione_ricercato == "entrata" and "entrata" in tipo_lower:
                         spese_combinate[chiave_aggregazione]['Entrata'] += importo_numerico
                         spese_combinate[chiave_aggregazione]['Dettaglio_Entrata'][cat] += importo_numerico
+                        spese_combinate[chiave_aggregazione]['Dettaglio_Entrata_Conto'][nome_conto] += importo_numerico
                         saldo_aggregato_totale += importo_numerico
                     elif tipo_transazione_ricercato == "uscita" and "uscita" in tipo_lower:
                         spese_combinate[chiave_aggregazione]['Uscita'] += abs(importo_numerico)
                         spese_combinate[chiave_aggregazione]['Dettaglio_Uscita'][cat] += abs(importo_numerico)
+                        spese_combinate[chiave_aggregazione]['Dettaglio_Uscita_Conto'][nome_conto] += abs(importo_numerico)
                         saldo_aggregato_totale -= abs(importo_numerico)
                 except (ValueError, TypeError):
                     continue
@@ -130,9 +137,11 @@ def crea_grafico_categorie(self, id_righe_selezionate):
             else:
                 valore_unico = v['Entrata'] + v['Uscita']
                 if tipo_transazione_ricercato == "entrata":
-                    dati_filtrati_non_zero[k] = {'Totale': valore_unico, 'Dettaglio': v['Dettaglio_Entrata']}
+                    dati_filtrati_non_zero[k] = {'Totale': valore_unico, 'Dettaglio': v['Dettaglio_Entrata'],
+                                                  'Dettaglio_Conto': v['Dettaglio_Entrata_Conto']}
                 else:
-                    dati_filtrati_non_zero[k] = {'Totale': valore_unico, 'Dettaglio': v['Dettaglio_Uscita']}
+                    dati_filtrati_non_zero[k] = {'Totale': valore_unico, 'Dettaglio': v['Dettaglio_Uscita'],
+                                                  'Dettaglio_Conto': v['Dettaglio_Uscita_Conto']}
     saldo_netto_periodo = totale_entrate_periodo - totale_uscite_periodo
     if not dati_filtrati_non_zero:
         self.show_custom_info("Nessun Dato", "Nessun dato di transazione con importo non zero trovato per il filtro e il periodo selezionati.")
@@ -381,6 +390,20 @@ def crea_grafico_categorie(self, id_righe_selezionate):
                 for _e, _v in righe
             ]
             return "\n".join(dettaglio_lines)
+        def formatta_dettaglio_conto(dettagli_dict):
+            if not dettagli_dict:
+                return "Nessun dettaglio conto."
+            totale_dett = sum(v for v in dettagli_dict.values() if v > 0)
+            if totale_dett <= 0:
+                return "Nessun dettaglio conto."
+            dati_ordinati = sorted(dettagli_dict.items(), key=lambda item: item[1], reverse=True)
+            righe = [(conto, importo) for conto, importo in dati_ordinati if importo > 0]
+            _larghezza_etichetta = max(len(_e) for _e, _ in righe) + 1
+            dettaglio_lines = [
+                f"{(_e + ':').ljust(_larghezza_etichetta + 2)}{_fmt_it(_v)} €  ({(_v / totale_dett * 100):.1f}%)"
+                for _e, _v in righe
+            ]
+            return "\n".join(dettaglio_lines)
         for item in dati_posizioni:
             periodo_originale = item['periodo']
             dati_valore = item['dati_valore']
@@ -410,9 +433,12 @@ def crea_grafico_categorie(self, id_righe_selezionate):
                         text=testo_etichetta, font=("Arial", 9), fill="#28A745"
                     )
                     dettaglio_cat_e = formatta_dettaglio(dettaglio_e)
+                    dettaglio_conto_e = formatta_dettaglio_conto(dati_valore.get('Dettaglio_Entrata_Conto', {}))
                     tooltip_text_e = (
                         f"Totale Entrata: {_fmt_it(valore_e)} €\n"
-                        f"{dettaglio_cat_e}"
+                        f"{dettaglio_cat_e}\n"
+                        f"— Per Conto —\n"
+                        f"{dettaglio_conto_e}"
                     )
                     c.tag_bind(rect_e, "<Enter>", lambda e, t=tooltip_text_e: show_tooltip_local(e, t))
                     c.tag_bind(rect_e, "<Leave>", hide_tooltip_local)                        
@@ -436,9 +462,12 @@ def crea_grafico_categorie(self, id_righe_selezionate):
                         text=testo_etichetta, font=("Arial", 9), fill="#DC3545"
                     )
                     dettaglio_cat_u = formatta_dettaglio(dettaglio_u)
+                    dettaglio_conto_u = formatta_dettaglio_conto(dati_valore.get('Dettaglio_Uscita_Conto', {}))
                     tooltip_text_u = (
                         f"Totale Uscita: {_fmt_it(valore_u)} €\n"
-                        f"{dettaglio_cat_u}"
+                        f"{dettaglio_cat_u}\n"
+                        f"— Per Conto —\n"
+                        f"{dettaglio_conto_u}"
                     )
                     c.tag_bind(rect_u, "<Enter>", lambda e, t=tooltip_text_u: show_tooltip_local(e, t))
                     c.tag_bind(rect_u, "<Leave>", hide_tooltip_local)
@@ -456,9 +485,11 @@ def crea_grafico_categorie(self, id_righe_selezionate):
                 if isinstance(dati_valore, dict):
                     valore = dati_valore.get('Totale', 0)
                     dettaglio = dati_valore.get('Dettaglio', {})
+                    dettaglio_conto = dati_valore.get('Dettaglio_Conto', {})
                 else:
                     valore = dati_valore
                     dettaglio = {}
+                    dettaglio_conto = {}
                 colore_barra = "#28A745" if tipo_transazione_ricercato == "entrata" else "#DC3545"
                 valore_scalato = min(abs(valore), max_val)
                 altezza_barra_pix = max(valore_scalato * scala, ALTEZZA_MINIMA)
@@ -470,9 +501,12 @@ def crea_grafico_categorie(self, id_righe_selezionate):
                 x_center_text = (x0 + x1) / 2
                 tipo_testo = "Entrata" if tipo_transazione_ricercato == "entrata" else "Uscita"
                 dettaglio_cat = formatta_dettaglio(dettaglio)
+                dettaglio_conto_txt = formatta_dettaglio_conto(dettaglio_conto)
                 tooltip_text = (
                     f"Totale {tipo_testo}: {_fmt_it(valore)} €\n"
-                    f"{dettaglio_cat}"
+                    f"{dettaglio_cat}\n"
+                    f"— Per Conto —\n"
+                    f"{dettaglio_conto_txt}"
                 )
                 c.tag_bind(rect, "<Enter>", lambda e, t=tooltip_text: show_tooltip_local(e, t))
                 c.tag_bind(rect, "<Leave>", hide_tooltip_local)                    
