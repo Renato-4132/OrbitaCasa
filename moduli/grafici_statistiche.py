@@ -1,10 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import os
 import tkinter as tk
 from tkinter import ttk
 import datetime
+import json
 from collections import defaultdict
+from moduli.modello_spesa import campo
+
+HOUSEHOLD_LABEL = "Patrimonio Complessivo"
+
+def _carica_db_conti():
+    try:
+        from __main__ import PORTAFOGLIO_BANCARIO
+        if os.path.exists(PORTAFOGLIO_BANCARIO):
+            with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {"conti": [], "trasferimenti": []}
 
 def formatta_italiano(numero, segno=False, decimali=2):
     fmt = "{:+,.%df}" % decimali if segno else "{:,.%df}" % decimali
@@ -402,6 +417,8 @@ def draw_saldo_chart(self, event=None):
             self.visualizza_saldo_totale = False
         if not hasattr(self, 'visualizza_saldo_10_anni'):
             self.visualizza_saldo_10_anni = False
+        if not hasattr(self, 'saldo_grafico_conto_filtro'):
+            self.saldo_grafico_conto_filtro = HOUSEHOLD_LABEL
         if CHART_AREA_WIDTH < 100 or CHART_HEIGHT < 50:
             canvas.create_text(canvas_width // 2, canvas_height // 2,
                                 text="Area di disegno insufficiente.",
@@ -422,7 +439,7 @@ def draw_saldo_chart(self, event=None):
             btn_text = " Solo anno corrente"
             icona_saldo = self.icone_gui.get("calendario")
         elif self.visualizza_saldo_totale:
-            btn_text = " 10 anni (Linea)"
+            btn_text = " 10 anni (Cumulativo)"
             icona_saldo = self.icone_gui.get("grafico_linea")
         else:
             btn_text = " Tutti gli anni"
@@ -431,20 +448,60 @@ def draw_saldo_chart(self, event=None):
         if icona_saldo: btn_toggle.image = icona_saldo
         btn_toggle.bind("<Button-1>", lambda e: toggle_saldo_mode())
         self.win_btn_saldo = canvas.create_window(canvas_width - 10, 2, window=btn_toggle, anchor="ne")
+        canvas.update_idletasks()
+        btn_bbox = canvas.bbox(self.win_btn_saldo)
+        combo_x = (btn_bbox[0] - 8) if btn_bbox else (canvas_width - 200)
+        db_conti = _carica_db_conti()
+        conti_disponibili = db_conti.get("conti", [])
+        nomi_conti = [HOUSEHOLD_LABEL] + [c.get("nome", "") for c in conti_disponibili]
+        if self.saldo_grafico_conto_filtro not in nomi_conti:
+            self.saldo_grafico_conto_filtro = HOUSEHOLD_LABEL
+        def on_cambio_conto_saldo(event=None):
+            self.saldo_grafico_conto_filtro = combo_conto_saldo.get()
+            self.draw_saldo_chart()
+        combo_conto_saldo = ttk.Combobox(canvas, values=nomi_conti, state="readonly", width=24, font=("Arial", 8), style="Border.TCombobox")
+        combo_conto_saldo.set(self.saldo_grafico_conto_filtro)
+        combo_conto_saldo.bind("<<ComboboxSelected>>", on_cambio_conto_saldo)
+        self.win_combo_conto_saldo = canvas.create_window(combo_x, 2, window=combo_conto_saldo, anchor="ne")
+        conto_sel = None
+        if self.saldo_grafico_conto_filtro != HOUSEHOLD_LABEL:
+            conto_sel = next((c for c in conti_disponibili if c.get("nome", "") == self.saldo_grafico_conto_filtro), None)
         if self.visualizza_saldo_10_anni:
             limite_10anni = oggi - datetime.timedelta(days=365 * 10)
             transazioni_totali = []
             for giorno, entries in self.spese.items():
                 if hasattr(giorno, "year") and giorno >= limite_10anni:
                     for entry in entries:
+                        if conto_sel is not None and campo(entry, "conto", "") != conto_sel.get("nome", ""):
+                            continue
                         importo = float(entry[2]) if not isinstance(entry, dict) else float(entry.get("importo", 0))
                         tipo = entry[3] if not isinstance(entry, dict) else entry.get("tipo", "")
                         if not self.considera_ricorrenze_var.get() and giorno > datetime.date.today():
                             continue
                         variazione = importo if tipo == "Entrata" else -importo
                         transazioni_totali.append({"data": giorno, "variazione": variazione})
+            if conto_sel is not None:
+                for t in db_conti.get("trasferimenti", []):
+                    if t.get("da") == "__spese__" or t.get("a") == "__spese__":
+                        continue
+                    try:
+                        data_t = datetime.datetime.strptime(t["data"], "%d-%m-%Y").date()
+                    except Exception:
+                        continue
+                    if data_t < limite_10anni:
+                        continue
+                    try:
+                        imp = round(float(t.get("importo", 0)), 2)
+                    except Exception:
+                        continue
+                    if t.get("da") == conto_sel.get("id"):
+                        transazioni_totali.append({"data": data_t, "variazione": -imp})
+                    elif t.get("a") == conto_sel.get("id"):
+                        transazioni_totali.append({"data": data_t, "variazione": imp})
+            tot_entrata_precalc = sum(t["variazione"] for t in transazioni_totali if t["variazione"] > 0)
+            tot_uscita_precalc = -sum(t["variazione"] for t in transazioni_totali if t["variazione"] < 0)
             transazioni_totali.sort(key=lambda x: x["data"])
-            saldo_cumulativo_corrente = 0.0
+            saldo_cumulativo_corrente = float(conto_sel.get("saldo", 0)) if conto_sel is not None else 0.0
             saldi_mensili_cumulativi = {}
             ultima_data_registrata = datetime.date.min
             for transazione in transazioni_totali:
@@ -472,12 +529,35 @@ def draw_saldo_chart(self, event=None):
                     if anno not in aggregati_anno:
                         aggregati_anno[anno] = 0.0
                     for entry in entries:
+                        if conto_sel is not None and campo(entry, "conto", "") != conto_sel.get("nome", ""):
+                            continue
                         tipo = entry[3] if not isinstance(entry, dict) else entry.get("tipo", "")
                         importo = float(entry[2]) if not isinstance(entry, dict) else float(entry.get("importo", 0))
                         if not self.considera_ricorrenze_var.get() and giorno > datetime.date.today():
                             continue
                         variazione = importo if tipo == "Entrata" else -importo
                         aggregati_anno[anno] += variazione
+            if conto_sel is not None:
+                for t in db_conti.get("trasferimenti", []):
+                    if t.get("da") == "__spese__" or t.get("a") == "__spese__":
+                        continue
+                    try:
+                        data_t = datetime.datetime.strptime(t["data"], "%d-%m-%Y").date()
+                    except Exception:
+                        continue
+                    if not self.considera_ricorrenze_var.get() and data_t > oggi:
+                        continue
+                    try:
+                        imp = round(float(t.get("importo", 0)), 2)
+                    except Exception:
+                        continue
+                    anno_t = data_t.year
+                    if anno_t not in aggregati_anno:
+                        aggregati_anno[anno_t] = 0.0
+                    if t.get("da") == conto_sel.get("id"):
+                        aggregati_anno[anno_t] -= imp
+                    elif t.get("a") == conto_sel.get("id"):
+                        aggregati_anno[anno_t] += imp
             self.data_for_chart = [
                 {"label": str(anno), "saldo": saldo}  
                 for anno, saldo in sorted(aggregati_anno.items())
@@ -489,12 +569,35 @@ def draw_saldo_chart(self, event=None):
                 if hasattr(giorno, "year") and giorno.year == anno_corrente:
                     mese_index = giorno.month - 1
                     for entry in entries:
+                        if conto_sel is not None and campo(entry, "conto", "") != conto_sel.get("nome", ""):
+                            continue
                         tipo = entry[3] if not isinstance(entry, dict) else entry.get("tipo", "")
                         importo = float(entry[2]) if not isinstance(entry, dict) else float(entry.get("importo", 0))
                         if not self.considera_ricorrenze_var.get() and giorno > datetime.date.today():
                             continue
                         variazione = importo if tipo == "Entrata" else -importo
                         mensili_saldo[mese_index]["saldo"] += variazione
+            if conto_sel is not None:
+                for t in db_conti.get("trasferimenti", []):
+                    if t.get("da") == "__spese__" or t.get("a") == "__spese__":
+                        continue
+                    try:
+                        data_t = datetime.datetime.strptime(t["data"], "%d-%m-%Y").date()
+                    except Exception:
+                        continue
+                    if data_t.year != anno_corrente:
+                        continue
+                    if not self.considera_ricorrenze_var.get() and data_t > oggi:
+                        continue
+                    try:
+                        imp = round(float(t.get("importo", 0)), 2)
+                    except Exception:
+                        continue
+                    mese_index_t = data_t.month - 1
+                    if t.get("da") == conto_sel.get("id"):
+                        mensili_saldo[mese_index_t]["saldo"] -= imp
+                    elif t.get("a") == conto_sel.get("id"):
+                        mensili_saldo[mese_index_t]["saldo"] += imp
             self.data_for_chart = mensili_saldo
         if not hasattr(self, 'data_for_chart') or not self.data_for_chart:
             canvas.create_text(canvas_width // 2, canvas_height // 2,
@@ -517,28 +620,24 @@ def draw_saldo_chart(self, event=None):
             canvas.create_line(CHART_LEFT, CHART_BOTTOM, CHART_LEFT, CHART_TOP, fill=self.TEXT_COLOR, width=2, tags="axis")
             canvas.create_text(CHART_LEFT - 5, scale_y(max_saldo), text=f"€ {formatta_italiano(max_saldo, decimali=0)}", anchor="e", font=("Arial", 8), fill=self.TEXT_COLOR, tags="y_labels")
             canvas.create_text(CHART_LEFT - 5, scale_y(min_saldo), text=f"€ {formatta_italiano(min_saldo, decimali=0)}", anchor="e", font=("Arial", 8), fill=self.TEXT_COLOR, tags="y_labels")
+            ZERO_LINE_Y = scale_y(0)
+            zero_bar_y = min(max(ZERO_LINE_Y, CHART_TOP), CHART_BOTTOM)
             if y_min < 0 < y_max:
-                ZERO_LINE_Y = scale_y(0)
                 canvas.create_line(CHART_LEFT, ZERO_LINE_Y, CHART_RIGHT, ZERO_LINE_Y, fill="#AAAAAA", width=1, dash=(5, 5), tags="axis")
                 canvas.create_text(CHART_LEFT - 5, ZERO_LINE_Y, text="0", anchor="e", font=("Arial", 8), fill=self.TEXT_COLOR, tags="y_labels")
-            data_min = self.data_for_chart[0]['data']
-            data_max = self.data_for_chart[-1]['data']
-            data_range_days = (data_max - data_min).days or 1
-            def scale_x(date):
-                if data_range_days == 0:
-                    return CHART_LEFT + CHART_AREA_WIDTH / 2
-                days_since_start = (date - data_min).days
-                return CHART_LEFT + (days_since_start / data_range_days) * CHART_AREA_WIDTH
-            points = []
+            num_bars = len(self.data_for_chart)
+            bar_space_total = CHART_AREA_WIDTH / num_bars
+            bar_width = max(1, bar_space_total * BAR_RATIO)
             for i, item in enumerate(self.data_for_chart):
-                x = scale_x(item['data'])
-                y = scale_y(item['saldo'])
-                points.append((x, y))
-
-                point_radius = 4
-                point_id = canvas.create_oval(x - point_radius, y - point_radius, 
-                                               x + point_radius, y + point_radius, 
-                                               fill="blue", outline="")
+                saldo = item["saldo"]
+                x_center = CHART_LEFT + (i + 0.5) * bar_space_total
+                x1 = x_center - bar_width / 2
+                x2 = x_center + bar_width / 2
+                y_val = scale_y(saldo)
+                y1 = min(zero_bar_y, y_val)
+                y2 = max(zero_bar_y, y_val)
+                color = "green" if saldo >= 0 else "red"
+                rect_id = canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="")
                 d_data = item['data']
                 popup_title = f"Transazioni {d_data.strftime('%m %Y')}"
                 d_filter = {
@@ -547,15 +646,13 @@ def draw_saldo_chart(self, event=None):
                     "categoria": None,
                     "tipo": None
                 }
-                canvas.tag_bind(point_id, "<Double-1>", 
+                canvas.tag_bind(rect_id, "<Double-1>", 
                                 lambda e, f=d_filter, t=popup_title: self.mostra_transazioni_popup(f, t))
                 tooltip_text = f"Data:  {item['label']}\nSaldo: € {formatta_italiano(item['saldo'], segno=True)}"
-                canvas.tag_bind(point_id, "<Enter>", lambda e, txt=tooltip_text: self.show_tooltip(e, txt))
-                canvas.tag_bind(point_id, "<Leave>", self.hide_tooltip)
+                canvas.tag_bind(rect_id, "<Enter>", lambda e, txt=tooltip_text: self.show_tooltip(e, txt))
+                canvas.tag_bind(rect_id, "<Leave>", self.hide_tooltip)
                 if i == 0 or (item['data'].month == 1 and item['data'].day == 1) or i == len(self.data_for_chart) - 1:
-                    canvas.create_text(x, CHART_BOTTOM + NUOVO_OFFSET_TESTO, text=item['data'].strftime("%Y"), anchor="n", angle=45, font=("Arial", 8), fill=self.TEXT_COLOR)
-            if len(points) > 1:
-                canvas.create_line(points, fill="blue", width=2, tags="line_chart")
+                    canvas.create_text(x_center, CHART_BOTTOM + NUOVO_OFFSET_TESTO, text=item['data'].strftime("%Y"), anchor="n", angle=45, font=("Arial", 8), fill=self.TEXT_COLOR)
         else:
             max_positive = max((item["saldo"] for item in self.data_for_chart if item["saldo"] >= 0), default=0) or 1
             max_negative = min((item["saldo"] for item in self.data_for_chart if item["saldo"] < 0), default=0) or -1
@@ -625,52 +722,72 @@ def draw_saldo_chart(self, event=None):
         data_min_vis = None
         data_max_vis = None
         if self.visualizza_saldo_10_anni and self.data_for_chart:
-              data_min_vis = self.data_for_chart[0]['data']
-              data_max_vis = self.data_for_chart[-1]['data']
+              total_entrata = tot_entrata_precalc
+              total_uscita = tot_uscita_precalc
         elif self.visualizza_saldo_totale:
             anni_da_includere = set([int(item["label"]) for item in self.data_for_chart if item["label"].isdigit()])
         else:
             anni_da_includere = {anno_corrente}
-        for giorno, entries in self.spese.items():
-            include_entry = False
-            if self.visualizza_saldo_10_anni and data_min_vis and data_max_vis:
-                  if hasattr(giorno, "year") and giorno <= data_max_vis:
-                      include_entry = True
-            elif hasattr(giorno, "year") and giorno.year in anni_da_includere:
-                  include_entry = True
-            if include_entry:
-                for entry in entries:
-                    tipo = entry[3] if not isinstance(entry, dict) else entry.get("tipo", "")
-                    importo = float(entry[2]) if not isinstance(entry, dict) else float(entry.get("importo", 0))
-                    if tipo == "Entrata":
-                        total_entrata += importo
-                    elif tipo == "Uscita":
-                        total_uscita += importo
+        if not self.visualizza_saldo_10_anni:
+            for giorno, entries in self.spese.items():
+                include_entry = hasattr(giorno, "year") and giorno.year in anni_da_includere
+                if include_entry:
+                    for entry in entries:
+                        if conto_sel is not None and campo(entry, "conto", "") != conto_sel.get("nome", ""):
+                            continue
+                        tipo = entry[3] if not isinstance(entry, dict) else entry.get("tipo", "")
+                        importo = float(entry[2]) if not isinstance(entry, dict) else float(entry.get("importo", 0))
+                        if not self.considera_ricorrenze_var.get() and giorno > oggi:
+                            continue
+                        if tipo == "Entrata":
+                            total_entrata += importo
+                        elif tipo == "Uscita":
+                            total_uscita += importo
+            if conto_sel is not None:
+                for t in db_conti.get("trasferimenti", []):
+                    if t.get("da") == "__spese__" or t.get("a") == "__spese__":
+                        continue
+                    try:
+                        data_t = datetime.datetime.strptime(t["data"], "%d-%m-%Y").date()
+                    except Exception:
+                        continue
+                    if data_t.year not in anni_da_includere:
+                        continue
+                    if not self.considera_ricorrenze_var.get() and data_t > oggi:
+                        continue
+                    try:
+                        imp = round(float(t.get("importo", 0)), 2)
+                    except Exception:
+                        continue
+                    if t.get("da") == conto_sel.get("id"):
+                        total_uscita += imp
+                    elif t.get("a") == conto_sel.get("id"):
+                        total_entrata += imp
         total_saldo = total_entrata - total_uscita
         saldo_color = "green" if total_saldo >= 0 else "red"
         if self.visualizza_saldo_10_anni and self.data_for_chart:
             primo_anno = self.data_for_chart[0]['data'].year
             ultimo_anno = self.data_for_chart[-1]['data'].year
             label_periodo = f"({primo_anno} - {ultimo_anno})"
-            titolo_grafico = f"Saldo Conto Corrente Cumulativo {label_periodo}"
+            titolo_grafico = f"Saldo Cumulativo {label_periodo}"
         elif self.visualizza_saldo_totale:
             anni_presenti = sorted(list(set([int(item["label"]) for item in self.data_for_chart if item["label"].isdigit()])))
             label_periodo = f"({anni_presenti[0]} - {anni_presenti[-1]})" if anni_presenti else "(N.D.)"
-            titolo_grafico = f"Saldo Netto Annuale Aggregato {label_periodo}"
+            titolo_grafico = f"Saldo Netto Annuale {label_periodo}"
         else:
             label_periodo = f"({anno_corrente})"
             titolo_grafico = f"Saldo Netto Mensile {label_periodo}"
 
-        tid = canvas.create_text(canvas_width // 2, CHART_TOP / 3,
+        tid = canvas.create_text(CHART_LEFT, 14,
                             text=titolo_grafico,
-                            font=("Arial", 8, "bold"), fill=self.TEXT_COLOR, anchor="e")
+                            font=("Arial", 8, "bold"), fill=self.TEXT_COLOR, anchor="w")
         bbox = canvas.bbox(tid)
         img_mouse = self.icone_gui.get("mouse")
         lbl_hint = tk.Label(canvas, text="  •  Doppio clic → Mostra Dettaglio ",
                             image=img_mouse, compound="right",
                             bg=self.COLOR_WIDGET_BG, fg="gray", font=("Arial", 8, "italic"))
         lbl_hint.image = img_mouse
-        canvas.create_window(bbox[2] + 6, CHART_TOP / 3, window=lbl_hint, anchor="w")
+        canvas.create_window(bbox[2] + 6, 14, window=lbl_hint, anchor="w")
         text_y_pos = canvas_height - 20 
         x_pos_1 = CHART_LEFT + CHART_AREA_WIDTH * 0.15 
         x_pos_2 = CHART_LEFT + CHART_AREA_WIDTH * 0.5  
