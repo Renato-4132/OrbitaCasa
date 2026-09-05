@@ -92,8 +92,9 @@ def registra_tutti_i_moduli(GestioneSpese):
     _registra(_mostra_tip_safe, _nascondi_tip_safe, draw_estratto_metodo, draw_estratto_conto,
     draw_heatmap_mese, draw_spark_mese)
 
-    from moduli.mostra_calendario_popup import mostra_calendario_popup_semplice, mostra_calendario_popup
-    _registra(mostra_calendario_popup_semplice, mostra_calendario_popup)
+    from moduli.mostra_calendario_popup import (
+        mostra_calendario_popup_semplice, mostra_calendario_popup, mostra_calendario_popup_trasferimenti)
+    _registra(mostra_calendario_popup_semplice, mostra_calendario_popup, mostra_calendario_popup_trasferimenti)
     
     from moduli.dieta import apri_dieta
     _registra(apri_dieta)

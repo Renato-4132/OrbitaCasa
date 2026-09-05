@@ -589,6 +589,7 @@ def open_saldo_conto(self):
             nomi_conti = [c["nome"] for c in conti]
             id_da_nome = {c["nome"]: c["id"] for c in conti}
             nome_da_id = {c["id"]: c["nome"] for c in conti}
+            tipo_da_id = {c["id"]: c.get("tipo", "altro") for c in conti}
             def _key_data(t):
                 try:
                     return datetime.datetime.strptime(t.get("data",""), "%d-%m-%Y").date()
@@ -706,7 +707,10 @@ def open_saldo_conto(self):
                         periodo = (f"{primo.get('data','')} → {ultimo.get('data','')}"
                                    if len(occ) > 1 else primo.get("data",""))
                         gid = f"grp_{r['__gruppo__']}"
-                        tree.insert("", "end", iid=gid, open=False,
+                        tag = f"tipoconto_{tipo_da_id.get(primo.get('da',''), 'altro')}"
+                        tree.tag_configure(tag, foreground=TIPO_COLORI.get(
+                            tipo_da_id.get(primo.get("da",""), "altro"), "#A78BFA"))
+                        tree.insert("", "end", iid=gid, open=False, tags=(tag,),
                                     values=(periodo,
                                             nome_da_id.get(primo.get("da",""), "?"),
                                             nome_da_id.get(primo.get("a",""), "?"),
@@ -714,7 +718,10 @@ def open_saldo_conto(self):
                                             f"{primo.get('note','')} ({primo.get('ricorrenza_tipo','').lower()})",
                                             f"🔁 x{len(occ)}"))
                         for o in occ:
-                            tree.insert(gid, "end", iid=o["id"],
+                            tag_o = f"tipoconto_{tipo_da_id.get(o.get('da',''), 'altro')}"
+                            tree.tag_configure(tag_o, foreground=TIPO_COLORI.get(
+                                tipo_da_id.get(o.get("da",""), "altro"), "#A78BFA"))
+                            tree.insert(gid, "end", iid=o["id"], tags=(tag_o,),
                                         values=(o.get("data",""),
                                                 nome_da_id.get(o.get("da",""), "?"),
                                                 nome_da_id.get(o.get("a",""), "?"),
@@ -722,7 +729,10 @@ def open_saldo_conto(self):
                                                 o.get("note",""),
                                                 f"{o.get('ricorrenza_seq','?')}/{o.get('ricorrenza_totale','?')}"))
                     else:
-                        tree.insert("", "end", iid=r["id"],
+                        tag = f"tipoconto_{tipo_da_id.get(r.get('da',''), 'altro')}"
+                        tree.tag_configure(tag, foreground=TIPO_COLORI.get(
+                            tipo_da_id.get(r.get("da",""), "altro"), "#A78BFA"))
+                        tree.insert("", "end", iid=r["id"], tags=(tag,),
                                     values=(r.get("data",""),
                                             nome_da_id.get(r.get("da",""), "?"),
                                             nome_da_id.get(r.get("a",""), "?"),
@@ -815,15 +825,30 @@ def open_saldo_conto(self):
                     if not p.isdigit() and p != "": return False
                     if len(p) > limiti[i]: return False
                 return len(s) <= 10
-            data_e = _row(lf_form, "Data:", lambda p: ttk.Entry(p, textvariable=v_data, width=14,
-                          validate="key", validatecommand=(p.register(_valida_data_t), "%P")), 0)
-            def _apri_cal_t(e=None):
-                self.mostra_calendario_popup_semplice(data_e, v_data)
-            img_cal = self.icone_gui.get("calendario")
-            lbl_cal = tk.Label(lf_form, image=img_cal, cursor="hand2", bg=bg)
-            if img_cal: lbl_cal.image = img_cal
-            lbl_cal.grid(row=0, column=2, padx=2)
-            lbl_cal.bind("<Button-1>", _apri_cal_t)
+            def _campo_data(p):
+                frm_d = tk.Frame(p, bg=bg)
+                e = ttk.Entry(frm_d, textvariable=v_data, width=14,
+                              validate="key", validatecommand=(p.register(_valida_data_t), "%P"))
+                e.pack(side="left")
+                img_cal = self.icone_gui.get("calendario")
+                lbl = tk.Label(frm_d, image=img_cal, cursor="hand2", bg=bg)
+                if img_cal: lbl.image = img_cal
+                lbl.pack(side="left", padx=(2, 0))
+                def _apri_cal_trasf(ev=None):
+                    _db_fresh = carica_db()
+                    _trasf_fresh = [t for t in _db_fresh.get("trasferimenti", [])
+                                    if "__spese__" not in (t.get("da",""), t.get("a",""))]
+                    _conti_fresh = _db_fresh.get("conti", [])
+                    _nome_fresh = {c["id"]: c["nome"] for c in _conti_fresh}
+                    _tipo_fresh = {c["id"]: c.get("tipo", "altro") for c in _conti_fresh}
+                    self.mostra_calendario_popup_trasferimenti(
+                        e, v_data, _trasf_fresh, _nome_fresh, _tipo_fresh, TIPO_COLORI)
+                lbl.bind("<Button-1>", _apri_cal_trasf)
+                frm_d.entry = e
+                return frm_d
+
+            frm_data = _row(lf_form, "Data:", _campo_data, 0)
+            data_e = frm_data.entry
             _row(lf_form, "Da conto:", lambda p: ttk.Combobox(p, textvariable=v_da,
                  values=nomi_conti, state="readonly", width=16, style="Border.TCombobox"), 1)
             _row(lf_form, "A conto:",  lambda p: ttk.Combobox(p, textvariable=v_a,
@@ -942,10 +967,10 @@ def open_saldo_conto(self):
                     return
                 try:
                     n = int(v_ric_n.get())
-                    if n <= 0 or n > 120:
+                    if n <= 0 or n > 360:
                         raise ValueError
                 except Exception:
-                    self.show_toast("Numero ripetizioni non valido (1-120).")
+                    self.show_toast("Numero ripetizioni non valido (1-360).")
                     return
                 date_list = _genera_date_ricorrenza_trasf(data_inizio, ric_tipo, n)
                 if not date_list:

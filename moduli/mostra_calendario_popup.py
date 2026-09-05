@@ -322,3 +322,210 @@ def mostra_calendario_popup(self, entry_widget, var_data):
     self.after(300, lambda: self.bind_all('<Escape>', lambda e: chiudi_popup()))
     self.bind("<FocusOut>", on_app_focus_out)
     self.popup_calendario.deiconify()
+    
+# Gestore Popup Calendario Selettore Data con trasferimenti
+def mostra_calendario_popup_trasferimenti(self, entry_widget, var_data, lista_trasferimenti,
+                                           nome_da_id=None, tipo_da_id=None, tipo_colori=None):
+    import __main__ as _app
+    if hasattr(self, "popup_calendario") and self.popup_calendario and self.popup_calendario.winfo_exists():
+        self.popup_calendario.destroy()
+        self.popup_calendario = None
+        self.unbind_all('<Button-1>')
+        self.unbind_all('<Escape>')
+        return
+    nome_da_id = nome_da_id or {}
+    tipo_da_id = tipo_da_id or {}
+    tipo_colori = tipo_colori or {}
+    entry_widget.update_idletasks()
+    x_entry = entry_widget.winfo_rootx()
+    y_entry = entry_widget.winfo_rooty()
+    h_entry = entry_widget.winfo_height()
+    POPUP_WIDTH, POPUP_HEIGHT = 270, 240
+    final_y = y_entry - POPUP_HEIGHT if (y_entry + h_entry + POPUP_HEIGHT > self.winfo_screenheight()) else y_entry + h_entry
+    self.popup_calendario = tk.Toplevel(self)
+    self.popup_calendario.transient(self)
+    self.popup_calendario.withdraw()
+    self.popup_calendario.overrideredirect(True)
+    self.popup_calendario.config(
+            highlightthickness=1,
+            highlightbackground=self.COLOR_HIGHLIGHT
+    )
+    self.popup_calendario.geometry(f"{POPUP_WIDTH}x{POPUP_HEIGHT}+{x_entry}+{final_y}")
+    self.popup_calendario.configure(bg=self.cal_bg)
+    cal = Calendar(
+        self.popup_calendario,
+        selectmode='day',
+        locale="it_IT",
+        date_pattern="dd-mm-yyyy",
+        font=("Arial", 10),
+        cursor="hand2",
+        showothermonthdays=False,
+        background=self.cal_header_bg,
+        foreground=self.cal_header_fg,
+        headersbackground=self.cal_header_bg,
+        headersforeground=self.cal_header_fg,
+        normalbackground=self.cal_bg,
+        normalforeground=self.cal_fg,
+        weekendbackground=self.cal_weekend_bg,
+        weekendforeground=self.cal_weekend_fg,
+        selectbackground=self.cal_select_bg,
+        selectforeground=self.cal_select_fg,
+        showweeknumbers=False,
+        bordercolor=self.cal_bg,
+        tooltipdelay=999999
+    )
+    cal.pack(fill="both", expand=True)
+    self.cal_popup = cal
+    cal.tag_config("trasf", background=self.COLOR_HIGHLIGHT, foreground=self.COLOR_BLACK)
+    cal.tag_config("today", background=self.COLOR_YELLOW, foreground=self.COLOR_BLACK)
+    dati_giorno = {}
+    try:
+        for t in lista_trasferimenti:
+            if "__spese__" in (t.get("da", ""), t.get("a", "")):
+                continue
+            try:
+                d_obj = datetime.datetime.strptime(t.get("data", ""), "%d-%m-%Y").date()
+            except Exception:
+                continue
+            dati_giorno.setdefault(d_obj, []).append(t)
+        for d_obj, righe in dati_giorno.items():
+            cal.calevent_create(d_obj, "trasferimenti", "trasf")
+        cal._draw_calendar()
+    except Exception:
+        pass
+
+    def chiudi_popup():
+        if hasattr(self, 'tw') and self.tw and self.tw.winfo_exists(): self.tw.destroy()
+        self.unbind_all('<Button-1>')
+        self.unbind_all('<Escape>')
+        if hasattr(self, 'popup_calendario') and self.popup_calendario:
+            try: self.popup_calendario.destroy()
+            except: pass
+            self.popup_calendario = None
+
+    def on_date_select(event):
+        data_sel = cal.selection_get()
+        var_data.set(data_sel.strftime("%d-%m-%Y"))
+        self.cal_popup = None
+        chiudi_popup()
+
+    def check_click_outside(event):
+        if not self.popup_calendario or not self.popup_calendario.winfo_exists(): return
+        x, y = self.popup_calendario.winfo_pointerxy()
+        widget_sotto = self.popup_calendario.winfo_containing(x, y)
+        if widget_sotto is None or str(widget_sotto).find(str(self.popup_calendario)) == -1:
+            if widget_sotto != entry_widget: chiudi_popup()
+
+    def gestisci_tooltip(event):
+        if hasattr(self, 'tooltip_timer') and self.tooltip_timer:
+            self.after_cancel(self.tooltip_timer)
+            self.tooltip_timer = None
+        if hasattr(self, 'tw') and self.tw and self.tw.winfo_exists():
+            self.tw.withdraw()
+
+        def mostra_reale():
+            try:
+                x_m, y_m = self.popup_calendario.winfo_pointerxy()
+                widget = self.popup_calendario.winfo_containing(x_m, y_m)
+                if widget and "label" in str(widget) and widget.cget("text").isdigit():
+                    giorno = int(widget.cget("text"))
+                    mese, anno = cal.get_displayed_month()
+                    data_h = datetime.date(anno, mese, giorno)
+                    righe = dati_giorno.get(data_h, [])
+                    if righe or data_h == datetime.date.today():
+                        if not hasattr(self, 'tw') or not self.tw.winfo_exists():
+                            self.tw = tk.Toplevel(self.popup_calendario)
+                            self.tw.overrideredirect(True)
+                            self.tw.attributes("-topmost", True)
+                        self.tw.withdraw()
+                        for c in self.tw.winfo_children(): c.destroy()
+                        self.tw.minsize(200, 0)
+                        main_f = tk.Frame(
+                           self.tw,
+                           bg=self.COLOR_TOOLTIP,
+                           highlightthickness=1,
+                           highlightbackground=self.COLOR_HIGHLIGHT
+                        )
+                        main_f.pack(fill="both", expand=True)
+
+                        def crea_riga(parent, sx, dx, col, bold=False):
+                            f = tk.Frame(parent, bg=self.COLOR_TOOLTIP)
+                            f.pack(fill="x", padx=10, pady=1)
+                            fnt = ("Arial", 9, "bold")
+                            lbl_sx = tk.Label(f, text=sx, fg=col, bg=self.COLOR_TOOLTIP, font=fnt, anchor="w")
+                            lbl_sx.pack(side="left", fill="x", expand=True)
+                            testo_dx = f"€ {dx}" if bold else dx
+                            lbl_dx = tk.Label(f, text=testo_dx, fg=col, bg=self.COLOR_TOOLTIP, font=fnt, anchor="e")
+                            lbl_dx.pack(side="right")
+
+                        def crea_riga_trasf(parent, id_da, id_a, importo_txt):
+                            f = tk.Frame(parent, bg=self.COLOR_TOOLTIP)
+                            f.pack(fill="x", padx=10, pady=2)
+                            fnt = ("Arial", 9, "bold")
+                            riga_conti = tk.Frame(f, bg=self.COLOR_TOOLTIP)
+                            riga_conti.pack(side="left", fill="x", expand=True)
+                            col_da = tipo_colori.get(tipo_da_id.get(id_da, "altro"), "#A78BFA")
+                            tk.Frame(riga_conti, bg=col_da, width=10, height=10).pack(side="left", padx=(0, 3))
+                            tk.Label(riga_conti, text=nome_da_id.get(id_da, id_da or "?"),
+                                     fg=self.COLOR_TEXT_TOOLTIP, bg=self.COLOR_TOOLTIP, font=fnt).pack(side="left")
+                            tk.Label(riga_conti, text=" → ", fg=self.COLOR_TEXT_TOOLTIP,
+                                     bg=self.COLOR_TOOLTIP, font=fnt).pack(side="left")
+                            col_a = tipo_colori.get(tipo_da_id.get(id_a, "altro"), "#A78BFA")
+                            tk.Frame(riga_conti, bg=col_a, width=10, height=10).pack(side="left", padx=(0, 3))
+                            tk.Label(riga_conti, text=nome_da_id.get(id_a, id_a or "?"),
+                                     fg=self.COLOR_TEXT_TOOLTIP, bg=self.COLOR_TOOLTIP, font=fnt).pack(side="left")
+                            tk.Label(f, text=f"€ {importo_txt}", fg=self.COLOR_TEXT_TOOLTIP,
+                                     bg=self.COLOR_TOOLTIP, font=fnt, anchor="e").pack(side="right")
+
+                        if righe:
+                            for t in righe:
+                                importo = _app._fmt_it(float(t.get("importo", 0.0)))
+                                crea_riga_trasf(main_f, t.get("da"), t.get("a"), importo)
+                        else:
+                            tk.Label(main_f, text="Oggi", fg=self.COLOR_TEXT_TOOLTIP, bg=self.COLOR_TOOLTIP,
+                                     font=("Arial", 9, "bold"), padx=10).pack(anchor="w")
+                        self.tw.update_idletasks()
+                        tw_w, tw_h = self.tw.winfo_reqwidth(), self.tw.winfo_reqheight()
+                        scr_w, scr_h = self.winfo_screenwidth(), self.winfo_screenheight()
+                        px, py = x_m + 15, y_m + 10
+                        if px + tw_w > scr_w: px = x_m - tw_w - 15
+                        if py + tw_h > scr_h: py = y_m - tw_h - 10
+                        self.tw.geometry(f"{tw_w}x{tw_h}+{max(0, px)}+{max(0, py)}")
+                        self.tw.deiconify()
+                        self.tw.lift()
+            except Exception:
+                if hasattr(self, 'tw') and self.tw.winfo_exists():
+                    self.tw.withdraw()
+        self.tooltip_timer = self.after(1000, mostra_reale)
+
+    def applica_ricorsivo(w):
+        def safe_withdraw(e):
+            if hasattr(self, 'tw') and self.tw:
+                try:
+                    if self.tw.winfo_exists():
+                        self.tw.withdraw()
+                except:
+                    pass
+        w.bind("<Motion>", gestisci_tooltip, add="+")
+        w.bind("<Leave>", safe_withdraw, add="+")
+        for child in w.winfo_children():
+             applica_ricorsivo(child)
+    applica_ricorsivo(cal)
+
+    def on_app_focus_out(event):
+        if event.widget != self:
+            return
+        try:
+           x, y = self.winfo_pointerxy()
+           widget_sotto = self.winfo_containing(x, y)
+           if widget_sotto and str(self.popup_calendario) in str(widget_sotto):
+              return
+        except:
+              pass
+        chiudi_popup()
+
+    cal.bind("<<CalendarSelected>>", on_date_select)
+    self.after(300, lambda: self.bind_all('<Button-1>', check_click_outside))
+    self.after(300, lambda: self.bind_all('<Escape>', lambda e: chiudi_popup()))
+    self.bind("<FocusOut>", on_app_focus_out)
+    self.popup_calendario.deiconify()
