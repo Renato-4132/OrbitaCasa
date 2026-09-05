@@ -4290,34 +4290,50 @@ class GestioneSpese(tk.Tk):
             return
         saldi_visualizzati = {}
         id_a_nome = {}
+        nome_a_id = {}
         for conto in conti:
             cid = conto.get("id", "")
             nome = conto.get("nome", "?")
             id_a_nome[cid] = nome
+            nome_a_id[nome] = cid
             try:
                 saldi_visualizzati[cid] = float(conto.get("saldo", 0))
             except:
                 saldi_visualizzati[cid] = 0.0
-        if not self.considera_ricorrenze_var.get():
-            oggi = datetime.date.today()
-            for tf in trasferimenti:
-                try:
-                    data_str = tf.get("data", "")
-                    d_parti = data_str.split("-")
-                    giorno = datetime.date(int(d_parti[2]), int(d_parti[1]), int(d_parti[0]))
-                except:
-                    continue
-                if giorno > oggi:
+        oggi = datetime.date.today()
+        include_futuri = self.considera_ricorrenze_var.get()
+        for d, voci in self.spese.items():
+            if not include_futuri and d > oggi:
+                continue
+            for v in voci:
+                cid_v = nome_a_id.get(campo(v, "conto", ""))
+                if cid_v and cid_v in saldi_visualizzati:
                     try:
-                        imp = float(tf.get("importo", 0))
-                    except:
-                        imp = 0.0
-                    id_da = tf.get("da", "")
-                    id_a = tf.get("a", "")
-                    if id_da in saldi_visualizzati:
-                        saldi_visualizzati[id_da] += imp
-                    if id_a in saldi_visualizzati:
-                        saldi_visualizzati[id_a] -= imp
+                        imp = float(v[2])
+                        saldi_visualizzati[cid_v] += imp if str(v[3]) == "Entrata" else -imp
+                    except Exception:
+                        pass
+        for tf in trasferimenti:
+            if tf.get("da") == "__spese__" or tf.get("a") == "__spese__":
+                continue
+            try:
+                data_str = tf.get("data", "")
+                d_parti = data_str.split("-")
+                giorno = datetime.date(int(d_parti[2]), int(d_parti[1]), int(d_parti[0]))
+            except:
+                continue
+            if not include_futuri and giorno > oggi:
+                continue
+            try:
+                imp = float(tf.get("importo", 0))
+            except:
+                imp = 0.0
+            id_da = tf.get("da", "")
+            id_a = tf.get("a", "")
+            if id_da in saldi_visualizzati:
+                saldi_visualizzati[id_da] -= imp
+            if id_a in saldi_visualizzati:
+                saldi_visualizzati[id_a] += imp
         totale = sum(saldi_visualizzati.values())
         n = len(conti)
         PAD_TOP  = 34
@@ -6215,7 +6231,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "28a094c802b49fd15ac5759c19f16be7c5b150e56fc897e9f6a5b6d5084d8a78"
+        E_H_B = "e1b53e9df27e00ae8fd560873e8574fcf05f7194bea1375e3b6835a268d0c6de"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
