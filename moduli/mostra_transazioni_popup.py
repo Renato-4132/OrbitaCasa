@@ -19,7 +19,7 @@ def _carica_db_conti_popup():
     return {"conti": [], "trasferimenti": []}
 
 # Popup dettaglio transazioni: mostra lista filtrata per anno/mese/giorno/tipo/categoria con totali, ordinamento colonne e azioni rapide
-def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_filtro=None, filtro_metodo=None):
+def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_filtro=None, filtro_metodo=None, trasferimenti_conto=None):
     MESI_NOME_COMPLETO = {
         1: "Gennaio", 2: "Febbraio", 3: "Marzo", 4: "Aprile", 
         5: "Maggio", 6: "Giugno", 7: "Luglio", 8: "Agosto", 
@@ -100,14 +100,14 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
             entry_metodo_diretto = campo(entry, "metodo_pagamento", "")
             entry_tag_diretto = " ".join(campo(entry, "hashtag", []) or [])
             spese_filtrate.append((data, cat_normalized_display, desc, entry_imp, entry_tipo, entry_conto_diretto, entry_metodo_diretto, entry_tag_diretto))
-    # I trasferimenti tra conti reali non sono voci di self.spese: quando i grafici sommano le
-    # barre per un conto specifico includono anche questi movimenti (vedi mostra_analisi_grafici.py
-    # e grafici_statistiche.py), quindi vanno cercati anche qui, altrimenti il doppio clic su una
-    # barra "fatta" da un trasferimento risulta sempre vuoto.
-    if (conto_filtro and not devo_filtrare_categorie and not filtro_metodo
-            and not filtro_desc and chiavi_filtro is None):
+
+    conto_per_trasferimenti = trasferimenti_conto
+    if (conto_per_trasferimenti is None and conto_filtro and not devo_filtrare_categorie
+            and not filtro_metodo and not filtro_desc and chiavi_filtro is None):
+        conto_per_trasferimenti = conto_filtro
+    if conto_per_trasferimenti:
         db_conti_popup = _carica_db_conti_popup()
-        conto_sel_popup = next((c for c in db_conti_popup.get("conti", []) if c.get("nome", "") == conto_filtro), None)
+        conto_sel_popup = next((c for c in db_conti_popup.get("conti", []) if c.get("nome", "") == conto_per_trasferimenti), None)
         if conto_sel_popup is not None:
             id_a_nome = {c.get("id"): c.get("nome", "") for c in db_conti_popup.get("conti", [])}
             for t in db_conti_popup.get("trasferimenti", []):
@@ -141,7 +141,7 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
                     desc_t += f" ({t['note']})"
                 if tipo_filtro and tipo_t != tipo_filtro.capitalize():
                     continue
-                spese_filtrate.append((data_t, "Trasferimento", desc_t, imp_t, tipo_t, conto_filtro, "", ""))
+                spese_filtrate.append((data_t, "Trasferimento", desc_t, imp_t, tipo_t, conto_per_trasferimenti, "", ""))
     if not spese_filtrate:
         self.show_custom_info("Nessuna transazione", f"Nessuna transazione trovata per {title}.")
         return

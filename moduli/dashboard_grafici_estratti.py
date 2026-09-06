@@ -251,6 +251,8 @@ def draw_estratto_conto(self):
     view_year  = getattr(self, '_view_year',  now.year)
     view_month = getattr(self, '_view_month', now.month)
     _agganci_conto = {}
+    _db_p = {"conti": [], "trasferimenti": []}
+    _id_a_nome = {}
     try:
         with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as _pf:
             _db_p = json.load(_pf)
@@ -264,6 +266,8 @@ def draw_estratto_conto(self):
                 _agganci_conto.setdefault((_data_t, _imp_t, _tipo_t), []).append(_cnome)
     except Exception:
         _agganci_conto = {}
+        _db_p = {"conti": [], "trasferimenti": []}
+        _id_a_nome = {}
     _uso_ordinale_conto2 = {}
     totali = {}
     dettagli = {}
@@ -289,6 +293,29 @@ def draw_estratto_conto(self):
                 totali[nome_conto] = totali.get(nome_conto, 0) + imp * segno
                 dettagli.setdefault(nome_conto, []).append((d, imp, tipo))
                 chiavi_per_conto.setdefault(nome_conto, set()).add(_key_conto)
+    for _t in _db_p.get("trasferimenti", []):
+        if _t.get("da") in ("__spese__", "Contabilità") or _t.get("a") in ("__spese__", "Contabilità"):
+            continue
+        try:
+            _data_tr = datetime.datetime.strptime(_t["data"], "%d-%m-%Y").date()
+        except Exception:
+            continue
+        if _data_tr.year != view_year or _data_tr.month != view_month:
+            continue
+        if not self.considera_ricorrenze_var.get() and _data_tr > now:
+            continue
+        try:
+            _imp_tr = round(float(_t.get("importo", 0)), 2)
+        except Exception:
+            continue
+        _nome_da_tr = _id_a_nome.get(_t.get("da"), "")
+        _nome_a_tr  = _id_a_nome.get(_t.get("a"), "")
+        if _nome_da_tr:
+            totali[_nome_da_tr] = totali.get(_nome_da_tr, 0) - _imp_tr
+            dettagli.setdefault(_nome_da_tr, []).append((_data_tr, _imp_tr, "Uscita"))
+        if _nome_a_tr:
+            totali[_nome_a_tr] = totali.get(_nome_a_tr, 0) + _imp_tr
+            dettagli.setdefault(_nome_a_tr, []).append((_data_tr, _imp_tr, "Entrata"))
     if not totali:
         c.create_text(w // 2, h // 2, text="Nessun movimento agganciato a un conto questo mese",
                       fill=self.TEXT_COLOR, font=("Arial", 10))
@@ -364,7 +391,8 @@ def draw_estratto_conto(self):
                        self.mostra_transazioni_popup(
                            {"anno": str(a), "mese": m},
                            f"Dettaglio {lbl} {['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'][m-1]} {a}",
-                           chiavi_filtro=chiavi
+                           chiavi_filtro=chiavi,
+                           trasferimenti_conto=lbl
                        ))
         c.tag_bind(tag_riga, "<Button-3>",
                    lambda e: self.open_saldo_conto())
