@@ -1,10 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import os
+import json
 import datetime
 import tkinter as tk
 from tkinter import ttk
 from moduli.modello_spesa import campo
+
+def _carica_db_conti_popup():
+    try:
+        from __main__ import PORTAFOGLIO_BANCARIO
+        if os.path.exists(PORTAFOGLIO_BANCARIO):
+            with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {"conti": [], "trasferimenti": []}
 
 # Popup dettaglio transazioni: mostra lista filtrata per anno/mese/giorno/tipo/categoria con totali, ordinamento colonne e azioni rapide
 def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_filtro=None, filtro_metodo=None):
@@ -88,6 +100,48 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
             entry_metodo_diretto = campo(entry, "metodo_pagamento", "")
             entry_tag_diretto = " ".join(campo(entry, "hashtag", []) or [])
             spese_filtrate.append((data, cat_normalized_display, desc, entry_imp, entry_tipo, entry_conto_diretto, entry_metodo_diretto, entry_tag_diretto))
+    # I trasferimenti tra conti reali non sono voci di self.spese: quando i grafici sommano le
+    # barre per un conto specifico includono anche questi movimenti (vedi mostra_analisi_grafici.py
+    # e grafici_statistiche.py), quindi vanno cercati anche qui, altrimenti il doppio clic su una
+    # barra "fatta" da un trasferimento risulta sempre vuoto.
+    if (conto_filtro and not devo_filtrare_categorie and not filtro_metodo
+            and not filtro_desc and chiavi_filtro is None):
+        db_conti_popup = _carica_db_conti_popup()
+        conto_sel_popup = next((c for c in db_conti_popup.get("conti", []) if c.get("nome", "") == conto_filtro), None)
+        if conto_sel_popup is not None:
+            id_a_nome = {c.get("id"): c.get("nome", "") for c in db_conti_popup.get("conti", [])}
+            for t in db_conti_popup.get("trasferimenti", []):
+                if t.get("da") == "__spese__" or t.get("a") == "__spese__":
+                    continue
+                if t.get("da") != conto_sel_popup.get("id") and t.get("a") != conto_sel_popup.get("id"):
+                    continue
+                try:
+                    data_t = datetime.datetime.strptime(t["data"], "%d-%m-%Y").date()
+                except Exception:
+                    continue
+                if anno and anno != "Tutti" and str(data_t.year) != anno: continue
+                if mese_filtro_num is not None and data_t.month != mese_filtro_num: continue
+                if giorno and giorno != "Tutti":
+                    try:
+                        if data_t.day != int(giorno): continue
+                    except: continue
+                try:
+                    imp_t = round(float(t.get("importo", 0)), 2)
+                except Exception:
+                    continue
+                if t.get("da") == conto_sel_popup.get("id"):
+                    tipo_t = "Uscita"
+                    altro_conto = id_a_nome.get(t.get("a"), "?")
+                    desc_t = f"Trasferimento a {altro_conto}"
+                else:
+                    tipo_t = "Entrata"
+                    altro_conto = id_a_nome.get(t.get("da"), "?")
+                    desc_t = f"Trasferimento da {altro_conto}"
+                if t.get("note"):
+                    desc_t += f" ({t['note']})"
+                if tipo_filtro and tipo_t != tipo_filtro.capitalize():
+                    continue
+                spese_filtrate.append((data_t, "Trasferimento", desc_t, imp_t, tipo_t, conto_filtro, "", ""))
     if not spese_filtrate:
         self.show_custom_info("Nessuna transazione", f"Nessuna transazione trovata per {title}.")
         return
@@ -340,10 +394,19 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
             self.stats_canvas.focus_set()
         self.after(50, popup.destroy)
 
-    tree.bind("<Double-1>", lambda evt: (
-        setattr(self, '_popup_da_doppio_click', True),
+    def _on_tree_double_click(evt):
+        item = tree.identify_row(evt.y)
+        if item:
+            valori_riga = tree.item(item, "values")
+            if len(valori_riga) > 1 and str(valori_riga[1]).strip() == "Trasferimento":
+                # i trasferimenti non sono in self.spese: la tabella principale (per giorno)
+                # non li mostrerebbe comunque, quindi si va direttamente al Portafoglio Bancario
+                popup.destroy()
+                self.open_saldo_conto(tab_iniziale="trasferimenti")
+                return
+        setattr(self, '_popup_da_doppio_click', True)
         self.goto_day_from_popup(tree, popup)
-    ))
+    tree.bind("<Double-1>", _on_tree_double_click)
     popup.bind("<Escape>", lambda event: _chiudi_popup())
     popup.protocol("WM_DELETE_WINDOW", lambda: _chiudi_popup())
     aggiorna_totali()

@@ -44,12 +44,17 @@ def _genera_date_ricorrenza_trasf(data_inizio, tipo, n):
     return date_list
 
 
-def open_saldo_conto(self):
+def open_saldo_conto(self, tab_iniziale=None):
         from __main__ import PORTAFOGLIO_BANCARIO, EXPORT_FILES
         self.mostra_treeview_statistiche()
         if hasattr(self, '_saldo_popup') and self._saldo_popup and self._saldo_popup.winfo_exists():
             self._saldo_popup.lift()
             self._saldo_popup.focus_force()
+            if tab_iniziale == "trasferimenti" and hasattr(self, '_saldo_conto_tab_trasferimenti'):
+                try:
+                    self._saldo_conto_nb.select(self._saldo_conto_tab_trasferimenti)
+                except Exception:
+                    pass
             return
         W, H = 1366, 650
         bg   = self.COLOR_TOPLEVEL
@@ -129,6 +134,8 @@ def open_saldo_conto(self):
         _add_tab(tab_trasferimenti, "reset_campo", "Trasferimenti")
         _add_tab(tab_movimenti,     "descrizione", "Movimenti")
         _add_tab(tab_storico,       "grafico_linea", "Storico Saldo")
+        self._saldo_conto_nb = nb
+        self._saldo_conto_tab_trasferimenti = tab_trasferimenti
         bar_bottom = tk.Frame(popup, bg=bg)
         bar_bottom.pack(fill=tk.X, side=tk.BOTTOM, pady=(4, 6))
         def build_riepilogo():
@@ -1713,6 +1720,8 @@ def open_saldo_conto(self):
             elif tab == 4:
                 build_storico()
         nb.bind("<<NotebookTabChanged>>", on_tab_change)
+        if tab_iniziale == "trasferimenti":
+            nb.select(tab_trasferimenti)
         def chiudi_portafoglio():
             if hasattr(self, '_calendario_attivo'):
                 try:

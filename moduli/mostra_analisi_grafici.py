@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import os
+import json
 import random
 import datetime
 from collections import defaultdict
@@ -8,12 +10,30 @@ import tkinter as tk
 from tkinter import ttk, TclError
 from moduli.modello_spesa import campo
 
+HOUSEHOLD_LABEL = "Patrimonio Complessivo"
+
+def _carica_db_conti():
+    try:
+        from __main__ import PORTAFOGLIO_BANCARIO
+        if os.path.exists(PORTAFOGLIO_BANCARIO):
+            with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {"conti": [], "trasferimenti": []}
+
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
     return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
 
 
 def mostra_analisi_grafici(self):
+    db_conti_analisi = _carica_db_conti()
+    conti_disponibili_analisi = db_conti_analisi.get("conti", [])
+    nomi_conti_analisi = [HOUSEHOLD_LABEL] + [c.get("nome", "") for c in conti_disponibili_analisi]
+    for _attr in ("analisi_tab1_conto_filtro", "analisi_tab2_conto_filtro", "analisi_tab3_conto_filtro"):
+        if not hasattr(self, _attr) or getattr(self, _attr) not in nomi_conti_analisi:
+            setattr(self, _attr, HOUSEHOLD_LABEL)
     def bind_popup(canvas, item, filter_data, title):
         canvas.tag_bind(item, "<Double-1>", 
                         lambda e: self.mostra_transazioni_popup(filter_data, title))
@@ -66,7 +86,8 @@ def mostra_analisi_grafici(self):
                     mese_filter = None
                     nome_mese_completo = nome_mese_abbr
                 periodo_title = f"{nome_mese_completo} {anno_filter}"
-            filter_data = {"anno": anno_filter, "mese": mese_filter, "tipo": tipo}
+            filter_data = {"anno": anno_filter, "mese": mese_filter, "tipo": tipo,
+                            "conto": None if self.analisi_tab1_conto_filtro == HOUSEHOLD_LABEL else self.analisi_tab1_conto_filtro}
             title_text = f"Transazioni {tipo} per {periodo_title}"
             if valore >= 0:
                 y1 = y_base - valore * scala
@@ -119,7 +140,8 @@ def mostra_analisi_grafici(self):
             y1 = y_base - altezza_pixel
             colore = colori.get(categoria, "#888888")
             rect = canvas.create_rectangle(x0, y_base, x1, y1, fill=colore)
-            filter_data = {"anno": anno_selezionato, "categoria": categoria, "tipo": "Uscita"}
+            filter_data = {"anno": anno_selezionato, "categoria": categoria, "tipo": "Uscita",
+                            "conto": None if self.analisi_tab2_conto_filtro == HOUSEHOLD_LABEL else self.analisi_tab2_conto_filtro}
             title_text = f"Movimenti Categoria '{categoria}' ({anno_selezionato})"
             bind_popup(canvas, rect, filter_data, title_text)
             percentuale = (valore / totale) * 100
@@ -307,7 +329,8 @@ def mostra_analisi_grafici(self):
                                 except ValueError:
                                     pass
                         title_text = f"{title_text_base} per {nome_mese_per_titolo} {anno_filtro}" 
-                filter_data = {"anno": anno_filtro, "mese": mese_num}
+                filter_data = {"anno": anno_filtro, "mese": mese_num,
+                                "conto": None if self.analisi_tab3_conto_filtro == HOUSEHOLD_LABEL else self.analisi_tab3_conto_filtro}
                 bind_popup(canvas, rect, filter_data, title_text)
                 testo_y = y1 - 10
                 valore_formattato = f"{_fmt_it(abs(valore))}"
@@ -327,12 +350,16 @@ def mostra_analisi_grafici(self):
         valori = self.tree_legenda.item(item_id[0], "values")
         categoria = valori[0]
         anno = selettore_anno2.get()
-        filter_data = {"anno": anno, "categoria": categoria, "tipo": "Uscita"}
+        filter_data = {"anno": anno, "categoria": categoria, "tipo": "Uscita",
+                        "conto": None if self.analisi_tab2_conto_filtro == HOUSEHOLD_LABEL else self.analisi_tab2_conto_filtro}
         title_text = f"Movimenti Categoria '{categoria}' ({anno})"
         self.mostra_transazioni_popup(filter_data, title_text)
                 
     def aggiorna_tab3(event=None):
         selezione = selettore_anno3.get()
+        conto_sel3 = None
+        if self.analisi_tab3_conto_filtro != HOUSEHOLD_LABEL:
+            conto_sel3 = next((c for c in conti_disponibili_analisi if c.get("nome", "") == self.analisi_tab3_conto_filtro), None)
         entrate = defaultdict(float)
         uscite = defaultdict(float)
         for data, voci in self.spese.items():
@@ -341,6 +368,8 @@ def mostra_analisi_grafici(self):
             if selezione != "Tutti" and str(anno) != selezione:
                 continue
             for voce in voci:
+                if conto_sel3 is not None and campo(voce, "conto", "") != conto_sel3.get("nome", ""):
+                    continue
                 if not includi_futuri_graf_var.get() and data > datetime.date.today():
                     continue
                 tipo = campo(voce, "tipo", "").strip().lower()
@@ -350,6 +379,27 @@ def mostra_analisi_grafici(self):
                     entrate[chiave] += importo
                 elif tipo == "uscita":
                     uscite[chiave] += importo
+        if conto_sel3 is not None:
+            for t in db_conti_analisi.get("trasferimenti", []):
+                if t.get("da") == "__spese__" or t.get("a") == "__spese__":
+                    continue
+                try:
+                    data_t = datetime.datetime.strptime(t["data"], "%d-%m-%Y").date()
+                except Exception:
+                    continue
+                if selezione != "Tutti" and str(data_t.year) != selezione:
+                    continue
+                if not includi_futuri_graf_var.get() and data_t > datetime.date.today():
+                    continue
+                try:
+                    imp_t = round(float(t.get("importo", 0)), 2)
+                except Exception:
+                    continue
+                chiave_t = str(data_t.year) if selezione == "Tutti" else data_t.month
+                if t.get("da") == conto_sel3.get("id"):
+                    uscite[chiave_t] += imp_t
+                elif t.get("a") == conto_sel3.get("id"):
+                    entrate[chiave_t] += imp_t
         total_entrate = sum(entrate.values())
         total_uscite = sum(uscite.values())
         saldo_totale = total_entrate - total_uscite
@@ -377,10 +427,15 @@ def mostra_analisi_grafici(self):
     def aggiorna_tab2(event=None):
         anno = selettore_anno2.get()
         canvas2.anno_corrente = anno
+        conto_sel2 = None
+        if self.analisi_tab2_conto_filtro != HOUSEHOLD_LABEL:
+            conto_sel2 = next((c for c in conti_disponibili_analisi if c.get("nome", "") == self.analisi_tab2_conto_filtro), None)
         categories = defaultdict(float)
         for data, voci in self.spese.items():
             if anno == "Tutti" or str(data.year) == anno:
                 for voce in voci:
+                    if conto_sel2 is not None and campo(voce, "conto", "") != conto_sel2.get("nome", ""):
+                        continue
                     if not includi_futuri_graf_var.get() and data > datetime.date.today():
                         continue
                     if campo(voce, "tipo", "").strip().lower() == "uscita":
@@ -441,6 +496,9 @@ def mostra_analisi_grafici(self):
             disegna_barre_conti(canvas4, canvas4.dati_cache, canvas4.colori_cache)
     def aggiorna_tab1(event=None):
         anno_selezionato = selettore_anno1.get()
+        conto_sel1 = None
+        if self.analisi_tab1_conto_filtro != HOUSEHOLD_LABEL:
+            conto_sel1 = next((c for c in conti_disponibili_analisi if c.get("nome", "") == self.analisi_tab1_conto_filtro), None)
         entrate = defaultdict(float)
         uscite = defaultdict(float)
         for data, voci in self.spese.items():
@@ -449,6 +507,8 @@ def mostra_analisi_grafici(self):
             if anno_selezionato != "Tutti" and str(anno) != anno_selezionato:
                 continue
             for voce in voci:
+                if conto_sel1 is not None and campo(voce, "conto", "") != conto_sel1.get("nome", ""):
+                    continue
                 if not includi_futuri_graf_var.get() and data > datetime.date.today():
                     continue
                 tipo = campo(voce, "tipo", "").strip().lower()
@@ -458,6 +518,27 @@ def mostra_analisi_grafici(self):
                     entrate[chiave] += importo
                 elif tipo == "uscita":
                     uscite[chiave] += importo
+        if conto_sel1 is not None:
+            for t in db_conti_analisi.get("trasferimenti", []):
+                if t.get("da") == "__spese__" or t.get("a") == "__spese__":
+                    continue
+                try:
+                    data_t = datetime.datetime.strptime(t["data"], "%d-%m-%Y").date()
+                except Exception:
+                    continue
+                if anno_selezionato != "Tutti" and str(data_t.year) != anno_selezionato:
+                    continue
+                if not includi_futuri_graf_var.get() and data_t > datetime.date.today():
+                    continue
+                try:
+                    imp_t = round(float(t.get("importo", 0)), 2)
+                except Exception:
+                    continue
+                chiave_t = str(data_t.year) if anno_selezionato == "Tutti" else data_t.month
+                if t.get("da") == conto_sel1.get("id"):
+                    uscite[chiave_t] += imp_t
+                elif t.get("a") == conto_sel1.get("id"):
+                    entrate[chiave_t] += imp_t
         total_entrate = sum(entrate.values())
         total_uscite = sum(uscite.values())
         saldo = total_entrate - total_uscite
@@ -537,10 +618,32 @@ def mostra_analisi_grafici(self):
     )
     lbl_periodo.image = img_mouse
     lbl_periodo.pack(side="top", padx=10)
-    selettore_anno1 = ttk.Combobox(tab1, values=["Tutti"] + [str(a) for a in anni], style="Border.TCombobox", state='readonly')
+    frame_selettore1 = tk.Frame(tab1, bg=self.COLOR_WIDGET_BG)
+    frame_selettore1.pack(pady=10)
+    selettore_anno1 = ttk.Combobox(frame_selettore1, values=["Tutti"] + [str(a) for a in anni], style="Border.TCombobox", state='readonly')
     selettore_anno1.set("Tutti")
-    selettore_anno1.pack(pady=10)
+    selettore_anno1.pack(side="left")
     selettore_anno1.bind("<<ComboboxSelected>>", aggiorna_tab1)
+    def on_cambio_conto_tab1(event=None):
+        self.analisi_tab1_conto_filtro = combo_conto1.get()
+        aggiorna_tab1()
+    combo_conto1 = ttk.Combobox(frame_selettore1, values=nomi_conti_analisi, state="readonly", width=20, style="Border.TCombobox")
+    combo_conto1.set(self.analisi_tab1_conto_filtro)
+    combo_conto1.bind("<<ComboboxSelected>>", on_cambio_conto_tab1)
+    combo_conto1.pack(side="left", padx=(6, 0))
+    def reset_anno1(event=None):
+        selettore_anno1.set("Tutti")
+        combo_conto1.set(HOUSEHOLD_LABEL)
+        self.analisi_tab1_conto_filtro = HOUSEHOLD_LABEL
+        aggiorna_tab1()
+    img_reset1 = self.icone_gui.get("reset")
+    btn_reset1 = tk.Label(frame_selettore1, image=img_reset1 if img_reset1 else None,
+                           text="" if img_reset1 else "↺", bg=self.COLOR_WIDGET_BG,
+                           fg=self.TEXT_COLOR, cursor="hand2")
+    if img_reset1:
+        btn_reset1.image = img_reset1
+    btn_reset1.bind("<Button-1>", reset_anno1)
+    btn_reset1.pack(side="left", padx=(4, 0))
     canvas1 = tk.Canvas(tab1, bg=self.COLOR_WIDGET_BG)
     canvas1.pack(fill="both", expand=True, padx=10, pady=10)
     canvas1.selettore_rif = selettore_anno1
@@ -562,10 +665,32 @@ def mostra_analisi_grafici(self):
     )
     lbl_periodo_tab2.image = img_mouse 
     lbl_periodo_tab2.grid(row=0, column=0, sticky="w", padx=10, pady=5)
-    selettore_anno2 = ttk.Combobox(tab2, values=["Tutti"] + [str(a) for a in anni], style="Border.TCombobox", state='readonly')
+    frame_selettore2 = tk.Frame(tab2, bg=self.COLOR_WIDGET_BG)
+    frame_selettore2.grid(row=0, column=0, sticky="n", pady=10)
+    selettore_anno2 = ttk.Combobox(frame_selettore2, values=["Tutti"] + [str(a) for a in anni], style="Border.TCombobox", state='readonly')
     selettore_anno2.set("Tutti")
-    selettore_anno2.grid(row=0, column=0, sticky="n", pady=10)
+    selettore_anno2.pack(side="left")
     selettore_anno2.bind("<<ComboboxSelected>>", aggiorna_tab2)
+    def on_cambio_conto_tab2(event=None):
+        self.analisi_tab2_conto_filtro = combo_conto2.get()
+        aggiorna_tab2()
+    combo_conto2 = ttk.Combobox(frame_selettore2, values=nomi_conti_analisi, state="readonly", width=20, style="Border.TCombobox")
+    combo_conto2.set(self.analisi_tab2_conto_filtro)
+    combo_conto2.bind("<<ComboboxSelected>>", on_cambio_conto_tab2)
+    combo_conto2.pack(side="left", padx=(6, 0))
+    def reset_anno2(event=None):
+        selettore_anno2.set("Tutti")
+        combo_conto2.set(HOUSEHOLD_LABEL)
+        self.analisi_tab2_conto_filtro = HOUSEHOLD_LABEL
+        aggiorna_tab2()
+    img_reset2 = self.icone_gui.get("reset")
+    btn_reset2 = tk.Label(frame_selettore2, image=img_reset2 if img_reset2 else None,
+                           text="" if img_reset2 else "↺", bg=self.COLOR_WIDGET_BG,
+                           fg=self.TEXT_COLOR, cursor="hand2")
+    if img_reset2:
+        btn_reset2.image = img_reset2
+    btn_reset2.bind("<Button-1>", reset_anno2)
+    btn_reset2.pack(side="left", padx=(4, 0))
     canvas_frame_scroll = ttk.Frame(tab2)
     canvas_frame_scroll.grid(row=1, column=0, sticky="nsew", padx=5, pady=(0, 10))
     scrollbar_h = ttk.Scrollbar(canvas_frame_scroll, orient="horizontal", style="Horizontal.TScrollbar")
@@ -615,10 +740,32 @@ def mostra_analisi_grafici(self):
     )
     lbl_periodo_tab3.image = img_mouse_tab3
     lbl_periodo_tab3.pack(side="top", padx=10, pady=5)
-    selettore_anno3 = ttk.Combobox(tab3, values=["Tutti"] + [str(a) for a in anni], style="Border.TCombobox", state='readonly')
+    frame_selettore3 = tk.Frame(tab3, bg=self.COLOR_WIDGET_BG)
+    frame_selettore3.pack(pady=10)
+    selettore_anno3 = ttk.Combobox(frame_selettore3, values=["Tutti"] + [str(a) for a in anni], style="Border.TCombobox", state='readonly')
     selettore_anno3.set("Tutti")
-    selettore_anno3.pack(pady=10)
+    selettore_anno3.pack(side="left")
     selettore_anno3.bind("<<ComboboxSelected>>", aggiorna_tab3)
+    def on_cambio_conto_tab3(event=None):
+        self.analisi_tab3_conto_filtro = combo_conto3.get()
+        aggiorna_tab3()
+    combo_conto3 = ttk.Combobox(frame_selettore3, values=nomi_conti_analisi, state="readonly", width=20, style="Border.TCombobox")
+    combo_conto3.set(self.analisi_tab3_conto_filtro)
+    combo_conto3.bind("<<ComboboxSelected>>", on_cambio_conto_tab3)
+    combo_conto3.pack(side="left", padx=(6, 0))
+    def reset_anno3(event=None):
+        selettore_anno3.set("Tutti")
+        combo_conto3.set(HOUSEHOLD_LABEL)
+        self.analisi_tab3_conto_filtro = HOUSEHOLD_LABEL
+        aggiorna_tab3()
+    img_reset3 = self.icone_gui.get("reset")
+    btn_reset3 = tk.Label(frame_selettore3, image=img_reset3 if img_reset3 else None,
+                           text="" if img_reset3 else "↺", bg=self.COLOR_WIDGET_BG,
+                           fg=self.TEXT_COLOR, cursor="hand2")
+    if img_reset3:
+        btn_reset3.image = img_reset3
+    btn_reset3.bind("<Button-1>", reset_anno3)
+    btn_reset3.pack(side="left", padx=(4, 0))
     canvas3 = tk.Canvas(tab3, bg=self.COLOR_WIDGET_BG)
     canvas3.pack(fill="both", expand=True, padx=10, pady=10)
     canvas3.selettore_rif = selettore_anno3
@@ -640,10 +787,23 @@ def mostra_analisi_grafici(self):
     )
     lbl_periodo_tab4.image = img_mouse_tab4
     lbl_periodo_tab4.grid(row=0, column=0, sticky="w", padx=10, pady=5)
-    selettore_anno4 = ttk.Combobox(tab4, values=["Tutti"] + [str(a) for a in anni], style="Border.TCombobox", state='readonly')
+    frame_selettore4 = tk.Frame(tab4, bg=self.COLOR_WIDGET_BG)
+    frame_selettore4.grid(row=0, column=0, sticky="n", pady=10)
+    selettore_anno4 = ttk.Combobox(frame_selettore4, values=["Tutti"] + [str(a) for a in anni], style="Border.TCombobox", state='readonly')
     selettore_anno4.set("Tutti")
-    selettore_anno4.grid(row=0, column=0, sticky="n", pady=10)
+    selettore_anno4.pack(side="left")
     selettore_anno4.bind("<<ComboboxSelected>>", aggiorna_tab4)
+    def reset_anno4(event=None):
+        selettore_anno4.set("Tutti")
+        aggiorna_tab4()
+    img_reset4 = self.icone_gui.get("reset")
+    btn_reset4 = tk.Label(frame_selettore4, image=img_reset4 if img_reset4 else None,
+                           text="" if img_reset4 else "↺", bg=self.COLOR_WIDGET_BG,
+                           fg=self.TEXT_COLOR, cursor="hand2")
+    if img_reset4:
+        btn_reset4.image = img_reset4
+    btn_reset4.bind("<Button-1>", reset_anno4)
+    btn_reset4.pack(side="left", padx=(4, 0))
     canvas_frame_scroll4 = ttk.Frame(tab4)
     canvas_frame_scroll4.grid(row=1, column=0, sticky="nsew", padx=5, pady=(0, 10))
     scrollbar_h4 = ttk.Scrollbar(canvas_frame_scroll4, orient="horizontal", style="Horizontal.TScrollbar")
