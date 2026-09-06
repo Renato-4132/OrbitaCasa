@@ -17,6 +17,7 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
     mese_filtro_raw = data_filter.get("mese") 
     giorno = data_filter.get("giorno")
     tipo_filtro = data_filter.get("tipo")
+    conto_filtro = data_filter.get("conto")
     categorie_filtro_list = data_filter.get("categorie", []) 
     categoria_singola_raw = data_filter.get("categoria")
     if categoria_singola_raw and categoria_singola_raw != "Tutti":
@@ -61,6 +62,8 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
             if devo_filtrare_categorie and cat_normalized_aggressive not in categorie_filtro_normalizzate_aggressive:
                 continue
             if tipo_filtro and entry_tipo != tipo_filtro.capitalize():
+                continue
+            if conto_filtro and campo(entry, "conto", "") != conto_filtro:
                 continue
             if filtro_metodo:
                 entry_metodo = campo(entry, "metodo_pagamento", "")

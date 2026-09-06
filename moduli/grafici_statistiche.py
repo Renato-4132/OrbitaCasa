@@ -48,6 +48,16 @@ def draw_bar_chart(self, event=None):
             self._interno_ciclo = True
             self.draw_bar_chart()
             if hasattr(self, '_interno_ciclo'): del self._interno_ciclo
+        db_conti = _carica_db_conti()
+        conti_disponibili = db_conti.get("conti", [])
+        nomi_conti = [HOUSEHOLD_LABEL] + [c.get("nome", "") for c in conti_disponibili]
+        if not hasattr(self, 'bar_grafico_conto_filtro'):
+            self.bar_grafico_conto_filtro = HOUSEHOLD_LABEL
+        if self.bar_grafico_conto_filtro not in nomi_conti:
+            self.bar_grafico_conto_filtro = HOUSEHOLD_LABEL
+        conto_sel = None
+        if self.bar_grafico_conto_filtro != HOUSEHOLD_LABEL:
+            conto_sel = next((c for c in conti_disponibili if c.get("nome", "") == self.bar_grafico_conto_filtro), None)
         category_totals = defaultdict(float)
         income_totals = defaultdict(float)
         oggi = datetime.date.today()
@@ -63,6 +73,8 @@ def draw_bar_chart(self, event=None):
                         elif not isinstance(entry, dict) and len(entry) >= 4:
                             cat, imp, tipo = entry[0], entry[2], entry[3]
                         else:
+                            continue
+                        if conto_sel is not None and campo(entry, "conto", "") != conto_sel.get("nome", ""):
                             continue
                         if not self.considera_ricorrenze_var.get() and giorno > datetime.date.today():
                             continue
@@ -84,7 +96,7 @@ def draw_bar_chart(self, event=None):
         total_draw_width = CHART_LEFT + (num_bars * BAR_SPACE) + 150
         canvas.config(scrollregion=(0, 0, total_draw_width, c_height))
         titoli = [" Uscite per Categoria", " Uscite Storico", " Bilancio Anno", "Bilancio Storico"]
-        testi_btn = [" Passa a Storico", " Bilancio Anno", " Bilancio Storico", " Torna a Categorie"]
+        testi_btn = [" Storico", " Anno", " Storico", " Categorie"]
         lbl_titolo = tk.Label(canvas, text=f"{titoli[self.stats_step]} ({periodo_str})", font=("Arial", 9, "bold"), bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR, padx=5)
         img_mouse = self.icone_gui.get("mouse")
         lbl_hint = tk.Label(
@@ -114,6 +126,30 @@ def draw_bar_chart(self, event=None):
             btn_toggle.image = img_btn
         btn_toggle.bind("<Button-1>", lambda e: ciclo_viste())
         self.win_btn = canvas.create_window(c_width - 10, 10, window=btn_toggle, anchor="ne")
+        canvas.update_idletasks()
+        btn_bbox = canvas.bbox(self.win_btn)
+        combo_x_bar = (btn_bbox[0] - 8) if btn_bbox else (c_width - 200)
+        def on_cambio_conto_bar(event=None):
+            self.bar_grafico_conto_filtro = combo_conto_bar.get()
+            self.draw_bar_chart()
+        def reset_conto_bar(event=None):
+            self.bar_grafico_conto_filtro = HOUSEHOLD_LABEL
+            self.draw_bar_chart()
+        combo_conto_bar = ttk.Combobox(canvas, values=nomi_conti, state="readonly", width=24, font=("Arial", 8), style="Border.TCombobox")
+        combo_conto_bar.set(self.bar_grafico_conto_filtro)
+        combo_conto_bar.bind("<<ComboboxSelected>>", on_cambio_conto_bar)
+        self.win_combo_conto_bar = canvas.create_window(combo_x_bar, 10, window=combo_conto_bar, anchor="ne")
+        canvas.update_idletasks()
+        bbox_combo_bar = canvas.bbox(self.win_combo_conto_bar)
+        icon_x_bar = (bbox_combo_bar[0] - 4) if bbox_combo_bar else (combo_x_bar - 160)
+        img_reset_bar = self.icone_gui.get("reset")
+        btn_reset_bar = tk.Label(canvas, image=img_reset_bar if img_reset_bar else None,
+                                  text="" if img_reset_bar else "↺", bg=self.COLOR_WIDGET_BG,
+                                  fg=self.TEXT_COLOR, cursor="hand2")
+        if img_reset_bar:
+            btn_reset_bar.image = img_reset_bar
+        btn_reset_bar.bind("<Button-1>", reset_conto_bar)
+        self.win_reset_conto_bar = canvas.create_window(icon_x_bar, 10, window=btn_reset_bar, anchor="ne")
         t_in, t_out = sum(x['value'] for x in data_in), sum(x['value'] for x in data_out)
         saldo = t_in - t_out
         col_saldo = "#28a745" if saldo >= 0 else "#dc3545"
@@ -151,7 +187,8 @@ def draw_bar_chart(self, event=None):
                 tooltip_txt += f"\nBudget annuo: € {formatta_italiano(budget)}" + (" — Budget superato" if sfora else "")
             canvas.tag_bind(tag, "<Enter>", lambda e, t=tooltip_txt: self.show_tooltip(e, t))
             canvas.tag_bind(tag, "<Leave>", lambda e: self.hide_tooltip())
-            filtro = {"anno": None if self.visualizza_tutti_gli_anni else str(anno_corrente), "categoria": label, "tipo": tipo}
+            conto_bar_attivo = None if self.bar_grafico_conto_filtro == HOUSEHOLD_LABEL else self.bar_grafico_conto_filtro
+            filtro = {"anno": None if self.visualizza_tutti_gli_anni else str(anno_corrente), "categoria": label, "tipo": tipo, "conto": conto_bar_attivo}
             canvas.tag_bind(tag, "<Double-1>", lambda e, f=filtro, l=label: self.mostra_transazioni_popup(f, f"Dettaglio {l}"))
         budget_annuale_cat = getattr(self, 'budget_annuale_categorie', {})
         mostra_budget = not self.visualizza_tutti_gli_anni
@@ -208,6 +245,16 @@ def draw_mensile_chart(self, event=None):
             self.draw_mensile_chart()
         oggi = datetime.date.today()
         anno_corrente = oggi.year
+        db_conti = _carica_db_conti()
+        conti_disponibili = db_conti.get("conti", [])
+        nomi_conti = [HOUSEHOLD_LABEL] + [c.get("nome", "") for c in conti_disponibili]
+        if not hasattr(self, 'mensile_grafico_conto_filtro'):
+            self.mensile_grafico_conto_filtro = HOUSEHOLD_LABEL
+        if self.mensile_grafico_conto_filtro not in nomi_conti:
+            self.mensile_grafico_conto_filtro = HOUSEHOLD_LABEL
+        conto_sel = None
+        if self.mensile_grafico_conto_filtro != HOUSEHOLD_LABEL:
+            conto_sel = next((c for c in conti_disponibili if c.get("nome", "") == self.mensile_grafico_conto_filtro), None)
         if self.visualizza_tutti_gli_anni_mensile:
             aggregati = {}
             for giorno, entries in self.spese.items():
@@ -216,6 +263,8 @@ def draw_mensile_chart(self, event=None):
                     if anno not in aggregati:
                         aggregati[anno] = {"label": str(anno), "entrata": 0.0, "uscita": 0.0}
                     for entry in entries:
+                        if conto_sel is not None and campo(entry, "conto", "") != conto_sel.get("nome", ""):
+                            continue
                         tipo = entry[3] if not isinstance(entry, dict) else entry.get("tipo", "")
                         importo = float(entry[2]) if not isinstance(entry, dict) else float(entry.get("importo", 0))
                         if not self.considera_ricorrenze_var.get() and giorno > datetime.date.today():
@@ -224,6 +273,27 @@ def draw_mensile_chart(self, event=None):
                             aggregati[anno]["entrata"] += importo
                         elif tipo == "Uscita":
                             aggregati[anno]["uscita"] += importo
+            if conto_sel is not None:
+                for t in db_conti.get("trasferimenti", []):
+                    if t.get("da") == "__spese__" or t.get("a") == "__spese__":
+                        continue
+                    try:
+                        data_t = datetime.datetime.strptime(t["data"], "%d-%m-%Y").date()
+                    except Exception:
+                        continue
+                    if not self.considera_ricorrenze_var.get() and data_t > oggi:
+                        continue
+                    try:
+                        imp = round(float(t.get("importo", 0)), 2)
+                    except Exception:
+                        continue
+                    anno_t = data_t.year
+                    if anno_t not in aggregati:
+                        aggregati[anno_t] = {"label": str(anno_t), "entrata": 0.0, "uscita": 0.0}
+                    if t.get("da") == conto_sel.get("id"):
+                        aggregati[anno_t]["uscita"] += imp
+                    elif t.get("a") == conto_sel.get("id"):
+                        aggregati[anno_t]["entrata"] += imp
             self.data_for_chart = [aggregati[anno] for anno in sorted(aggregati)]
         else:
             mesi_brevi = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
@@ -232,6 +302,8 @@ def draw_mensile_chart(self, event=None):
                 if hasattr(giorno, "year") and giorno.year == anno_corrente:
                     mese_index = giorno.month - 1
                     for entry in entries:
+                        if conto_sel is not None and campo(entry, "conto", "") != conto_sel.get("nome", ""):
+                            continue
                         tipo = entry[3] if not isinstance(entry, dict) else entry.get("tipo", "")
                         importo = float(entry[2]) if not isinstance(entry, dict) else float(entry.get("importo", 0))
                         if not self.considera_ricorrenze_var.get() and giorno > datetime.date.today():
@@ -240,6 +312,27 @@ def draw_mensile_chart(self, event=None):
                             mensili[mese_index]["entrata"] += importo
                         elif tipo == "Uscita":
                             mensili[mese_index]["uscita"] += importo
+            if conto_sel is not None:
+                for t in db_conti.get("trasferimenti", []):
+                    if t.get("da") == "__spese__" or t.get("a") == "__spese__":
+                        continue
+                    try:
+                        data_t = datetime.datetime.strptime(t["data"], "%d-%m-%Y").date()
+                    except Exception:
+                        continue
+                    if data_t.year != anno_corrente:
+                        continue
+                    if not self.considera_ricorrenze_var.get() and data_t > oggi:
+                        continue
+                    try:
+                        imp = round(float(t.get("importo", 0)), 2)
+                    except Exception:
+                        continue
+                    mese_idx_t = data_t.month - 1
+                    if t.get("da") == conto_sel.get("id"):
+                        mensili[mese_idx_t]["uscita"] += imp
+                    elif t.get("a") == conto_sel.get("id"):
+                        mensili[mese_idx_t]["entrata"] += imp
             self.data_for_chart = mensili
         c_width = canvas.winfo_width() if canvas.winfo_width() > 10 else 800
         c_height = canvas.winfo_height() if canvas.winfo_height() > 10 else 400
@@ -250,7 +343,7 @@ def draw_mensile_chart(self, event=None):
         CHART_AREA_WIDTH = CHART_RIGHT - CHART_LEFT
         CHART_HEIGHT = CHART_BOTTOM - CHART_TOP
         img_mensile = self.icone_gui.get("oggi" if not self.visualizza_tutti_gli_anni_mensile else "calendario")
-        btn_text = " Tutti gli anni" if not self.visualizza_tutti_gli_anni_mensile else " Solo anno corrente"
+        btn_text = " Tutti gli anni" if not self.visualizza_tutti_gli_anni_mensile else " Anno attuale"
         btn_toggle = tk.Label(
             canvas,
             image=img_mensile if img_mensile else None,
@@ -265,14 +358,38 @@ def draw_mensile_chart(self, event=None):
             btn_toggle.image = img_mensile
         btn_toggle.bind("<Button-1>", lambda e: toggle_anni())
         self.win_btn_mensile = canvas.create_window(c_width - 10, 10, window=btn_toggle, anchor="ne")
+        canvas.update_idletasks()
+        btn_bbox_mensile = canvas.bbox(self.win_btn_mensile)
+        combo_x_mensile = (btn_bbox_mensile[0] - 8) if btn_bbox_mensile else (c_width - 200)
+        def on_cambio_conto_mensile(event=None):
+            self.mensile_grafico_conto_filtro = combo_conto_mensile.get()
+            self.draw_mensile_chart()
+        def reset_conto_mensile(event=None):
+            self.mensile_grafico_conto_filtro = HOUSEHOLD_LABEL
+            self.draw_mensile_chart()
+        combo_conto_mensile = ttk.Combobox(canvas, values=nomi_conti, state="readonly", width=24, font=("Arial", 8), style="Border.TCombobox")
+        combo_conto_mensile.set(self.mensile_grafico_conto_filtro)
+        combo_conto_mensile.bind("<<ComboboxSelected>>", on_cambio_conto_mensile)
+        self.win_combo_conto_mensile = canvas.create_window(combo_x_mensile, 10, window=combo_conto_mensile, anchor="ne")
+        canvas.update_idletasks()
+        bbox_combo_mensile = canvas.bbox(self.win_combo_conto_mensile)
+        icon_x_mensile = (bbox_combo_mensile[0] - 4) if bbox_combo_mensile else (combo_x_mensile - 160)
+        img_reset_mensile = self.icone_gui.get("reset")
+        btn_reset_mensile = tk.Label(canvas, image=img_reset_mensile if img_reset_mensile else None,
+                                      text="" if img_reset_mensile else "↺", bg=self.COLOR_WIDGET_BG,
+                                      fg=self.TEXT_COLOR, cursor="hand2")
+        if img_reset_mensile:
+            btn_reset_mensile.image = img_reset_mensile
+        btn_reset_mensile.bind("<Button-1>", reset_conto_mensile)
+        self.win_reset_conto_mensile = canvas.create_window(icon_x_mensile, 10, window=btn_reset_mensile, anchor="ne")
         if not self.data_for_chart or all(item["entrata"] == 0 and item["uscita"] == 0 for item in self.data_for_chart):
             canvas.create_text(c_width // 2, c_height // 2, text="Nessun dato disponibile.", font=("Arial", 12), fill="#AAAAAA")
             return
-        titolo_g = f"Movimenti Entrate/Uscite per Mese ({anno_corrente})"
+        titolo_g = f"Movimenti Mensili ({anno_corrente})"
         if self.visualizza_tutti_gli_anni_mensile:
             anni_p = [item["label"] for item in self.data_for_chart]
             label_p = f"({anni_p[0]} - {anni_p[-1]})" if anni_p else ""
-            titolo_g = f"Movimenti Entrate/Uscite Aggregate per Anno {label_p}"
+            titolo_g = f"Movimenti Annuali {label_p}"
         frame_titolo = tk.Frame(canvas, bg=self.COLOR_WIDGET_BG)
         tk.Label(frame_titolo, text=titolo_g, font=("Arial", 9, "bold"),
                  bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR, padx=5).pack(side="left")
@@ -315,10 +432,11 @@ def draw_mensile_chart(self, event=None):
             else:
                 f_anno, f_mese = str(anno_corrente), i + 1
                 p_text = f"{mesi_completi[i]} {anno_corrente}"
-            canvas.tag_bind(tag_e, "<Double-1>", lambda e, a=f_anno, m=f_mese, t=p_text: 
-                self.mostra_transazioni_popup({"anno": a, "mese": m, "categoria": None, "tipo": "Entrata"}, f"Transazioni {t} - Solo Entrate"))
-            canvas.tag_bind(tag_u, "<Double-1>", lambda e, a=f_anno, m=f_mese, t=p_text: 
-                self.mostra_transazioni_popup({"anno": a, "mese": m, "categoria": None, "tipo": "Uscita"}, f"Transazioni {t} - Solo Uscite"))
+            conto_mensile_attivo = None if self.mensile_grafico_conto_filtro == HOUSEHOLD_LABEL else self.mensile_grafico_conto_filtro
+            canvas.tag_bind(tag_e, "<Double-1>", lambda e, a=f_anno, m=f_mese, t=p_text, c=conto_mensile_attivo: 
+                self.mostra_transazioni_popup({"anno": a, "mese": m, "categoria": None, "tipo": "Entrata", "conto": c}, f"Transazioni {t} - Solo Entrate"))
+            canvas.tag_bind(tag_u, "<Double-1>", lambda e, a=f_anno, m=f_mese, t=p_text, c=conto_mensile_attivo: 
+                self.mostra_transazioni_popup({"anno": a, "mese": m, "categoria": None, "tipo": "Uscita", "conto": c}, f"Transazioni {t} - Solo Uscite"))
             canvas.tag_bind(tag_e, "<Enter>", lambda e, v=item['entrata'], l=item['label']: self.show_tooltip(e, f"{l} - Entrata: € {formatta_italiano(v)}"))
             canvas.tag_bind(tag_e, "<Leave>", self.hide_tooltip)
             canvas.tag_bind(tag_u, "<Enter>", lambda e, v=item['uscita'], l=item['label']: self.show_tooltip(e, f"{l} - Uscita: € {formatta_italiano(v)}"))
@@ -436,10 +554,10 @@ def draw_saldo_chart(self, event=None):
                 self.visualizza_saldo_10_anni = False
             self.draw_saldo_chart()
         if self.visualizza_saldo_10_anni:
-            btn_text = " Solo anno corrente"
+            btn_text = " Anno attuale"
             icona_saldo = self.icone_gui.get("calendario")
         elif self.visualizza_saldo_totale:
-            btn_text = " 10 anni (Cumulativo)"
+            btn_text = " Cumulativo"
             icona_saldo = self.icone_gui.get("grafico_linea")
         else:
             btn_text = " Tutti gli anni"
@@ -459,10 +577,24 @@ def draw_saldo_chart(self, event=None):
         def on_cambio_conto_saldo(event=None):
             self.saldo_grafico_conto_filtro = combo_conto_saldo.get()
             self.draw_saldo_chart()
+        def reset_conto_saldo(event=None):
+            self.saldo_grafico_conto_filtro = HOUSEHOLD_LABEL
+            self.draw_saldo_chart()
         combo_conto_saldo = ttk.Combobox(canvas, values=nomi_conti, state="readonly", width=24, font=("Arial", 8), style="Border.TCombobox")
         combo_conto_saldo.set(self.saldo_grafico_conto_filtro)
         combo_conto_saldo.bind("<<ComboboxSelected>>", on_cambio_conto_saldo)
         self.win_combo_conto_saldo = canvas.create_window(combo_x, 2, window=combo_conto_saldo, anchor="ne")
+        canvas.update_idletasks()
+        bbox_combo_saldo = canvas.bbox(self.win_combo_conto_saldo)
+        icon_x_saldo = (bbox_combo_saldo[0] - 4) if bbox_combo_saldo else (combo_x - 160)
+        img_reset_saldo = self.icone_gui.get("reset")
+        btn_reset_saldo = tk.Label(canvas, image=img_reset_saldo if img_reset_saldo else None,
+                                    text="" if img_reset_saldo else "↺", bg=self.COLOR_WIDGET_BG,
+                                    fg=self.TEXT_COLOR, cursor="hand2")
+        if img_reset_saldo:
+            btn_reset_saldo.image = img_reset_saldo
+        btn_reset_saldo.bind("<Button-1>", reset_conto_saldo)
+        self.win_reset_conto_saldo = canvas.create_window(icon_x_saldo, 2, window=btn_reset_saldo, anchor="ne")
         conto_sel = None
         if self.saldo_grafico_conto_filtro != HOUSEHOLD_LABEL:
             conto_sel = next((c for c in conti_disponibili if c.get("nome", "") == self.saldo_grafico_conto_filtro), None)
@@ -644,7 +776,8 @@ def draw_saldo_chart(self, event=None):
                     "anno": str(d_data.year),
                     "mese": d_data.month,
                     "categoria": None,
-                    "tipo": None
+                    "tipo": None,
+                    "conto": None if self.saldo_grafico_conto_filtro == HOUSEHOLD_LABEL else self.saldo_grafico_conto_filtro
                 }
                 canvas.tag_bind(rect_id, "<Double-1>", 
                                 lambda e, f=d_filter, t=popup_title: self.mostra_transazioni_popup(f, t))
@@ -696,7 +829,8 @@ def draw_saldo_chart(self, event=None):
                             "anno": anno,
                             "mese": None,
                             "categoria": None,
-                            "tipo": None
+                            "tipo": None,
+                            "conto": None if self.saldo_grafico_conto_filtro == HOUSEHOLD_LABEL else self.saldo_grafico_conto_filtro
                         }
                     else:
                         mese_index = i + 1
@@ -707,7 +841,8 @@ def draw_saldo_chart(self, event=None):
                             "anno": anno,
                             "mese": mese_index,
                             "categoria": None,
-                            "tipo": None
+                            "tipo": None,
+                            "conto": None if self.saldo_grafico_conto_filtro == HOUSEHOLD_LABEL else self.saldo_grafico_conto_filtro
                         }
                     canvas.tag_bind(rect_id, "<Double-1>", 
                                     lambda e, f=data_filter, t=popup_title: 
