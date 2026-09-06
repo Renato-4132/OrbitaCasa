@@ -1453,7 +1453,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                             except Exception:
                                 pass
                     cat_ia       = dati_drop.get("categoria", "")
-                    categoria_ia = cat_ia if cat_ia in self.categorie else (self.categorie[0] if self.categorie else "")
+                    categoria_ia = cat_ia if cat_ia in self.categorie else ("Generica" if "Generica" in self.categorie else "")
                     def _aggiorna_gui():
                         _nascondi_progress_ai()
                         data_var.set(data_ia)
