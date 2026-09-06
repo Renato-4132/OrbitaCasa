@@ -6,11 +6,11 @@ import datetime
 import tkinter as tk
 from tkinter import ttk
 from moduli.modello_spesa import campo
+from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa
 
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
     return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
-
 
 def apri_gestione_tag(self):
     import __main__ as _app
@@ -105,31 +105,12 @@ def apri_gestione_tag(self):
     def _popola(filtri=None):
         tv.delete(*tv.get_children())
         tdb = _carica()
-        try:
-            with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as _f:
-                _db_p = json.load(_f)
-            _id_to_nome = {c["id"]: c.get("nome", "?") for c in _db_p.get("conti", [])}
-            _trasferimenti = _db_p.get("trasferimenti", [])
-        except Exception:
-            _id_to_nome = {}
-            _trasferimenti = []
-        _agganci_conto = {}
-        for _t in _trasferimenti:
-            if _t.get("da") in ("__spese__", "Contabilità") or _t.get("a") in ("__spese__", "Contabilità"):
-                _data_t = _t.get("data", "")
-                _imp_t  = round(float(_t.get("importo", 0)), 2)
-                _tipo_t = "Entrata" if _t.get("da") in ("__spese__", "Contabilità") else "Uscita"
-                _cnome  = _id_to_nome.get(_t.get("a") if _tipo_t == "Entrata" else _t.get("da"), "(nessuno)")
-                _agganci_conto.setdefault((_data_t, _imp_t, _tipo_t), []).append(_cnome)
+        _agganci_conto = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
         _uso_ordinale_conto = {}
         def _trova_conto_cached(d, imp, tipo):
             if not d:
                 return "(nessuno)"
-            chiave_c = (d.strftime("%d-%m-%Y"), round(imp, 2), tipo)
-            lista_c = _agganci_conto.get(chiave_c, [])
-            ord_c = _uso_ordinale_conto.get(chiave_c, 0)
-            _uso_ordinale_conto[chiave_c] = ord_c + 1
-            return lista_c[ord_c] if ord_c < len(lista_c) else "(nessuno)"
+            return conto_da_mappa(_agganci_conto, _uso_ordinale_conto, d.strftime("%d-%m-%Y"), imp, tipo) or "(nessuno)"
         filtro_tag  = (filtri or {}).get("tag",  "").lower().strip()
         filtro_cat  = (filtri or {}).get("cat",  "—")
         filtro_tipo = (filtri or {}).get("tipo", "—")

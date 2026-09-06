@@ -9,6 +9,7 @@ from collections import defaultdict
 import tkinter as tk
 from tkinter import ttk, TclError
 from moduli.modello_spesa import campo
+from moduli.mappa_conti_trasferimenti import e_trasferimento_virtuale
 
 HOUSEHOLD_LABEL = "Patrimonio Complessivo"
 
@@ -25,7 +26,6 @@ def _carica_db_conti():
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
     return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
-
 
 def mostra_analisi_grafici(self):
     db_conti_analisi = _carica_db_conti()
@@ -381,7 +381,7 @@ def mostra_analisi_grafici(self):
                     uscite[chiave] += importo
         if conto_sel3 is not None:
             for t in db_conti_analisi.get("trasferimenti", []):
-                if t.get("da") == "__spese__" or t.get("a") == "__spese__":
+                if e_trasferimento_virtuale(t):
                     continue
                 try:
                     data_t = datetime.datetime.strptime(t["data"], "%d-%m-%Y").date()
@@ -520,7 +520,7 @@ def mostra_analisi_grafici(self):
                     uscite[chiave] += importo
         if conto_sel1 is not None:
             for t in db_conti_analisi.get("trasferimenti", []):
-                if t.get("da") == "__spese__" or t.get("a") == "__spese__":
+                if e_trasferimento_virtuale(t):
                     continue
                 try:
                     data_t = datetime.datetime.strptime(t["data"], "%d-%m-%Y").date()

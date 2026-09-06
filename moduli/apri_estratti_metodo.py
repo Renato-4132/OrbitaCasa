@@ -6,6 +6,7 @@ import datetime
 import tkinter as tk
 from tkinter import ttk
 from moduli.modello_spesa import campo, METODI_PAGAMENTO_EMOJI, NOME_DA_EMOJI, metodo_pagamento_pulito
+from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa
 
 def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
     import __main__ as _app
@@ -38,18 +39,9 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
         with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as _pf:
             _db_p_em = json.load(_pf)
         _conti_em = [c.get("nome","?") for c in _db_p_em.get("conti",[])]
-        _id_a_nome_em = {c["id"]: c.get("nome","") for c in _db_p_em.get("conti",[])}
-        _agganci_em = {}
-        for _t in _db_p_em.get("trasferimenti", []):
-            if _t.get("da") in ("__spese__","Contabilità") or _t.get("a") in ("__spese__","Contabilità"):
-                _data_t = _t.get("data","")
-                _imp_t  = round(float(_t.get("importo",0)), 2)
-                _tipo_t = "Entrata" if _t.get("da") in ("__spese__","Contabilità") else "Uscita"
-                _cnome  = _id_a_nome_em.get(_t.get("a") if _tipo_t=="Entrata" else _t.get("da"), "")
-                _agganci_em.setdefault((_data_t, _imp_t, _tipo_t), []).append(_cnome)
     except Exception:
         _conti_em = []
-        _agganci_em = {}
+    _agganci_em = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
     var_conto_em = tk.StringVar(value="Tutti")
     if _conti_em:
         ttk.Label(toolbar, text="Conto:", background=self.COLOR_WIDGET_BG,
@@ -274,15 +266,11 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
                             break
                 if _nome_metodo_sel and metodo_voce != _nome_metodo_sel:
                     continue
-                _key_em = (data_obj.strftime("%d-%m-%Y"), round(importo, 2), tipo)
-                _lista_c_em = _agganci_em.get(_key_em, [])
                 _conto_espl_em = campo(voce, "conto", "")
                 if _conto_espl_em:
                     nome_conto_em = _conto_espl_em
                 else:
-                    _ord_em = _uso_ordinale_em.get(_key_em, 0)
-                    nome_conto_em = _lista_c_em[_ord_em] if _ord_em < len(_lista_c_em) else ""
-                    _uso_ordinale_em[_key_em] = _ord_em + 1
+                    nome_conto_em = conto_da_mappa(_agganci_em, _uso_ordinale_em, data_obj.strftime("%d-%m-%Y"), importo, tipo)
                 if conto_f != "Tutti" and nome_conto_em != conto_f:
                     continue
                 data_str = data_obj.strftime("%d-%m-%Y")
@@ -432,3 +420,4 @@ def _esporta_estratti_metodo(self, tree, var_metodo, var_periodo, var_anno, var_
     oggi = datetime.date.today()
     nome_file = f"Estratti_{metodo_pagamento_pulito(metodo) if metodo != 'Tutti i metodi' else 'tutti'}_{oggi.strftime('%d-%m-%Y')}.txt"
     self.show_export_preview(contenuto, nome_file)
+

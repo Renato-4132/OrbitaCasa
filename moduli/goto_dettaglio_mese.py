@@ -5,6 +5,7 @@ import json
 import calendar
 import datetime
 from moduli.modello_spesa import campo
+from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa
 
 # Mostra tutti i movimenti del mese selezionato, raggruppati per giorno, nella treeview di destra.
 def goto_dettaglio_mese(self):
@@ -49,21 +50,8 @@ def goto_dettaglio_mese(self):
         self.stats_table.delete(i)
     self.stats_table._metodo_lookup = {}
     oggi = datetime.date.today()
-    _agganci = {}
     _agganci_uso = {}
-    try:
-        with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as _pf:
-            _db_p = json.load(_pf)
-        _id_a_nome = {c["id"]: c.get("nome", "") for c in _db_p.get("conti", [])}
-        for _t in _db_p.get("trasferimenti", []):
-            if _t.get("da") in ("__spese__", "Contabilità") or _t.get("a") in ("__spese__", "Contabilità"):
-                _data_t = _t.get("data", "")
-                _imp_t  = round(float(_t.get("importo", 0)), 2)
-                _tipo_t = "Entrata" if _t.get("da") in ("__spese__", "Contabilità") else "Uscita"
-                _cnome  = _id_a_nome.get(_t.get("a") if _tipo_t == "Entrata" else _t.get("da"), "")
-                _agganci.setdefault((_data_t, _imp_t, _tipo_t), []).append(_cnome)
-    except Exception:
-        pass
+    _agganci = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
     num_giorni = calendar.monthrange(anno, mese)[1]
     righe_inserite = 0
     _mappa_indici_reali = {}
@@ -87,10 +75,7 @@ def goto_dettaglio_mese(self):
                 _key  = (giorno.strftime("%d-%m-%Y"), round(imp, 2), tipo)
                 conto = campo(sp, "conto", "")
                 if not conto:
-                    _uso  = _agganci_uso.get(_key, 0)
-                    _lista = _agganci.get(_key, [])
-                    conto = _lista[_uso] if _uso < len(_lista) else ""
-                    _agganci_uso[_key] = _uso + 1
+                    conto = conto_da_mappa(_agganci, _agganci_uso, giorno.strftime("%d-%m-%Y"), imp, tipo)
                 imp_str = f"{imp:.2f}".replace(".", ",")
                 _tag = "futuro" if giorno > oggi else tipo
                 if (tipo == "Uscita" and giorno <= oggi
@@ -129,3 +114,4 @@ def goto_dettaglio_mese(self):
     self.update_totalizzatore_anno_corrente(year=anno)
     self.update_totalizzatore_mese_corrente(year=anno, month=mese)
     self.update_spese_mese_corrente(year=anno, month=mese)
+

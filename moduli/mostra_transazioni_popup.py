@@ -7,6 +7,7 @@ import datetime
 import tkinter as tk
 from tkinter import ttk
 from moduli.modello_spesa import campo
+from moduli.mappa_conti_trasferimenti import e_trasferimento_virtuale
 
 def _carica_db_conti_popup():
     try:
@@ -111,7 +112,7 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
         if conto_sel_popup is not None:
             id_a_nome = {c.get("id"): c.get("nome", "") for c in db_conti_popup.get("conti", [])}
             for t in db_conti_popup.get("trasferimenti", []):
-                if t.get("da") == "__spese__" or t.get("a") == "__spese__":
+                if e_trasferimento_virtuale(t):
                     continue
                 if t.get("da") != conto_sel_popup.get("id") and t.get("a") != conto_sel_popup.get("id"):
                     continue

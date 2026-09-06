@@ -8,6 +8,7 @@ import datetime
 import json
 from collections import defaultdict
 from moduli.modello_spesa import campo
+from moduli.mappa_conti_trasferimenti import e_trasferimento_virtuale
 
 HOUSEHOLD_LABEL = "Patrimonio Complessivo"
 
@@ -275,7 +276,7 @@ def draw_mensile_chart(self, event=None):
                             aggregati[anno]["uscita"] += importo
             if conto_sel is not None:
                 for t in db_conti.get("trasferimenti", []):
-                    if t.get("da") == "__spese__" or t.get("a") == "__spese__":
+                    if e_trasferimento_virtuale(t):
                         continue
                     try:
                         data_t = datetime.datetime.strptime(t["data"], "%d-%m-%Y").date()
@@ -314,7 +315,7 @@ def draw_mensile_chart(self, event=None):
                             mensili[mese_index]["uscita"] += importo
             if conto_sel is not None:
                 for t in db_conti.get("trasferimenti", []):
-                    if t.get("da") == "__spese__" or t.get("a") == "__spese__":
+                    if e_trasferimento_virtuale(t):
                         continue
                     try:
                         data_t = datetime.datetime.strptime(t["data"], "%d-%m-%Y").date()
@@ -614,7 +615,7 @@ def draw_saldo_chart(self, event=None):
                         transazioni_totali.append({"data": giorno, "variazione": variazione})
             if conto_sel is not None:
                 for t in db_conti.get("trasferimenti", []):
-                    if t.get("da") == "__spese__" or t.get("a") == "__spese__":
+                    if e_trasferimento_virtuale(t):
                         continue
                     try:
                         data_t = datetime.datetime.strptime(t["data"], "%d-%m-%Y").date()
@@ -671,7 +672,7 @@ def draw_saldo_chart(self, event=None):
                         aggregati_anno[anno] += variazione
             if conto_sel is not None:
                 for t in db_conti.get("trasferimenti", []):
-                    if t.get("da") == "__spese__" or t.get("a") == "__spese__":
+                    if e_trasferimento_virtuale(t):
                         continue
                     try:
                         data_t = datetime.datetime.strptime(t["data"], "%d-%m-%Y").date()
@@ -711,7 +712,7 @@ def draw_saldo_chart(self, event=None):
                         mensili_saldo[mese_index]["saldo"] += variazione
             if conto_sel is not None:
                 for t in db_conti.get("trasferimenti", []):
-                    if t.get("da") == "__spese__" or t.get("a") == "__spese__":
+                    if e_trasferimento_virtuale(t):
                         continue
                     try:
                         data_t = datetime.datetime.strptime(t["data"], "%d-%m-%Y").date()
@@ -880,7 +881,7 @@ def draw_saldo_chart(self, event=None):
                             total_uscita += importo
             if conto_sel is not None:
                 for t in db_conti.get("trasferimenti", []):
-                    if t.get("da") == "__spese__" or t.get("a") == "__spese__":
+                    if e_trasferimento_virtuale(t):
                         continue
                     try:
                         data_t = datetime.datetime.strptime(t["data"], "%d-%m-%Y").date()

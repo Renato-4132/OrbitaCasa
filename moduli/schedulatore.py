@@ -8,6 +8,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from moduli.modello_spesa import campo
+from moduli.mappa_conti_trasferimenti import e_trasferimento_virtuale
 
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
@@ -925,7 +926,7 @@ def _genera_testo_estratto_trasferimenti(self):
     movimenti = []
     saldo_conto = {}
     for t in db.get("trasferimenti", []):
-        if "__spese__" in (t.get("da", ""), t.get("a", "")):
+        if e_trasferimento_virtuale(t):
             continue
         try:
             d = datetime.datetime.strptime(t.get("data", ""), "%d-%m-%Y").date()

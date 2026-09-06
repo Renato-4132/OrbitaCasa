@@ -5,11 +5,11 @@ import pymupdf as fitz
 import tkinter as tk
 from tkinter import ttk
 from moduli.modello_spesa import campo
+from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa, e_trasferimento_virtuale
 
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
     return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
-
 
 def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezioni=None):
     import __main__ as _app
@@ -35,26 +35,13 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
     except Exception:
         pass
     _id_a_nome  = {c["id"]: c.get("nome", "?") for c in _db_p.get("conti", [])}
-    _agganci    = defaultdict(list)
+    _agganci     = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
     _agganci_uso = defaultdict(int)
-    for _t in _db_p.get("trasferimenti", []):
-        _data_t = _t.get("data", "")
-        _imp_t  = round(float(_t.get("importo", 0)), 2)
-        if _t.get("a") in ("__spese__", "Contabilità"):
-            _tipo_t = "uscita"
-            _cnome  = _id_a_nome.get(_t.get("da"), "")
-        elif _t.get("da") in ("__spese__", "Contabilità"):
-            _tipo_t = "entrata"
-            _cnome  = _id_a_nome.get(_t.get("a"), "")
-        else:
-            continue
-        if _cnome:
-            _agganci[(_data_t, _imp_t, _tipo_t)].append(_cnome)
     trasf_tra_conti = []
     for _t in _db_p.get("trasferimenti", []):
         _da_id = _t.get("da", "")
         _a_id  = _t.get("a", "")
-        if _da_id in ("__spese__", "Contabilità") or _a_id in ("__spese__", "Contabilità"):
+        if e_trasferimento_virtuale(_t):
             continue
         try:
             _d_trasf = datetime.datetime.strptime(_t.get("data", ""), "%d-%m-%Y").date()
@@ -71,12 +58,7 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
         })
     trasf_tra_conti.sort(key=lambda r: r["data"], reverse=True)
     def _nome_conto(data_obj, val, t_tipo):
-        key   = (data_obj.strftime("%d-%m-%Y"), round(val, 2), t_tipo)
-        lista = _agganci.get(key, [])
-        uso   = _agganci_uso.get(key, 0)
-        nome  = lista[uso] if uso < len(lista) else ""
-        _agganci_uso[key] = uso + 1
-        return nome
+        return conto_da_mappa(_agganci, _agganci_uso, data_obj.strftime("%d-%m-%Y"), val, t_tipo)
     data_punti          = defaultdict(float)
     movimenti_per_id    = defaultdict(list)
     tot_anno            = {"in": 0.0, "out": 0.0}

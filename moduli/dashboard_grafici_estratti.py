@@ -7,11 +7,11 @@ import json
 import datetime
 import tkinter as tk
 from moduli.modello_spesa import campo, SIMBOLI_METODO, NOME_DA_EMOJI
+from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa, e_trasferimento_virtuale
 
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
     return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
-
 
 def _mostra_tip_safe(self, event, testo):
     if hasattr(self, '_tip_after_id') and self._tip_after_id:
@@ -85,20 +85,7 @@ def draw_estratto_metodo(self):
     now = datetime.date.today()
     view_year  = getattr(self, '_view_year',  now.year)
     view_month = getattr(self, '_view_month', now.month)
-    _agganci_conto = {}
-    try:
-        with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as _pf:
-            _db_p = json.load(_pf)
-        _id_a_nome = {conto["id"]: conto.get("nome", "") for conto in _db_p.get("conti", [])}
-        for _t in _db_p.get("trasferimenti", []):
-            if _t.get("da") in ("__spese__", "Contabilità") or _t.get("a") in ("__spese__", "Contabilità"):
-                _data_t = _t.get("data", "")
-                _imp_t  = round(float(_t.get("importo", 0)), 2)
-                _tipo_t = "Entrata" if _t.get("da") in ("__spese__", "Contabilità") else "Uscita"
-                _cnome  = _id_a_nome.get(_t.get("a") if _tipo_t == "Entrata" else _t.get("da"), "")
-                _agganci_conto.setdefault((_data_t, _imp_t, _tipo_t), []).append(_cnome)
-    except Exception:
-        _agganci_conto = {}
+    _agganci_conto = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
     _uso_ordinale_conto = {}
     totali = {}
     dettagli = {}
@@ -123,15 +110,11 @@ def draw_estratto_metodo(self):
                         continue
                     nome_metodo_pulito = _simboli_metodo[simbolo_trovato]
                 nome_base = f"{simbolo_trovato} {nome_metodo_pulito}" if simbolo_trovato else nome_metodo_pulito
-                _key_conto = (d.strftime("%d-%m-%Y"), round(float(imp), 2), str(tipo).capitalize())
                 _conto_espl = campo(entry, "conto", "")
                 if _conto_espl:
                     sotto_nome = _conto_espl
                 else:
-                    _lista_c = _agganci_conto.get(_key_conto, [])
-                    _ord_c = _uso_ordinale_conto.get(_key_conto, 0)
-                    sotto_nome = _lista_c[_ord_c] if _ord_c < len(_lista_c) else ""
-                    _uso_ordinale_conto[_key_conto] = _ord_c + 1
+                    sotto_nome = conto_da_mappa(_agganci_conto, _uso_ordinale_conto, d.strftime("%d-%m-%Y"), imp, tipo)
                 nome_metodo = f"{nome_base} {sotto_nome}" if sotto_nome else nome_base
                 segno = 1 if tipo == "Entrata" else -1
                 totali[nome_metodo] = totali.get(nome_metodo, 0) + imp * segno
@@ -250,22 +233,14 @@ def draw_estratto_conto(self):
     now = datetime.date.today()
     view_year  = getattr(self, '_view_year',  now.year)
     view_month = getattr(self, '_view_month', now.month)
-    _agganci_conto = {}
+    _agganci_conto = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
     _db_p = {"conti": [], "trasferimenti": []}
     _id_a_nome = {}
     try:
         with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as _pf:
             _db_p = json.load(_pf)
         _id_a_nome = {conto["id"]: conto.get("nome", "") for conto in _db_p.get("conti", [])}
-        for _t in _db_p.get("trasferimenti", []):
-            if _t.get("da") in ("__spese__", "Contabilità") or _t.get("a") in ("__spese__", "Contabilità"):
-                _data_t = _t.get("data", "")
-                _imp_t  = round(float(_t.get("importo", 0)), 2)
-                _tipo_t = "Entrata" if _t.get("da") in ("__spese__", "Contabilità") else "Uscita"
-                _cnome  = _id_a_nome.get(_t.get("a") if _tipo_t == "Entrata" else _t.get("da"), "")
-                _agganci_conto.setdefault((_data_t, _imp_t, _tipo_t), []).append(_cnome)
     except Exception:
-        _agganci_conto = {}
         _db_p = {"conti": [], "trasferimenti": []}
         _id_a_nome = {}
     _uso_ordinale_conto2 = {}
@@ -283,10 +258,7 @@ def draw_estratto_conto(self):
                 if _conto_espl2:
                     nome_conto = _conto_espl2
                 else:
-                    _lista_c2 = _agganci_conto.get(_key_conto, [])
-                    _ord_c2 = _uso_ordinale_conto2.get(_key_conto, 0)
-                    nome_conto = _lista_c2[_ord_c2] if _ord_c2 < len(_lista_c2) else ""
-                    _uso_ordinale_conto2[_key_conto] = _ord_c2 + 1
+                    nome_conto = conto_da_mappa(_agganci_conto, _uso_ordinale_conto2, d.strftime("%d-%m-%Y"), imp, tipo)
                 if not nome_conto:
                     continue
                 segno = 1 if tipo == "Entrata" else -1
@@ -294,7 +266,7 @@ def draw_estratto_conto(self):
                 dettagli.setdefault(nome_conto, []).append((d, imp, tipo))
                 chiavi_per_conto.setdefault(nome_conto, set()).add(_key_conto)
     for _t in _db_p.get("trasferimenti", []):
-        if _t.get("da") in ("__spese__", "Contabilità") or _t.get("a") in ("__spese__", "Contabilità"):
+        if e_trasferimento_virtuale(_t):
             continue
         try:
             _data_tr = datetime.datetime.strptime(_t["data"], "%d-%m-%Y").date()

@@ -6,6 +6,7 @@ import tkinter as tk
 from tkcalendar import Calendar
 
 from moduli.modello_spesa import campo
+from moduli.mappa_conti_trasferimenti import e_trasferimento_virtuale
 
 # Gestore Popup Calendario Selettore Data senza movimenti
 def mostra_calendario_popup_semplice(self, entry_widget, var_data):
@@ -381,7 +382,7 @@ def mostra_calendario_popup_trasferimenti(self, entry_widget, var_data, lista_tr
     dati_giorno = {}
     try:
         for t in lista_trasferimenti:
-            if "__spese__" in (t.get("da", ""), t.get("a", "")):
+            if e_trasferimento_virtuale(t):
                 continue
             try:
                 d_obj = datetime.datetime.strptime(t.get("data", ""), "%d-%m-%Y").date()
@@ -529,3 +530,4 @@ def mostra_calendario_popup_trasferimenti(self, entry_widget, var_data, lista_tr
     self.after(300, lambda: self.bind_all('<Escape>', lambda e: chiudi_popup()))
     self.bind("<FocusOut>", on_app_focus_out)
     self.popup_calendario.deiconify()
+

@@ -8,11 +8,11 @@ import datetime
 import tkinter as tk
 from tkinter import ttk, filedialog
 from moduli.modello_spesa import campo
+from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa, e_trasferimento_virtuale
 
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
     return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
-
 
 def _genera_date_ricorrenza_trasf(data_inizio, tipo, n):
     date_list = []
@@ -42,7 +42,6 @@ def _genera_date_ricorrenza_trasf(data_inizio, tipo, n):
             break
         date_list.append(d)
     return date_list
-
 
 def open_saldo_conto(self, tab_iniziale=None):
         from __main__ import PORTAFOGLIO_BANCARIO, EXPORT_FILES
@@ -602,7 +601,7 @@ def open_saldo_conto(self, tab_iniziale=None):
                     return datetime.date.min
             date_trasf_f = []
             for _tf in trasf:
-                if "__spese__" in (_tf.get("da",""), _tf.get("a","")):
+                if e_trasferimento_virtuale(_tf):
                     continue
                 try:
                     date_trasf_f.append(datetime.datetime.strptime(_tf.get("data",""), "%d-%m-%Y").date())
@@ -665,7 +664,7 @@ def open_saldo_conto(self, tab_iniziale=None):
                 tree.delete(*tree.get_children())
                 db_r = carica_db()
                 lista = [t for t in db_r.get("trasferimenti", [])
-                         if "__spese__" not in (t.get("da",""), t.get("a",""))]
+                         if not e_trasferimento_virtuale(t)]
                 try:
                     anno_f = int(v_f_anno.get())
                 except ValueError:
@@ -774,7 +773,7 @@ def open_saldo_conto(self, tab_iniziale=None):
             def _esporta_trasferimenti_testo():
                 db_r = carica_db()
                 lista = [t for t in db_r.get("trasferimenti", [])
-                         if "__spese__" not in (t.get("da",""), t.get("a",""))]
+                         if not e_trasferimento_virtuale(t)]
                 lista = sorted((t for t in lista if _filtro_attivo_trasf(t)),
                                 key=_key_data)
                 w_data, w_da, w_a, w_imp, w_note, w_ric = 10, 18, 18, 14, 24, 20
@@ -842,7 +841,7 @@ def open_saldo_conto(self, tab_iniziale=None):
                 def _apri_cal_trasf(ev=None):
                     _db_fresh = carica_db()
                     _trasf_fresh = [t for t in _db_fresh.get("trasferimenti", [])
-                                    if "__spese__" not in (t.get("da",""), t.get("a",""))]
+                                    if not e_trasferimento_virtuale(t)]
                     _conti_fresh = _db_fresh.get("conti", [])
                     _nome_fresh = {c["id"]: c["nome"] for c in _conti_fresh}
                     _tipo_fresh = {c["id"]: c.get("tipo", "altro") for c in _conti_fresh}
@@ -1188,20 +1187,7 @@ def open_saldo_conto(self, tab_iniziale=None):
                 cat_f   = v_cat.get()
                 conto_f = v_conto.get()
                 tot_e = tot_u = 0.0
-                try:
-                    with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as _pf:
-                        _db_p = json.load(_pf)
-                    _id_a_nome = {c["id"]: c.get("nome","") for c in _db_p.get("conti",[])}
-                    _agganci = {}
-                    for _t in _db_p.get("trasferimenti", []):
-                        if _t.get("da") in ("__spese__","Contabilità") or _t.get("a") in ("__spese__","Contabilità"):
-                            _data_t = _t.get("data","")
-                            _imp_t  = round(float(_t.get("importo",0)), 2)
-                            _tipo_t = "Entrata" if _t.get("da") in ("__spese__","Contabilità") else "Uscita"
-                            _cnome  = _id_a_nome.get(_t.get("a") if _tipo_t=="Entrata" else _t.get("da"), "")
-                            _agganci.setdefault((_data_t, _imp_t, _tipo_t), []).append(_cnome)
-                except Exception:
-                    _agganci = {}
+                _agganci = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
                 _uso_ordinale_sc = {}
                 for d in sorted(self.spese.keys(), reverse=True):
                     if not self.considera_futuri_portafoglio_var.get() and d > datetime.date.today():
@@ -1215,15 +1201,11 @@ def open_saldo_conto(self, tab_iniziale=None):
                             continue
                         if tipo_f != "Tutti" and tipo != tipo_f: continue
                         if cat_f != "Tutte" and cat != cat_f: continue
-                        _key = (d.strftime("%d-%m-%Y"), round(imp, 2), tipo)
-                        _lista_c = _agganci.get(_key, [])
                         _conto_espl_sc = campo(v, "conto", "")
                         if _conto_espl_sc:
                             nome_conto_sp = _conto_espl_sc
                         else:
-                            _ord_sc = _uso_ordinale_sc.get(_key, 0)
-                            nome_conto_sp = _lista_c[_ord_sc] if _ord_sc < len(_lista_c) else ""
-                            _uso_ordinale_sc[_key] = _ord_sc + 1
+                            nome_conto_sp = conto_da_mappa(_agganci, _uso_ordinale_sc, d.strftime("%d-%m-%Y"), imp, tipo)
                         if conto_f == "(nessuno)" and nome_conto_sp: continue
                         if conto_f not in ("Tutti", "(nessuno)") and nome_conto_sp != conto_f: continue
                         metodo_sp = campo(v, "metodo_pagamento", "")

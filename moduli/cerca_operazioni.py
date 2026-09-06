@@ -7,11 +7,11 @@ import datetime
 import tkinter as tk
 from tkinter import ttk, filedialog
 from moduli.modello_spesa import campo, METODI_PAGAMENTO, METODI_PAGAMENTO_EMOJI
+from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa
 
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
     return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
-
 
 def cerca_operazioni(self):
     import __main__ as _app
@@ -200,20 +200,7 @@ def cerca_operazioni(self):
                 a_data = datetime.datetime.strptime(a_data_var.get().strip(), "%d-%m-%Y").date()
         except ValueError:
             pass
-        try:
-            with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as _pf:
-                _db_p_cerca = json.load(_pf)
-            _id_a_nome_cerca = {c["id"]: c.get("nome","") for c in _db_p_cerca.get("conti",[])}
-            _agganci_cerca = {}
-            for _t in _db_p_cerca.get("trasferimenti", []):
-                if _t.get("da") in ("__spese__","Contabilità") or _t.get("a") in ("__spese__","Contabilità"):
-                    _data_t = _t.get("data","")
-                    _imp_t  = round(float(_t.get("importo",0)), 2)
-                    _tipo_t = "Entrata" if _t.get("da") in ("__spese__","Contabilità") else "Uscita"
-                    _cnome  = _id_a_nome_cerca.get(_t.get("a") if _tipo_t=="Entrata" else _t.get("da"), "")
-                    _agganci_cerca.setdefault((_data_t, _imp_t, _tipo_t), []).append(_cnome)
-        except Exception:
-            _agganci_cerca = {}
+        _agganci_cerca = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
         _uso_ordinale_cerca = {}
         _profilo_attivo_co = getattr(_app, "PROFILO_ATTIVO", "Principale")
         _gestore_nome_cerca_owner = _profilo_attivo_co if _profilo_attivo_co != "Principale" else os.path.basename(os.getcwd())
@@ -241,15 +228,11 @@ def cerca_operazioni(self):
                 owner = next((p["nome"] for p in _candidati_owner
                               if any(f"{ico}{p['nome']}".lower() in descrizione or f"{ico} {p['nome']}".lower() in descrizione
                                      for ico in ("PER·", "CTP·", "CNT·"))), "")
-                _key_cerca = (d.strftime("%d-%m-%Y"), round(float(importo_voce), 2), str(voce[3]).capitalize())
-                _lista_c_cerca = _agganci_cerca.get(_key_cerca, [])
                 _conto_espl_cerca = campo(voce, "conto", "")
                 if _conto_espl_cerca:
                     nome_conto_cerca = _conto_espl_cerca
                 else:
-                    _ord_cerca = _uso_ordinale_cerca.get(_key_cerca, 0)
-                    nome_conto_cerca = _lista_c_cerca[_ord_cerca] if _ord_cerca < len(_lista_c_cerca) else ""
-                    _uso_ordinale_cerca[_key_cerca] = _ord_cerca + 1
+                    nome_conto_cerca = conto_da_mappa(_agganci_cerca, _uso_ordinale_cerca, d.strftime("%d-%m-%Y"), importo_voce, voce[3])
                 metodo_cerca  = campo(voce, "metodo_pagamento", "")
                 ora_cerca     = campo(voce, "ora", "")
                 hashtag_cerca = campo(voce, "hashtag", [])

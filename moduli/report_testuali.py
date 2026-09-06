@@ -7,6 +7,7 @@ import datetime
 import tkinter as tk
 from tkinter import ttk, filedialog
 from moduli.modello_spesa import campo
+from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa
 
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
@@ -35,21 +36,8 @@ def export_stats(self):
     ora_width = 8
     tag_width = 18
     tot_entrate, tot_uscite = 0.0, 0.0
-    _agganci_st = {}
+    _agganci_st = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
     _agganci_uso_st = {}
-    try:
-        with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as _pf:
-            _db_p_st = json.load(_pf)
-        _id_a_nome_st = {c["id"]: c.get("nome", "") for c in _db_p_st.get("conti", [])}
-        for _t in _db_p_st.get("trasferimenti", []):
-            if _t.get("da") in ("__spese__", "Contabilità") or _t.get("a") in ("__spese__", "Contabilità"):
-                _data_t = _t.get("data", "")
-                _imp_t = round(float(_t.get("importo", 0)), 2)
-                _tipo_t = "Entrata" if _t.get("da") in ("__spese__", "Contabilità") else "Uscita"
-                _cnome = _id_a_nome_st.get(_t.get("a") if _tipo_t == "Entrata" else _t.get("da"), "")
-                _agganci_st.setdefault((_data_t, _imp_t, _tipo_t), []).append(_cnome)
-    except Exception:
-        _agganci_st = {}
     try:
         giorno = datetime.datetime.strptime(self.cal.get_date(), "%d-%m-%Y").date()
     except Exception:
@@ -71,15 +59,11 @@ def export_stats(self):
             desc = campo(entry, "descrizione", "")
             imp = campo(entry, "importo", 0.0)
             tipo = campo(entry, "tipo", "")
-            _key_st = (giorno.strftime("%d-%m-%Y"), round(float(imp), 2), tipo)
-            _lista_conti = _agganci_st.get(_key_st, [])
             _conto_espl_st = campo(entry, "conto", "")
             if _conto_espl_st:
                 nome_conto = _conto_espl_st
             else:
-                _uso = _agganci_uso_st.get(_key_st, 0)
-                nome_conto = _lista_conti[_uso] if _uso < len(_lista_conti) else ""
-                _agganci_uso_st[_key_st] = _uso + 1
+                nome_conto = conto_da_mappa(_agganci_st, _agganci_uso_st, giorno.strftime("%d-%m-%Y"), imp, tipo)
             metodo_val = campo(entry, "metodo_pagamento", "")
             ora_val = campo(entry, "ora", "")
             tag_val = " ".join(campo(entry, "hashtag", []))
@@ -110,21 +94,8 @@ def export_month_detail(self):
     tot_entrate, tot_uscite = 0.0, 0.0
     cat_spese = {}
     cat_conteggi = {}
-    _agganci_st = {}
+    _agganci_st = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
     _agganci_uso_st = {}
-    try:
-        with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as _pf:
-            _db_p_st = json.load(_pf)
-        _id_a_nome_st = {c["id"]: c.get("nome", "") for c in _db_p_st.get("conti", [])}
-        for _t in _db_p_st.get("trasferimenti", []):
-            if _t.get("da") in ("__spese__", "Contabilità") or _t.get("a") in ("__spese__", "Contabilità"):
-                _data_t = _t.get("data", "")
-                _imp_t = round(float(_t.get("importo", 0)), 2)
-                _tipo_t = "Entrata" if _t.get("da") in ("__spese__", "Contabilità") else "Uscita"
-                _cnome = _id_a_nome_st.get(_t.get("a") if _tipo_t == "Entrata" else _t.get("da"), "")
-                _agganci_st.setdefault((_data_t, _imp_t, _tipo_t), []).append(_cnome)
-    except Exception:
-        _agganci_st = {}
     days_in_month = [
         d for d in sorted(self.spese.keys())
         if d.year == year and d.month == month
@@ -140,15 +111,11 @@ def export_month_detail(self):
             tipo = campo(entry, "tipo", "")
             categoria = str(cat) if cat else "Varie"
             importo_v = float(imp)
-            _key_st = (d.strftime("%d-%m-%Y"), round(importo_v, 2), tipo)
-            _lista_conti = _agganci_st.get(_key_st, [])
             _conto_espl_st = campo(entry, "conto", "")
             if _conto_espl_st:
                 nome_conto = _conto_espl_st
             else:
-                _uso = _agganci_uso_st.get(_key_st, 0)
-                nome_conto = _lista_conti[_uso] if _uso < len(_lista_conti) else ""
-                _agganci_uso_st[_key_st] = _uso + 1
+                nome_conto = conto_da_mappa(_agganci_st, _agganci_uso_st, d.strftime("%d-%m-%Y"), importo_v, tipo)
             metodo_mov = campo(entry, "metodo_pagamento", "")
             ora_mov = campo(entry, "ora", "")
             tag_mov = " ".join(campo(entry, "hashtag", []))
@@ -517,3 +484,4 @@ def show_export_preview(self, content, default_filename=None):
         b.pack(side=side, padx=20)
         b.bind("<Button-1>", lambda e, c=cmd: c())
     preview.update()
+
