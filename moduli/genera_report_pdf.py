@@ -1,8 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import os
+import json
 import tkinter as tk
 from tkinter import ttk
+
+HOUSEHOLD_LABEL = "Patrimonio Complessivo"
+
+def _carica_db_conti_pdf():
+    try:
+        import __main__ as _app
+        PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
+        if os.path.exists(PORTAFOGLIO_BANCARIO):
+            with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {"conti": [], "trasferimenti": []}
 
 # Popup di Selezione Periodo/Sezioni e Avvio Generazione Report PDF
 def genera_report_pdf(self):
@@ -25,7 +40,7 @@ def genera_report_pdf(self):
     sel.title("Report PDF — Seleziona Periodo")
     sel.withdraw()
     self.update_idletasks()
-    w, h = 700, 240
+    w, h = 700, 270
     x = self.winfo_rootx() + (self.winfo_width()  // 2) - (w // 2)
     y = self.winfo_rooty() + (self.winfo_height() // 2) - (h // 2)
     sel.geometry(f"{w}x{h}+{max(0, x)}+{max(0, y)}")
@@ -50,10 +65,14 @@ def genera_report_pdf(self):
     anno_da_var = tk.StringVar(value=anni_disponibili[-1])
     anno_a_var  = tk.StringVar(value=anni_disponibili[0])
     mese_var    = tk.StringVar(value="Tutti")
+    db_conti_pdf = _carica_db_conti_pdf()
+    nomi_conti_pdf = [HOUSEHOLD_LABEL] + [c.get("nome", "") for c in db_conti_pdf.get("conti", [])]
+    conto_var   = tk.StringVar(value=HOUSEHOLD_LABEL)
     ttk.Frame(sel, height=14).pack()
     _riga(sel, "Anno iniziale:", anno_da_var, anni_disponibili, 10)
     _riga(sel, "Anno finale:",   anno_a_var,  anni_disponibili, 10)
     _riga(sel, "Mese:",          mese_var,    MESI_NOMI,        14)
+    _riga(sel, "Conto:",         conto_var,   nomi_conti_pdf,   24)
     sep = ttk.Frame(sel, height=1)
     sep.pack(fill=tk.X, padx=20, pady=(8, 4))
     sezioni_var = {
@@ -97,6 +116,8 @@ def genera_report_pdf(self):
             return
         mese_idx = MESI_NOMI.index(mese_var.get())
         sezioni = {k: v.get() for k, v in sezioni_var.items()}
+        conto_sel = conto_var.get()
+        conto_filtro = None if conto_sel == HOUSEHOLD_LABEL else conto_sel
         sel.destroy()
         self._generando_report = True
         prog = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
@@ -114,6 +135,8 @@ def genera_report_pdf(self):
         label_testo = str(a_da) if a_da == a_a else f"{a_da}–{a_a}"
         if mese_idx > 0:
             label_testo += f"  ·  {MESI_NOMI[mese_idx]}"
+        if conto_filtro:
+            label_testo += f"  ·  {conto_filtro}"
         tk.Label(pf, text=f"Generazione report in corso…\n({label_testo})",
                  font=("Segoe UI", 9, "bold"), justify="center",
                  bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HIGHLIGHT).pack(expand=True)
@@ -123,7 +146,7 @@ def genera_report_pdf(self):
         self.update()
         def _genera():
             try:
-                self._genera_report_pdf_core(anno_da=a_da, anno_a=a_a, mese_filtro=mese_idx, sezioni=sezioni)
+                self._genera_report_pdf_core(anno_da=a_da, anno_a=a_a, mese_filtro=mese_idx, sezioni=sezioni, conto_filtro=conto_filtro)
             except Exception as e:
                 _err = str(e)
                 self.after(0, lambda: self.show_custom_warning(

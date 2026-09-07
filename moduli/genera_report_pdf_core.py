@@ -11,7 +11,7 @@ def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
     return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
 
-def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezioni=None):
+def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezioni=None, conto_filtro=None):
     import __main__ as _app
     PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
     import os
@@ -37,7 +37,7 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
     _id_a_nome  = {c["id"]: c.get("nome", "?") for c in _db_p.get("conti", [])}
     _agganci     = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
     _agganci_uso = defaultdict(int)
-    trasf_tra_conti = []
+    trasf_tutti = []
     for _t in _db_p.get("trasferimenti", []):
         _da_id = _t.get("da", "")
         _a_id  = _t.get("a", "")
@@ -47,15 +47,21 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
             _d_trasf = datetime.datetime.strptime(_t.get("data", ""), "%d-%m-%Y").date()
         except Exception:
             continue
-        if not (anno_da <= _d_trasf.year <= anno_curr) or (mese_filtro and _d_trasf.month != mese_filtro):
+        _da_nome = _id_a_nome.get(_da_id, "?")
+        _a_nome  = _id_a_nome.get(_a_id, "?")
+        if conto_filtro and conto_filtro not in (_da_nome, _a_nome):
             continue
-        trasf_tra_conti.append({
+        trasf_tutti.append({
             "data":    _d_trasf,
-            "da":      _id_a_nome.get(_da_id, "?"),
-            "a":       _id_a_nome.get(_a_id, "?"),
+            "da":      _da_nome,
+            "a":       _a_nome,
             "importo": round(float(_t.get("importo", 0)), 2),
             "note":    _t.get("note", ""),
         })
+    trasf_tra_conti = [
+        t for t in trasf_tutti
+        if (anno_da <= t["data"].year <= anno_curr) and (mese_filtro == 0 or t["data"].month == mese_filtro)
+    ]
     trasf_tra_conti.sort(key=lambda r: r["data"], reverse=True)
     def _nome_conto(data_obj, val, t_tipo):
         return conto_da_mappa(_agganci, _agganci_uso, data_obj.strftime("%d-%m-%Y"), val, t_tipo)
@@ -89,6 +95,8 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
             suffix   = "in" if t_tipo == "entrata" else "out"
             data_str = giorno.strftime('%d/%m/%Y')
             conto    = campo(entry, "conto", "") or _nome_conto(giorno, val, t_tipo)
+            if conto_filtro and conto != conto_filtro:
+                continue
             metodo   = campo(entry, "metodo_pagamento", "")
             ora_val  = campo(entry, "ora", "")
             tag_val  = " ".join(campo(entry, "hashtag", []))
@@ -117,6 +125,43 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
                     else:
                         conto_anno_out[conto] += val
                     movimenti_per_conto_periodo[conto].append(riga)
+    for _tt in trasf_tutti:
+        conto_st_out[_tt["da"]] += _tt["importo"]
+        conto_st_in[_tt["a"]]   += _tt["importo"]
+        if conto_filtro:
+            if _tt["da"] == conto_filtro:
+                tot_st["out"] += _tt["importo"]
+                cat_st_val["Trasferimento"]   += _tt["importo"]
+                cat_st_count["Trasferimento"] += 1
+            if _tt["a"] == conto_filtro:
+                tot_st["in"] += _tt["importo"]
+    for _tt in trasf_tra_conti:
+        conto_anno_out[_tt["da"]] += _tt["importo"]
+        conto_anno_in[_tt["a"]]   += _tt["importo"]
+        if not conto_filtro:
+            continue
+        _mese_tt = _tt["data"].month
+        _nota_tt = f" ({_tt['note']})" if _tt["note"] else ""
+        if _tt["da"] == conto_filtro:
+            _riga_tt = (_tt["data"].strftime('%d/%m/%Y'), "Trasferimento",
+                        f"Trasferimento a {_tt['a']}{_nota_tt}", _tt["importo"], "uscita",
+                        conto_filtro, "", "", "", _tt["data"])
+            tot_anno["out"] += _tt["importo"]
+            data_punti[f"curr_m_{_mese_tt}_out"] += _tt["importo"]
+            cat_anno_val["Trasferimento"]   += _tt["importo"]
+            cat_anno_count["Trasferimento"] += 1
+            movimenti_per_id["curr_cat_Trasferimento"].append(_riga_tt)
+            movimenti_per_id[f"curr_m_{_mese_tt}_out"].append(_riga_tt)
+            movimenti_per_conto_periodo[conto_filtro].append(_riga_tt)
+        if _tt["a"] == conto_filtro:
+            _riga_tt = (_tt["data"].strftime('%d/%m/%Y'), "Trasferimento",
+                        f"Trasferimento da {_tt['da']}{_nota_tt}", _tt["importo"], "entrata",
+                        conto_filtro, "", "", "", _tt["data"])
+            tot_anno["in"] += _tt["importo"]
+            data_punti[f"curr_m_{_mese_tt}_in"] += _tt["importo"]
+            movimenti_per_id[f"curr_m_{_mese_tt}_in"].append(_riga_tt)
+            movimenti_per_conto_periodo[conto_filtro].append(_riga_tt)
+
     anni_lista   = sorted(set(int(k.split('_')[2]) for k in data_punti if k.startswith('st_a_')))
     mesi_attivi  = sorted(m for m in range(1, 13)
                           if data_punti[f"curr_m_{m}_in"] > 0 or data_punti[f"curr_m_{m}_out"] > 0)
@@ -186,16 +231,6 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
         page.draw_rect(r, color=None, fill=C_WHITE)
         page.draw_rect(fitz.Rect(MARG, y, MARG + 4, y + h),
                        color=None, fill=C_BLUE)
-        page.insert_text((MARG + 12, y + 16), titolo,
-                         fontsize=9, color=C_TEXT, fontname="Helvetica-Bold")
-        page.draw_line((MARG + 12, y + 20), (W - MARG - 8, y + 20),
-                       color=C_LINE, width=0.5)
-        return y + 26
-    def card_colored(page, y, h, titolo, colore_accent):
-        r = fitz.Rect(MARG, y, W - MARG, y + h)
-        page.draw_rect(r, color=None, fill=C_WHITE)
-        page.draw_rect(fitz.Rect(MARG, y, MARG + 4, y + h),
-                       color=None, fill=colore_accent)
         page.insert_text((MARG + 12, y + 16), titolo,
                          fontsize=9, color=C_TEXT, fontname="Helvetica-Bold")
         page.draw_line((MARG + 12, y + 20), (W - MARG - 8, y + 20),
@@ -309,6 +344,8 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
     _titolo_periodo = str(anno_curr) if anno_da == anno_curr else f"{anno_da}–{anno_curr}"
     if mese_filtro > 0:
         _titolo_periodo += f"  ·  {mesi_nomi[mese_filtro]}"
+    if conto_filtro:
+        _titolo_periodo += f"  ·  {conto_filtro}"
     header_pagina(page, f"Report Finanziario — {_titolo_periodo}", current_folder)
     cy = 68
     h_card1 = 46 + len(mesi_attivi) * 34 + 30
@@ -342,41 +379,57 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
             altezza_barra=16, gap=4
         )
     conti_db = _db_p.get("conti", [])
+    if conto_filtro:
+        conti_db = [c for c in conti_db if c.get("nome", "") == conto_filtro]
     if sezioni.get("portafoglio", True) and conti_db:
         page = nuova_pagina()
         header_pagina(page, "Portafoglio Bancario", current_folder)
         cy = 68
         totale_portafoglio = sum(float(c.get("saldo", 0)) for c in conti_db)
-        h_card_p = 46 + len(conti_db) * 42 + 20
-        cy = card(page, cy, h_card_p, "Saldi Conti")
-        for c in conti_db:
-            nome_c   = c.get("nome", "?")
-            saldo_c  = float(c.get("saldo", 0))
-            tipo_c   = c.get("tipo", "altro")
-            princ_c  = c.get("principale", False)
-            colore_c = colore_conto.get(nome_c, C_BLUE)
-            bar_w_max = W - MARG * 2 - 30
-            bar_fill  = int((abs(saldo_c) / max(abs(totale_portafoglio), 1)) * bar_w_max)
-            bar_fill  = max(bar_fill, 4)
-            page.draw_rect(fitz.Rect(MARG + 8, cy, W - MARG - 8, cy + 36),
-                           color=C_LINE, fill=(0.97, 0.98, 0.99))
-            page.draw_rect(fitz.Rect(MARG + 8, cy, MARG + 12, cy + 36),
-                           color=None, fill=colore_c)
-            label_c = f"{'★ ' if princ_c else ''}{nome_c}  [{tipo_c}]"
-            page.insert_text((MARG + 18, cy + 13), label_c,
-                             fontsize=8, color=C_TEXT, fontname="Helvetica-Bold")
-            col_s = C_GREEN if saldo_c >= 0 else C_RED
-            page.insert_text((W - MARG - 80, cy + 13), f"€ {_fmt_it(saldo_c)}",
-                             fontsize=9, color=col_s, fontname="Helvetica-Bold")
-            page.draw_rect(fitz.Rect(MARG + 18, cy + 20, MARG + 18 + bar_fill, cy + 26),
-                           color=None, fill=colore_c)
-            e_a = conto_anno_in.get(nome_c, 0)
-            u_a = conto_anno_out.get(nome_c, 0)
-            page.insert_text((MARG + 18, cy + 33),
-                             f"{_titolo_periodo}: +€{_fmt_it(e_a, ',.0f')}  -€{_fmt_it(u_a, ',.0f')}",
-                             fontsize=6.5, color=C_SUBTEXT, fontname="Helvetica")
-            cy += 42
+        max_per_pagina = max(1, (H - MARG - 68 - 46 - 20) // 42)
+        indice_c = 0
+        while indice_c < len(conti_db):
+            chunk = conti_db[indice_c: indice_c + max_per_pagina]
+            h_card_p = 46 + len(chunk) * 42 + 20
+            titolo_saldi = "Saldi Conti" if indice_c == 0 else "Saldi Conti (continua)"
+            cy = card(page, cy, h_card_p, titolo_saldi)
+            for c in chunk:
+                nome_c   = c.get("nome", "?")
+                saldo_c  = float(c.get("saldo", 0))
+                tipo_c   = c.get("tipo", "altro")
+                princ_c  = c.get("principale", False)
+                colore_c = colore_conto.get(nome_c, C_BLUE)
+                bar_w_max = W - MARG * 2 - 30
+                bar_fill  = int((abs(saldo_c) / max(abs(totale_portafoglio), 1)) * bar_w_max)
+                bar_fill  = max(bar_fill, 4)
+                page.draw_rect(fitz.Rect(MARG + 8, cy, W - MARG - 8, cy + 36),
+                               color=C_LINE, fill=(0.97, 0.98, 0.99))
+                page.draw_rect(fitz.Rect(MARG + 8, cy, MARG + 12, cy + 36),
+                               color=None, fill=colore_c)
+                label_c = f"{'★ ' if princ_c else ''}{nome_c}  [{tipo_c}]"
+                page.insert_text((MARG + 18, cy + 13), label_c,
+                                 fontsize=8, color=C_TEXT, fontname="Helvetica-Bold")
+                col_s = C_GREEN if saldo_c >= 0 else C_RED
+                page.insert_text((W - MARG - 80, cy + 13), f"€ {_fmt_it(saldo_c)}",
+                                 fontsize=9, color=col_s, fontname="Helvetica-Bold")
+                page.draw_rect(fitz.Rect(MARG + 18, cy + 20, MARG + 18 + bar_fill, cy + 26),
+                               color=None, fill=colore_c)
+                e_a = conto_anno_in.get(nome_c, 0)
+                u_a = conto_anno_out.get(nome_c, 0)
+                page.insert_text((MARG + 18, cy + 33),
+                                 f"{_titolo_periodo}: +€{_fmt_it(e_a, ',.0f')}  -€{_fmt_it(u_a, ',.0f')}",
+                                 fontsize=6.5, color=C_SUBTEXT, fontname="Helvetica")
+                cy += 42
+            indice_c += len(chunk)
+            if indice_c < len(conti_db):
+                page = nuova_pagina()
+                header_pagina(page, "Portafoglio Bancario (continua)", current_folder)
+                cy = 68
         cy += 6
+        if cy + 24 > H - MARG:
+            page = nuova_pagina()
+            header_pagina(page, "Portafoglio Bancario (continua)", current_folder)
+            cy = 68
         page.draw_rect(fitz.Rect(MARG + 8, cy, W - MARG - 8, cy + 24),
                        color=None, fill=C_HEADER)
         page.insert_text((MARG + 18, cy + 16), "TOTALE PORTAFOGLIO",
