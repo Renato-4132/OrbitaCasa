@@ -4132,7 +4132,7 @@ class GestioneSpese(tk.Tk):
                     except Exception:
                         pass
         for t in db.get("trasferimenti", []):
-            if t.get("da") == "__spese__" or t.get("a") == "__spese__":
+            if t.get("da") in ("__spese__", "Contabilità") or t.get("a") in ("__spese__", "Contabilità"):
                 continue
             try:
                 data_t = datetime.datetime.strptime(t["data"], "%d-%m-%Y").date()
@@ -4314,7 +4314,7 @@ class GestioneSpese(tk.Tk):
                     except Exception:
                         pass
         for tf in trasferimenti:
-            if tf.get("da") == "__spese__" or tf.get("a") == "__spese__":
+            if tf.get("da") in ("__spese__", "Contabilità") or tf.get("a") in ("__spese__", "Contabilità"):
                 continue
             try:
                 data_str = tf.get("data", "")
@@ -6231,7 +6231,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "e1b53e9df27e00ae8fd560873e8574fcf05f7194bea1375e3b6835a268d0c6de"
+        E_H_B = "b3feb2b4521f65556fe745124be0388199a2364f3e75d695dae03ba4d01aa6ae"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
