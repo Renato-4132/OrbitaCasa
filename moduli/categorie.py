@@ -11,6 +11,7 @@ import datetime
 
 import __main__ as _app
 from moduli.modello_spesa import SpesaEntry, campo
+from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa
 
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
@@ -1203,6 +1204,8 @@ def open_analisi_categoria(self):
                 f"{'Metodo':<{W_MET}} │ {'Ora':<{W_ORA}} │ {'Hashtag':<{W_TAG}}"
             )
             result_lines.append("─" * larghezza_riga)
+            _agganci_ac = costruisci_mappa_conti_da_trasferimenti(_app.PORTAFOGLIO_BANCARIO)
+            _uso_ordinale_ac = {}
             for d, e in sorted(filtered, key=lambda x: x[0], reverse=True):
                 valore = abs(e[2])
                 categoria = e[0][:W_CAT-3] + '...' if len(e[0]) > W_CAT else e[0]
@@ -1211,7 +1214,7 @@ def open_analisi_categoria(self):
                 conto = campo(e, "conto", "")
                 if not conto:
                     try:
-                        conto = self._trova_conto_da_portafoglio(d, float(e[2]), tipo_riga) or ""
+                        conto = conto_da_mappa(_agganci_ac, _uso_ordinale_ac, d.strftime("%d-%m-%Y"), float(e[2]), tipo_riga) or ""
                     except Exception:
                         conto = ""
                 metodo = campo(e, "metodo_pagamento", "")

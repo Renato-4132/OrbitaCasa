@@ -7,7 +7,11 @@ import datetime
 import tkinter as tk
 from tkinter import ttk
 from moduli.modello_spesa import campo
-from moduli.mappa_conti_trasferimenti import e_trasferimento_virtuale
+from moduli.mappa_conti_trasferimenti import (
+    costruisci_mappa_conti_da_trasferimenti,
+    conto_da_mappa,
+    e_trasferimento_virtuale,
+)
 
 def _carica_db_conti_popup():
     try:
@@ -21,6 +25,8 @@ def _carica_db_conti_popup():
 
 # Popup dettaglio transazioni: mostra lista filtrata per anno/mese/giorno/tipo/categoria con totali, ordinamento colonne e azioni rapide
 def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_filtro=None, filtro_metodo=None, trasferimenti_conto=None):
+    import __main__ as _app
+    PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
     MESI_NOME_COMPLETO = {
         1: "Gennaio", 2: "Febbraio", 3: "Marzo", 4: "Aprile", 
         5: "Maggio", 6: "Giugno", 7: "Luglio", 8: "Agosto", 
@@ -299,6 +305,7 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
                                 pass
             _tot_categoria_mese_cache[chiave] = tot
         return _tot_categoria_mese_cache[chiave]
+    _agganci_tr = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
     for d, cat, desc, imp, tipo, conto_diretto, metodo_diretto, tag_diretto in sorted(spese_filtrate, key=lambda x: x[0], reverse=True):
         imp_formattato = f"{imp:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
         if d > oggi_d:
@@ -317,10 +324,7 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
         if conto_diretto:
             nome_conto_tr = conto_diretto
         elif d:
-            _key_tr = (d.strftime("%d-%m-%Y"), round(imp, 2), tipo)
-            _ord_tr = _uso_ordinale_tr.get(_key_tr, 0)
-            nome_conto_tr = self._trova_conto_da_portafoglio(d, imp, tipo, ordinale=_ord_tr)
-            _uso_ordinale_tr[_key_tr] = _ord_tr + 1
+            nome_conto_tr = conto_da_mappa(_agganci_tr, _uso_ordinale_tr, d.strftime("%d-%m-%Y"), imp, tipo)
         else:
             nome_conto_tr = ""
         tree.insert("", "end", values=(d.strftime("%d-%m-%Y"), cat, desc, f"{imp_formattato} €", tipo, nome_conto_tr, metodo_diretto, tag_diretto), tags=(tag_name,))

@@ -7,6 +7,7 @@ import datetime
 import tkinter as tk
 from tkinter import ttk
 from moduli.modello_spesa import campo, METODI_PAGAMENTO
+from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa
 
 def apri_cancella_spese_treeview_unica(self):
     if hasattr(self, '_cancella_spese_popup') and self._cancella_spese_popup and self._cancella_spese_popup.winfo_exists():
@@ -167,6 +168,8 @@ def apri_cancella_spese_treeview_unica(self):
                                      reverse=True) 
         except Exception:
              giorni_ordinati = sorted(self.spese.keys(), reverse=True)
+        _agganci_cs = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
+        _uso_ordinale_cs = {}
         for giorno_obj in giorni_ordinati:
             d = None
             giorno_interno = str(giorno_obj)
@@ -203,7 +206,10 @@ def apri_cancella_spese_treeview_unica(self):
                     ora_sp      = campo(voce, "ora", "")
                     hashtag_sp  = campo(voce, "hashtag", [])
                     hashtag_txt_sp = " ".join(hashtag_sp)
-                    nome_conto_sp = campo(voce, "conto", "") or (self._trova_conto_da_portafoglio(d, float(importo), tipo) if d else "")
+                    nome_conto_sp = campo(voce, "conto", "") or (
+                        conto_da_mappa(_agganci_cs, _uso_ordinale_cs, d.strftime("%d-%m-%Y"), float(importo), tipo)
+                        if d else ""
+                    )
                     if ricerca_rapida:
                         campi_ricerca_rapida = [
                             categoria, descrizione, tipo, str(importo),
