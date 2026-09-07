@@ -9,7 +9,11 @@ from collections import defaultdict
 import tkinter as tk
 from tkinter import ttk, TclError
 from moduli.modello_spesa import campo
-from moduli.mappa_conti_trasferimenti import e_trasferimento_virtuale
+from moduli.mappa_conti_trasferimenti import (
+    e_trasferimento_virtuale,
+    costruisci_mappa_conti_da_trasferimenti,
+    conto_da_mappa,
+)
 
 HOUSEHOLD_LABEL = "Patrimonio Complessivo"
 
@@ -28,9 +32,22 @@ def _fmt_it(v, spec=",.2f"):
     return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
 
 def mostra_analisi_grafici(self):
+    from __main__ import PORTAFOGLIO_BANCARIO
     db_conti_analisi = _carica_db_conti()
     conti_disponibili_analisi = db_conti_analisi.get("conti", [])
     nomi_conti_analisi = [HOUSEHOLD_LABEL] + [c.get("nome", "") for c in conti_disponibili_analisi]
+    _agganci_analisi = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
+
+    def _risolvi_conto_voce(voce, data, agganci, contatori_ordinale):
+        nome_conto_voce = campo(voce, "conto", "").strip()
+        if nome_conto_voce:
+            return nome_conto_voce
+        tipo_voce = campo(voce, "tipo", "").strip()
+        importo_voce = campo(voce, "importo", 0.0)
+        try:
+            return conto_da_mappa(agganci, contatori_ordinale, data.strftime("%d-%m-%Y"), importo_voce, tipo_voce)
+        except Exception:
+            return ""
     for _attr in ("analisi_tab1_conto_filtro", "analisi_tab2_conto_filtro", "analisi_tab3_conto_filtro"):
         if not hasattr(self, _attr) or getattr(self, _attr) not in nomi_conti_analisi:
             setattr(self, _attr, HOUSEHOLD_LABEL)
@@ -362,14 +379,17 @@ def mostra_analisi_grafici(self):
             conto_sel3 = next((c for c in conti_disponibili_analisi if c.get("nome", "") == self.analisi_tab3_conto_filtro), None)
         entrate = defaultdict(float)
         uscite = defaultdict(float)
+        _uso_ordinale_t3 = {}
         for data, voci in self.spese.items():
             anno = data.year
             mese = data.month
             if selezione != "Tutti" and str(anno) != selezione:
                 continue
             for voce in voci:
-                if conto_sel3 is not None and campo(voce, "conto", "") != conto_sel3.get("nome", ""):
-                    continue
+                if conto_sel3 is not None:
+                    nome_conto_voce = _risolvi_conto_voce(voce, data, _agganci_analisi, _uso_ordinale_t3)
+                    if nome_conto_voce != conto_sel3.get("nome", ""):
+                        continue
                 if not includi_futuri_graf_var.get() and data > datetime.date.today():
                     continue
                 tipo = campo(voce, "tipo", "").strip().lower()
@@ -431,11 +451,14 @@ def mostra_analisi_grafici(self):
         if self.analisi_tab2_conto_filtro != HOUSEHOLD_LABEL:
             conto_sel2 = next((c for c in conti_disponibili_analisi if c.get("nome", "") == self.analisi_tab2_conto_filtro), None)
         categories = defaultdict(float)
+        _uso_ordinale_t2 = {}
         for data, voci in self.spese.items():
             if anno == "Tutti" or str(data.year) == anno:
                 for voce in voci:
-                    if conto_sel2 is not None and campo(voce, "conto", "") != conto_sel2.get("nome", ""):
-                        continue
+                    if conto_sel2 is not None:
+                        nome_conto_voce = _risolvi_conto_voce(voce, data, _agganci_analisi, _uso_ordinale_t2)
+                        if nome_conto_voce != conto_sel2.get("nome", ""):
+                            continue
                     if not includi_futuri_graf_var.get() and data > datetime.date.today():
                         continue
                     if campo(voce, "tipo", "").strip().lower() == "uscita":
@@ -470,13 +493,14 @@ def mostra_analisi_grafici(self):
         anno = selettore_anno4.get()
         canvas4.anno_corrente = anno
         conti = defaultdict(float)
+        _uso_ordinale_t4 = {}
         for data, voci in self.spese.items():
             if anno == "Tutti" or str(data.year) == anno:
                 for voce in voci:
                     if not includi_futuri_graf_var.get() and data > datetime.date.today():
                         continue
                     if campo(voce, "tipo", "").strip().lower() == "uscita":
-                        nome_conto = campo(voce, "conto", "").strip() or "(Nessun conto)"
+                        nome_conto = _risolvi_conto_voce(voce, data, _agganci_analisi, _uso_ordinale_t4) or "(Nessun conto)"
                         conti[nome_conto] += float(campo(voce, "importo", 0.0))
         tutti_conti = sorted(conti.items(), key=lambda x: x[1], reverse=True)
         if not hasattr(self, '_colori_conti'):
@@ -501,14 +525,17 @@ def mostra_analisi_grafici(self):
             conto_sel1 = next((c for c in conti_disponibili_analisi if c.get("nome", "") == self.analisi_tab1_conto_filtro), None)
         entrate = defaultdict(float)
         uscite = defaultdict(float)
+        _uso_ordinale_t1 = {}
         for data, voci in self.spese.items():
             anno = data.year
             mese = data.month
             if anno_selezionato != "Tutti" and str(anno) != anno_selezionato:
                 continue
             for voce in voci:
-                if conto_sel1 is not None and campo(voce, "conto", "") != conto_sel1.get("nome", ""):
-                    continue
+                if conto_sel1 is not None:
+                    nome_conto_voce = _risolvi_conto_voce(voce, data, _agganci_analisi, _uso_ordinale_t1)
+                    if nome_conto_voce != conto_sel1.get("nome", ""):
+                        continue
                 if not includi_futuri_graf_var.get() and data > datetime.date.today():
                     continue
                 tipo = campo(voce, "tipo", "").strip().lower()
