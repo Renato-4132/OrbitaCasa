@@ -1,10 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import os
+import json
 import datetime
 import tkinter as tk
 from tkinter import ttk
 
+HOUSEHOLD_LABEL = "Patrimonio Complessivo"
+
+def _carica_db_conti_scelta():
+    try:
+        import __main__ as _app
+        PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
+        if os.path.exists(PORTAFOGLIO_BANCARIO):
+            with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {"conti": [], "trasferimenti": []}
 
 # Popup di Selezione Periodo per Analisi e Bilanci (Giorno/Mese/Anno/Totale)
 def popup_scelta_estratto(self):
@@ -37,6 +51,7 @@ def popup_scelta_estratto(self):
         else: f_mese.pack_forget()
         if tipo == "giorno": f_giorno.pack(fill="x", pady=2)
         else: f_giorno.pack_forget()
+        f_conto.pack(fill="x", pady=2)
     frame_opzioni = tk.Frame(popup, bg=self.COLOR_WIDGET_BG)
     frame_opzioni.pack(pady=5, padx=30, fill="x")
     opzioni = [("Bilancio Giornaliero", "giorno"), ("Bilancio Mensile", "mese"),
@@ -71,10 +86,19 @@ def popup_scelta_estratto(self):
     c_giorno = ttk.Combobox(f_giorno, values=giorni, width=WIDTH_COMBO, style="Border.TCombobox", state="readonly")
     c_giorno.set(str(datetime.date.today().day))
     c_giorno.pack(side="left", padx=10)
+    f_conto = tk.Frame(frame_sel, bg=self.COLOR_WIDGET_BG)
+    ttk.Label(f_conto, text="Conto:", width=10, anchor="e").pack(side="left")
+    db_conti_scelta = _carica_db_conti_scelta()
+    nomi_conti_scelta = [HOUSEHOLD_LABEL] + [c.get("nome", "") for c in db_conti_scelta.get("conti", [])]
+    WIDTH_COMBO_CONTO = max(WIDTH_COMBO, max((len(n) for n in nomi_conti_scelta), default=0) + 2)
+    c_conto = ttk.Combobox(f_conto, values=nomi_conti_scelta, width=WIDTH_COMBO_CONTO, style="Border.TCombobox", state="readonly")
+    c_conto.set(HOUSEHOLD_LABEL)
+    c_conto.pack(side="left", padx=10)
     aggiorna_interfaccia()
     def procedi_generazione():
         mode = scelta_tipo.get()
         self.estratto_year_var.set(c_anno.get())
+        self.estratto_conto_filtro = c_conto.get()
         if mode == "totale": self.export_storico_totale()
         elif mode == "anno": self.export_anno_dettagliato()
         elif mode == "mese":

@@ -9,6 +9,8 @@ from tkinter import ttk, filedialog
 from moduli.modello_spesa import campo
 from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa
 
+HOUSEHOLD_LABEL = "Patrimonio Complessivo"
+
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
     return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
@@ -46,11 +48,16 @@ def export_stats(self):
     header = f"{'Categoria':<{label_width}} {'Descrizione':<{desc_width}} {'Importo (€)':>{value_width}}  {'Tipo':<{tipo_width}} {'Conto':<{conto_width}} {'Metodo':<{metodo_width}} {'Ora':<{ora_width}} {'Tag':<{tag_width}}"
     sep = "─" * len(header)
     lines.append("═" * len(header))
-    lines.append(f"{('Riepilogo Giornaliero - ' + giorno.strftime('%d-%m-%Y')).center(len(header))}")
+    conto_filtro = getattr(self, 'estratto_conto_filtro', HOUSEHOLD_LABEL)
+    titolo_giorno = 'Riepilogo Giornaliero - ' + giorno.strftime('%d-%m-%Y')
+    if conto_filtro != HOUSEHOLD_LABEL:
+        titolo_giorno += f" (Conto: {conto_filtro})"
+    lines.append(f"{titolo_giorno.center(len(header))}")
     lines.append("═" * len(header))
     lines.append("")
     lines.append(header)
     lines.append(sep)
+    voci_stampate = 0
     if not spese:
         lines.append("Nessuna spesa trovata per il giorno selezionato.")
     else:
@@ -64,14 +71,19 @@ def export_stats(self):
                 nome_conto = _conto_espl_st
             else:
                 nome_conto = conto_da_mappa(_agganci_st, _agganci_uso_st, giorno.strftime("%d-%m-%Y"), imp, tipo)
+            if conto_filtro != HOUSEHOLD_LABEL and nome_conto != conto_filtro:
+                continue
             metodo_val = campo(entry, "metodo_pagamento", "")
             ora_val = campo(entry, "ora", "")
             tag_val = " ".join(campo(entry, "hashtag", []))
             lines.append(f"{cat:<{label_width}.{label_width}} {desc:<{desc_width}.{desc_width}} {_fmt_it(imp, f'>{value_width},.2f')}  {tipo:<{tipo_width}} {nome_conto:<{conto_width}.{conto_width}} {metodo_val:<{metodo_width}.{metodo_width}} {ora_val:<{ora_width}.{ora_width}} {tag_val:<{tag_width}.{tag_width}}")
+            voci_stampate += 1
             if tipo == "Entrata":
                 tot_entrate += imp
             else:
                 tot_uscite += imp
+        if voci_stampate == 0:
+            lines.append("Nessuna spesa trovata per il conto selezionato.")
     lines.append(sep)
     diff = tot_entrate - tot_uscite
     lines.append(f"{'Totale Entrate:':<{label_width}} {_fmt_it(tot_entrate, f'>{value_width},.2f')}")
@@ -96,6 +108,7 @@ def export_month_detail(self):
     cat_conteggi = {}
     _agganci_st = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
     _agganci_uso_st = {}
+    conto_filtro = getattr(self, 'estratto_conto_filtro', HOUSEHOLD_LABEL)
     days_in_month = [
         d for d in sorted(self.spese.keys())
         if d.year == year and d.month == month
@@ -116,6 +129,8 @@ def export_month_detail(self):
                 nome_conto = _conto_espl_st
             else:
                 nome_conto = conto_da_mappa(_agganci_st, _agganci_uso_st, d.strftime("%d-%m-%Y"), importo_v, tipo)
+            if conto_filtro != HOUSEHOLD_LABEL and nome_conto != conto_filtro:
+                continue
             metodo_mov = campo(entry, "metodo_pagamento", "")
             ora_mov = campo(entry, "ora", "")
             tag_mov = " ".join(campo(entry, "hashtag", []))
@@ -128,7 +143,10 @@ def export_month_detail(self):
                 cat_conteggi[categoria] = cat_conteggi.get(categoria, 0) + 1
     lines = []
     lines.append("═" * 96)
-    lines.append(f"{('RIEPILOGO MENSILE - ' + monthname.upper() + ' ' + str(year)).center(96)}")
+    titolo_mese = 'RIEPILOGO MENSILE - ' + monthname.upper() + ' ' + str(year)
+    if conto_filtro != HOUSEHOLD_LABEL:
+        titolo_mese += f" (Conto: {conto_filtro})"
+    lines.append(f"{titolo_mese.center(96)}")
     lines.append("═" * 96 + "\n")
     if not tutti_movimenti:
         lines.append("Nessuna spesa o movimento registrato in questo mese.\n")
@@ -171,6 +189,8 @@ def export_month_detail(self):
 
 # Esportazione di un Report Annuale Dettagliato (Matrice Categoria vs. Mese)
 def export_anno_dettagliato(self):
+    import __main__ as _app
+    PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
     try:
         year = int(self.estratto_year_var.get())
     except Exception:
@@ -193,6 +213,9 @@ def export_anno_dettagliato(self):
     tot_entrate_anno = 0.0
     tot_uscite_anno = 0.0
     oggi = datetime.date.today()
+    _agganci_an = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
+    _agganci_uso_an = {}
+    conto_filtro = getattr(self, 'estratto_conto_filtro', HOUSEHOLD_LABEL)
 
     def date_from_key(d):
         if isinstance(d, datetime.date):
@@ -214,6 +237,14 @@ def export_anno_dettagliato(self):
                 cat = campo(entry, "categoria", "")
                 imp = campo(entry, "importo", 0.0)
                 tipo = campo(entry, "tipo", "")
+                if conto_filtro != HOUSEHOLD_LABEL:
+                    _conto_espl_an = campo(entry, "conto", "")
+                    if _conto_espl_an:
+                        nome_conto = _conto_espl_an
+                    else:
+                        nome_conto = conto_da_mappa(_agganci_an, _agganci_uso_an, d2.strftime("%d-%m-%Y"), imp, tipo)
+                    if nome_conto != conto_filtro:
+                        continue
                 if tipo == "Entrata":
                     tot_entrate_mese[m] += imp
                     tot_entrate_anno += imp
@@ -232,7 +263,10 @@ def export_anno_dettagliato(self):
     sep = "─" * len(header)
     lines = []
     lines.append("═" * len(header))
-    lines.append(f"{('RIEPILOGO ENTRATE/USCITE ANNO ' + str(year)).center(len(header))}")
+    titolo_anno = 'RIEPILOGO ENTRATE/USCITE ANNO ' + str(year)
+    if conto_filtro != HOUSEHOLD_LABEL:
+        titolo_anno += f" (Conto: {conto_filtro})"
+    lines.append(f"{titolo_anno.center(len(header))}")
     lines.append("═" * len(header))
     lines.append("")
     lines.append(header)
@@ -264,6 +298,11 @@ def export_anno_dettagliato(self):
 
 # Esportazione Report Storico Totale Dettagliato (Matrice Categoria vs. Anno)
 def export_storico_totale(self):
+    import __main__ as _app
+    PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
+    conto_filtro = getattr(self, 'estratto_conto_filtro', HOUSEHOLD_LABEL)
+    _agganci_st = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
+    _agganci_uso_st = {}
     anni_presenti = set()
     def get_year(d):
         if isinstance(d, datetime.date):
@@ -296,10 +335,19 @@ def export_storico_totale(self):
     for d, sp in self.spese.items():
         y = get_year(d)
         if y in anni_lista:
+            giorno_str = d.strftime("%d-%m-%Y") if isinstance(d, datetime.date) else d
             for entry in sp:
                 cat = campo(entry, "categoria", "")
                 imp = campo(entry, "importo", 0.0)
                 tipo = campo(entry, "tipo", "")
+                if conto_filtro != HOUSEHOLD_LABEL:
+                    _conto_espl_st = campo(entry, "conto", "")
+                    if _conto_espl_st:
+                        nome_conto = _conto_espl_st
+                    else:
+                        nome_conto = conto_da_mappa(_agganci_st, _agganci_uso_st, giorno_str, imp, tipo)
+                    if nome_conto != conto_filtro:
+                        continue
                 if str(tipo).lower() == "entrata":
                     cat_entrate[cat][y] += imp
                     tot_entrate_anno[y] += imp
@@ -322,7 +370,10 @@ def export_storico_totale(self):
     sep = "─" * len(header)
     lines = []
     lines.append("═" * len(header))
-    lines.append(f"{'MATRICE STORICA CATEGORIE'.center(len(header))}")
+    titolo_storico = 'MATRICE STORICA CATEGORIE'
+    if conto_filtro != HOUSEHOLD_LABEL:
+        titolo_storico += f" (Conto: {conto_filtro})"
+    lines.append(f"{titolo_storico.center(len(header))}")
     lines.append("═" * len(header))
     lines.append("")
     lines.append("RIEPILOGO ENTRATE:")
