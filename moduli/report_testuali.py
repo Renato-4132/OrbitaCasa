@@ -7,9 +7,49 @@ import datetime
 import tkinter as tk
 from tkinter import ttk, filedialog
 from moduli.modello_spesa import campo
-from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa
+from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa, e_trasferimento_virtuale
 
 HOUSEHOLD_LABEL = "Patrimonio Complessivo"
+
+def _carica_db_conti_report(portafoglio_path):
+    try:
+        if os.path.exists(portafoglio_path):
+            with open(portafoglio_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {"conti": [], "trasferimenti": []}
+
+def _trasferimenti_reali_conto(portafoglio_path, nome_conto):
+    """Trasferimenti reali (non virtuali/legati a spese) da/verso un conto specifico."""
+    db = _carica_db_conti_report(portafoglio_path)
+    conto_sel = next((c for c in db.get("conti", []) if c.get("nome", "") == nome_conto), None)
+    if conto_sel is None:
+        return []
+    id_a_nome = {c.get("id"): c.get("nome", "") for c in db.get("conti", [])}
+    risultato = []
+    for t in db.get("trasferimenti", []):
+        if e_trasferimento_virtuale(t):
+            continue
+        if t.get("da") != conto_sel.get("id") and t.get("a") != conto_sel.get("id"):
+            continue
+        try:
+            data_t = datetime.datetime.strptime(t["data"], "%d-%m-%Y").date()
+            imp_t = round(float(t.get("importo", 0)), 2)
+        except Exception:
+            continue
+        if t.get("da") == conto_sel.get("id"):
+            tipo_t = "Uscita"
+            altro_conto = id_a_nome.get(t.get("a"), "?")
+            desc_t = f"Trasferimento a {altro_conto}"
+        else:
+            tipo_t = "Entrata"
+            altro_conto = id_a_nome.get(t.get("da"), "?")
+            desc_t = f"Trasferimento da {altro_conto}"
+        if t.get("note"):
+            desc_t += f" ({t['note']})"
+        risultato.append((data_t, desc_t, imp_t, tipo_t))
+    return risultato
 
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
@@ -58,7 +98,10 @@ def export_stats(self):
     lines.append(header)
     lines.append(sep)
     voci_stampate = 0
-    if not spese:
+    trasferimenti_giorno = []
+    if conto_filtro != HOUSEHOLD_LABEL:
+        trasferimenti_giorno = [t for t in _trasferimenti_reali_conto(PORTAFOGLIO_BANCARIO, conto_filtro) if t[0] == giorno]
+    if not spese and not trasferimenti_giorno:
         lines.append("Nessuna spesa trovata per il giorno selezionato.")
     else:
         for entry in spese:
@@ -82,6 +125,13 @@ def export_stats(self):
                 tot_entrate += imp
             else:
                 tot_uscite += imp
+        for _, desc_t, imp_t, tipo_t in trasferimenti_giorno:
+            lines.append(f"{'Trasferimento':<{label_width}.{label_width}} {desc_t:<{desc_width}.{desc_width}} {_fmt_it(imp_t, f'>{value_width},.2f')}  {tipo_t:<{tipo_width}} {conto_filtro:<{conto_width}.{conto_width}} {'':<{metodo_width}} {'':<{ora_width}} {'':<{tag_width}}")
+            voci_stampate += 1
+            if tipo_t == "Entrata":
+                tot_entrate += imp_t
+            else:
+                tot_uscite += imp_t
         if voci_stampate == 0:
             lines.append("Nessuna spesa trovata per il conto selezionato.")
     lines.append(sep)
@@ -141,6 +191,17 @@ def export_month_detail(self):
                 tot_uscite += importo_v
                 cat_spese[categoria] = cat_spese.get(categoria, 0.0) + importo_v
                 cat_conteggi[categoria] = cat_conteggi.get(categoria, 0) + 1
+    if conto_filtro != HOUSEHOLD_LABEL:
+        for data_t, desc_t, imp_t, tipo_t in _trasferimenti_reali_conto(PORTAFOGLIO_BANCARIO, conto_filtro):
+            if data_t.year != year or data_t.month != month:
+                continue
+            tutti_movimenti.append((data_t, "Trasferimento", desc_t, tipo_t, imp_t, conto_filtro, "", "", ""))
+            if tipo_t == "Entrata":
+                tot_entrate += imp_t
+            else:
+                tot_uscite += imp_t
+                cat_spese["Trasferimento"] = cat_spese.get("Trasferimento", 0.0) + imp_t
+                cat_conteggi["Trasferimento"] = cat_conteggi.get("Trasferimento", 0) + 1
     lines = []
     lines.append("═" * 96)
     titolo_mese = 'RIEPILOGO MENSILE - ' + monthname.upper() + ' ' + str(year)
@@ -254,6 +315,25 @@ def export_anno_dettagliato(self):
                     tot_uscite_anno += imp
                     cat_uscite[cat][m] += imp
 
+    if conto_filtro != HOUSEHOLD_LABEL:
+        for data_t, desc_t, imp_t, tipo_t in _trasferimenti_reali_conto(PORTAFOGLIO_BANCARIO, conto_filtro):
+            if data_t.year != year:
+                continue
+            m = data_t.month - 1
+            if tipo_t == "Entrata":
+                tot_entrate_mese[m] += imp_t
+                tot_entrate_anno += imp_t
+                cat_entrate.setdefault("Trasferimento", [0.0] * 12)[m] += imp_t
+            else:
+                tot_uscite_mese[m] += imp_t
+                tot_uscite_anno += imp_t
+                cat_uscite.setdefault("Trasferimento", [0.0] * 12)[m] += imp_t
+        if "Trasferimento" in cat_entrate or "Trasferimento" in cat_uscite:
+            if "Trasferimento" not in categorie:
+                categorie.append("Trasferimento")
+            cat_entrate.setdefault("Trasferimento", [0.0] * 12)
+            cat_uscite.setdefault("Trasferimento", [0.0] * 12)
+
     def format_row(label, values):
         label_fmt = f"{label:<{label_width}.{label_width}}"
         numeri = "".join(_fmt_it(v, '10,.2f') for v in values)
@@ -301,8 +381,9 @@ def export_storico_totale(self):
     import __main__ as _app
     PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
     conto_filtro = getattr(self, 'estratto_conto_filtro', HOUSEHOLD_LABEL)
-    _agganci_st = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
-    _agganci_uso_st = {}
+    _agganci_stor = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
+    _agganci_uso_stor = {}
+    trasferimenti_conto_stor = _trasferimenti_reali_conto(PORTAFOGLIO_BANCARIO, conto_filtro) if conto_filtro != HOUSEHOLD_LABEL else []
     anni_presenti = set()
     def get_year(d):
         if isinstance(d, datetime.date):
@@ -316,6 +397,8 @@ def export_storico_totale(self):
         y = get_year(d)
         if y:
             anni_presenti.add(y)
+    for data_t, _, _, _ in trasferimenti_conto_stor:
+        anni_presenti.add(data_t.year)
     anni_lista = sorted(list(anni_presenti))
     if not anni_lista:
         return
@@ -335,17 +418,17 @@ def export_storico_totale(self):
     for d, sp in self.spese.items():
         y = get_year(d)
         if y in anni_lista:
-            giorno_str = d.strftime("%d-%m-%Y") if isinstance(d, datetime.date) else d
             for entry in sp:
                 cat = campo(entry, "categoria", "")
                 imp = campo(entry, "importo", 0.0)
                 tipo = campo(entry, "tipo", "")
                 if conto_filtro != HOUSEHOLD_LABEL:
-                    _conto_espl_st = campo(entry, "conto", "")
-                    if _conto_espl_st:
-                        nome_conto = _conto_espl_st
+                    d2 = d if isinstance(d, datetime.date) else datetime.datetime.strptime(d, "%d-%m-%Y").date()
+                    _conto_espl_stor = campo(entry, "conto", "")
+                    if _conto_espl_stor:
+                        nome_conto = _conto_espl_stor
                     else:
-                        nome_conto = conto_da_mappa(_agganci_st, _agganci_uso_st, giorno_str, imp, tipo)
+                        nome_conto = conto_da_mappa(_agganci_stor, _agganci_uso_stor, d2.strftime("%d-%m-%Y"), imp, tipo)
                     if nome_conto != conto_filtro:
                         continue
                 if str(tipo).lower() == "entrata":
@@ -354,6 +437,20 @@ def export_storico_totale(self):
                 else:
                     cat_uscite[cat][y] += imp
                     tot_uscite_anno[y] += imp
+
+    if trasferimenti_conto_stor:
+        for data_t, desc_t, imp_t, tipo_t in trasferimenti_conto_stor:
+            y = data_t.year
+            if tipo_t == "Entrata":
+                cat_entrate.setdefault("Trasferimento", {anno: 0.0 for anno in anni_lista})[y] += imp_t
+                tot_entrate_anno[y] += imp_t
+            else:
+                cat_uscite.setdefault("Trasferimento", {anno: 0.0 for anno in anni_lista})[y] += imp_t
+                tot_uscite_anno[y] += imp_t
+        if "Trasferimento" not in categorie:
+            categorie.append("Trasferimento")
+        cat_entrate.setdefault("Trasferimento", {anno: 0.0 for anno in anni_lista})
+        cat_uscite.setdefault("Trasferimento", {anno: 0.0 for anno in anni_lista})
 
     def format_row(label, data_dict):
         label_display = label[:label_width - 1]
@@ -370,10 +467,10 @@ def export_storico_totale(self):
     sep = "─" * len(header)
     lines = []
     lines.append("═" * len(header))
-    titolo_storico = 'MATRICE STORICA CATEGORIE'
+    titolo_stor = 'MATRICE STORICA CATEGORIE'
     if conto_filtro != HOUSEHOLD_LABEL:
-        titolo_storico += f" (Conto: {conto_filtro})"
-    lines.append(f"{titolo_storico.center(len(header))}")
+        titolo_stor += f" (Conto: {conto_filtro})"
+    lines.append(f"{titolo_stor.center(len(header))}")
     lines.append("═" * len(header))
     lines.append("")
     lines.append("RIEPILOGO ENTRATE:")

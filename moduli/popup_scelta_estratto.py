@@ -33,7 +33,7 @@ def popup_scelta_estratto(self):
     popup.withdraw()
     popup.title("Analisi e Bilanci")
     popup.update_idletasks()
-    w_popup, h_popup = 420, 400
+    w_popup, h_popup = 480, 400
     x = self.winfo_rootx() + (self.winfo_width() // 2) - (w_popup // 2)
     y = self.winfo_rooty() + (self.winfo_height() // 2) - (h_popup // 2)
     popup.geometry(f"{w_popup}x{h_popup}+{x}+{y}")
@@ -90,8 +90,7 @@ def popup_scelta_estratto(self):
     ttk.Label(f_conto, text="Conto:", width=10, anchor="e").pack(side="left")
     db_conti_scelta = _carica_db_conti_scelta()
     nomi_conti_scelta = [HOUSEHOLD_LABEL] + [c.get("nome", "") for c in db_conti_scelta.get("conti", [])]
-    WIDTH_COMBO_CONTO = max(WIDTH_COMBO, max((len(n) for n in nomi_conti_scelta), default=0) + 2)
-    c_conto = ttk.Combobox(f_conto, values=nomi_conti_scelta, width=WIDTH_COMBO_CONTO, style="Border.TCombobox", state="readonly")
+    c_conto = ttk.Combobox(f_conto, values=nomi_conti_scelta, width=28, style="Border.TCombobox", state="readonly")
     c_conto.set(HOUSEHOLD_LABEL)
     c_conto.pack(side="left", padx=10)
     aggiorna_interfaccia()
