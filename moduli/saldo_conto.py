@@ -138,6 +138,8 @@ def open_saldo_conto(self, tab_iniziale=None):
         bar_bottom = tk.Frame(popup, bg=bg)
         bar_bottom.pack(fill=tk.X, side=tk.BOTTOM, pady=(4, 6))
         def build_riepilogo():
+            if not popup.winfo_exists():
+                return
             for w in tab_riepilogo.winfo_children():
                 w.destroy()
             chk_frame = tk.Frame(tab_riepilogo, bg=bg)
@@ -398,6 +400,8 @@ def open_saldo_conto(self, tab_iniziale=None):
             bar_riep.pack(fill=tk.X, padx=14, pady=(8, 4))
             _btn(bar_riep, "report", "Esporta riepilogo", anteprima_export_riepilogo)
         def build_conti():
+            if not popup.winfo_exists():
+                return
             for w in tab_conti.winfo_children():
                 w.destroy()
             db_now   = carica_db()
@@ -584,6 +588,8 @@ def open_saldo_conto(self, tab_iniziale=None):
             _btn(btn_f, "salva",    "Salva",    salva_conto)
             _btn(btn_f, "cancella", "Elimina",  elimina_conto)
         def build_trasferimenti():
+            if not popup.winfo_exists():
+                return
             for w in tab_trasferimenti.winfo_children():
                 w.destroy()
             db_now = carica_db()
@@ -1098,6 +1104,8 @@ def open_saldo_conto(self, tab_iniziale=None):
             _btn(btn_f, "salva",    "Salva",   salva_trasf)
             _btn(btn_f, "cancella", "Elimina", elimina_trasf)
         def build_movimenti():
+            if not popup.winfo_exists():
+                return
             for w in tab_movimenti.winfo_children():
                 w.destroy()
             oggi  = datetime.date.today()
@@ -1511,6 +1519,8 @@ def open_saldo_conto(self, tab_iniziale=None):
                 var.trace_add("write", aggiorna_tree)
             aggiorna_tree()
         def build_storico():
+            if not popup.winfo_exists():
+                return
             for w in tab_storico.winfo_children():
                 w.destroy()
             _modo = ["mesi"]
@@ -1689,6 +1699,8 @@ def open_saldo_conto(self, tab_iniziale=None):
         self._saldo_refresh_storico = build_storico
         self._saldo_refresh = build_riepilogo
         self._saldo_refresh_movimenti = build_movimenti
+        self._saldo_refresh_conti = build_conti
+        self._saldo_refresh_trasferimenti = build_trasferimenti
         def on_tab_change(event):
             tab = nb.index(nb.select())
             if tab == 0:
@@ -1710,6 +1722,11 @@ def open_saldo_conto(self, tab_iniziale=None):
                     self._calendario_attivo.destroy()
                 except Exception:
                     pass
+            for attr in ('_saldo_refresh', '_saldo_refresh_movimenti', '_saldo_refresh_storico',
+                         '_saldo_refresh_conti', '_saldo_refresh_trasferimenti',
+                         '_saldo_conto_nb', '_saldo_conto_tab_trasferimenti'):
+                if hasattr(self, attr):
+                    delattr(self, attr)
             popup.destroy()
         _btn(bar_bottom, "chiudi", "Chiudi", chiudi_portafoglio, side="right", padx=14)
         popup.protocol("WM_DELETE_WINDOW", chiudi_portafoglio)

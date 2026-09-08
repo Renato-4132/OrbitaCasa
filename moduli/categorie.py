@@ -1868,10 +1868,12 @@ def apri_categorie_suggerite(self, parent=None):
         finestra.focus_force()
     except: pass
 
-def get_dati_categorie_storiche_json(self):
+def get_dati_categorie_storiche_json(self, conto_filtro=None):
     spese_per_categoria = {}
     for giorno, voci in self.spese.items():
             for voce in voci:
+                    if conto_filtro and campo(voce, "conto", "") != conto_filtro:
+                            continue
                     if campo(voce, "tipo", "") == "Uscita":
                             categoria = campo(voce, "categoria", "")
                             importo = campo(voce, "importo", 0.0)
@@ -1897,13 +1899,15 @@ def get_dati_categorie_storiche_json(self):
     }
     return json.dumps(chart_data)
 
-def get_dati_categorie_json(self):
+def get_dati_categorie_json(self, conto_filtro=None):
     oggi = datetime.date.today()
     anno_corrente = oggi.year
     spese_per_categoria = {}
     for data, entries in self.spese.items():
         if data.year == anno_corrente:
             for entry in entries:
+                if conto_filtro and campo(entry, "conto", "") != conto_filtro:
+                    continue
                 if campo(entry, "tipo", "") == "Uscita":
                     categoria = campo(entry, "categoria", "")
                     importo = campo(entry, "importo", 0.0)

@@ -376,7 +376,8 @@ def registra_tutti_i_moduli(GestioneSpese):
         ricalcola_operazioni_web, notifica_modifica_web, pianifica_sincro_web,
         manda_push, get_dati_entrate_uscite_tutti_gli_anni_json, get_dati_saldo_annuale_json,
         get_dati_entrate_uscite_json, get_dati_saldo_json, esegui_switch_profilo_web, pagina_cambia_profilo_web,
-        pagina_switch_in_corso_web,)
+        pagina_switch_in_corso_web, pagina_portafoglio_web, salva_conto_web, elimina_conto_web,
+        salva_trasferimento_web, elimina_trasferimento_web, refresh_portafoglio_web,)
     _registra(apri_webserver, _crea_flask_app, start_web_server, html_login, 
     html_cambia_pw_web, html_log_web, pagina_risultati_avanzati, html_info_sys, 
     html_form, html_saluto, html_fairshare_web, documenti_pdf_web, documenti_personali_web, 
@@ -387,7 +388,8 @@ def registra_tutti_i_moduli(GestioneSpese):
     ricalcola_operazioni_web, notifica_modifica_web, pianifica_sincro_web,
     manda_push, get_dati_entrate_uscite_tutti_gli_anni_json, get_dati_saldo_annuale_json,
     get_dati_entrate_uscite_json, get_dati_saldo_json, esegui_switch_profilo_web, pagina_cambia_profilo_web,
-    pagina_switch_in_corso_web)
+    pagina_switch_in_corso_web, pagina_portafoglio_web, salva_conto_web, elimina_conto_web,
+    salva_trasferimento_web, elimina_trasferimento_web, refresh_portafoglio_web)
 
     from moduli.sicurezza_rete import (
         apri_cambio_password, scarica_manuale_ssl, _apri_viewer_ssl, start_watchdog_server, genera_certificati_auto,
