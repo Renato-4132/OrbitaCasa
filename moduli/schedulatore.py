@@ -4,6 +4,7 @@
 import os
 import json
 import datetime
+import calendar
 import tkinter as tk
 from tkinter import ttk
 
@@ -13,6 +14,46 @@ from moduli.mappa_conti_trasferimenti import e_trasferimento_virtuale
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
     return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+
+HOUSEHOLD_LABEL = "Patrimonio Complessivo"
+
+def _carica_db_conti_scheduler(portafoglio_path):
+    try:
+        with open(portafoglio_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"conti": [], "trasferimenti": []}
+
+def _trasferimenti_conto_reali(portafoglio_path, conto_filtro):
+    """Trasferimenti reali (non virtuali) da/verso un conto specifico."""
+    db = _carica_db_conti_scheduler(portafoglio_path)
+    conto_sel = next((c for c in db.get("conti", []) if c.get("nome", "") == conto_filtro), None)
+    if conto_sel is None:
+        return []
+    id_a_nome = {c.get("id"): c.get("nome", "") for c in db.get("conti", [])}
+    risultato = []
+    for t in db.get("trasferimenti", []):
+        if e_trasferimento_virtuale(t):
+            continue
+        if t.get("da") != conto_sel.get("id") and t.get("a") != conto_sel.get("id"):
+            continue
+        try:
+            data_t = datetime.datetime.strptime(t["data"], "%d-%m-%Y").date()
+            imp_t = round(float(t.get("importo", 0)), 2)
+        except Exception:
+            continue
+        if t.get("da") == conto_sel.get("id"):
+            tipo_t = "Uscita"
+            altro_conto = id_a_nome.get(t.get("a"), "?")
+            desc_t = f"Trasferimento a {altro_conto}"
+        else:
+            tipo_t = "Entrata"
+            altro_conto = id_a_nome.get(t.get("da"), "?")
+            desc_t = f"Trasferimento da {altro_conto}"
+        if t.get("note"):
+            desc_t += f" ({t['note']})"
+        risultato.append((data_t, desc_t, imp_t, tipo_t))
+    return risultato
 
 def apri_schedulatore(self):
     import __main__ as _app
@@ -44,6 +85,10 @@ def apri_schedulatore(self):
     MESI_NOMI  = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
                   "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
     VALID_TYPES = [t[0] for t in TIPI]
+    TIPI_CON_CONTO = {
+        "estratto_mensile", "estratto_annuale", "estratto_trasferimenti",
+        "riepilogo_settimanale", "giornaliero", "allerta_saldo_negativo",
+    }
     def _carica():
         if os.path.exists(SCHEDULE_FILE):
             try:
@@ -65,12 +110,13 @@ def apri_schedulatore(self):
     win.withdraw()
     win.title("Schedulatore Notifiche Email — OrbitaCasa")
     win.configure(bg=self.COLOR_TOPLEVEL)
-    win.resizable(False, False)
-    W, H = 1360, 600
+    win.resizable(True, True)
+    W, H = 1200, 600
     self.update_idletasks()
     pos_x = self.winfo_rootx() + (self.winfo_width() // 2) - (W // 2)
     pos_y = self.winfo_rooty() + (self.winfo_height() // 2) - (H // 2)
     win.geometry(f"{W}x{H}+{max(0, pos_x)}+{max(0, pos_y)}")
+    win.minsize(W, H)
     def _on_iconify(e):
         if self.state() == "iconic":
             win.withdraw()
@@ -97,17 +143,18 @@ def apri_schedulatore(self):
     col_sx.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 15))
     tk.Label(col_sx, text="Notifiche email pianificate", bg=self.COLOR_TOPLEVEL,
              fg=self.COLOR_HEADER, font=("Arial", 10, "bold")).pack(anchor="w", pady=(0, 4))
-    cols = ("nome", "tipo", "frequenza", "orario", "giorno", "email", "ultima", "prossima")
+    cols = ("nome", "tipo", "conto", "frequenza", "orario", "giorno", "email", "ultima", "prossima")
     tree = ttk.Treeview(col_sx, columns=cols, show="headings", height=14, selectmode="browse")
     hdrs = {
-        "nome":     ("Nome Notifica / Oggetto", 160),
-        "tipo":     ("Tipo Report",             160),
-        "frequenza":("Frequenza",                90),
-        "orario":   ("Orario",                   60),
-        "giorno":   ("Giorno",                   55),
-        "email":    ("Invio",                    45),
-        "ultima":   ("Ultimo Invio",             95),
-        "prossima": ("Prossimo Invio",           95),
+        "nome":     ("Nome Notifica / Oggetto", 158),
+        "tipo":     ("Tipo Report",             140),
+        "conto":    ("Conto",                   175),
+        "frequenza":("Frequenza",                75),
+        "orario":   ("Orario",                   50),
+        "giorno":   ("Giorno",                   45),
+        "email":    ("Invio",                    35),
+        "ultima":   ("Ultimo",                   80),
+        "prossima": ("Prossimo",                 80),
     }
     for c, (lbl, w) in hdrs.items():
         tree.heading(c, text=lbl, anchor="w" if c == "nome" else "center")
@@ -116,20 +163,32 @@ def apri_schedulatore(self):
     tree.configure(yscrollcommand=sb.set)
     sb.pack(side=tk.RIGHT, fill=tk.Y)
     tree.pack(fill=tk.BOTH, expand=True)
-    col_dx = tk.Frame(corpo, bg=self.COLOR_TOPLEVEL, width=440)
+    col_dx = tk.Frame(corpo, bg=self.COLOR_TOPLEVEL, width=280)
     col_dx.pack(side=tk.LEFT, fill=tk.Y)
     col_dx.pack_propagate(False)
     tk.Label(col_dx, text="Configurazione Notifica", bg=self.COLOR_TOPLEVEL,
              fg=self.COLOR_HEADER, font=("Arial", 10, "bold")).pack(anchor="w", pady=(0, 6))
     _editing_idx = [None]
     def _lbl(testo):
-        tk.Label(col_dx, text=testo, bg=self.COLOR_TOPLEVEL,
-                 fg=self.TEXT_COLOR, font=("Arial", 9, "bold")).pack(anchor="w", pady=(5, 1))
+        w = tk.Label(col_dx, text=testo, bg=self.COLOR_TOPLEVEL,
+                 fg=self.TEXT_COLOR, font=("Arial", 9, "bold"))
+        w.pack(anchor="w", pady=(5, 1))
+        return w
     var_tipo = tk.StringVar(value=TIPI_LABEL[0])
     var_nome = tk.StringVar(value=TIPI_LABEL[0])
+    var_conto = tk.StringVar(value=HOUSEHOLD_LABEL)
+    try:
+        _db_conti_sched = _carica_db_conti_scheduler(_app.PORTAFOGLIO_BANCARIO)
+        _nomi_conti_sched = [HOUSEHOLD_LABEL] + [c.get("nome", "") for c in _db_conti_sched.get("conti", [])]
+    except Exception:
+        _nomi_conti_sched = [HOUSEHOLD_LABEL]
     def _on_tipo_cambiato(event=None):
         if _editing_idx[0] is None:
             var_nome.set(var_tipo.get())
+        if TIPI_ID.get(var_tipo.get(), "") in TIPI_CON_CONTO:
+            f_conto.pack(fill=tk.X, pady=(0, 0), before=lbl_freq)
+        else:
+            f_conto.pack_forget()
     _lbl("Tipo di Report:")
     cb_tipo = ttk.Combobox(col_dx, textvariable=var_tipo, values=TIPI_LABEL,
                            state="readonly", style="Border.TCombobox", width=38)
@@ -137,24 +196,55 @@ def apri_schedulatore(self):
     cb_tipo.bind("<<ComboboxSelected>>", _on_tipo_cambiato)
     _lbl("Nome notifica / Oggetto Email:")
     ttk.Entry(col_dx, textvariable=var_nome, width=40).pack(fill=tk.X)
-    _lbl("Frequenza Invio:")
+    f_conto = tk.Frame(col_dx, bg=self.COLOR_TOPLEVEL)
+    tk.Label(f_conto, text="Conto:", bg=self.COLOR_TOPLEVEL,
+             fg=self.TEXT_COLOR, font=("Arial", 9, "bold")).pack(anchor="w", pady=(5, 1))
+    ttk.Combobox(f_conto, textvariable=var_conto, values=_nomi_conti_sched,
+                 state="readonly", style="Border.TCombobox", width=38).pack(fill=tk.X)
+    lbl_freq = _lbl("Frequenza Invio:")
     var_freq = tk.StringVar(value="mensile")
     cb_freq = ttk.Combobox(col_dx, textvariable=var_freq, values=FREQUENZE,
                            state="readonly", style="Border.TCombobox", width=38)
     cb_freq.pack(fill=tk.X)
     f_gg = tk.Frame(col_dx, bg=self.COLOR_TOPLEVEL)
-    f_gg.pack(fill=tk.X, pady=(4, 0))
     tk.Label(f_gg, text="Giorno del mese:", bg=self.COLOR_TOPLEVEL,
              fg=self.TEXT_COLOR, font=("Arial", 9, "bold")).pack(side=tk.LEFT)
     var_giorno = tk.StringVar(value="1")
-    ttk.Spinbox(f_gg, from_=1, to=31, textvariable=var_giorno,
-                width=5, style="Custom.TSpinbox", state="readonly").pack(side=tk.LEFT, padx=6)
-    tk.Label(f_gg, text="  Mese (per annuale):", bg=self.COLOR_TOPLEVEL,
+    cb_giorno = ttk.Combobox(f_gg, textvariable=var_giorno, values=[str(g) for g in range(1, 32)],
+                 state="readonly", style="Border.TCombobox", width=5)
+    cb_giorno.pack(side=tk.LEFT, padx=6)
+    f_mese = tk.Frame(col_dx, bg=self.COLOR_TOPLEVEL)
+    tk.Label(f_mese, text="Mese (per annuale):", bg=self.COLOR_TOPLEVEL,
              fg=self.TEXT_COLOR, font=("Arial", 9, "bold")).pack(side=tk.LEFT)
     var_mese_anno = tk.StringVar(value="Gennaio")
-    ttk.Combobox(f_gg, textvariable=var_mese_anno, values=MESI_NOMI,
-                 state="readonly", style="Border.TCombobox", width=10).pack(side=tk.LEFT, padx=4)
-    _lbl("Orario di invio (HH:MM):")
+    cb_mese_anno = ttk.Combobox(f_mese, textvariable=var_mese_anno, values=MESI_NOMI,
+                 state="readonly", style="Border.TCombobox", width=10)
+    cb_mese_anno.pack(side=tk.LEFT, padx=4)
+    lbl_orario = _lbl("Orario di invio (HH:MM):")
+    def _aggiorna_giorni_validi(event=None):
+        # "Giorno del mese" serve solo per mensile/annuale; "Mese" solo per annuale.
+        # Il resto delle frequenze (giornaliero, settimanale, 5gg fine mese) non
+        # usa questi campi, quindi vengono nascosti per non confondere.
+        freq = var_freq.get()
+        if freq in ("mensile", "annuale"):
+            if not f_gg.winfo_ismapped():
+                f_gg.pack(fill=tk.X, pady=(4, 0), before=lbl_orario)
+        else:
+            f_gg.pack_forget()
+        if freq == "annuale":
+            if not f_mese.winfo_ismapped():
+                f_mese.pack(fill=tk.X, pady=(4, 0), before=lbl_orario)
+        else:
+            f_mese.pack_forget()
+        mese_idx = MESI_NOMI.index(var_mese_anno.get()) + 1 if var_mese_anno.get() in MESI_NOMI else 1
+        anno_rif = datetime.date.today().year
+        n_giorni = calendar.monthrange(anno_rif, mese_idx)[1]
+        cb_giorno["values"] = [str(g) for g in range(1, n_giorni + 1)]
+        if int(var_giorno.get() or 1) > n_giorni:
+            var_giorno.set(str(n_giorni))
+    cb_mese_anno.bind("<<ComboboxSelected>>", _aggiorna_giorni_validi)
+    cb_freq.bind("<<ComboboxSelected>>", _aggiorna_giorni_validi)
+    _aggiorna_giorni_validi()
     var_orario = tk.StringVar(value="08:00")
     _orari_rapidi = [f"{h:02d}:{m:02d}" for h in range(24) for m in range(0, 60, 5)]
     ttk.Combobox(col_dx, textvariable=var_orario, values=_orari_rapidi,
@@ -200,18 +290,16 @@ def apri_schedulatore(self):
                 m += 1
                 if m > 12:
                     m, y = 1, y + 1
-            try:
-                dt = datetime.datetime(y, m, gg, hh, mm)
-            except ValueError:
-                dt = datetime.datetime(y, m, 28, hh, mm)
+            gg_valido = min(gg, calendar.monthrange(y, m)[1])
+            dt = datetime.datetime(y, m, gg_valido, hh, mm)
         elif freq == "annuale":
             y = oggi.year
-            try:
-                dt = datetime.datetime(y, mese_a, gg, hh, mm)
-                if dt.date() <= oggi:
-                    dt = datetime.datetime(y + 1, mese_a, gg, hh, mm)
-            except ValueError:
-                dt = datetime.datetime(y + 1, mese_a, 28, hh, mm)
+            gg_valido = min(gg, calendar.monthrange(y, mese_a)[1])
+            dt = datetime.datetime(y, mese_a, gg_valido, hh, mm)
+            if dt.date() <= oggi:
+                y += 1
+                gg_valido = min(gg, calendar.monthrange(y, mese_a)[1])
+                dt = datetime.datetime(y, mese_a, gg_valido, hh, mm)
         elif freq == "5gg fine mese":
             m, y = oggi.month, oggi.year
             if m == 12:
@@ -233,7 +321,7 @@ def apri_schedulatore(self):
                 dt = datetime.datetime(data_target_next.year, data_target_next.month, data_target_next.day, hh, mm)
         else:
             dt = datetime.datetime.now() + datetime.timedelta(days=1)
-        return dt.strftime("%d/%m/%Y %H:%M")
+        return dt.strftime("%d/%m/%Y")
     def _aggiorna_tree():
         if not win.winfo_exists():
             return
@@ -252,6 +340,7 @@ def apri_schedulatore(self):
             tree.insert("", "end", iid=str(i), tags=(tag,),
                         values=(attivo_s + t.get("nome", ""),
                                 TIPI_LABEL_R.get(t.get("tipo", ""), t.get("tipo", "")),
+                                (t.get("conto", "") or HOUSEHOLD_LABEL) if t.get("tipo") in TIPI_CON_CONTO else "—",
                                 t.get("frequenza", ""),
                                 t.get("orario", ""),
                                 t.get("giorno_mese", ""),
@@ -280,6 +369,9 @@ def apri_schedulatore(self):
         var_dest.set(EMAIL_USER or "")
         var_note.set("")
         var_attivo.set(True)
+        var_conto.set(HOUSEHOLD_LABEL)
+        _on_tipo_cambiato()
+        _aggiorna_giorni_validi()
     def _form_carica(idx):
         t = tasks[idx]
         _editing_idx[0] = idx
@@ -292,11 +384,15 @@ def apri_schedulatore(self):
             var_mese_anno.set(m_conf if m_conf in MESI_NOMI else "Gennaio")
         else:
             var_mese_anno.set(MESI_NOMI[int(m_conf) - 1])
+        _aggiorna_giorni_validi()
+        var_giorno.set(str(t.get("giorno_mese", 1)))
         var_orario.set(t.get("orario", "08:00"))
         var_email.set(t.get("email", True))
         var_dest.set(t.get("destinatario", EMAIL_USER or ""))
         var_note.set(t.get("note", ""))
         var_attivo.set(t.get("attivo", True))
+        var_conto.set(t.get("conto", "") or HOUSEHOLD_LABEL)
+        _on_tipo_cambiato()
     def _on_tree_select(e):
         sel = tree.selection()
         if sel:
@@ -321,6 +417,8 @@ def apri_schedulatore(self):
             "destinatario":     var_dest.get().strip(),
             "note":             var_note.get().strip(),
             "attivo":           var_attivo.get(),
+            "conto":            (("" if var_conto.get() == HOUSEHOLD_LABEL else var_conto.get())
+                                  if TIPI_ID.get(var_tipo.get(), "") in TIPI_CON_CONTO else ""),
             "ultima_esecuzione": "",
         }
     def _salva_task():
@@ -366,15 +464,16 @@ def apri_schedulatore(self):
         nome = task.get("nome", "")
         tipo = task.get("tipo", "")
         dest = task.get("destinatario", EMAIL_USER) or EMAIL_USER
+        conto_filtro = task.get("conto", "") or None
         corpo = ""
         if tipo == "estratto_mensile":
-            corpo = self._genera_testo_estratto_mensile()
+            corpo = self._genera_testo_estratto_mensile(conto_filtro)
         elif tipo == "estratto_annuale":
-            corpo = self._genera_testo_estratto_annuale()
+            corpo = self._genera_testo_estratto_annuale(conto_filtro)
         elif tipo == "estratto_trasferimenti":
-            corpo = self._genera_testo_estratto_trasferimenti()
+            corpo = self._genera_testo_estratto_trasferimenti(conto_filtro)
         elif tipo in ("riepilogo_settimanale", "giornaliero"):
-            corpo = self._genera_testo_riepilogo_cronologico(tipo)
+            corpo = self._genera_testo_riepilogo_cronologico(tipo, conto_filtro)
         elif tipo == "promemoria_libero":
             corpo = (
                 f"PROMEMORIA DIRETTO\n"
@@ -395,6 +494,9 @@ def apri_schedulatore(self):
             sforamenti_mese, sforamenti_anno = self._calcola_sforamenti_budget()
             if sforamenti_mese or sforamenti_anno:
                 corpo = self._genera_testo_sforamento_budget(sforamenti_mese, sforamenti_anno)
+        elif tipo == "allerta_saldo_negativo":
+            saldo_mese = self._calcola_saldo_mese_corrente(conto_filtro)
+            corpo = self._genera_testo_allerta_saldo(saldo_mese, conto_filtro)
         def _fine(esito, errore=None):
             tasks[idx]["ultima_esecuzione"] = datetime.date.today().strftime("%d/%m/%Y")
             _salva(tasks)
@@ -463,6 +565,7 @@ def apri_schedulatore(self):
     win.deiconify()
     win.lift()
     win.focus_force()
+    _on_tipo_cambiato()
     _aggiorna_tree()
     _tick()
 
@@ -549,14 +652,15 @@ def _esegui_scheduler(self):
             def _operazioni_gui(t=tipo, n=nome, ie=invia_email, d=dest, tk_task=task):
                 try:
                     corpo_mail = ""
+                    conto_filtro = tk_task.get("conto", "") or None
                     if t == "estratto_mensile":
-                        corpo_mail = self._genera_testo_estratto_mensile()
+                        corpo_mail = self._genera_testo_estratto_mensile(conto_filtro)
                     elif t == "estratto_annuale":
-                        corpo_mail = self._genera_testo_estratto_annuale()
+                        corpo_mail = self._genera_testo_estratto_annuale(conto_filtro)
                     elif t == "estratto_trasferimenti":
-                        corpo_mail = self._genera_testo_estratto_trasferimenti()
+                        corpo_mail = self._genera_testo_estratto_trasferimenti(conto_filtro)
                     elif t == "riepilogo_settimanale" or t == "giornaliero":
-                        corpo_mail = self._genera_testo_riepilogo_cronologico(t)
+                        corpo_mail = self._genera_testo_riepilogo_cronologico(t, conto_filtro)
                     elif t == "controllo_ricorrenti":
                         corpo_mail = self._genera_testo_ricorrenti_mancanti()
                     elif t == "scadenze_veicoli":
@@ -565,7 +669,7 @@ def _esegui_scheduler(self):
                         profilo_filtro = (tk_task.get("note") or "").strip() or None
                         corpo_mail = self._genera_testo_scadenze_documenti(profilo=profilo_filtro)
                     elif t == "allerta_saldo_negativo":
-                        saldo_mese = self._calcola_saldo_mese_corrente()
+                        saldo_mese = self._calcola_saldo_mese_corrente(conto_filtro)
                         ultimo_notificato = tk_task.get("ultimo_saldo_notificato", None)
                         mese_notificato = tk_task.get("mese_saldo_notificato", None)
                         mese_corrente = f"{datetime.date.today().year}-{datetime.date.today().month:02d}"
@@ -588,7 +692,7 @@ def _esegui_scheduler(self):
                                     print(f"[{ora}] [SCHEDULER] Errore reset saldo notificato: {_e}")
                             ie = False
                         elif saldo_mese != ultimo_notificato:
-                            corpo_mail = self._genera_testo_allerta_saldo(saldo_mese)
+                            corpo_mail = self._genera_testo_allerta_saldo(saldo_mese, conto_filtro)
                             tk_task["ultimo_saldo_notificato"] = saldo_mese
                             tk_task["mese_saldo_notificato"] = mese_corrente
                             try:
@@ -672,14 +776,18 @@ def _esegui_scheduler(self):
                 print(f"[{ora}] [SCHEDULER] Errore scrittura file: {e}")
 
 # Genera il testo del riepilogo giornaliero/settimanale (spostata da fairshare.py: non c'entrava nulla con FairShare)
-def _genera_testo_riepilogo_cronologico(self, frequenza_tipo):
+def _genera_testo_riepilogo_cronologico(self, frequenza_tipo, conto_filtro=None):
+    import __main__ as _app
+    PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
     oggi = datetime.date.today()
     if frequenza_tipo == "giornaliero":
         inizio = oggi
-        titolo = f"REGISTRO GIORNALIERO - {oggi.strftime('%d/%m/%Y')}"
+        titolo = f"REGISTRO GIORNALIERO {oggi.strftime('%d/%m/%Y')}"
     else:
         inizio = oggi - datetime.timedelta(days=7)
         titolo = f"REGISTRO SETTIMANALE\n   {inizio.strftime('%d/%m')} → {oggi.strftime('%d/%m/%Y')}"
+    if conto_filtro:
+        titolo += f"\n — {conto_filtro}"
     tot_e = tot_u = 0.0
     movimenti = []
     for d, voci in self.spese.items():
@@ -688,6 +796,8 @@ def _genera_testo_riepilogo_cronologico(self, frequenza_tipo):
             continue
         if inizio <= d_date <= oggi:
             for v in voci:
+                if conto_filtro and campo(v, "conto", "") != conto_filtro:
+                    continue
                 desc = campo(v, "descrizione", "")
                 imp = campo(v, "importo", 0.0)
                 tipo = campo(v, "tipo", "")
@@ -697,27 +807,36 @@ def _genera_testo_riepilogo_cronologico(self, frequenza_tipo):
                 else:
                     tot_u += imp
                 movimenti.append((d_date, cat, desc, tipo, imp))
+    if conto_filtro:
+        for data_t, desc_t, imp_t, tipo_t in _trasferimenti_conto_reali(PORTAFOGLIO_BANCARIO, conto_filtro):
+            if not (inizio <= data_t <= oggi):
+                continue
+            if tipo_t == "Entrata":
+                tot_e += imp_t
+            else:
+                tot_u += imp_t
+            movimenti.append((data_t, "Trasferimento", desc_t, tipo_t, imp_t))
     movimenti.sort(key=lambda x: x[0])
     saldo = tot_e - tot_u
     lines = []
     lines.append(f"📊 {titolo.upper()}")
-    lines.append("─" * 24)
+    lines.append("─" * 34)
     lines.append(f"🟢 ENTRATE: {_fmt_it(tot_e)} €")
     lines.append(f"🔴 USCITE:  {_fmt_it(tot_u)} €")
     emoji_saldo = "💰" if saldo >= 0 else "⚠️"
     lines.append(f"{emoji_saldo} SALDO:   {_fmt_it(saldo)} €")
     lines.append("")
     lines.append("📝 MOVIMENTI RILEVATI")
-    lines.append("─" * 24)
+    lines.append("─" * 34)
     for mov in movimenti:
         data, cat, desc, tipo, importo = mov[0], mov[1], mov[2], mov[3], mov[4]
         desc_str = desc.strip()
-        desc_pulita = desc_str[:20] + "..." if len(desc_str) > 20 else desc_str
+        desc_pulita = desc_str[:40] + "..." if len(desc_str) > 40 else desc_str
         segno = "🟢" if tipo.lower() in ["entrata", "e"] else "🔴"
         lines.append(f"{segno} {data}  {_fmt_it(importo)} €")
         lines.append(f"   📂 {cat}")
         lines.append(f"   ✏️ {desc_pulita}")
-        lines.append("   " + "┈" * 22)
+        lines.append("   " + "┈" * 30)
     return "\n".join(lines)
 
 def _genera_testo_ricorrenti_mancanti(self):
@@ -808,7 +927,9 @@ def _genera_testo_scadenze_veicoli(self, soglia_giorni=30):
     lines.append(f"📊 Report generato il {data_oggi}.")
     return "\n".join(lines)
 
-def _genera_testo_estratto_mensile(self):
+def _genera_testo_estratto_mensile(self, conto_filtro=None):
+    import __main__ as _app
+    PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
     oggi = datetime.date.today()
     if oggi.day == 1:
         # Il mese in corso è appena iniziato: mandiamo quello appena concluso.
@@ -832,6 +953,8 @@ def _genera_testo_estratto_mensile(self):
             continue
         if d_date.year == anno and d_date.month == mese:
             for v in voci:
+                if conto_filtro and campo(v, "conto", "") != conto_filtro:
+                    continue
                 desc = campo(v, "descrizione", "")
                 imp = campo(v, "importo", 0.0)
                 tipo = campo(v, "tipo", "")
@@ -847,12 +970,30 @@ def _genera_testo_estratto_mensile(self):
                     cat_uscite[cat]["voci"] += 1
                     cat_uscite[cat]["totale"] += imp
                 movimenti.append((d_date, cat, desc, tipo, imp))
+    if conto_filtro:
+        for data_t, desc_t, imp_t, tipo_t in _trasferimenti_conto_reali(PORTAFOGLIO_BANCARIO, conto_filtro):
+            if data_t.year != anno or data_t.month != mese:
+                continue
+            if tipo_t == "Entrata":
+                tot_e += imp_t
+                cat_entrate["Trasferimento"] = cat_entrate.get("Trasferimento", {"voci": 0, "totale": 0.0})
+                cat_entrate["Trasferimento"]["voci"] += 1
+                cat_entrate["Trasferimento"]["totale"] += imp_t
+            else:
+                tot_u += imp_t
+                cat_uscite["Trasferimento"] = cat_uscite.get("Trasferimento", {"voci": 0, "totale": 0.0})
+                cat_uscite["Trasferimento"]["voci"] += 1
+                cat_uscite["Trasferimento"]["totale"] += imp_t
+            movimenti.append((data_t, "Trasferimento", desc_t, tipo_t, imp_t))
     movimenti.sort(key=lambda x: x[0])
     saldo = tot_e - tot_u
     lines = []
     lines.append("")
-    lines.append(f"📊 RIEPILOGO MENSILE - {nome_mese.upper()} {anno}")
-    lines.append("─" * 24)
+    titolo_mens = f"📊 RIEPILOGO {nome_mese.upper()} {anno}"
+    if conto_filtro:
+        titolo_mens += f"\n — {conto_filtro}"
+    lines.append(titolo_mens)
+    lines.append("─" * 34)
     lines.append("")
     lines.append(f"🟢 ENTRATE: {_fmt_it(tot_e)} €")
     lines.append(f"🔴 USCITE:  {_fmt_it(tot_u)} €")
@@ -861,7 +1002,7 @@ def _genera_testo_estratto_mensile(self):
     lines.append("")
     if cat_entrate:
         lines.append("💰 ENTRATE PER CATEGORIA")
-        lines.append("─" * 24)
+        lines.append("─" * 34)
         lines.append("")
         for cat, data in sorted(cat_entrate.items(), key=lambda x: x[1]["totale"], reverse=True):
             p = (data["totale"] / tot_e * 100) if tot_e > 0 else 0.0
@@ -870,11 +1011,11 @@ def _genera_testo_estratto_mensile(self):
             lines.append(f"🟩  {cat[:16]} ({p:.1f}%)")
             lines.append(f"   Ricevuto: {_fmt_it(data['totale'])} €  Voci: {data['voci']}")
             lines.append(f"   [{barra}]")
-            lines.append("┈" * 22)
+            lines.append("┈" * 30)
         lines.append("")
     if cat_uscite:
         lines.append("💸 USCITE PER CATEGORIA")
-        lines.append("─" * 24)
+        lines.append("─" * 34)
         lines.append("")
         for cat, data in sorted(cat_uscite.items(), key=lambda x: x[1]["totale"], reverse=True):
             p = (data["totale"] / tot_u * 100) if tot_u > 0 else 0.0
@@ -883,27 +1024,31 @@ def _genera_testo_estratto_mensile(self):
             lines.append(f"🟥  {cat[:16]} ({p:.1f}%)")
             lines.append(f"   Speso:    {_fmt_it(data['totale'])} €  Voci: {data['voci']}")
             lines.append(f"   [{barra}]")
-            lines.append("┈" * 22)
+            lines.append("┈" * 30)
         lines.append("")
     lines.append("📜 REGISTRO CRONOLOGICO COMPATTO")
-    lines.append("─" * 24)
+    lines.append("─" * 34)
     lines.append("")
     for m in movimenti:
         data_str = m[0].strftime('%d/%m/%Y')
         categoria = m[1]
         desc_str = m[2].strip()
-        desc_pulita = desc_str[:20] + "..." if len(desc_str) > 20 else desc_str
+        desc_pulita = desc_str[:40] + "..." if len(desc_str) > 40 else desc_str
         segno_emoji = "🟩 +" if m[3] == "Entrata" else "🟥 -"
         lines.append(f"{segno_emoji} {_fmt_it(m[4])} €  {data_str}")
-        lines.append(f"   📂 {categoria} -> {desc_pulita}")
-        lines.append("   " + "┈" * 28)
+        if categoria == "Trasferimento":
+            lines.append(f"   📂 {categoria}")
+            lines.append(f"   {desc_pulita}")
+        else:
+            lines.append(f"   📂 {categoria} -> {desc_pulita}")
+        lines.append("   " + "┈" * 30)
     lines.append("")
     lines.append(f"🔢 Totale movimenti: {len(movimenti)}")
     lines.append("")
     lines.append(f"📅 Report generato il {oggi.strftime('%d/%m/%Y')}")
     return "\n".join(lines)
 
-def _genera_testo_estratto_trasferimenti(self):
+def _genera_testo_estratto_trasferimenti(self, conto_filtro=None):
     import __main__ as _app
     PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
     oggi = datetime.date.today()
@@ -937,13 +1082,18 @@ def _genera_testo_estratto_trasferimenti(self):
         imp = round(float(t.get("importo", 0)), 2)
         da_n = nome_da_id.get(t.get("da", ""), "?")
         a_n  = nome_da_id.get(t.get("a", ""), "?")
+        if conto_filtro and conto_filtro not in (da_n, a_n):
+            continue
         movimenti.append((d, da_n, a_n, imp, t.get("note", ""), bool(t.get("id_ricorrenza"))))
         saldo_conto[da_n] = saldo_conto.get(da_n, 0.0) - imp
         saldo_conto[a_n]  = saldo_conto.get(a_n, 0.0) + imp
     movimenti.sort(key=lambda x: x[0])
     lines = []
     lines.append("")
-    lines.append(f"🔄 TRASFERIMENTI CONTI {nome_mese} {anno}")
+    titolo_tra = f"🔄 TRASFERIMENTI CONTI {nome_mese} {anno}"
+    if conto_filtro:
+        titolo_tra += f" — {conto_filtro}"
+    lines.append(titolo_tra)
     lines.append("─" * 31)
     lines.append("")
     if not movimenti:
@@ -962,7 +1112,7 @@ def _genera_testo_estratto_trasferimenti(self):
             lines.append(f"   {da_n} → {a_n}")
             if note:
                 lines.append(f"   📝 {note}")
-            lines.append("   " + "┈" * 28)
+            lines.append("   " + "┈" * 30)
         lines.append("")
         lines.append("📊 NETTO TRASFERIMENTI (nel periodo)")
         lines.append("─" * 31)
@@ -973,7 +1123,9 @@ def _genera_testo_estratto_trasferimenti(self):
     lines.append(f"📅 Report generato il {oggi.strftime('%d/%m/%Y')}")
     return "\n".join(lines)
 
-def _genera_testo_estratto_annuale(self):
+def _genera_testo_estratto_annuale(self, conto_filtro=None):
+    import __main__ as _app
+    PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
     oggi = datetime.date.today()
     if oggi.month == 1 and oggi.day == 1:
         anno = oggi.year - 1
@@ -988,6 +1140,8 @@ def _genera_testo_estratto_annuale(self):
             continue
         if d_date.year == anno:
             for v in voci:
+                if conto_filtro and campo(v, "conto", "") != conto_filtro:
+                    continue
                 imp = campo(v, "importo", 0.0)
                 tipo = campo(v, "tipo", "")
                 cat = campo(v, "categoria", "")
@@ -1001,10 +1155,27 @@ def _genera_testo_estratto_annuale(self):
                     cat_uscite[cat] = cat_uscite.get(cat, {"voci": 0, "totale": 0.0})
                     cat_uscite[cat]["voci"] += 1
                     cat_uscite[cat]["totale"] += imp
+    if conto_filtro:
+        for data_t, desc_t, imp_t, tipo_t in _trasferimenti_conto_reali(PORTAFOGLIO_BANCARIO, conto_filtro):
+            if data_t.year != anno:
+                continue
+            if tipo_t == "Entrata":
+                tot_e += imp_t
+                cat_entrate["Trasferimento"] = cat_entrate.get("Trasferimento", {"voci": 0, "totale": 0.0})
+                cat_entrate["Trasferimento"]["voci"] += 1
+                cat_entrate["Trasferimento"]["totale"] += imp_t
+            else:
+                tot_u += imp_t
+                cat_uscite["Trasferimento"] = cat_uscite.get("Trasferimento", {"voci": 0, "totale": 0.0})
+                cat_uscite["Trasferimento"]["voci"] += 1
+                cat_uscite["Trasferimento"]["totale"] += imp_t
     saldo = tot_e - tot_u
     lines = []
     lines.append("")
-    lines.append(f"📊 *RIEPILOGO ANNUALE {anno}*")
+    titolo_ann = f"📊 *RIEPILOGO {anno}*"
+    if conto_filtro:
+        titolo_ann += f" — {conto_filtro}"
+    lines.append(titolo_ann)
     lines.append("─" * 31)
     lines.append("")
     lines.append(f"🟢 TOTALE ENTRATE ANNO: {_fmt_it(tot_e)} €")
@@ -1023,7 +1194,7 @@ def _genera_testo_estratto_annuale(self):
             lines.append(f"🟩 {cat} ({p:4.1f}%)")
             lines.append(f"   Ricevuto: {_fmt_it(data['totale'])} €  Voci: {data['voci']}")
             lines.append(f"   `[{barra}]`")
-            lines.append("┈" * 28)
+            lines.append("┈" * 30)
         lines.append("")
     if cat_uscite:
         lines.append("💸 USCITE PER CATEGORIA")
@@ -1036,13 +1207,15 @@ def _genera_testo_estratto_annuale(self):
             lines.append(f"🟥 {cat} ({p:4.1f}%)")
             lines.append(f"   Speso: {_fmt_it(data['totale'])} €  Voci: {data['voci']}")
             lines.append(f"   `[{barra}]`")
-            lines.append("┈" * 28)
+            lines.append("┈" * 30)
         lines.append("")
     lines.append("")
     lines.append(f"📅 Report generato il {oggi.strftime('%d/%m/%Y')}")
     return "\n".join(lines)
 
-def _calcola_saldo_mese_corrente(self):
+def _calcola_saldo_mese_corrente(self, conto_filtro=None):
+    import __main__ as _app
+    PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
     oggi = datetime.date.today()
     tot_e = tot_u = 0.0
     for d, voci in self.spese.items():
@@ -1051,12 +1224,22 @@ def _calcola_saldo_mese_corrente(self):
             continue
         if d_date.year == oggi.year and d_date.month == oggi.month:
             for v in voci:
+                if conto_filtro and campo(v, "conto", "") != conto_filtro:
+                    continue
                 imp = campo(v, "importo", 0.0)
                 tipo = campo(v, "tipo", "")
                 if tipo == "Entrata":
                     tot_e += imp
                 else:
                     tot_u += imp
+    if conto_filtro:
+        for data_t, _, imp_t, tipo_t in _trasferimenti_conto_reali(PORTAFOGLIO_BANCARIO, conto_filtro):
+            if data_t.year != oggi.year or data_t.month != oggi.month:
+                continue
+            if tipo_t == "Entrata":
+                tot_e += imp_t
+            else:
+                tot_u += imp_t
     return round(tot_e - tot_u, 2)
 
 def _calcola_sforamenti_budget(self):
@@ -1125,14 +1308,17 @@ def _genera_testo_sforamento_budget(self, sforamenti_mese, sforamenti_anno):
     lines.append(f"📅 Rilevato il {oggi.strftime('%d/%m/%Y')}")
     return "\n".join(lines)
 
-def _genera_testo_allerta_saldo(self, saldo):
+def _genera_testo_allerta_saldo(self, saldo, conto_filtro=None):
     oggi = datetime.date.today()
     mesi = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno",
             "Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"]
     nome_mese = mesi[oggi.month - 1]
+    titolo_all = f"⚠️  ALLERTA SALDO NEGATIVO \n— {nome_mese.upper()} {oggi.year}"
+    if conto_filtro:
+        titolo_all += f" — {conto_filtro}"
     lines = [
         "",
-        f"⚠️  ALLERTA SALDO NEGATIVO — {nome_mese.upper()} {oggi.year}",
+        titolo_all,
         "─" * 31,
         "",
         f"Il saldo del mese corrente è in rosso:",
