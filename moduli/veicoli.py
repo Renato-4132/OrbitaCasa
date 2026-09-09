@@ -643,14 +643,17 @@ def _veicoli_crea_tab(self, nb, v, db, win):
     ent_imp.bind("<Return>", lambda e: _aggiungi())
     r += 1
 
-    tk.Label(form_lf, text="Categorie:", bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HEADER,
-             font=("Arial", 9, "bold")).grid(row=r, column=0, sticky="w", padx=6, pady=(8, 2))
-    r += 1
     cat_frame = tk.Frame(form_lf, bg=self.COLOR_WIDGET_BG)
-    cat_frame.grid(row=r, column=0, columnspan=2, sticky="ew", padx=6, pady=2)
+    cat_frame.grid(row=r, column=0, columnspan=2, sticky="ew", padx=6, pady=(8, 2))
     r += 1
+    tk.Label(cat_frame, text="Categorie:", bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HEADER,
+             font=("Arial", 9, "bold")).pack(side=tk.LEFT, padx=(0, 4))
     v_nuova_cat = tk.StringVar()
-    ttk.Entry(cat_frame, textvariable=v_nuova_cat, width=25).pack(side=tk.LEFT, padx=(0, 4))
+    def _limita_cat(*a):
+        if len(v_nuova_cat.get()) > 22:
+            v_nuova_cat.set(v_nuova_cat.get()[:22])
+    v_nuova_cat.trace_add("write", _limita_cat)
+    ttk.Entry(cat_frame, textvariable=v_nuova_cat, width=22).pack(side=tk.LEFT, padx=(0, 4))
 
     def _aggiungi_cat():
         nc = v_nuova_cat.get().strip()
@@ -733,6 +736,10 @@ def _veicoli_crea_tab(self, nb, v, db, win):
         v_fmese.set("Tutti")
         v_fanno.set("Tutti")
         _popola_tree()
+        tutte = tree.get_children()
+        if tutte:
+            tree.selection_set(tutte)
+            tree.see(tutte[0])
 
     btn_reset = tk.Label(filtri_tree_f, text="↺ Reset", bg=self.COLOR_WIDGET_BG,
                           fg=self.COLOR_HIGHLIGHT, font=("Arial", 8, "bold"), cursor="hand2")
@@ -743,6 +750,50 @@ def _veicoli_crea_tab(self, nb, v, db, win):
                           fg=self.COLOR_HIGHLIGHT, font=("Arial", 8, "bold"), cursor="hand2")
     btn_tutti.pack(side=tk.LEFT, padx=(4, 0))
     btn_tutti.bind("<Button-1>", lambda e: _tutti_filtri())
+
+    def _seleziona_da_esportare():
+        da_esportare = [
+            m["id"] for m in v.get("movimenti", [])
+            if m["id"] in tree.get_children() and not m.get("esportato")
+        ]
+        if not da_esportare:
+            self.show_toast("Nessuna voce da esportare tra quelle visualizzate.")
+            return
+        tree.selection_set(da_esportare)
+        tree.see(da_esportare[0])
+
+    btn_da_esportare = tk.Label(filtri_tree_f, text="📤 Da esportare", bg=self.COLOR_WIDGET_BG,
+                                 fg=self.COLOR_HIGHLIGHT, font=("Arial", 8, "bold"), cursor="hand2")
+    btn_da_esportare.pack(side=tk.LEFT, padx=(4, 0))
+    btn_da_esportare.bind("<Button-1>", lambda e: _seleziona_da_esportare())
+
+    def _smarca_esportato():
+        sel = tree.selection()
+        if not sel:
+            sel = [
+                m["id"] for m in v.get("movimenti", [])
+                if m["id"] in tree.get_children() and m.get("esportato")
+            ]
+            if not sel:
+                self.show_toast("Nessuna voce esportata tra quelle visualizzate.")
+                return
+            tree.selection_set(sel)
+        n = 0
+        for m in v.get("movimenti", []):
+            if m.get("id") in sel and m.get("esportato"):
+                m["esportato"] = None
+                n += 1
+        if n:
+            self._veicoli_salva(db)
+            _popola_tree()
+            self.show_toast(f"{n} voce/i smarcata/e come non esportata.")
+        else:
+            self.show_toast("Le voci selezionate non risultano esportate.")
+
+    btn_smarca = tk.Label(filtri_tree_f, text="↩ Smarca esportato", bg=self.COLOR_WIDGET_BG,
+                           fg=self.COLOR_HIGHLIGHT, font=("Arial", 8, "bold"), cursor="hand2")
+    btn_smarca.pack(side=tk.LEFT, padx=(4, 0))
+    btn_smarca.bind("<Button-1>", lambda e: _smarca_esportato())
 
     if not hasattr(self, "_veicoli_vars"):
         self._veicoli_vars = {}
@@ -755,16 +806,20 @@ def _veicoli_crea_tab(self, nb, v, db, win):
                                 fg=self.COLOR_RED, font=("Arial", 10, "bold"))
     lbl_tot_periodo.pack(side=tk.LEFT, padx=4)
 
-    cols = ("Data", "Categoria", "Km", "Descrizione", "Importo")
+    cols = ("Data", "Categoria", "Km", "Descrizione", "Importo", "Esportato")
     tree_frame_inner = ttk.Frame(tree_lf)
     tree_frame_inner.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
-    tree = ttk.Treeview(tree_frame_inner, columns=cols, show="headings", selectmode="browse")
+    tree = ttk.Treeview(tree_frame_inner, columns=cols, show="headings", selectmode="extended")
     vsb = ttk.Scrollbar(tree_frame_inner, orient="vertical", command=tree.yview)
     tree.configure(yscrollcommand=vsb.set)
     vsb.pack(side=tk.RIGHT, fill=tk.Y)
     tree.pack(fill=tk.BOTH, expand=True)
+    def _seleziona_tutte_righe(event=None):
+        tree.selection_set(tree.get_children())
+        return "break"
+    tree.bind("<Control-a>", _seleziona_tutte_righe)
     wcfg = {"Data": (90, "w"), "Categoria": (140, "w"), "Km": (80, "e"),
-            "Descrizione": (200, "w"), "Importo": (90, "e")}
+            "Descrizione": (200, "w"), "Importo": (90, "e"), "Esportato": (70, "center")}
     for c in cols:
         w, anc = wcfg[c]
         tree.heading(c, text=c, command=lambda _c=c: self.treeview_sort_column(tree, _c, False))
@@ -795,6 +850,16 @@ def _veicoli_crea_tab(self, nb, v, db, win):
             if not m.get("id"):
                 m["id"] = str(uuid.uuid4())
                 migrato = True
+            exp_id = m.get("esportato")
+            if exp_id and exp_id is not True:
+                tag = f"#vexp:{exp_id}"
+                esiste = any(
+                    tag in getattr(entry, "hashtag", [])
+                    for lista in self.spese.values() for entry in lista
+                )
+                if not esiste:
+                    m["esportato"] = None
+                    migrato = True
         if migrato:
             self._veicoli_salva(db)
         tree.delete(*tree.get_children())
@@ -807,7 +872,8 @@ def _veicoli_crea_tab(self, nb, v, db, win):
             km_txt = f"{float(m['km']):,.0f}" if str(m.get("km", "")).strip() not in ("", "0") else "—"
             tree.insert("", "end", iid=m["id"], tags=("spesa",), values=(
                 m.get("data", ""), m.get("categoria", ""), km_txt,
-                m.get("descrizione", ""), f"{val_float:.2f} €"
+                m.get("descrizione", ""), f"{val_float:.2f} €",
+                "Sì" if m.get("esportato") else "No"
             ))
         tot = sum(float(m.get("importo", 0) or 0) for m in vis)
         lbl_tot_periodo.config(text=f"Spesa periodo: € {_fmt_it(tot)}")
@@ -901,31 +967,23 @@ def _veicoli_crea_tab(self, nb, v, db, win):
         _popola_tree()
 
     def _esporta_in_spesedb():
-        for m in v.get("movimenti", []):
-            exp_id = m.get("esportato")
-            if not exp_id:
-                continue
-            tag = f"#vexp:{exp_id}"
-            esiste = any(
-                tag in getattr(entry, "hashtag", [])
-                for lista in self.spese.values() for entry in lista
-            )
-            if not esiste:
-                m["esportato"] = None
-
-        fc = v_fcat.get()
+        sel = tree.selection()
+        if not sel:
+            self.show_toast("Seleziona almeno una riga da esportare.")
+            return
         movimenti_filtrati = [
             m for m in v.get("movimenti", [])
-            if _match_f(m.get("data", ""))
-            and (fc == "Tutte" or m.get("categoria", "") == fc)
-            and not m.get("esportato")
+            if m.get("id") in sel and not m.get("esportato")
         ]
+        if not movimenti_filtrati:
+            self.show_toast("Le voci selezionate risultano già tutte esportate.")
+            return
         tot = sum(float(m.get("importo", 0) or 0) for m in movimenti_filtrati)
         if tot == 0:
-            self.show_toast("Nessuna spesa nuova da esportare per il periodo selezionato "
-                             "(già tutto esportato in precedenza, o nessun movimento).")
+            self.show_toast("Saldo zero, nessun movimento esportato.")
             return
         nome = v.get("nome", "Veicolo")
+        desc_export = f"Saldo {nome}" if len(movimenti_filtrati) <= 1 else f"Saldo {nome} ({len(movimenti_filtrati)} mov.)"
         cat_export = "AutoPark"
         if cat_export not in self.categorie:
             self.categorie.append(cat_export)
@@ -936,7 +994,7 @@ def _veicoli_crea_tab(self, nb, v, db, win):
         nome_conto = widgets_combo_ana["conto_bancario"].get().strip() if "conto_bancario" in widgets_combo_ana else v.get("conto_bancario", "")
         export_id = str(uuid.uuid4())
         self.spese[oggi].append(SpesaEntry.nuova(
-            cat_export, f"Veicoli: {nome}", tot, "Uscita",
+            cat_export, desc_export, tot, "Uscita",
             conto=(nome_conto if nome_conto and nome_conto != "(nessuno)" else ""),
             hashtag=["#veicoli", f"#vexp:{export_id}"]
         ))
@@ -946,8 +1004,62 @@ def _veicoli_crea_tab(self, nb, v, db, win):
         self.save_db()
         if hasattr(self, 'registra_azione_gamification'):
             self.registra_azione_gamification("movimento")
+        _popola_tree()
         self.refresh_gui()
-        self.show_toast(f"Spesa {nome} ({_fmt_it(tot)}€, {len(movimenti_filtrati)} movimenti) esportata in SpesaDB.")
+        self.show_toast(f"Spesa {nome} ({_fmt_it(tot)}€, {len(movimenti_filtrati)} movimenti) esportata.")
+
+    def _esporta_singole_in_spesedb():
+        sel = tree.selection()
+        if not sel:
+            self.show_toast("Seleziona almeno una riga da esportare.")
+            return
+        movimenti_filtrati = [
+            m for m in v.get("movimenti", [])
+            if m.get("id") in sel and not m.get("esportato")
+        ]
+        if not movimenti_filtrati:
+            self.show_toast("Le voci selezionate risultano già tutte esportate.")
+            return
+        nome = v.get("nome", "Veicolo")
+        cat_export = "AutoPark"
+        if cat_export not in self.categorie:
+            self.categorie.append(cat_export)
+            self.aggiorna_combobox_categorie()
+        nome_conto = widgets_combo_ana["conto_bancario"].get().strip() if "conto_bancario" in widgets_combo_ana else v.get("conto_bancario", "")
+        oggi = datetime.date.today()
+        if oggi not in self.spese:
+            self.spese[oggi] = []
+        n = 0
+        for m in movimenti_filtrati:
+            try:
+                imp = float(m.get("importo", 0))
+            except (ValueError, TypeError):
+                imp = 0.0
+            if imp == 0:
+                continue
+            cat_orig = m.get("categoria", "")
+            desc_orig = m.get("descrizione", "")
+            desc_export = f"{nome}: {cat_orig}" if cat_orig else nome
+            if desc_orig:
+                desc_export += f" - {desc_orig}"
+            export_id = str(uuid.uuid4())
+            self.spese[oggi].append(SpesaEntry.nuova(
+                cat_export, desc_export, imp, "Uscita",
+                conto=(nome_conto if nome_conto and nome_conto != "(nessuno)" else ""),
+                hashtag=["#veicoli", f"#vexp:{export_id}"]
+            ))
+            m["esportato"] = export_id
+            n += 1
+        if n == 0:
+            self.show_toast("Nessuna voce valida da esportare.")
+            return
+        self._veicoli_salva(db)
+        self.save_db()
+        if hasattr(self, 'registra_azione_gamification'):
+            self.registra_azione_gamification("movimento")
+        _popola_tree()
+        self.refresh_gui()
+        self.show_toast(f"{n} voce/i di {nome} esportate singolarmente.")
 
     img_add = self.icone_gui.get("aggiungi")
     btn_add = ttk.Label(btn_frame, compound="left", image=img_add,
@@ -975,16 +1087,34 @@ def _veicoli_crea_tab(self, nb, v, db, win):
 
     btn_frame2 = tk.Frame(form_lf, bg=self.COLOR_WIDGET_BG)
     btn_frame2.grid(row=r + 1, column=0, columnspan=2, pady=(0, 8))
+
+    riga_export1 = tk.Frame(btn_frame2, bg=self.COLOR_WIDGET_BG)
+    riga_export1.pack(fill=tk.X, anchor="w")
     img_export = self.icone_gui.get("archivia")
     btn_export = ttk.Label(
-        btn_frame2, compound="left", image=img_export,
-        text=" → SpesaDB" if img_export else "📤 → SpesaDB",
+        riga_export1, compound="left", image=img_export,
+        text=" → Saldo" if img_export else "📤 → Saldo",
         background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2"
     )
     btn_export.image = img_export
     btn_export.pack(side=tk.LEFT, padx=4)
     btn_export.bind("<Button-1>", lambda e: _esporta_in_spesedb())
-    tk.Label(btn_frame2, text="(esporta solo i movimenti non ancora esportati, del periodo visualizzato)",
+    tk.Label(riga_export1, text="(totale unico delle righe selezionate)",
+             bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR,
+             font=("Arial", 8, "italic")).pack(side=tk.LEFT, padx=(4, 0))
+
+    riga_export2 = tk.Frame(btn_frame2, bg=self.COLOR_WIDGET_BG)
+    riga_export2.pack(fill=tk.X, anchor="w", pady=(4, 0))
+    img_export_righe = self.icone_gui.get("archivia")
+    btn_export_righe = ttk.Label(
+        riga_export2, compound="left", image=img_export_righe,
+        text=" Esporta righe" if img_export_righe else "📤 Esporta righe",
+        background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2"
+    )
+    btn_export_righe.image = img_export_righe
+    btn_export_righe.pack(side=tk.LEFT, padx=4)
+    btn_export_righe.bind("<Button-1>", lambda e: _esporta_singole_in_spesedb())
+    tk.Label(riga_export2, text="(una voce per riga, con categoria originale in descrizione)",
              bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR,
              font=("Arial", 8, "italic")).pack(side=tk.LEFT, padx=(4, 0))
 
