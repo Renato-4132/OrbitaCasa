@@ -116,6 +116,14 @@ def registra_tutti_i_moduli(GestioneSpese):
     _registra(_veicoli_carica, _veicoli_salva, _veicoli_giorni_a_scadenza, _veicoli_colore_giorni, _veicoli_testo_scadenza,
     _veicoli_costo_al_km, _veicoli_consumo_medio, veicoli, _veicoli_crea_tab, _veicoli_nuovo, _veicoli_elimina,
     _veicoli_grafici, _veicoli_estratto, _veicoli_estratto_totale, _veicoli_importa_da_spese)
+
+    from moduli.animali import (
+        _animali_carica, _animali_salva, _animali_giorni_a_scadenza, _animali_colore_giorni, _animali_testo_scadenza,
+        _animali_costo_medio_mensile, _animali_consumo_medio_cibo, animali, _animali_crea_tab, _animali_nuovo, _animali_elimina,
+        _animali_grafici, _animali_estratto, _animali_estratto_totale, _animali_importa_da_spese,)
+    _registra(_animali_carica, _animali_salva, _animali_giorni_a_scadenza, _animali_colore_giorni, _animali_testo_scadenza,
+    _animali_costo_medio_mensile, _animali_consumo_medio_cibo, animali, _animali_crea_tab, _animali_nuovo, _animali_elimina,
+    _animali_grafici, _animali_estratto, _animali_estratto_totale, _animali_importa_da_spese)
     
     from moduli.immobil import (
         _immobil_carica, _immobil_salva, immobil, _immobil_crea_tab, _immobil_nuovo, _immobil_elimina, _immobil_grafici,
@@ -219,12 +227,13 @@ def registra_tutti_i_moduli(GestioneSpese):
     from moduli.schedulatore import (
         apri_schedulatore, _tick_scheduler, _esegui_scheduler, _genera_testo_ricorrenti_mancanti, _genera_testo_estratto_mensile,
         _genera_testo_estratto_annuale, _genera_testo_estratto_trasferimenti, _calcola_saldo_mese_corrente, _genera_testo_allerta_saldo, _invia_email_scheduler,
-        _genera_testo_scadenze_veicoli, _genera_testo_riepilogo_cronologico,
+        _genera_testo_scadenze_veicoli, _genera_testo_scadenze_animali, _genera_testo_riepilogo_cronologico,
         _calcola_sforamenti_budget, _genera_testo_sforamento_budget,)
     _registra(apri_schedulatore, _tick_scheduler, _esegui_scheduler,
               _genera_testo_ricorrenti_mancanti, _genera_testo_estratto_mensile,
               _genera_testo_estratto_annuale, _genera_testo_estratto_trasferimenti, _calcola_saldo_mese_corrente,
               _genera_testo_allerta_saldo, _invia_email_scheduler, _genera_testo_scadenze_veicoli,
+              _genera_testo_scadenze_animali,
               _genera_testo_riepilogo_cronologico,
               _calcola_sforamenti_budget, _genera_testo_sforamento_budget)
 

@@ -124,6 +124,7 @@ def carica_costanti(path_locale):
     g['LOG_IMPORTAZIONI'] = os.path.join(DB_DIR, "log_importazioni.txt")
     g['DOC_PERS_DIR'] = os.path.join(DB_DIR, "documenti_personali")
     g['VEICOLI_FILE'] = os.path.join(DB_DIR, "veicoli.json")
+    g['ANIMALI_FILE'] = os.path.join(DB_DIR, "animali.json")
     g['GAMIFICATION_FILE'] = os.path.join(DB_DIR, "gamification.json")
     g['CREDENTIALS_FILE'] = os.path.join(DB_DIR, "webauthn_credentials.json")
         
@@ -263,6 +264,7 @@ def carica_costanti(path_locale):
         ("terra_B", ("1f30d", "🌍")),
         ("scintille_B",	("1f4ab", "💫")),
         ("veicoli", ("1f697", "🚗")),
+        ("animali", ("1f43e", "🐾")),
         ("iconizza", ("2796", "🗗")),
         ("tag", ("1f3f7", "🏷️")),
         ("report", ("1f4ca", "📊")),

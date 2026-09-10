@@ -73,6 +73,7 @@ def apri_schedulatore(self):
         ("giornaliero",           "Registro Giornaliero"),
         ("controllo_ricorrenti",  "Ricorrenti Mancanti"),
         ("scadenze_veicoli",      "Scadenze Veicoli"),
+        ("scadenze_animali",      "Scadenze Animali"),
         ("documenti_scadenza",    "Documenti in Scadenza"),
         ("allerta_saldo_negativo","Allerta Saldo Negativo"),
         ("sforamento_budget",     "Budget Superato"),
@@ -487,6 +488,8 @@ def apri_schedulatore(self):
             corpo = self._genera_testo_ricorrenti_mancanti()
         elif tipo == "scadenze_veicoli":
             corpo = self._genera_testo_scadenze_veicoli()
+        elif tipo == "scadenze_animali":
+            corpo = self._genera_testo_scadenze_animali()
         elif tipo == "documenti_scadenza":
             profilo_filtro = (task.get("note") or "").strip() or None
             corpo = self._genera_testo_scadenze_documenti(profilo=profilo_filtro)
@@ -665,6 +668,8 @@ def _esegui_scheduler(self):
                         corpo_mail = self._genera_testo_ricorrenti_mancanti()
                     elif t == "scadenze_veicoli":
                         corpo_mail = self._genera_testo_scadenze_veicoli()
+                    elif t == "scadenze_animali":
+                        corpo_mail = self._genera_testo_scadenze_animali()
                     elif t == "documenti_scadenza":
                         profilo_filtro = (tk_task.get("note") or "").strip() or None
                         corpo_mail = self._genera_testo_scadenze_documenti(profilo=profilo_filtro)
@@ -922,6 +927,64 @@ def _genera_testo_scadenze_veicoli(self, soglia_giorni=30):
         lines.append("")
     lines.append("┈" * 30)
     lines.append("Controlla la sezione Veicoli su OrbitaCasa per i dettagli")
+    lines.append("e per rinnovare le scadenze in tempo.")
+    lines.append("")
+    lines.append(f"📊 Report generato il {data_oggi}.")
+    return "\n".join(lines)
+
+def _genera_testo_scadenze_animali(self, soglia_giorni=30):
+    oggi = datetime.date.today()
+    data_oggi = oggi.strftime('%d/%m/%Y')
+    db = self._animali_carica()
+    animali = db.get("animali", [])
+    CAMPI_SCAD = [
+        ("scad_vaccino",         "Vaccinazioni"),
+        ("scad_antiparassitario","Antiparassitario"),
+        ("scad_assicurazione",   "Assicurazione"),
+        ("prossimo_controllo",   "Prossimo Controllo"),
+    ]
+    scadute = []
+    in_scadenza = []
+    for a in animali:
+        nome = a.get("nome", "Animale")
+        for chiave, etichetta in CAMPI_SCAD:
+            data_str = a.get(chiave, "")
+            giorni = self._animali_giorni_a_scadenza(data_str)
+            if giorni is None:
+                continue
+            if giorni < 0:
+                scadute.append((nome, etichetta, data_str, giorni))
+            elif giorni <= soglia_giorni:
+                in_scadenza.append((nome, etichetta, data_str, giorni))
+    scadute.sort(key=lambda x: x[3])
+    in_scadenza.sort(key=lambda x: x[3])
+    if not scadute and not in_scadenza:
+        return ""
+    lines = []
+    lines.append("")
+    testo_centrato = "SCADENZE ANIMALI".center(28)
+    lines.append(f"{testo_centrato}")
+    lines.append("─" * 31)
+    lines.append("")
+    if scadute:
+        lines.append("🔴 SCADUTE")
+        lines.append("─" * 31)
+        lines.append("")
+        for nome, etichetta, data_str, giorni in scadute:
+            lines.append(f"    🐾 {nome} — {etichetta}")
+            lines.append(f"       Scaduta da {abs(giorni)} gg ({data_str})")
+        lines.append("")
+    if in_scadenza:
+        lines.append("🟡 IN SCADENZA")
+        lines.append("─" * 31)
+        lines.append("")
+        for nome, etichetta, data_str, giorni in in_scadenza:
+            testo_gg = "Scade OGGI" if giorni == 0 else f"tra {giorni} gg"
+            lines.append(f"    🐾 {nome} — {etichetta}")
+            lines.append(f"       {testo_gg} ({data_str})")
+        lines.append("")
+    lines.append("┈" * 30)
+    lines.append("Controlla la sezione Animali su OrbitaCasa per i dettagli")
     lines.append("e per rinnovare le scadenze in tempo.")
     lines.append("")
     lines.append(f"📊 Report generato il {data_oggi}.")
