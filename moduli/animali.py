@@ -55,7 +55,7 @@ def _animali_salva(self, db):
         with open(ANIMALI_FILE, "w", encoding="utf-8") as f:
             json.dump(db, f, indent=2, ensure_ascii=False)
     except Exception as e:
-        self.show_toast(f"Errore salvataggio Animali: {e}")
+        self.show_toast(f"Errore salvataggio Profili: {e}")
 
 def _animali_giorni_a_scadenza(self, data_str):
     if not data_str:
@@ -134,7 +134,7 @@ def _animali_consumo_medio_cibo(self, a):
 
 def _animali_importa_da_spese(self, db, win, nb):
     if not db.get("animali"):
-        self.show_toast("Crea prima almeno un animale.")
+        self.show_toast("Crea prima almeno un profilo.")
         return
 
     candidate = []
@@ -147,7 +147,7 @@ def _animali_importa_da_spese(self, db, win, nb):
     candidate.sort(key=lambda t: t[0], reverse=True)
 
     popup = tk.Toplevel(win, bg=self.COLOR_TOPLEVEL)
-    popup.title("Importa spese in Animali")
+    popup.title("Importa spese in Pet Care")
     popup.transient(win)
     popup.withdraw()
     win.update_idletasks()
@@ -162,15 +162,15 @@ def _animali_importa_da_spese(self, db, win, nb):
 
     top_f = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
     top_f.pack(fill=tk.X, padx=10, pady=(10, 4))
-    tk.Label(top_f, text="Animale destinazione:", bg=self.COLOR_TOPLEVEL,
+    tk.Label(top_f, text="Profilo destinazione:", bg=self.COLOR_TOPLEVEL,
              fg=self.TEXT_COLOR, font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=(0, 6))
-    nomi_a = [x.get("nome", "Animale") for x in db["animali"]]
+    nomi_a = [x.get("nome", "Profilo") for x in db["animali"]]
     a_dest = tk.StringVar(value=nomi_a[0])
     cb_dest = ttk.Combobox(top_f, textvariable=a_dest, values=nomi_a,
                            state="readonly", style="Border.TCombobox", width=20)
     cb_dest.pack(side=tk.LEFT, padx=(0, 12))
 
-    tk.Label(top_f, text="Categoria animale:", bg=self.COLOR_TOPLEVEL,
+    tk.Label(top_f, text="Categoria profilo:", bg=self.COLOR_TOPLEVEL,
              fg=self.TEXT_COLOR, font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=(0, 6))
     a_catdest = tk.StringVar()
     cb_catdest = ttk.Combobox(top_f, textvariable=a_catdest, state="readonly",
@@ -276,7 +276,7 @@ def _animali_importa_da_spese(self, db, win, nb):
             return
         animale = next((x for x in db["animali"] if x.get("nome") == a_dest.get()), None)
         if animale is None:
-            self.show_toast("Animale non trovato.")
+            self.show_toast("Profilo non trovato.")
             return
         cat_dest = a_catdest.get().strip()
         if not cat_dest:
@@ -347,7 +347,7 @@ def animali(self):
         return
     db = self._animali_carica()
     win = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
-    win.title("Animali — Gestione Anagrafica e Spese")
+    win.title("Pet Care — Gestione Anagrafica e Spese")
     self._animali_win = win
     win.bind("<Destroy>", lambda e: setattr(self, "_animali_win", None) if e.widget is win else None)
     win.bind("<Escape>", lambda e: win.destroy())
@@ -378,8 +378,8 @@ def animali(self):
         b.bind("<Button-1>", lambda e: cmd())
         return b
 
-    _btn(toolbar, " Nuovo Animale",   lambda: self._animali_nuovo(db, nb, win),   "animali")
-    _btn(toolbar, " Elimina Animale", lambda: self._animali_elimina(db, nb, win), "delete")
+    _btn(toolbar, " Nuovo Profilo",   lambda: self._animali_nuovo(db, nb, win),   "animali")
+    _btn(toolbar, " Elimina Profilo", lambda: self._animali_elimina(db, nb, win), "delete")
     _btn(toolbar, " Grafici",         lambda: self._animali_grafici(db),          "report")
     _btn(toolbar, " Importa da Spese", lambda: self._animali_importa_da_spese(db, win, nb), "aggiungi")
 
@@ -390,9 +390,9 @@ def animali(self):
         except Exception:
             return (None, None)
 
-    _btn(toolbar, " Estratto Animale",        lambda: self._animali_estratto(db, nb, *_get_vars()),        "descrizione")
-    _btn(toolbar, " Estratto Tutti gli Animali", lambda: self._animali_estratto_totale(db, *_get_vars()),  "report")
-    _btn(toolbar, " Salva",           lambda: (self._animali_salva(db), self.show_toast("Animali salvati.")), "salva")
+    _btn(toolbar, " Estratto Profilo",        lambda: self._animali_estratto(db, nb, *_get_vars()),        "descrizione")
+    _btn(toolbar, " Estratto Tutti i Profili", lambda: self._animali_estratto_totale(db, *_get_vars()),  "report")
+    _btn(toolbar, " Salva",           lambda: (self._animali_salva(db), self.show_toast("Profili salvati.")), "salva")
     _btn(toolbar, " Chiudi",          lambda: win.destroy(),                       "chiudi")
 
     nb = ttk.Notebook(win)
@@ -402,11 +402,11 @@ def animali(self):
         ph = ttk.Frame(nb)
         img_ph = self.icone_gui.get("animali")
         if img_ph:
-            nb.add(ph, image=img_ph, text="  (nessun animale)  ", compound="left")
+            nb.add(ph, image=img_ph, text="  (nessun profilo)  ", compound="left")
         else:
-            nb.add(ph, text="  (nessun animale)  ")
+            nb.add(ph, text="  (nessun profilo)  ")
         tk.Label(
-            ph, text="Clicca '🐾 Nuovo Animale' per iniziare",
+            ph, text="Clicca '🐾 Nuovo Profilo' per iniziare",
             font=("Arial", 12), bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HEADER
         ).pack(expand=True)
     else:
@@ -417,9 +417,9 @@ def _animali_crea_tab(self, nb, a, db, win):
     tab = ttk.Frame(nb)
     img_tab_animale = self.icone_gui.get("animali")
     if img_tab_animale:
-        nb.add(tab, image=img_tab_animale, text=f"  {a.get('nome','Animale')}  ", compound="left")
+        nb.add(tab, image=img_tab_animale, text=f"  {a.get('nome','Profilo')}  ", compound="left")
     else:
-        nb.add(tab, text=f"  🐾 {a.get('nome','Animale')}  ")
+        nb.add(tab, text=f"  🐾 {a.get('nome','Profilo')}  ")
 
     ana_lf = ttk.LabelFrame(tab, text="Anagrafica", style="RedBold.TLabelframe")
     ana_lf.pack(fill=tk.X, padx=8, pady=(4, 2))
@@ -484,7 +484,7 @@ def _animali_crea_tab(self, nb, a, db, win):
             else:
                 a[chiave] = val
         idx = nb.index(nb.select())
-        nb.tab(idx, text=f"  {a.get('nome','Animale')}  ")
+        nb.tab(idx, text=f"  {a.get('nome','Profilo')}  ")
         self._animali_salva(db)
         self.show_toast("Anagrafica salvata.")
         _aggiorna_pannello_stato()
@@ -976,7 +976,7 @@ def _animali_crea_tab(self, nb, a, db, win):
         if tot == 0:
             self.show_toast("Saldo zero, nessun movimento esportato.")
             return
-        nome = a.get("nome", "Animale")
+        nome = a.get("nome", "Profilo")
         desc_export = f"Saldo {nome}" if len(movimenti_filtrati) <= 1 else f"Saldo {nome} ({len(movimenti_filtrati)} mov.)"
         cat_export = "PetCare"
         if cat_export not in self.categorie:
@@ -1014,7 +1014,7 @@ def _animali_crea_tab(self, nb, a, db, win):
         if not movimenti_filtrati:
             self.show_toast("Le voci selezionate risultano già tutte esportate.")
             return
-        nome = a.get("nome", "Animale")
+        nome = a.get("nome", "Profilo")
         cat_export = "PetCare"
         if cat_export not in self.categorie:
             self.categorie.append(cat_export)
@@ -1116,7 +1116,7 @@ def _animali_crea_tab(self, nb, a, db, win):
 
 def _animali_nuovo(self, db, nb, win):
     popup = tk.Toplevel(win, bg=self.COLOR_TOPLEVEL)
-    popup.title("Nuovo Animale")
+    popup.title("Nuovo Profilo")
     popup.transient(win)
     popup.resizable(False, False)
     popup.withdraw()
@@ -1130,7 +1130,7 @@ def _animali_nuovo(self, db, nb, win):
     popup.focus_force()
     popup.bind("<Escape>", lambda e: popup.destroy())
 
-    tk.Label(popup, text="Nome animale:", bg=self.COLOR_TOPLEVEL,
+    tk.Label(popup, text="Nome profilo:", bg=self.COLOR_TOPLEVEL,
              fg=self.TEXT_COLOR, font=("Arial", 12, "bold")).pack(pady=(20, 4))
     v = tk.StringVar()
 
@@ -1148,11 +1148,11 @@ def _animali_nuovo(self, db, nb, win):
             self.show_toast("Inserisci un nome.")
             return
         if len(db.get("animali", [])) >= LIMITE_MAX_ANIMALI:
-            self.show_toast(f"Limite raggiunto! Massimo {LIMITE_MAX_ANIMALI} animali consentiti.")
+            self.show_toast(f"Limite raggiunto! Massimo {LIMITE_MAX_ANIMALI} profili consentiti.")
             popup.destroy()
             return
         for i in range(nb.index("end")):
-            if "(nessun animale)" in nb.tab(i, "text"):
+            if "(nessun profilo)" in nb.tab(i, "text"):
                 nb.forget(i)
                 break
         nuovo = {
@@ -1200,10 +1200,10 @@ def _animali_nuovo(self, db, nb, win):
 def _animali_elimina(self, db, nb, win):
     idx = nb.index(nb.select())
     if idx < 0 or idx >= len(db["animali"]):
-        self.show_toast("Nessun animale selezionato.")
+        self.show_toast("Nessun profilo selezionato.")
         return
     a = db["animali"][idx]
-    if not self.show_custom_askyesno("Elimina Animale", f"Eliminare '{a.get('nome','')}' e tutti i suoi movimenti?"):
+    if not self.show_custom_askyesno("Elimina Profilo", f"Eliminare '{a.get('nome','')}' e tutti i suoi movimenti?"):
         return
     db["animali"].pop(idx)
     self._animali_salva(db)
@@ -1218,16 +1218,16 @@ def _animali_elimina(self, db, nb, win):
             nb.add(ph, image=img_ph, text="  (nessun animale)  ", compound="left")
         else:
             nb.add(ph, text="  (nessun animale)  ")
-        tk.Label(ph, text="Clicca '🐾 Nuovo Animale' per iniziare",
+        tk.Label(ph, text="Clicca '🐾 Nuovo Profilo' per iniziare",
                  font=("Arial", 12), bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HEADER).pack(expand=True)
     else:
         for aa in db["animali"]:
             self._animali_crea_tab(nb, aa, db, win)
-    self.show_toast("Animale eliminato.")
+    self.show_toast("Profilo eliminato.")
 
 def _animali_grafici(self, db):
     if not db["animali"]:
-        self.show_toast("Nessun animale presente.")
+        self.show_toast("Nessun profilo presente.")
         return
     if hasattr(self, "_animali_grafici_win") and self._animali_grafici_win and self._animali_grafici_win.winfo_exists():
         self._animali_grafici_win.lift()
@@ -1236,7 +1236,7 @@ def _animali_grafici(self, db):
 
     popup = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
     self._animali_grafici_win = popup
-    popup.title("Animali — Grafici")
+    popup.title("Profili — Grafici")
     popup.transient(self)
     popup.bind("<Escape>", lambda e: popup.destroy())
     popup.withdraw()
@@ -1259,7 +1259,7 @@ def _animali_grafici(self, db):
     filtri_f = tk.Frame(popup, bg=self.COLOR_TOPLEVEL, pady=6)
     filtri_f.pack(fill=tk.X, padx=14, pady=(8, 0))
 
-    tk.Label(filtri_f, text="Animale:", bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
+    tk.Label(filtri_f, text="Profilo:", bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
              font=("Arial", 9, "bold")).pack(side=tk.LEFT, padx=(0, 4))
     v_anim = tk.StringVar(value="Tutti")
     cb_anim = ttk.Combobox(filtri_f, textvariable=v_anim, values=["Tutti"] + nomi_animali,
@@ -1271,7 +1271,7 @@ def _animali_grafici(self, db):
     v_vista = tk.StringVar(value="categoria")
     ttk.Radiobutton(filtri_f, text="Per Categoria", variable=v_vista, value="categoria",
                      style="Custom.TRadiobutton", command=lambda: _disegna()).pack(side=tk.LEFT, padx=4)
-    ttk.Radiobutton(filtri_f, text="Confronto Animali", variable=v_vista, value="confronto",
+    ttk.Radiobutton(filtri_f, text="Confronto Profili", variable=v_vista, value="confronto",
                      style="Custom.TRadiobutton", command=lambda: _disegna()).pack(side=tk.LEFT, padx=4)
 
     tk.Label(filtri_f, text="Categoria:", bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
@@ -1357,7 +1357,7 @@ def _animali_grafici(self, db):
                     and (v_cat.get() == "Tutte" or m.get("categoria", "") == v_cat.get())
                 )
                 bars_data.append((a.get("nome", "?"), tot_a))
-            titolo_base = "Confronto Spesa tra Animali"
+            titolo_base = "Confronto Spesa tra Profili"
         else:
             cat_totali = defaultdict(float)
             for a in animali_attivi:
@@ -1420,10 +1420,10 @@ def _animali_grafici(self, db):
 def _animali_estratto(self, db, nb, v_fmese=None, v_fanno=None):
     idx = nb.index(nb.select())
     if idx < 0 or idx >= len(db["animali"]):
-        self.show_toast("Nessun animale selezionato.")
+        self.show_toast("Nessun profilo selezionato.")
         return
     a = db["animali"][idx]
-    nome = a.get("nome", "Animale")
+    nome = a.get("nome", "Profilo")
     mese_sel = v_fmese.get() if v_fmese else "Tutti"
     anno_sel = v_fanno.get() if v_fanno else "Tutti"
 
@@ -1446,7 +1446,7 @@ def _animali_estratto(self, db, nb, v_fmese=None, v_fanno=None):
     linea_singola = "─" * LARGHEZZA_DOC
     lines = [
         linea_doppia,
-        "Gestione Animali".center(LARGHEZZA_DOC),
+        "Gestione Profili".center(LARGHEZZA_DOC),
         f"Estratto Conto: {nome.upper()}".center(LARGHEZZA_DOC),
     ]
     if periodo_str:
@@ -1461,7 +1461,7 @@ def _animali_estratto(self, db, nb, v_fmese=None, v_fanno=None):
 
     lines += [
         linea_doppia, "",
-        "  Informazioni Animale",
+        "  Informazioni Profilo",
         "  ─────────────────────",
         f"  Razza/Specie       : {a.get('razza', '─')}",
         f"  Microchip          : {a.get('microchip', '─')}",
@@ -1511,7 +1511,7 @@ def _animali_estratto(self, db, nb, v_fmese=None, v_fanno=None):
 
 def _animali_estratto_totale(self, db, v_fmese=None, v_fanno=None):
     if "animali" not in db or not db["animali"]:
-        self.show_toast("Nessun animale presente nel database.")
+        self.show_toast("Nessun profilo presente nel database.")
         return
     mese_sel = v_fmese.get() if v_fmese else "Tutti"
     anno_sel = v_fanno.get() if v_fanno else "Tutti"
@@ -1527,7 +1527,7 @@ def _animali_estratto_totale(self, db, v_fmese=None, v_fanno=None):
 
     tutti_i_movimenti = []
     for a in db["animali"]:
-        nome_a = a.get("nome", "Animale")
+        nome_a = a.get("nome", "Profilo")
         for m in a.get("movimenti", []):
             if _match(m.get("data", "")):
                 mc = m.copy()
@@ -1543,21 +1543,21 @@ def _animali_estratto_totale(self, db, v_fmese=None, v_fanno=None):
     linea_singola = "─" * 110
     lines = [
         linea_doppia,
-        "  Gestione Animali  ".center(110),
+        "  Gestione Profili  ".center(110),
         "  Estratto conto generale e cumulativo".center(110),
     ]
     if periodo_str:
         lines.append(periodo_str.center(110))
-    lines += [linea_doppia, "", "  Riepilogo animali:", "  ────────────────────────"]
+    lines += [linea_doppia, "", "  Riepilogo profili:", "  ────────────────────────"]
     for a in db["animali"]:
         costo_mese = self._animali_costo_medio_mensile(a)
         lines.append(
-            f"  • {a.get('nome', 'Animale'):<25} (Razza: {a.get('razza', '─'):<12}) "
+            f"  • {a.get('nome', 'Profilo'):<25} (Razza: {a.get('razza', '─'):<12}) "
             f"Costo/mese: {'€ ' + _fmt_it(costo_mese) if costo_mese else '—'}"
         )
     lines += [
         "", linea_doppia,
-        f"  {'DATA':<12} {'ANIMALE':<16} {'CATEGORIA':<24} {'IMPORTO':>12}   {'DESCRIZIONE'}",
+        f"  {'DATA':<12} {'PROFILO':<16} {'CATEGORIA':<24} {'IMPORTO':>12}   {'DESCRIZIONE'}",
         linea_singola,
     ]
     tot = 0.0
@@ -1586,5 +1586,5 @@ def _animali_estratto_totale(self, db, v_fmese=None, v_fanno=None):
     ]
     contenuto = "\n".join(lines)
     now = datetime.date.today()
-    fname = f"Estratto_Generale_Animali_{now.strftime('%d-%m-%Y')}"
+    fname = f"Estratto_Generale_Profili_{now.strftime('%d-%m-%Y')}"
     self.show_export_preview(contenuto, default_filename=fname)
