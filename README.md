@@ -1,4 +1,3 @@
-
 ## 🏠 Orbita Casa 🇮🇹 [![Sito Web](https://img.shields.io/badge/SITO_UFFICIALE-VISITA-4f46e5?style=flat-square&logo=google-chrome&logoColor=white)](https://renato-4132.github.io/OrbitaCasa/)
 ### Il centro di comando per la tua gestione domestica, dalle spese quotidiane al risparmio intelligente.
 
@@ -93,7 +92,7 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 
 27. **Gestione Immobili** — Entrate/uscite per immobile, estratto conto, riepilogo
 28. **Gestione Veicoli** — Scadenze bollo/assicurazione/revisione, consumi, costo al km, spese per veicolo
-29. **Gestione Studio** — Agenda, preventivi, fatturazione, magazzino
+29. **Gestione MyBusiness** — Agenda, preventivi, fatturazione, magazzino
 30. **Gestione Associativa e Multiconto** — Associazione tra entità contabili e conti bancari
 31. **Ammortamento Mutui** — Rate, interessi reali, piani di ammortamento completi
 32. **Algoritmo FairShare** — Ripartizione equa spese tra più persone
@@ -115,19 +114,20 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 
 44. **Archivio Documenti Personali** — Documenti sempre a portata di mano
 45. **Modulo Dieta** — Pasti, macronutrienti, peso e grafico BMI
-46. **Rubrica Vcard/Android** — Esporta/importa contatti dallo smartphone
-47. **Retention Automatica** — Rimuove automaticamente i dati più vecchi
-48. **Tasti Shortcut Personali** — Funzioni rapide con combinazioni di tasti
-49. **Temi Personalizzabili** — Interfaccia adattata al proprio stile
-50. **Smart Info Point** — Popup rapido sui movimenti al passaggio del mouse
-51. **Carosello Grafici** — Tour automatico degli andamenti all'avvio
-52. **Auto-Iconizza** — Riduzione a icona per inattività
-53. **Notifiche Auto-chiudenti** — Avvisi che scompaiono dopo tempo prestabilito
-54. **Aggiornamento Librerie Python** — Manutenzione automatica delle dipendenze
-55. **Licenza a Punti (Gamification)** — Usa l'app, sali di livello, allunghi la licenza gratuita
-56. **Streak & Livelli** — Da Novizio a Leggenda (e oltre): mantieni la costanza giorno dopo giorno e scala i livelli a vita
-57. **Badge Mese & Anno** — Oltre al livello a vita, guadagni riconoscimenti dedicati al mese e all'anno in corso
-58. **Gestione Multi-Profilo** — Ogni utente ha il proprio database, movimenti, categorie e credenziali.
+46. **Modulo Petcare** — Anagrafica animali, vaccinazioni e scadenze veterinarie, promemoria cura e peso sotto controllo
+47. **Rubrica Vcard/Android** — Esporta/importa contatti dallo smartphone
+48. **Retention Automatica** — Rimuove automaticamente i dati più vecchi
+49. **Tasti Shortcut Personali** — Funzioni rapide con combinazioni di tasti
+50. **Temi Personalizzabili** — Interfaccia adattata al proprio stile
+51. **Smart Info Point** — Popup rapido sui movimenti al passaggio del mouse
+52. **Carosello Grafici** — Tour automatico degli andamenti all'avvio
+53. **Auto-Iconizza** — Riduzione a icona per inattività
+54. **Notifiche Auto-chiudenti** — Avvisi che scompaiono dopo tempo prestabilito
+55. **Aggiornamento Librerie Python** — Manutenzione automatica delle dipendenze
+56. **Licenza a Punti (Gamification)** — Usa l'app, sali di livello, allunghi la licenza gratuita
+57. **Streak & Livelli** — Da Novizio a Leggenda (e oltre): mantieni la costanza giorno dopo giorno e scala i livelli a vita
+58. **Badge Mese & Anno** — Oltre al livello a vita, guadagni riconoscimenti dedicati al mese e all'anno in corso
+59. **Gestione Multi-Profilo** — Ogni utente ha il proprio database, movimenti, categorie e credenziali.
        
 ### 📺 [Guarda il Video](https://github.com/Renato-4132/OrbitaCasa/raw/main/OrbitaCasa.mp4)
 
@@ -152,5 +152,3 @@ Metodo consigliato per utenti Windows.
 3. Il Software installerà in automatico le dipendenze: tkcalendar google-genai requests segno pypiwin32 cryptography pystray pymupdf yfinance tkinterdnd2
 
 ## 🌐 SCOPRI DI PIÙ [![Sito Web](https://img.shields.io/badge/SITO_UFFICIALE-VISITA-4f46e5?style=flat-square&logo=google-chrome&logoColor=white)](https://renato-4132.github.io/OrbitaCasa/)
-
-
