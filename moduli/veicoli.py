@@ -141,7 +141,7 @@ def _veicoli_importa_da_spese(self, db, win, nb):
     candidate.sort(key=lambda t: t[0], reverse=True)
 
     popup = tk.Toplevel(win, bg=self.COLOR_TOPLEVEL)
-    popup.title("Importa spese in Veicoli")
+    popup.title("Importa spese in AutoPark")
     popup.transient(win)
     popup.withdraw()
     win.update_idletasks()
@@ -341,7 +341,7 @@ def veicoli(self):
         return
     db = self._veicoli_carica()
     win = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
-    win.title("Veicoli — Gestione Parco Auto")
+    win.title("AutoPark — Gestione Parco Auto")
     self._veicoli_win = win
     win.bind("<Destroy>", lambda e: setattr(self, "_veicoli_win", None) if e.widget is win else None)
     win.bind("<Escape>", lambda e: win.destroy())

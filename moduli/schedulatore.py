@@ -73,7 +73,7 @@ def apri_schedulatore(self):
         ("giornaliero",           "Registro Giornaliero"),
         ("controllo_ricorrenti",  "Ricorrenti Mancanti"),
         ("scadenze_veicoli",      "Scadenze Veicoli"),
-        ("scadenze_animali",      "Scadenze Animali"),
+        ("scadenze_animali",      "Scadenze Pet Care"),
         ("documenti_scadenza",    "Documenti in Scadenza"),
         ("allerta_saldo_negativo","Allerta Saldo Negativo"),
         ("sforamento_budget",     "Budget Superato"),
@@ -946,7 +946,7 @@ def _genera_testo_scadenze_animali(self, soglia_giorni=30):
     scadute = []
     in_scadenza = []
     for a in animali:
-        nome = a.get("nome", "Animale")
+        nome = a.get("nome", "Profilo")
         for chiave, etichetta in CAMPI_SCAD:
             data_str = a.get(chiave, "")
             giorni = self._animali_giorni_a_scadenza(data_str)
@@ -962,7 +962,7 @@ def _genera_testo_scadenze_animali(self, soglia_giorni=30):
         return ""
     lines = []
     lines.append("")
-    testo_centrato = "SCADENZE ANIMALI".center(28)
+    testo_centrato = "SCADENZE PET CARE".center(28)
     lines.append(f"{testo_centrato}")
     lines.append("─" * 31)
     lines.append("")
@@ -984,7 +984,7 @@ def _genera_testo_scadenze_animali(self, soglia_giorni=30):
             lines.append(f"       {testo_gg} ({data_str})")
         lines.append("")
     lines.append("┈" * 30)
-    lines.append("Controlla la sezione Animali su OrbitaCasa per i dettagli")
+    lines.append("Controlla la sezione Pet Care per i dettagli")
     lines.append("e per rinnovare le scadenze in tempo.")
     lines.append("")
     lines.append(f"📊 Report generato il {data_oggi}.")
@@ -995,7 +995,6 @@ def _genera_testo_estratto_mensile(self, conto_filtro=None):
     PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
     oggi = datetime.date.today()
     if oggi.day == 1:
-        # Il mese in corso è appena iniziato: mandiamo quello appena concluso.
         primo_del_mese = oggi.replace(day=1)
         ultimo_mese_prec = primo_del_mese - datetime.timedelta(days=1)
         mese = ultimo_mese_prec.month
