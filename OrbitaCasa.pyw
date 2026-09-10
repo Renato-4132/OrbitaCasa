@@ -6106,7 +6106,8 @@ class GestioneSpese(tk.Tk):
             CUSTOM_FILE, PESO_FILE, FABB_FILE, PEDOMETRO_FILE, STUDIO_CLIENTI,
             STUDIO_APPUNTAMENTI, STUDIO_PRESTAZIONI, STUDIO_FATTURE, STUDIO_EMITTENTE,
             STUDIO_CASSA, STUDIO_MAGAZZINO, IMMOBIL_FILE, FR_FILE, PORTAFOGLIO_BANCARIO,
-            SCHEDULE_FILE, VEICOLI_FILE, GAMIFICATION_FILE, CREDENTIALS_FILE, PENSIONE_FILE
+            SCHEDULE_FILE, VEICOLI_FILE, GAMIFICATION_FILE, CREDENTIALS_FILE, PENSIONE_FILE,
+            ANIMALI_FILE
         ]
         file_copiati = 0
         for f in lista_file:
@@ -6231,7 +6232,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "b3feb2b4521f65556fe745124be0388199a2364f3e75d695dae03ba4d01aa6ae"
+        E_H_B = "0674c4947c5f02d2f163ff3d57678736c13183e1f29eecc7f135a1bdd727aea3"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
