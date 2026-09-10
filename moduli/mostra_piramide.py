@@ -92,7 +92,7 @@ def mostra_piramide(self):
                     ("Ricorrenze",      "Scadenze, notifiche",   _g("mostra_lista_ricorrenze")),
                     ("Immobili",        "Gestione Immobili",     _g("immobil")),
                     ("Veicoli",         "Scadenze e consumi",    _g("veicoli")),
-                    ("Animali",         "Anagrafica e spese",    _g("animali")),
+                    ("Pet Care",        "Anagrafica e spese",    _g("animali")),
                 ],
             },
         ],
