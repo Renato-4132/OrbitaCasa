@@ -737,7 +737,35 @@
                 <p style="font-size:12px;color:#a5b4fc;font-style:italic;margin:0;line-height:1.5;">Rieseguendo l'installer potrai creare nuovi profili utente separati.</p>
               </div>
             </div>
+          </div>          
+          <button class="acc-btn" id="btn-mac" onclick="accToggle('mac')">
+            <div class="acc-header">
+              <span style="font-size:22px;">🍎</span>
+              <div style="flex:1;">
+                <div class="acc-title-main" style="color:#e5e7eb;">Installer macOS (Sperimentale)</div>
+                <div class="acc-sub">Script .command · installa Python da solo se manca · non ancora testato su tutte le versioni di macOS</div>
+              </div>
+              <div class="acc-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></div>
+            </div>
+          </button>
+          <div class="acc-body-wrap" id="body-mac">
+            <div class="acc-body">
+              <div class="flex items-start gap-3 mb-4">
+                <span class="step-number mt-1">1</span>
+                <div><p>Scarica l'installer:</p>
+                  <a href="https://github.com/Renato-4132/OrbitaCasa/raw/main/O.C.Mac_Setup.zip" class="btn-download"><i class="fas fa-file-archive mr-2"></i> Scarica .zip</a>
+                </div>
+              </div>
+              <div class="flex items-start gap-3 mb-4">
+                <span class="step-number mt-1">2</span>
+                <p>Estrai lo zip, poi fai <strong style="color:#e2e8f0;">tasto destro → Apri</strong> sul file <span style="color:#818cf8;font-weight:700;">OrbitaCasa_Mac_Installer.command</span> (il doppio click semplice non basta la prima volta: macOS blocca gli script scaricati da internet).</p>
+              </div>
+              <div class="warning-box" style="font-size:11px;margin:10px 0;">
+                <strong>⚠️ Sperimentale:</strong> se Python non è installato lo script lo installa da solo tramite Homebrew, poi chiede il nome del profilo, scarica OrbitaCasa e lo avvia. Non ancora testato su tutte le versioni di macOS — in caso di problemi resta valida anche la <b class="text-orange-400">Procedura Manuale Universale</b> qui sotto.
+              </div>
+            </div>
           </div>
+          
           <button class="acc-btn" id="btn-uni" onclick="accToggle('uni')">
             <div class="acc-header">
               <span style="font-size:22px;">🌐</span>
