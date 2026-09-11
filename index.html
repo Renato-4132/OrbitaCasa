@@ -860,20 +860,36 @@
           }
           </script>
         </section>
+        <style>
+          .video-toggle-btn { width:100%; background:transparent; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; padding:10px 0; }
+          .video-toggle-btn .vchevron { width:24px; height:24px; border-radius:50%; background:#1e293b; display:flex; align-items:center; justify-content:center; transition:transform 0.3s ease; }
+          .video-toggle-btn.collapsed .vchevron { transform: rotate(-90deg); }
+          .video-wrap.collapsed { display:none; }
+        </style>
         <section class="space-y-1 mb-2">
-            <h2 class="text-4xl font-bold text-center text-white italic">Addio fogli Excel !</h2>
-            <div class="video-container shadow-2xl">
-                <video controls autoplay loop muted playsinline>
-                    <source src="https://github.com/Renato-4132/OrbitaCasa/raw/main/screenshots/OrbitaCasa.mp4" type="video/mp4">
-                </video>
+            <button class="video-toggle-btn collapsed" id="btn-vid1" onclick="toggleVideo('vid1')">
+                <h2 class="text-4xl font-bold text-center text-white italic" style="margin:0;">Addio fogli Excel !</h2>
+                <div class="vchevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>
+            </button>
+            <div class="video-wrap collapsed" id="wrap-vid1">
+                <div class="video-container shadow-2xl">
+                    <video controls autoplay loop muted playsinline>
+                        <source src="https://github.com/Renato-4132/OrbitaCasa/raw/main/screenshots/OrbitaCasa.mp4" type="video/mp4">
+                    </video>
+                </div>
             </div>
         </section>
         <section class="space-y-1 mb-2">
-            <h2 class="text-4xl font-bold text-center text-white italic">Quick Tour</h2>
-            <div class="video-container shadow-2xl">
-                <video controls autoplay loop muted playsinline>
-                    <source src="https://github.com/Renato-4132/OrbitaCasa/raw/main/screenshots/O.C-Tour-Pro.mp4" type="video/mp4">
-                </video>
+            <button class="video-toggle-btn collapsed" id="btn-vid2" onclick="toggleVideo('vid2')">
+                <h2 class="text-4xl font-bold text-center text-white italic" style="margin:0;">Quick Tour</h2>
+                <div class="vchevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>
+            </button>
+            <div class="video-wrap collapsed" id="wrap-vid2">
+                <div class="video-container shadow-2xl">
+                    <video controls autoplay loop muted playsinline>
+                        <source src="https://github.com/Renato-4132/OrbitaCasa/raw/main/screenshots/O.C-Tour-Pro.mp4" type="video/mp4">
+                    </video>
+                </div>
             </div>
             <div class="text-center mt-12">
                 <a href="https://github.com/Renato-4132/OrbitaCasa" target="_blank"
@@ -1232,6 +1248,13 @@
     goTo(0);
     startAuto();
     window.carMove = carMove;
+
+    function toggleVideo(id) {
+        const btn  = document.getElementById('btn-' + id);
+        const wrap = document.getElementById('wrap-' + id);
+        const collapsed = wrap.classList.toggle('collapsed');
+        btn.classList.toggle('collapsed', collapsed);
+    }
     </script>
 </body>
 </html>
