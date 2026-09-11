@@ -1207,8 +1207,6 @@ def backup_documenti_personali(self):
                         percorso_completo = os.path.join(root, fn)
                         percorso_nello_zip = os.path.join("documenti_personali", os.path.relpath(percorso_completo, DOC_PERS_DIR))
                         zf.write(percorso_completo, percorso_nello_zip)
-            if os.path.exists(profili_file):
-                zf.write(profili_file, os.path.join("documenti_personali", "profili.json"))
 
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Backup Documenti Personali (ZIP) completato.")
         return arc
