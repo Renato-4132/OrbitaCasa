@@ -143,6 +143,12 @@ Metodo consigliato per utenti Windows.
 2. Estrai ed esegui il file EXE.
 > **Nota:** Rieseguendo l'installer potrai creare nuovi profili utente separati.
 
+### 🍎 macOS (Sperimentale)
+Script `.command` che installa Python da solo (se manca) e scarica OrbitaCasa da GitHub. Non ancora testato su tutte le versioni di macOS.
+1. Scarica l'installer: [**OrbitaCasa_Mac_Installer.zip**](https://github.com/Renato-4132/OrbitaCasa/raw/main/OrbitaCasa_Mac_Installer.zip)
+2. Estrai lo zip, poi fai **tasto destro → Apri** sul file `OrbitaCasa_Mac_Installer.command` (il doppio click semplice non basta la prima volta: macOS blocca gli script scaricati da internet).
+> ⚠️ **Sperimentale:** in caso di problemi resta valida anche la procedura Manuale qui sotto.
+
 ### 🟩 Manuale (Tutti i SO)
 **Prerequisito:** Python 3.13+.
 > ⚠️ **IMPORTANTE:** Durante l'installazione di Python, spunta la casella **"Add Python to PATH"**.
