@@ -330,11 +330,16 @@ def apri_gestione_spese_pianificate(self):
     def _cancella_selezionato():
         sel = tree.selection()
         if not sel:
+            self.show_toast("Seleziona almeno un piano da eliminare")
             return
-        if self.show_custom_askyesno("Conferma", "Eliminare il piano di accantonamento selezionato?"):
-            elimina_piano(self, sel[0])
+        n = len(sel)
+        msg = "Eliminare il piano di accantonamento selezionato?" if n == 1 \
+            else f"Eliminare i {n} piani di accantonamento selezionati?"
+        if self.show_custom_askyesno("Conferma", msg):
+            for id_piano in sel:
+                elimina_piano(self, id_piano)
             _ricarica()
-            self.show_toast("Piano eliminato")
+            self.show_toast("Piano eliminato" if n == 1 else f"{n} piani eliminati")
             if hasattr(self, "update_spese_mese_corrente"):
                 self.update_spese_mese_corrente()
 
