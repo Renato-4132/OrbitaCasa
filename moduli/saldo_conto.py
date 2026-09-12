@@ -43,6 +43,40 @@ def _genera_date_ricorrenza_trasf(data_inizio, tipo, n):
         date_list.append(d)
     return date_list
 
+def _saldo_effettivo(self, conto, db):
+    oggi = datetime.date.today()
+    include_futuri = self.considera_futuri_portafoglio_var.get()
+    nome = conto.get("nome", "")
+    saldo = float(conto.get("saldo", 0))
+    for d, voci in self.spese.items():
+        if not include_futuri and d > oggi:
+            continue
+        for v in voci:
+            if campo(v, "conto", "") == nome:
+                try:
+                    imp = float(v[2])
+                    saldo += imp if str(v[3]) == "Entrata" else -imp
+                except Exception:
+                    pass
+    for t in db.get("trasferimenti", []):
+        if t.get("da") in ("__spese__", "Contabilità") or t.get("a") in ("__spese__", "Contabilità"):
+            continue
+        try:
+            data_t = datetime.datetime.strptime(t["data"], "%d-%m-%Y").date()
+        except Exception:
+            continue
+        if not include_futuri and data_t > oggi:
+            continue
+        try:
+            imp = round(float(t.get("importo", 0)), 2)
+        except Exception:
+            continue
+        if t.get("da") == conto.get("id"):
+            saldo -= imp
+        elif t.get("a") == conto.get("id"):
+            saldo += imp
+    return saldo
+
 def open_saldo_conto(self, tab_iniziale=None):
         from __main__ import PORTAFOGLIO_BANCARIO, EXPORT_FILES
         self.mostra_treeview_statistiche()
@@ -309,7 +343,7 @@ def open_saldo_conto(self, tab_iniziale=None):
                         da_n = "Contabilità" if da_raw in ("__spese__", "Contabilità") else nome_da_id.get(da_raw, da_raw)
                         a_n  = "Contabilità" if a_raw  in ("__spese__", "Contabilità") else nome_da_id.get(a_raw,  a_raw)
                         if a_raw in ("__spese__", "Contabilità"):
-                            da_n, a_n = a_n, da_n  # uscita: inverti così appare Contabilità → 111
+                            da_n, a_n = a_n, da_n
                         contenuto += (f"{t.get('data',''):<12} {da_n:<18} {a_n:<18} "
                                       f"€ {_fmt_it(float(t.get('importo',0)), '>10,.2f')}  {t.get('note','')}\n")
                 else:

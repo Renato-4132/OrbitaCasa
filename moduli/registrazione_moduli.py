@@ -176,8 +176,8 @@ def registra_tutti_i_moduli(GestioneSpese):
     from moduli.portafoglio import apri_portafoglio, _porta_load, _porta_save, _porta_prezzo_live, _porta_calcola_titolo
     _registra(apri_portafoglio, _porta_load, _porta_save, _porta_prezzo_live, _porta_calcola_titolo)
 
-    from moduli.saldo_conto import open_saldo_conto
-    _registra(open_saldo_conto)
+    from moduli.saldo_conto import open_saldo_conto, _saldo_effettivo
+    _registra(open_saldo_conto, _saldo_effettivo)
 
     from moduli.fondo_risparmio import apri_fondo_risparmio
     _registra(apri_fondo_risparmio)
@@ -348,9 +348,10 @@ def registra_tutti_i_moduli(GestioneSpese):
     from moduli.avvia_sincronizzazione import avvia_sincronizzazione
     _registra(avvia_sincronizzazione)
 
-    from moduli.esegui_backup_zip import esegui_backup_zip
-    _registra(esegui_backup_zip)
-    
+    from moduli.esegui_backup_zip import (
+        esegui_backup_zip, pianifica_backup_orario, _esegui_snapshot_db, _esegui_backup_json,)
+    _registra(esegui_backup_zip, pianifica_backup_orario, _esegui_snapshot_db, _esegui_backup_json)
+   
     from moduli.genera_report_pdf import genera_report_pdf
     _registra(genera_report_pdf)
     
@@ -415,6 +416,18 @@ def registra_tutti_i_moduli(GestioneSpese):
     _registra(forza_aggiorna, aggiorna, _check_librerie_in_background, _check_moduli_in_background, check_aggiornamento_con_api, check_aggiornamento_thread, 
     _mostra_popup_aggiornamento, forza_check_aggiornamento_con_api, _forza_check_thread, _mostra_popup_forza_aggiornamento, 
     aggiorna_librerie_pip, verifica_moduli_git, ripristina_da_backup)
+
+    from moduli.attivazione import (
+        verify_environment_update, verify_environment, apri_registrazione, _licenza_valida, _c_r,)
+    _registra(verify_environment_update, verify_environment, apri_registrazione, _licenza_valida, _c_r)
+
+    from moduli.gestione_inattivita import (
+        _attiva_timer_inattivita, _reset_inattivita, _iconizza_finestra, _finalizza_iconizzazione,
+        mostra_avviso_iconizzata, _mostra_avviso_countdown, _aggiorna_countdown,
+        _iconizza_finestra_startup, _iconizza_finestra_x, mostra_avviso_x,)
+    _registra(_attiva_timer_inattivita, _reset_inattivita, _iconizza_finestra, _finalizza_iconizzazione,
+        mostra_avviso_iconizzata, _mostra_avviso_countdown, _aggiorna_countdown,
+        _iconizza_finestra_startup, _iconizza_finestra_x, mostra_avviso_x)
 
     from moduli.gamification import (
         _gami_carica, _gami_salva, _gami_estendi_licenza, aggiorna_streak_gamification, registra_azione_gamification,

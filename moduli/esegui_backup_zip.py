@@ -4,6 +4,7 @@
 import os
 import shutil
 import tempfile
+import threading
 import tkinter as tk
 from tkinter import filedialog, Toplevel, Label
 
@@ -104,3 +105,114 @@ def esegui_backup_zip(self):
         if cartella_temp_path and os.path.exists(cartella_temp_path):
             shutil.rmtree(cartella_temp_path, ignore_errors=True)
             print(f"[{datetime.now().strftime('%H:%M:%S')}] Pulizia file temporanei eseguita.")
+
+
+# Backup Incrementale
+def backup_incrementale(file_path, cartella_backup=None, max_backup=None):
+    import datetime
+    import __main__ as _app
+    if max_backup is None:
+        max_backup = _app.MAX_BACKUP
+    if cartella_backup is None:
+        cartella_backup = os.path.join(_app.BASE_DIR, "backup")
+    if not os.path.exists(file_path):
+        return
+    os.makedirs(cartella_backup, exist_ok=True)
+    nome_completo = os.path.basename(file_path)
+    data = datetime.datetime.today().strftime("%d-%m-%Y")
+    backup_file_name = f"{data}-{nome_completo}"
+    backup_file_path = os.path.join(cartella_backup, backup_file_name)
+    shutil.copy2(file_path, backup_file_path)
+    stringa_filtro = f"-{nome_completo}"
+    files_to_check = [f for f in os.listdir(cartella_backup) if f.endswith(stringa_filtro)]
+    if not files_to_check:
+        return
+    def get_sort_key(filename):
+        date_str = filename[:10]
+        return datetime.datetime.strptime(date_str, "%d-%m-%Y")
+    files_ordinati = sorted(
+        files_to_check,
+        key=get_sort_key,
+        reverse=True
+    )
+    files_da_cancellare = files_ordinati[max_backup:]
+    if files_da_cancellare:
+        for f in files_da_cancellare:
+            os.remove(os.path.join(cartella_backup, f))
+
+
+# Timing Backup Incrementale threading
+def pianifica_backup_orario(self):
+    from datetime import datetime
+    try:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Avvio backup automatico...")
+        threading.Thread(target=self._esegui_backup_json).start()
+        threading.Thread(target=self.backup_documenti).start()
+        threading.Thread(target=self.backup_documenti_personali).start()
+    except Exception as e:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Errore durante il trigger del backup: {e}")
+    # Backup Ogni 12 ore
+    self.after(43200000, self.pianifica_backup_orario)
+
+
+# Snapshot automatico DB post-backup
+def _esegui_snapshot_db(self):
+    import zipfile, glob
+    import datetime
+    import __main__ as _app
+    BASE_DIR = _app.BASE_DIR
+    DB_DIR = _app.DB_DIR
+    MAX_BACKUP = _app.MAX_BACKUP
+    try:
+        cartella_backup = os.path.join(BASE_DIR, "backup")
+        os.makedirs(cartella_backup, exist_ok=True)
+        data = datetime.datetime.today().strftime("%d-%m-%Y")
+        nome_snapshot = f"{data}-snapshot_db.zip"
+        percorso_snapshot = os.path.join(cartella_backup, nome_snapshot)
+        nome_cartella_db = os.path.basename(DB_DIR)
+        with zipfile.ZipFile(percorso_snapshot, "w", zipfile.ZIP_DEFLATED, compresslevel=1) as zf:
+            for root, _, fnames in os.walk(DB_DIR):
+                for fn in fnames:
+                    percorso_completo = os.path.join(root, fn)
+                    percorso_nello_zip = os.path.join(nome_cartella_db, os.path.relpath(percorso_completo, DB_DIR))
+                    zf.write(percorso_completo, percorso_nello_zip)
+        snapshots = sorted(
+            glob.glob(os.path.join(cartella_backup, "*-snapshot_db.zip")),
+            key=os.path.getmtime,
+            reverse=True
+        )
+        for vecchio in snapshots[MAX_BACKUP:]:
+            try:
+                os.remove(vecchio)
+            except Exception:
+                pass
+        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Snapshot DB salvato: {nome_snapshot}")
+    except Exception as e:
+        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Errore snapshot DB: {e}")
+
+
+# Backup Incrementale threading
+def _esegui_backup_json(self):
+    from datetime import datetime
+    import __main__ as _app
+    lista_file = [
+        _app.DB_FILE, _app.DATI_FILE, _app.UTENZE_DB, _app.REGISTRY_FILE,
+        _app.PW_FILE, _app.MEM_CAT, _app.CONFIG_FILE, _app.RIMANDA_FILE,
+        _app.PROMEMORIA_FILE, _app.SUPERMERCATI_DB, _app.DEFAULT_API, _app.CONTROLLO_F_M,
+        _app.PARTECIPANTI, _app.FAIRSHARE_STATE, _app.PORTAFOGLIO_AZIONI, _app.DIETA_FILE,
+        _app.CUSTOM_FILE, _app.PESO_FILE, _app.FABB_FILE, _app.PEDOMETRO_FILE, _app.STUDIO_CLIENTI,
+        _app.STUDIO_APPUNTAMENTI, _app.STUDIO_PRESTAZIONI, _app.STUDIO_FATTURE, _app.STUDIO_EMITTENTE,
+        _app.STUDIO_CASSA, _app.STUDIO_MAGAZZINO, _app.IMMOBIL_FILE, _app.FR_FILE, _app.PORTAFOGLIO_BANCARIO,
+        _app.SCHEDULE_FILE, _app.VEICOLI_FILE, _app.GAMIFICATION_FILE, _app.CREDENTIALS_FILE, _app.PENSIONE_FILE,
+        _app.ANIMALI_FILE
+    ]
+    file_copiati = 0
+    for f in lista_file:
+        try:
+            if os.path.exists(f):
+                backup_incrementale(f)
+                file_copiati += 1
+        except Exception as e:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Errore backup nel thread per {f}: {e}")
+    self._esegui_snapshot_db()
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Backup Database terminato ({file_copiati} file salvati).")
