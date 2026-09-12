@@ -712,9 +712,17 @@ class GestioneSpese(tk.Tk):
             if not item:
                 return
             self.spese_mese_tree.selection_set(item)
+            piano = getattr(self.spese_mese_tree, '_promemoria_lookup', {}).get(item)
+            if piano is not None:
+                if hasattr(self, "apri_gestione_spese_pianificate"):
+                    self.apri_gestione_spese_pianificate()
+                return
             entry = getattr(self.spese_mese_tree, '_entry_lookup', {}).get(item)
             if entry is None:
                 return
+            _copia_movimento_nel_form(entry)
+
+        def _copia_movimento_nel_form(entry):
             categoria   = campo(entry, "categoria", "").strip()
             descrizione = campo(entry, "descrizione", "").strip()
             importo     = campo(entry, "importo", 0.0)
@@ -764,6 +772,7 @@ class GestioneSpese(tk.Tk):
         self.spese_mese_tree.tag_configure('uscita',  foreground='red')
         self.spese_mese_tree.tag_configure("futuro", foreground="#E5C07B", font=("Arial", 9, "italic"))
         self.spese_mese_tree.tag_configure("sforato", foreground='#C08081', font=("Arial", 9, "bold"))
+        self.spese_mese_tree.tag_configure("promemoria", foreground='#61AFEF', font=("Arial", 9, "italic"))
         for col in self.spese_mese_tree["columns"]:
             self.spese_mese_tree.heading(col, command=lambda _col=col: self.treeview_sort_column(self.spese_mese_tree, _col, False))
             self._bind_tooltip_metodo(self.spese_mese_tree)
@@ -1766,7 +1775,7 @@ class GestioneSpese(tk.Tk):
                 compound="left", cursor="hand2", font=("Arial", 10, "bold"),
                 background=self.COLOR_WIDGET_BG, foreground=self.COLOR_GREEN
         )
-        self.btn_aggiungi.pack(side="left", padx=8)
+        self.btn_aggiungi.pack(side="left", padx=3)
         self.btn_aggiungi.bind(
                 "<Button-1>", 
                 lambda e: self.add_spesa() if "disabled" not in self.btn_aggiungi.state() else None
@@ -1775,7 +1784,7 @@ class GestioneSpese(tk.Tk):
                 pannello_bottoni, image=self.icone_gui.get("reset"),
                 cursor="hand2", background=self.COLOR_WIDGET_BG
         )
-        self.btn_reset_form.pack(side="left", padx=4)
+        self.btn_reset_form.pack(side="left", padx=2)
         self.btn_reset_form.bind("<Button-1>", lambda e: self.reset_form() if "disabled" not in self.btn_reset_form.state() else None)
         self.btn_modifica_sel = ttk.Label(
                 pannello_bottoni, text=" Modifica",
@@ -1785,7 +1794,7 @@ class GestioneSpese(tk.Tk):
                 foreground=self.COLOR_ORANGE,
                 cursor="X_cursor", padding=(8, 4)
         )
-        self.btn_modifica_sel.pack(side=tk.LEFT, padx=4)
+        self.btn_modifica_sel.pack(side=tk.LEFT, padx=2)
         self.btn_modifica_sel.bind("<Button-1>", lambda e: self.avvia_modifica_da_selezione()
                                if self.stats_table.selection() and self.stats_mode.get() == "giorno"
                                else None)
@@ -1800,36 +1809,43 @@ class GestioneSpese(tk.Tk):
                 font=("Arial", 9, "bold"),
                 background=self.COLOR_WIDGET_BG, foreground=self.COLOR_RED
         )
-        self.btn_annulla_modifica.pack(side="left", padx=8)
+        self.btn_annulla_modifica.pack(side="left", padx=3)
         self.btn_annulla_modifica.bind("<Button-1>", lambda e: self.reset_modifica_form())
         self.btn_modifica = ttk.Label(
                 pannello_bottoni, text=" Salva", image=self.icone_gui.get("salva"),
                 compound="left", cursor="X_cursor", font=("Arial", 9, "bold"),
                 background=self.COLOR_WIDGET_BG, foreground=self.COLOR_GREEN
         )
-        self.btn_modifica.pack(side="left", padx=8)
+        self.btn_modifica.pack(side="left", padx=3)
         self.btn_modifica.bind("<Button-1>", lambda e: self.salva_modifica() if "disabled" not in self.btn_modifica.state() else None)
         self.btn_cancella = ttk.Label(
                 pannello_bottoni, text=" Cancella", image=self.icone_gui.get("chiudi"),
                 compound="left", cursor="X_cursor", font=("Arial", 9, "bold"),
                 background=self.COLOR_WIDGET_BG, foreground=self.COLOR_RED
         )
-        self.btn_cancella.pack(side="left", padx=8)
+        self.btn_cancella.pack(side="left", padx=3)
         self.btn_cancella.bind("<Button-1>", lambda e: self.cancella_voce() if "disabled" not in self.btn_cancella.state() else None)
         btn_ricorrenze = ttk.Label(
                 pannello_bottoni, text=" Ricorrenze", image=self.icone_gui.get("timer_sync"),
                 compound="left", cursor="hand2", font=("Arial", 9),
                 background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR
         )
-        btn_ricorrenze.pack(side="left", padx=8)
+        btn_ricorrenze.pack(side="left", padx=3)
         btn_ricorrenze.bind("<Button-1>", lambda e: self.mostra_ricorrenza_popup())
         self.btn_gestisci_categorie = ttk.Label(
                 pannello_bottoni, text=" Categorie", image=self.icone_gui.get("check"),
                 compound="left", cursor="hand2", font=("Arial", 9),
                 background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR
         )
-        self.btn_gestisci_categorie.pack(side="left", padx=8)
+        self.btn_gestisci_categorie.pack(side="left", padx=3)
         self.btn_gestisci_categorie.bind("<Button-1>", lambda e: self.mostra_categorie_popup())
+        self.btn_spalma_sel = ttk.Label(
+                pannello_bottoni, text=" Pianifica", image=self.icone_gui.get("calendario"),
+                compound="left", cursor="hand2", font=("Arial", 9),
+                background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR
+        )
+        self.btn_spalma_sel.pack(side="left", padx=3)
+        self.btn_spalma_sel.bind("<Button-1>", lambda e: self.avvia_spalma_da_selezione())
         row += 1
         cat_default_type = self.categorie_tipi.get(self.cat_sel.get(), "Uscita")
         self.tipo_spesa_var = tk.StringVar(value=cat_default_type)
@@ -2156,6 +2172,67 @@ class GestioneSpese(tk.Tk):
                 return
             _distruggi()
             _item_cur[0] = item
+            _promemoria_lookup = getattr(tree, '_promemoria_lookup', None)
+            _piano = _promemoria_lookup.get(item) if _promemoria_lookup else None
+            righe = []
+            if _piano is not None:
+                if _piano.get("categoria"):
+                    righe.append(("Categoria", _piano.get("categoria")))
+                if _piano.get("descrizione"):
+                    righe.append(("Descrizione", _piano.get("descrizione")))
+                if _piano.get("conto"):
+                    righe.append(("Conto", _piano.get("conto")))
+                try:
+                    righe.append(("Importo totale", f"€ {_fmt_it(float(_piano.get('importo_totale', 0.0)))}"))
+                except (TypeError, ValueError):
+                    pass
+                try:
+                    _quota_tt = _piano.get("quota_mese", _piano.get("quota", 0.0))
+                    righe.append(("Quota mese", f"€ {_fmt_it(float(_quota_tt))}"))
+                except (TypeError, ValueError):
+                    pass
+                try:
+                    _ini_tt = datetime.datetime.strptime(_piano.get("inizio", ""), "%Y-%m-%d").date()
+                    _sca_tt = datetime.datetime.strptime(_piano.get("data_scadenza", ""), "%Y-%m-%d").date()
+                    righe.append(("Periodo", f"{_ini_tt.strftime('%d/%m/%Y')} → {_sca_tt.strftime('%d/%m/%Y')}"))
+                except (ValueError, TypeError):
+                    pass
+                if not righe:
+                    return
+                _larghezza_etichetta = max(len(_e) for _e, _ in righe) + 1
+                _pad = _larghezza_etichetta + 2
+                testo_tooltip = "\n".join(
+                    f"{(_e + ':').ljust(_pad)}{_v.replace(chr(10), chr(10) + ' ' * _pad)}"
+                    for _e, _v in righe
+                )
+                def _crea():
+                    _tt[0] = tk.Toplevel(self)
+                    _tt[0].wm_overrideredirect(True)
+                    _tt[0].attributes("-topmost", True)
+                    _tt[0].config(
+                        highlightthickness=1,
+                        highlightbackground=self.COLOR_HIGHLIGHT,
+                        bg=self.COLOR_TOOLTIP
+                    )
+                    ttk.Label(_tt[0], text=testo_tooltip, style="Tooltip.TLabel", justify="left",
+                              font=("Courier New", 9, "bold")).pack()
+                    _tt[0].update_idletasks()
+                    tw = _tt[0].winfo_reqwidth()
+                    th = _tt[0].winfo_reqheight()
+                    px = self.winfo_pointerx() + 12
+                    py = self.winfo_pointery() + 12
+                    sw = self.winfo_screenwidth()
+                    sh = self.winfo_screenheight()
+                    x = px
+                    y = py
+                    if x + tw > sw:
+                        x = sw - tw - 5
+                    if y + th > sh:
+                        y = sh - th - 5
+                    _tt[0].wm_geometry(f"+{int(x)}+{int(y)}")
+                    _tt[0].deiconify()
+                _after[0] = self.after(800, _crea)
+                return
             metodo = None
             _lookup = getattr(tree, '_metodo_lookup', None)
             _info = _lookup.get(item, {}) if _lookup else {}
@@ -2173,7 +2250,6 @@ class GestioneSpese(tk.Tk):
                         if simbolo in desc:
                             metodo = f"{simbolo} {nome}"
                             break
-            righe = []
             _data_info = _info.get("data", "")
             if _data_info:
                 righe.append(("Data", _data_info))
@@ -3460,6 +3536,8 @@ class GestioneSpese(tk.Tk):
                                 with open(REGISTRY_FILE, 'w', encoding='utf-8') as f:
                                     json.dump(r, f, indent=4, ensure_ascii=False)
                     except Exception as e: self.show_custom_warning("Errore", f"Registro: {e}")
+            if hasattr(self, 'elimina_piano_per_spesa'):
+                self.elimina_piano_per_spesa(campo(voce_old, "id_spesa", None))
             del self.spese[old_dt][idx]
             self.annulla_azione_gamification("movimento")
             if hasattr(self, '_cache_tutti_tag'):
@@ -3492,6 +3570,7 @@ class GestioneSpese(tk.Tk):
             self.spese_mese_tree.delete(i)
         self.spese_mese_tree._metodo_lookup = {}
         self.spese_mese_tree._entry_lookup = {}
+        self.spese_mese_tree._promemoria_lookup = {}
         now = datetime.date.today()
         if year is None or month is None:
             year, month = now.year, now.month
@@ -3539,6 +3618,16 @@ class GestioneSpese(tk.Tk):
                 "partecipante_tipo": _partecipante_tipo,
             }
             self.spese_mese_tree._entry_lookup[item_id] = entry
+        if hasattr(self, "ottieni_promemoria_mese"):
+            for piano in self.ottieni_promemoria_mese(year, month):
+                nome_piano = piano.get("nome", "")
+                quota = piano.get("quota_mese", piano.get("quota", 0.0))
+                item_id_prom = self.spese_mese_tree.insert("", "end", values=(
+                    "", piano.get("categoria", ""),
+                    f"Pianificata",
+                    _fmt_it_safe(quota), ""
+                ), tags=("promemoria",))
+                self.spese_mese_tree._promemoria_lookup[item_id_prom] = piano
         self.after(100, self.draw_top_categorie)
         self.after(100, self.draw_spark_mese)
         self.after(100, self.draw_heatmap_mese)
@@ -3738,6 +3827,7 @@ class GestioneSpese(tk.Tk):
         for i in self.stats_table.get_children():
             self.stats_table.delete(i)
         self.stats_table._metodo_lookup = {}
+        self.stats_table._entry_lookup = {}
         oggi = datetime.date.today()
         tot_entrate, tot_uscite = 0.0, 0.0
         righe_trovate = []
@@ -3767,6 +3857,7 @@ class GestioneSpese(tk.Tk):
                 "categoria": cat,
                 "importo": imp,
             }
+            self.stats_table._entry_lookup[item_id] = entry
             if tipo == "Entrata":
                 tot_entrate += imp
             else:
@@ -3786,6 +3877,7 @@ class GestioneSpese(tk.Tk):
         for i in self.stats_table.get_children():
             self.stats_table.delete(i)
         self.stats_table._metodo_lookup = {}
+        self.stats_table._entry_lookup = {}
         mode = self.stats_mode.get()
         tot_entrate, tot_uscite = 0.0, 0.0
         oggi = datetime.date.today()
@@ -3862,6 +3954,7 @@ class GestioneSpese(tk.Tk):
                     "partecipante": _partecipante_nome_st,
                     "partecipante_tipo": _partecipante_tipo_st,
                 }
+                self.stats_table._entry_lookup[_item_st] = entry
                 if tipo == "Entrata":
                     tot_entrate += imp
                 else:
@@ -4479,7 +4572,28 @@ class GestioneSpese(tk.Tk):
             self.after(1, lambda: self.crea_grafico_categorie(final_selections))
         except Exception as e:
             print(f"Errore critico durante l'elaborazione del click destro: {e}")
-        
+
+    def avvia_spalma_da_selezione(self):
+        if not (self.stats_table.selection() and self.stats_mode.get() == "giorno"):
+            self.show_toast("Seleziona una spesa futura in Statistiche (modalità Giorno)")
+            return
+        item = self.stats_table.selection()[0]
+        entry = getattr(self.stats_table, '_entry_lookup', {}).get(item)
+        if entry is None:
+            self.show_toast("Disponibile solo per uscite future")
+            return
+        valori = self.stats_table.item(item, "values")
+        data_riga_str = str(valori[0]).strip() if valori else ""
+        tipo_riga = campo(entry, "tipo", "").strip()
+        try:
+            data_riga = datetime.datetime.strptime(data_riga_str, "%d-%m-%Y").date()
+        except Exception:
+            data_riga = None
+        if data_riga is not None and data_riga > datetime.date.today() and tipo_riga == "Uscita":
+            self.apri_spalma_spesa(entry, data_riga)
+        else:
+            self.show_toast("Disponibile solo per uscite future")
+
     # Popup Gestione Utenze          
     def check_UTENZE_DB(self):
          if not os.path.exists(UTENZE_DB):
@@ -4498,6 +4612,28 @@ class GestioneSpese(tk.Tk):
         if not values:
             return
         data_str = str(values[0]).strip()
+        if not data_str:
+            piano = getattr(self.spese_mese_tree, "_promemoria_lookup", {}).get(item_id)
+            if not piano:
+                return
+            try:
+                giorno = datetime.datetime.strptime(piano.get("data_scadenza", ""), "%Y-%m-%d").date()
+            except Exception:
+                return
+            self.set_stats_mode("giorno")
+            if hasattr(self, "cal"):
+                self.cal.selection_set(giorno)
+                self.cal._sel_date = giorno
+            self.stats_refdate = giorno
+            self.update_stats()
+            self.stats_label.config(
+                text=f"Riepilogo Giornaliero - {giorno.strftime('%d-%m-%Y')} (spesa accantonata)",
+                foreground="purple", font=("Arial", 10, "bold"))
+            if giorno != datetime.date.today():
+                self.blink_label_colors(self.stats_label, "purple", "yellow")
+            else:
+                self.stop_blink_label_colors(self.stats_label, final_color="purple")
+            return
         try:
             giorno = datetime.datetime.strptime(data_str, "%d-%m-%Y").date()
         except Exception:
@@ -5355,7 +5491,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "5f520af5310983cfb25abce1e6796375b02887eb57e05612b45457216cbe67be"
+        E_H_B = "03e658d52204981349cccfbf853f24379e789ebcdfb9e99c565245168787e4ed"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
