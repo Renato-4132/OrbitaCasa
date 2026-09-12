@@ -182,6 +182,13 @@ def registra_tutti_i_moduli(GestioneSpese):
     from moduli.fondo_risparmio import apri_fondo_risparmio
     _registra(apri_fondo_risparmio)
 
+    from moduli.spese_pianificate import (
+        apri_spalma_spesa, apri_gestione_spese_pianificate, ottieni_promemoria_mese,
+        esiste_piano_per_spesa, elimina_piano, elimina_piano_per_spesa,
+    )
+    _registra(apri_spalma_spesa, apri_gestione_spese_pianificate, ottieni_promemoria_mese,
+              esiste_piano_per_spesa, elimina_piano, elimina_piano_per_spesa)
+
     from moduli.pensione import apri_fondo_pensione
     _registra(apri_fondo_pensione)
 

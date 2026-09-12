@@ -44,6 +44,7 @@ def mostra_piramide(self):
                     ("Banca",            "Conti, saldi, trasferimenti",   _g("open_saldo_conto")),
                     ("Invest.",          "yfinance, P&L, AI Gemini",      _g("apri_portafoglio")),
                     ("Risparmi",         "Proiezioni stagionali",         _g("apri_fondo_risparmio")),
+                    ("Pianifica",         "Spese pianificate/accantonate", _g("apri_gestione_spese_pianificate")),
                     ("Punti",            "Gamification",                  _g("mostra_dettaglio_gamification")),
                 ],
             },

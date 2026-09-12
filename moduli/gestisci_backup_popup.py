@@ -46,6 +46,7 @@ def gestisci_backup_popup(self):
     CREDENTIALS_FILE = _app.CREDENTIALS_FILE
     PENSIONE_FILE = _app.PENSIONE_FILE
     ANIMALI_FILE = _app.ANIMALI_FILE
+    PIANIFICA_FILE = _app.PIANIFICA_FILE
     
     import os, time, subprocess, sys
     if hasattr(self, '_win_backup_istanza') and self._win_backup_istanza.winfo_exists():
@@ -87,6 +88,7 @@ def gestisci_backup_popup(self):
         "veicoli.json":                   "Veicoli",
         "fondo_risparmio.json":           "Fondo Risparmio",
         "fondo_pensione.json":            "Fondo Pensione",
+        "spese_pianificate.json":         "Spese Pianificate",
         "animali.json":                   "Pet Care",
         "schedule.json":                  "Schedulatore",
         "webauthn_credentials.json":      "Passkey / WebAuthn",
@@ -312,7 +314,7 @@ def gestisci_backup_popup(self):
                 STUDIO_APPUNTAMENTI, STUDIO_PRESTAZIONI, STUDIO_FATTURE, STUDIO_EMITTENTE,
                 STUDIO_CASSA, STUDIO_MAGAZZINO, IMMOBIL_FILE, FR_FILE, PORTAFOGLIO_BANCARIO,
                 SCHEDULE_FILE, VEICOLI_FILE, GAMIFICATION_FILE, CREDENTIALS_FILE, PENSIONE_FILE,
-                ANIMALI_FILE
+                ANIMALI_FILE, PIANIFICA_FILE
             ]
             for s in selezione:
                 nome_bak = tree.set(s, "File")

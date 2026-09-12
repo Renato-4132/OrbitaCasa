@@ -310,7 +310,8 @@ def pop_ricorrenze(self):
     ) 
     self._add_m_item(m, "Gestione Ricorrenze", "descrizione", self.mostra_ricorrenza_popup, "Ctrl+T") 
     self._add_m_item(m, "Lista Ricorrenze", "descrizione", self.mostra_lista_ricorrenze, "Ctrl+L") 
-    self._add_m_item(m, "Scadenze Mese", "scadenze", self.scadenze_mese, "Ctrl+J") 
+    self._add_m_item(m, "Scadenze Mese", "scadenze", self.scadenze_mese, "Ctrl+J")
+    self._add_m_item(m, "Pianifica", "timer", self.apri_gestione_spese_pianificate)
     self._mostra_popup(m, 180) 
 
 def pop_opzioni(self): 
@@ -525,6 +526,7 @@ def _filtra_sidebar(self, *_):
         ("Gestione Ricorrenze",                   self.mostra_ricorrenza_popup),
         ("Lista Ricorrenze",                      self.mostra_lista_ricorrenze),
         ("Scadenze Mese",                         self.scadenze_mese),
+        ("Pianifica",                             self.apri_gestione_spese_pianificate),
         ("Controlla Ricorrenti",                  self.controlla_ricorrenti_manual),
         ("Analisi Categorie",                     self.open_analisi_categoria),
         ("Suggerisci Categorie",                  self.apri_categorie_suggerite),

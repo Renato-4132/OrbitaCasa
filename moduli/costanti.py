@@ -114,6 +114,7 @@ def carica_costanti(path_locale):
     g['STUDIO_MAGAZZINO'] = os.path.join(DB_DIR, "studio_magazzino.json")
     g['IMMOBIL_FILE'] = os.path.join(DB_DIR, "immobil.json")
     g['SCHEDULE_FILE'] = os.path.join(DB_DIR, "schedule.json")
+    g['PIANIFICA_FILE'] = os.path.join(DB_DIR, "spese_pianificate.json")
     g['TAGS_DB'] = os.path.join(DB_DIR, "tags_db.json")
     g['EMAIL_USER'] = ""
     g['APP_PASSWORD'] = ""
@@ -144,7 +145,7 @@ def carica_costanti(path_locale):
     g['WARN_TIMEOUT'] = 20000                       # Timeout Messaggi Popup (ms)
     g['USE_WAIT_WINDOW'] = False                    # Timeout chiusura self.show_custom_warning
     g['TOLL'] = 15                                  # Tolleranza Movimenti simili (SmartCat) - Euro
-    g['VERSION'] = "2.4.6"
+    g['VERSION'] = "2.4.7"
     g['ICONIZZA_INATTIVITA'] = True                 # Attiva/disattiva Timer Minimizza
     g['TIMEOUT_INATTIVITA_MS'] = 1200000            # 20 minuti in ms - Timer Minimizza
     g['ANNI_DA_MANTENERE'] = 10                     # Anni conservati nel db
