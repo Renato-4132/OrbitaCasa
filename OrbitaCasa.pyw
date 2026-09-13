@@ -525,8 +525,7 @@ class GestioneSpese(tk.Tk):
         riepilogo_frame = ttk.Frame(cal_frame)
         riepilogo_frame.pack(fill=tk.X, padx=2, pady=(2, 2))
         icona_sole = self.icone_gui.get("meteo_sole")
-        lbl_mese_container = tk.Frame(riepilogo_frame, bg=self.COLOR_WIDGET_BG, width=195, height=22)
-        lbl_mese_container.pack_propagate(False)
+        lbl_mese_container = tk.Frame(riepilogo_frame, bg=self.COLOR_WIDGET_BG, height=22)
         self.lbl_titolo_mese = tk.Label(
                 lbl_mese_container,
                 text=" Riepilogo Mese Attuale",
@@ -538,6 +537,31 @@ class GestioneSpese(tk.Tk):
         )
         self.lbl_titolo_mese.image = icona_sole
         self.lbl_titolo_mese.pack(side="left")
+        self.considera_pianificate_var = tk.BooleanVar(value=False)
+        icona_pianificate = self.icone_gui.get("promemoria")
+        wrap_pianificate_mese = tk.Frame(lbl_mese_container, bg=self.COLOR_WIDGET_BG)
+        wrap_pianificate_mese.pack(side="right", padx=(0, 6))
+        self.btn_toggle_pianificate_mese = tk.Label(
+                wrap_pianificate_mese,
+                image=icona_pianificate,
+                text="" if icona_pianificate else "📌",
+                bg=self.COLOR_WIDGET_BG,
+                fg="gray",
+                cursor="hand2",
+                bd=0,
+                highlightthickness=0
+        )
+        self.btn_toggle_pianificate_mese.image = icona_pianificate
+        self._pianificate_icona_fallback = icona_pianificate is None
+        self.btn_toggle_pianificate_mese.pack(side="left")
+        self.dot_pianificate_mese = tk.Canvas(
+                wrap_pianificate_mese, width=8, height=8,
+                bg=self.COLOR_WIDGET_BG, highlightthickness=0, cursor="hand2"
+        )
+        self.dot_pianificate_mese.pack(side="left", padx=(2, 0))
+        self._dot_id_mese = self.dot_pianificate_mese.create_oval(1, 1, 7, 7, fill="gray", outline="")
+        for _w in (wrap_pianificate_mese, self.btn_toggle_pianificate_mese, self.dot_pianificate_mese):
+            _w.bind("<Button-1>", lambda e: self.toggle_considera_pianificate_mese())
         self.totalizzatore_mese_frame = ttk.LabelFrame(
                 riepilogo_frame,
                 labelwidget=lbl_mese_container,
@@ -554,8 +578,7 @@ class GestioneSpese(tk.Tk):
         ttk.Label(self.totalizzatore_mese_frame, text="Differenza mese:", foreground="dodgerblue", font=("Arial", 10, "bold")).grid(row=2, column=0, sticky="w", padx=(6,0), pady=(2, 4))
         self.totalizzatore_mese_diff_label = ttk.Label(self.totalizzatore_mese_frame, text="0.00 €", foreground="dodgerblue", font=("Arial", 10, "bold"))
         self.totalizzatore_mese_diff_label.grid(row=2, column=1, sticky="e", padx=(0,6), pady=(2, 4))
-        lbl_anno_container = tk.Frame(riepilogo_frame, bg=self.COLOR_WIDGET_BG, width=195, height=22)
-        lbl_anno_container.pack_propagate(False)
+        lbl_anno_container = tk.Frame(riepilogo_frame, bg=self.COLOR_WIDGET_BG, height=22)
         self.lbl_titolo_anno = tk.Label(
                 lbl_anno_container,
                 text=" Riepilogo Anno Attuale",
@@ -567,6 +590,31 @@ class GestioneSpese(tk.Tk):
         )
         self.lbl_titolo_anno.image = icona_sole
         self.lbl_titolo_anno.pack(side="left")
+        self.considera_pianificate_anno_var = tk.BooleanVar(value=False)
+        icona_pianificate_a = self.icone_gui.get("promemoria")
+        wrap_pianificate_anno = tk.Frame(lbl_anno_container, bg=self.COLOR_WIDGET_BG)
+        wrap_pianificate_anno.pack(side="right", padx=(0, 6))
+        self.btn_toggle_pianificate_anno = tk.Label(
+                wrap_pianificate_anno,
+                image=icona_pianificate_a,
+                text="" if icona_pianificate_a else "📌",
+                bg=self.COLOR_WIDGET_BG,
+                fg="gray",
+                cursor="hand2",
+                bd=0,
+                highlightthickness=0
+        )
+        self.btn_toggle_pianificate_anno.image = icona_pianificate_a
+        self._pianificate_icona_anno_fallback = icona_pianificate_a is None
+        self.btn_toggle_pianificate_anno.pack(side="left")
+        self.dot_pianificate_anno = tk.Canvas(
+                wrap_pianificate_anno, width=8, height=8,
+                bg=self.COLOR_WIDGET_BG, highlightthickness=0, cursor="hand2"
+        )
+        self.dot_pianificate_anno.pack(side="left", padx=(2, 0))
+        self._dot_id_anno = self.dot_pianificate_anno.create_oval(1, 1, 7, 7, fill="gray", outline="")
+        for _w in (wrap_pianificate_anno, self.btn_toggle_pianificate_anno, self.dot_pianificate_anno):
+            _w.bind("<Button-1>", lambda e: self.toggle_considera_pianificate_anno())
         self.totalizzatore_frame = ttk.LabelFrame(
                 riepilogo_frame,
                 labelwidget=lbl_anno_container,
@@ -1096,6 +1144,16 @@ class GestioneSpese(tk.Tk):
         add_tt(self.btn_aggiorna_lib, "Aggiornamenti librerie disponibili — clicca per aggiornare")    
         add_tt(self.btn_verifica_moduli, "Moduli da aggiornare — clicca per verificare/aggiornare")    
         add_tt(self.lbl_badge_gamification, lambda: getattr(self, "_gami_tooltip_testo", "Traguardi di utilizzo — clicca per i dettagli"))
+        add_tt(self.btn_toggle_pianificate_mese, lambda: (
+            "Rate pianificate incluse nel Totale Uscite mese — clicca per escluderle"
+            if self.considera_pianificate_var.get()
+            else "Includi nel Totale Uscite mese anche le rate degli accantonamenti pianificati"
+        ))
+        add_tt(self.btn_toggle_pianificate_anno, lambda: (
+            "Rate pianificate incluse nel Totale Uscite anno — clicca per escluderle"
+            if self.considera_pianificate_anno_var.get()
+            else "Includi nel Totale Uscite anno anche le rate degli accantonamenti pianificati"
+        ))
         def crea_icona_nav(chiave, comando, tooltip, emoji):
                 img = self.icone_gui.get(chiave)
                 lbl = tk.Label(
@@ -4053,6 +4111,7 @@ class GestioneSpese(tk.Tk):
             self.lbl_titolo_anno.config(text=" Riepilogo Anno Attuale")
         else:
             self.lbl_titolo_anno.config(text=f" Riepilogo Anno {year}")
+        self._tot_anno_year = year
         totale_entrate = 0.0
         totale_uscite = 0.0
         for d, sp in self.spese.items():
@@ -4067,6 +4126,11 @@ class GestioneSpese(tk.Tk):
                         totale_entrate += imp
                     else:
                         totale_uscite += imp
+        if getattr(self, "considera_pianificate_anno_var", None) is not None and self.considera_pianificate_anno_var.get() \
+                and hasattr(self, "ottieni_promemoria_mese"):
+            for mese in range(1, 13):
+                for piano in self.ottieni_promemoria_mese(year, mese):
+                    totale_uscite += float(piano.get("quota_mese", piano.get("quota", 0.0)) or 0.0)
         differenza_anno = totale_entrate - totale_uscite
         self._diff_anno_reale = differenza_anno
         self._anima_label_valore(self.totalizzatore_entrate_label, totale_entrate)
@@ -4080,10 +4144,40 @@ class GestioneSpese(tk.Tk):
         diff_mese = getattr(self, '_diff_mese_reale', 0.0)
         self.aggiorna_meteo_saldo(diff_mese, differenza_anno)
 
+    def toggle_considera_pianificate_mese(self):
+        self.considera_pianificate_var.set(not self.considera_pianificate_var.get())
+        self._aggiorna_icona_pianificate_mese()
+        self.hide_tooltip()
+        self.update_totalizzatore_mese_corrente(
+            year=getattr(self, "_tot_mese_year", None),
+            month=getattr(self, "_tot_mese_month", None)
+        )
+
+    def toggle_considera_pianificate_anno(self):
+        self.considera_pianificate_anno_var.set(not self.considera_pianificate_anno_var.get())
+        self._aggiorna_icona_pianificate_anno()
+        self.hide_tooltip()
+        self.update_totalizzatore_anno_corrente(
+            year=getattr(self, "_tot_anno_year", None)
+        )
+
+    def _aggiorna_icona_pianificate_anno(self):
+        if not hasattr(self, "dot_pianificate_anno"):
+            return
+        attivo = self.considera_pianificate_anno_var.get()
+        self.dot_pianificate_anno.itemconfig(self._dot_id_anno, fill="#FFD54A" if attivo else "gray")
+
+    def _aggiorna_icona_pianificate_mese(self):
+        if not hasattr(self, "dot_pianificate_mese"):
+            return
+        attivo = self.considera_pianificate_var.get()
+        self.dot_pianificate_mese.itemconfig(self._dot_id_mese, fill="#FFD54A" if attivo else "gray")
+
     def update_totalizzatore_mese_corrente(self, year=None, month=None):
         now = datetime.date.today()
         if year is None or month is None:
             year, month = now.year, now.month
+        self._tot_mese_year, self._tot_mese_month = year, month
         m_nomi = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno",
                   "Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"]
         if year == now.year and month == now.month:
@@ -4104,6 +4198,10 @@ class GestioneSpese(tk.Tk):
                         totale_entrate += imp
                     else:
                         totale_uscite += imp
+        if getattr(self, "considera_pianificate_var", None) is not None and self.considera_pianificate_var.get() \
+                and hasattr(self, "ottieni_promemoria_mese"):
+            for piano in self.ottieni_promemoria_mese(year, month):
+                totale_uscite += float(piano.get("quota_mese", piano.get("quota", 0.0)) or 0.0)
         differenza_mese = totale_entrate - totale_uscite
         self._diff_mese_reale = differenza_mese
         self._anima_label_valore(self.totalizzatore_mese_entrate_label, totale_entrate)
@@ -5491,7 +5589,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "03e658d52204981349cccfbf853f24379e789ebcdfb9e99c565245168787e4ed"
+        E_H_B = "122db770f5b51c026412fe3ea208e96452f1d844d99426fe94585c2c2a54ccc0"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
