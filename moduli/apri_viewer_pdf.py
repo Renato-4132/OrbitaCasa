@@ -66,13 +66,14 @@ def _apri_viewer_pdf(self, pdf_path):
              bg=self.COLOR_HEADER_BG, fg=self.COLOR_HEADER,
              font=("Segoe UI", 8, "bold")).pack(side="left")
     tk.Frame(win, bg=self.COLOR_BACKGROUND, height=1).pack(fill="x")
-    frame_corpo = tk.Frame(win, bg=self.COLOR_BACKGROUND)
+    frame_corpo = tk.PanedWindow(win, orient="horizontal", bg=self.COLOR_BACKGROUND,
+                                 sashwidth=6, sashrelief="flat", bd=0)
     frame_corpo.pack(padx=16, pady=(12, 0), fill='both', expand=True)
     if toc:
         frame_indice = tk.Frame(frame_corpo, bg=self.COLOR_WIDGET_BG,
                                 highlightbackground=self.COLOR_HEADER_BG,
                                 highlightthickness=1)
-        frame_indice.pack(side="left", fill="y", padx=(0, 8))
+        frame_corpo.add(frame_indice, width=330, minsize=320)
 
         tk.Label(frame_indice, text="Indice",
                  bg=self.COLOR_HEADER_BG, fg=self.COLOR_HEADER,
@@ -128,7 +129,7 @@ def _apri_viewer_pdf(self, pdf_path):
     frame_pdf = tk.Frame(frame_corpo, bg=self.COLOR_WIDGET_BG,
                          highlightbackground=self.COLOR_HEADER_BG,
                          highlightthickness=1)
-    frame_pdf.pack(side="left", fill='both', expand=True)
+    frame_corpo.add(frame_pdf, minsize=1000, stretch="always")
     scrollbar_y = ttk.Scrollbar(frame_pdf, style="Vertical.TScrollbar")
     scrollbar_y.pack(side=tk.RIGHT, fill=tk.Y)
     scrollbar_x = ttk.Scrollbar(frame_pdf, orient="horizontal")
