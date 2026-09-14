@@ -5577,7 +5577,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "c9a5b1c03a7d00debf4856fddc0b58d5d1aeec76230bc57302f0e1c16c1dcc1e"
+        E_H_B = "4a53c95b792342c3965cbab5fb339b028c10d3dc1ac27a81e46d66a8cf300291"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
