@@ -4830,19 +4830,7 @@ class GestioneSpese(tk.Tk):
     def on_blocca_data_changed(self):
         if not self.blocca_data_var.get():
             self.data_spesa_var.set(datetime.date.today().strftime("%d-%m-%Y"))
-
-    def scarica_manuale(self):
-        try:
-            response = requests.get(URL_PDF, timeout=15)
-            response.raise_for_status()
-            temp_path = os.path.join(tempfile.gettempdir(), "manuale_Orbita_casa.pdf")
-            with open(temp_path, "wb") as f:
-                f.write(response.content)
-            self._apri_viewer_pdf(temp_path)
-        except Exception as e:
-            print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Errore nel download del manuale:", e)
-            self.show_custom_warning("Attenzione", "Download NON completato!\n\nSembra ci sia stato un problema. 😕")
-
+           
     def _esegui_aggiornamento_gui(self):
         try:
             self.load_db()
@@ -5589,7 +5577,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "122db770f5b51c026412fe3ea208e96452f1d844d99426fe94585c2c2a54ccc0"
+        E_H_B = "c9a5b1c03a7d00debf4856fddc0b58d5d1aeec76230bc57302f0e1c16c1dcc1e"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
