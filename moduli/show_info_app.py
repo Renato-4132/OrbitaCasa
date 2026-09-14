@@ -22,6 +22,9 @@ def show_info_app(self):
     def apri_manuale(event):
         self.scarica_manuale()
 
+    def apri_manuale_risparmio(event):
+        self.scarica_manuale_risparmio()
+        
     testo_filtri = f"💰 {NAME} - Guida Rapida Interattiva\n\n"
     testo_filtri += (
             "💰 FILTRI TEMPORALI (Controllo Statistiche)\n"
@@ -261,7 +264,7 @@ def show_info_app(self):
     tk.Label(main_frame, text=f"Versione {VERSION} © 2026 Renato-4132 — Tutti i diritti riservati", font=("Arial", 9), bg=self.COLOR_TOPLEVEL, fg="gray").pack()
     links_frame = tk.Frame(main_frame, bg=self.COLOR_TOPLEVEL)
     links_frame.pack(pady=5)
-    for ico_key, txt, cmd in [("email", " Email", apri_email), ("github", " GitHub", apri_github), ("studio", " Manuale Online", apri_manuale), ("python", " Python", apri_link_python)]:
+    for ico_key, txt, cmd in [("email", " Email", apri_email), ("github", " GitHub", apri_github), ("studio", " Manuale Online", apri_manuale), ("studio", " Manuale Risparmio", apri_manuale_risparmio), ("python", " Python", apri_link_python)]:
         img = self.icone_gui.get(ico_key)
         lbl = tk.Label(links_frame, text=txt, image=img, compound="left", fg="#3498db", bg=self.COLOR_TOPLEVEL, cursor="hand2", font=("Arial", 9))
         lbl.image = img

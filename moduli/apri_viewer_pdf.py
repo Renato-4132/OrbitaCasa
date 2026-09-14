@@ -2,6 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import os
+import requests
+import tempfile
+import datetime
 import pymupdf as fitz
 import tkinter as tk
 from tkinter import ttk
@@ -344,3 +347,32 @@ def _apri_viewer_pdf(self, pdf_path):
         os.remove(pdf_path)
     except Exception:
         pass
+        
+def scarica_manuale(self):
+    import __main__ as _app
+    URL_PDF = _app.URL_PDF
+    try:
+        response = requests.get(URL_PDF, timeout=15)
+        response.raise_for_status()
+        temp_path = os.path.join(tempfile.gettempdir(), "manuale_Orbita_casa.pdf")
+        with open(temp_path, "wb") as f:
+            f.write(response.content)
+        self._apri_viewer_pdf(temp_path)
+    except Exception as e:
+        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Errore nel download del manuale:", e)
+        self.show_custom_warning("Attenzione", "Download NON completato!\n\nSembra ci sia stato un problema. 😕")
+
+def scarica_manuale_risparmio(self):
+    import __main__ as _app
+    URL_PDF_RISPARMIO = _app.URL_PDF_RISPARMIO
+    try:
+        response = requests.get(URL_PDF_RISPARMIO, timeout=15)
+        response.raise_for_status()
+        temp_path = os.path.join(tempfile.gettempdir(), "Manuale_Manutenzione_Risparmio_Casa.pdf")
+        with open(temp_path, "wb") as f:
+            f.write(response.content)
+        self._apri_viewer_pdf(temp_path)
+    except Exception as e:
+        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Errore nel download del manuale risparmio:", e)
+        self.show_custom_warning("Attenzione", "Download NON completato!\n\nSembra ci sia stato un problema. 😕")
+

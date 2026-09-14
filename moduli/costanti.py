@@ -52,6 +52,7 @@ def carica_costanti(path_locale):
     g['BASE_DIR'] = BASE_DIR
 
     g['URL_PDF'] = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/refs/heads/main/resources/OrbitaCasa.pdf"
+    g['URL_PDF_RISPARMIO'] = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/main/resources/Manuale_Manutenzione_Risparmio_Casa.pdf"
     g['URL_PDF_CONSUMI'] = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/main/resources/Tabella%20Contatori.pdf"
     g['URL_PDF_SSL'] = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/main/resources/Manuale_CertBot_SSL.pdf"
     g['URL_LOGO'] = "https://github.com/Renato-4132/OrbitaCasa/raw/main/resources/info_image.png"

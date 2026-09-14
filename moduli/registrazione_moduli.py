@@ -343,8 +343,8 @@ def registra_tutti_i_moduli(GestioneSpese):
     from moduli.scorciatoie import configura_scorciatoie, mostra_popup_scorciatoie
     _registra(configura_scorciatoie, mostra_popup_scorciatoie)
 
-    from moduli.apri_viewer_pdf import _apri_viewer_pdf
-    _registra(_apri_viewer_pdf)
+    from moduli.apri_viewer_pdf import _apri_viewer_pdf, scarica_manuale, scarica_manuale_risparmio
+    _registra(_apri_viewer_pdf, scarica_manuale, scarica_manuale_risparmio)
 
     from moduli.apri_estratti_metodo import apri_estratti_metodo, _esporta_estratti_metodo
     _registra(apri_estratti_metodo, _esporta_estratti_metodo)
