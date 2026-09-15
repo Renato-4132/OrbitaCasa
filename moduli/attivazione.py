@@ -39,29 +39,58 @@ def verify_environment_update(self, tipo_install="UNKNOWN", rating=0, provenienz
     except:
             return False
 
+def _calcola_fingerprint_moduli(path_locale):
+    import hashlib
+    h = hashlib.sha256()
+    cartella_moduli = os.path.join(path_locale, "moduli")
+    try:
+        for nome_file in sorted(os.listdir(cartella_moduli)):
+            if not nome_file.endswith(".py"):
+                continue
+            percorso = os.path.join(cartella_moduli, nome_file)
+            try:
+                with open(percorso, "rb") as f:
+                    h.update(nome_file.encode("utf-8"))
+                    h.update(f.read())
+            except Exception:
+                pass
+    except Exception:
+        return ""
+    return h.hexdigest()[:16]
+
+
 def verify_environment(self):
     import __main__ as _app
     DB_DIR = _app.DB_DIR
     VERSION = _app.VERSION
     NAME = _app.NAME
+    PATH_LOCALE = _app.PATH_LOCALE
     _get_device_id = _app._get_device_id
     get_fernet_licenza = _app.get_fernet_licenza
     from PIL import Image, ImageTk
     flag_versione = os.path.join(DB_DIR, ".key_reg")
     ha_licenza = os.path.exists(os.path.join(DB_DIR, "._reg.json"))
     uid = _get_device_id()
+    fingerprint_attuale = _calcola_fingerprint_moduli(PATH_LOCALE)
     if os.path.exists(flag_versione):
         _trial_file_chk = os.path.join(DB_DIR, "._trial.json")
         _reg_file_chk   = os.path.join(DB_DIR, "._reg.json")
         ha_files = os.path.exists(_trial_file_chk) or os.path.exists(_reg_file_chk)
         try:
             contenuto = open(flag_versione).read().strip()
-            if VERSION not in contenuto:
-                vecchia = contenuto.split("|")[1] if "|" in contenuto else "?"
-                tipo = f"UPGRADE_{vecchia}_to_{VERSION}"
+            parti = contenuto.split("|")
+            vecchio_fingerprint = parti[3] if len(parti) > 3 else ""
+            cambio_versione = VERSION not in contenuto
+            cambio_moduli = bool(vecchio_fingerprint) and bool(fingerprint_attuale) and vecchio_fingerprint != fingerprint_attuale
+            if cambio_versione or cambio_moduli:
+                vecchia = parti[1] if len(parti) > 1 else "?"
+                if cambio_versione:
+                    tipo = f"UPGRADE_{vecchia}_to_{VERSION}"
+                else:
+                    tipo = f"MODULI_UPDATE_{VERSION}"
                 try:
                     with open(flag_versione, "w") as f:
-                        f.write(f"{uid}|{VERSION}|UPGRADE")
+                        f.write(f"{uid}|{VERSION}|UPGRADE|{fingerprint_attuale}")
                 except:
                     pass
                 threading.Thread(
@@ -69,12 +98,13 @@ def verify_environment(self):
                     daemon=True).start()
         except:
             pass
+
         if ha_files:
             return
     if ha_licenza:
         try:
             with open(flag_versione, "w") as f:
-                f.write(f"{uid}|{VERSION}|NEW INSTALL")
+                f.write(f"{uid}|{VERSION}|NEW INSTALL|{fingerprint_attuale}")
         except:
             pass
         threading.Thread(
@@ -85,7 +115,7 @@ def verify_environment(self):
     if os.path.exists(_trial_solo):
         try:
             with open(flag_versione, "w") as f:
-                f.write(f"{uid}|{VERSION}|NEW INSTALL")
+                f.write(f"{uid}|{VERSION}|NEW INSTALL|{fingerprint_attuale}")
         except:
             pass
         self.after(100, self._c_r)
@@ -196,7 +226,7 @@ def verify_environment(self):
         _log_provenienza(v_provenienza.get())
         try:
             with open(flag_versione, "w") as f:
-                f.write(f"{uid}|{VERSION}|NEW INSTALL")
+                f.write(f"{uid}|{VERSION}|NEW INSTALL|{fingerprint_attuale}")
         except:
             pass
         self.aggiorna_titolo_finestra()
