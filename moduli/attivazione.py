@@ -79,9 +79,19 @@ def verify_environment(self):
         try:
             contenuto = open(flag_versione).read().strip()
             parti = contenuto.split("|")
-            vecchio_fingerprint = parti[3] if len(parti) > 3 else ""
+            flag_migrato = len(parti) > 3
+            vecchio_fingerprint = parti[3] if flag_migrato else ""
             cambio_versione = VERSION not in contenuto
-            cambio_moduli = bool(vecchio_fingerprint) and bool(fingerprint_attuale) and vecchio_fingerprint != fingerprint_attuale
+            if not flag_migrato:
+                cambio_moduli = False
+                if not cambio_versione:
+                    try:
+                        with open(flag_versione, "w") as f:
+                            f.write(f"{uid}|{VERSION}|UPGRADE|{fingerprint_attuale}")
+                    except:
+                        pass
+            else:
+                cambio_moduli = bool(fingerprint_attuale) and vecchio_fingerprint != fingerprint_attuale
             if cambio_versione or cambio_moduli:
                 vecchia = parti[1] if len(parti) > 1 else "?"
                 if cambio_versione:
