@@ -108,7 +108,6 @@ def verify_environment(self):
                     daemon=True).start()
         except:
             pass
-
         if ha_files:
             return
     if ha_licenza:
