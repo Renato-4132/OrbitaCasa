@@ -66,18 +66,19 @@ def apri_schedulatore(self):
         self._win_scheduler.focus_force()
         return
     TIPI = [
-        ("estratto_mensile",      "Estratto Mensile"),
-        ("estratto_annuale",      "Estratto Annuale"),
-        ("estratto_trasferimenti","Trasferimenti tra Conti"),
-        ("riepilogo_settimanale", "Riepilogo Settimanale"),
-        ("giornaliero",           "Registro Giornaliero"),
-        ("controllo_ricorrenti",  "Ricorrenti Mancanti"),
-        ("scadenze_veicoli",      "Scadenze Veicoli"),
-        ("scadenze_animali",      "Scadenze Pet Care"),
-        ("documenti_scadenza",    "Documenti in Scadenza"),
-        ("allerta_saldo_negativo","Allerta Saldo Negativo"),
-        ("sforamento_budget",     "Budget Superato"),
-        ("promemoria_libero",     "Promemoria Libero"),
+        ("estratto_mensile",           "Estratto Mensile"),
+        ("estratto_annuale",           "Estratto Annuale"),
+        ("estratto_trasferimenti",     "Trasferimenti tra Conti"),
+        ("riepilogo_settimanale",      "Riepilogo Settimanale"),
+        ("giornaliero",                "Registro Giornaliero"),
+        ("controllo_ricorrenti",       "Ricorrenti Mancanti"),
+        ("scadenze_veicoli",           "Scadenze Veicoli"),
+        ("scadenze_animali",           "Scadenze Pet Care"),
+        ("scadenze_manutenzione_casa", "Scadenze CasaCare"),
+        ("documenti_scadenza",         "Documenti in Scadenza"),
+        ("allerta_saldo_negativo",     "Allerta Saldo Negativo"),
+        ("sforamento_budget",          "Budget Superato"),
+        ("promemoria_libero",          "Promemoria Libero"),
     ]
     TIPI_LABEL   = [t[1] for t in TIPI]
     TIPI_ID      = {t[1]: t[0] for t in TIPI}
@@ -490,6 +491,8 @@ def apri_schedulatore(self):
             corpo = self._genera_testo_scadenze_veicoli()
         elif tipo == "scadenze_animali":
             corpo = self._genera_testo_scadenze_animali()
+        elif tipo == "scadenze_manutenzione_casa":
+            corpo = self._genera_testo_scadenze_manutenzione_casa()
         elif tipo == "documenti_scadenza":
             profilo_filtro = (task.get("note") or "").strip() or None
             corpo = self._genera_testo_scadenze_documenti(profilo=profilo_filtro)
@@ -670,6 +673,8 @@ def _esegui_scheduler(self):
                         corpo_mail = self._genera_testo_scadenze_veicoli()
                     elif t == "scadenze_animali":
                         corpo_mail = self._genera_testo_scadenze_animali()
+                    elif t == "scadenze_manutenzione_casa":
+                        corpo_mail = self._genera_testo_scadenze_manutenzione_casa()
                     elif t == "documenti_scadenza":
                         profilo_filtro = (tk_task.get("note") or "").strip() or None
                         corpo_mail = self._genera_testo_scadenze_documenti(profilo=profilo_filtro)
@@ -986,6 +991,62 @@ def _genera_testo_scadenze_animali(self, soglia_giorni=30):
     lines.append("┈" * 30)
     lines.append("Controlla la sezione Pet Care per i dettagli")
     lines.append("e per rinnovare le scadenze in tempo.")
+    lines.append("")
+    lines.append(f"📊 Report generato il {data_oggi}.")
+    return "\n".join(lines)
+
+def _genera_testo_scadenze_manutenzione_casa(self, soglia_giorni=30):
+    oggi = datetime.date.today()
+    data_oggi = oggi.strftime('%d/%m/%Y')
+    db = self._manutenzione_carica()
+    voci = db.get("voci", [])
+    scadute = []
+    in_scadenza = []
+    for v in voci:
+        giorni = self._manutenzione_giorni_a_scadenza(v)
+        if giorni is None:
+            continue
+        prossima = self._manutenzione_calcola_prossima(v.get("ultima", ""), v.get("freq_giorni", 0))
+        data_str = prossima.strftime("%d-%m-%Y") if prossima else ""
+        nome = v.get("nome", "Attività")
+        categoria = v.get("categoria", "")
+        legge = bool(v.get("legge", False))
+        if giorni < 0:
+            scadute.append((categoria, nome, data_str, giorni, legge))
+        elif giorni <= soglia_giorni:
+            in_scadenza.append((categoria, nome, data_str, giorni, legge))
+    scadute.sort(key=lambda x: x[3])
+    in_scadenza.sort(key=lambda x: x[3])
+    if not scadute and not in_scadenza:
+        return ""
+    lines = []
+    lines.append("")
+    testo_centrato = "SCADENZE CASACARE".center(28)
+    lines.append(f"{testo_centrato}")
+    lines.append("─" * 31)
+    lines.append("")
+    if scadute:
+        lines.append("🔴 SCADUTE")
+        lines.append("─" * 31)
+        lines.append("")
+        for categoria, nome, data_str, giorni, legge in scadute:
+            icona = "⚖" if legge else "🔧"
+            lines.append(f"{icona} {categoria}\n — {nome}")
+            lines.append(f"Scaduta da {abs(giorni)} gg ({data_str})")
+        lines.append("")
+    if in_scadenza:
+        lines.append("🟡 IN SCADENZA")
+        lines.append("─" * 31)
+        lines.append("")
+        for categoria, nome, data_str, giorni, legge in in_scadenza:
+            icona = "⚖" if legge else "🔧"
+            testo_gg = "Scade OGGI" if giorni == 0 else f"tra {giorni} gg"
+            lines.append(f"{icona} {categoria}\n — {nome}")
+            lines.append(f"{testo_gg} ({data_str})")
+        lines.append("")
+    lines.append("┈" * 30)
+    lines.append("Controlla la sezione CasaCare su OrbitaCasa per i dettagli")
+    lines.append("e per segnare le attività come eseguite in tempo.")
     lines.append("")
     lines.append(f"📊 Report generato il {data_oggi}.")
     return "\n".join(lines)

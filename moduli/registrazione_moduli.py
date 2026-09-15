@@ -131,6 +131,14 @@ def registra_tutti_i_moduli(GestioneSpese):
     _registra(_immobil_carica, _immobil_salva, immobil, _immobil_crea_tab, _immobil_nuovo, _immobil_elimina, 
     _immobil_grafici, _immobil_estratto, _immobil_estratto_totale)
 
+    from moduli.manutenzione_casa import (
+        _manutenzione_carica, _manutenzione_salva, _manutenzione_calcola_prossima, _manutenzione_giorni_a_scadenza,
+        _manutenzione_stato, manutenzione_casa, _manutenzione_popup_editor, _manutenzione_calendario,
+        _manutenzione_estratto,)
+    _registra(_manutenzione_carica, _manutenzione_salva, _manutenzione_calcola_prossima, _manutenzione_giorni_a_scadenza,
+    _manutenzione_stato, manutenzione_casa, _manutenzione_popup_editor, _manutenzione_calendario,
+    _manutenzione_estratto)
+
     from moduli.documenti_personali import (
         gestisci_documenti_personali, backup_documenti_personali, mostra_help_documenti_personali,
         _genera_testo_scadenze_documenti,)
@@ -234,13 +242,14 @@ def registra_tutti_i_moduli(GestioneSpese):
     from moduli.schedulatore import (
         apri_schedulatore, _tick_scheduler, _esegui_scheduler, _genera_testo_ricorrenti_mancanti, _genera_testo_estratto_mensile,
         _genera_testo_estratto_annuale, _genera_testo_estratto_trasferimenti, _calcola_saldo_mese_corrente, _genera_testo_allerta_saldo, _invia_email_scheduler,
-        _genera_testo_scadenze_veicoli, _genera_testo_scadenze_animali, _genera_testo_riepilogo_cronologico,
+        _genera_testo_scadenze_veicoli, _genera_testo_scadenze_animali, _genera_testo_scadenze_manutenzione_casa,
+        _genera_testo_riepilogo_cronologico,
         _calcola_sforamenti_budget, _genera_testo_sforamento_budget,)
     _registra(apri_schedulatore, _tick_scheduler, _esegui_scheduler,
               _genera_testo_ricorrenti_mancanti, _genera_testo_estratto_mensile,
               _genera_testo_estratto_annuale, _genera_testo_estratto_trasferimenti, _calcola_saldo_mese_corrente,
               _genera_testo_allerta_saldo, _invia_email_scheduler, _genera_testo_scadenze_veicoli,
-              _genera_testo_scadenze_animali,
+              _genera_testo_scadenze_animali, _genera_testo_scadenze_manutenzione_casa,
               _genera_testo_riepilogo_cronologico,
               _calcola_sforamenti_budget, _genera_testo_sforamento_budget)
 

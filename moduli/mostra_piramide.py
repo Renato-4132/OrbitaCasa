@@ -94,6 +94,7 @@ def mostra_piramide(self):
                     ("Immobili",        "Gestione Immobili",     _g("immobil")),
                     ("Veicoli",         "Scadenze e consumi",    _g("veicoli")),
                     ("Pet Care",        "Anagrafica e spese",    _g("animali")),
+                    ("Casa Care",       "Manutenzione casa",     _g("manutenzione_casa")),
                 ],
             },
         ],

@@ -50,6 +50,7 @@ def _elenco_file_variabili(_app):
         ("ImmoBil ",                          "Elenco immobili gestiti (immobil.json)", "IMMOBIL_FILE", False),
         ("AutoPark",                          "Veicoli, scadenze e registro movimenti (veicoli.json)", "VEICOLI_FILE", False),
         ("Pet Care",                          "Anagrafica animali, spese e scadenze (animali.json)", "ANIMALI_FILE", False),
+        ("Casa Care",                         "Manutenzione e Risparmio Casa (manutenzione_casa.json)", "MANUTENZIONE_CASA_FILE", False),
         ("Schedulatore Email",                "Regole dello schedulatore email (schedule.json)", "SCHEDULE_FILE", False),
         ("Password di Accesso",               "Password impostata per l'accesso all'app (password.json)", "PW_FILE", False),
         ("Configurazione Generale",           "⚠ Tema, soglie e opzioni dell'app, incluse le impostazioni di rete (config.json)", "CONFIG_FILE", False),

@@ -238,6 +238,7 @@ def pop_gestione(self):
     self._add_m_item(m, "Gestione Documenti Personali", "documenti", self.gestisci_documenti_personali)
     self._add_m_item(m, "Gestione Utenze", "mobile", self.utenze, "Ctrl+U") 
     self._add_m_item(m, "ImmoBil — Gestione Immobili", "home", self.immobil)
+    self._add_m_item(m, "CasaCare — Manutenzione e Risparmio Casa", "auto_manutenzione", self.manutenzione_casa)
     self._add_m_item(m, "AutoPark — Gestione Veicoli", "veicoli", self.veicoli)
     self._add_m_item(m, "PetCare — Gestione Animali", "animali", self.animali)
     m.add_separator() 

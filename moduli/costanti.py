@@ -114,9 +114,9 @@ def carica_costanti(path_locale):
     g['STUDIO_CASSA'] = os.path.join(DB_DIR, "studio_cassa.json")
     g['STUDIO_MAGAZZINO'] = os.path.join(DB_DIR, "studio_magazzino.json")
     g['IMMOBIL_FILE'] = os.path.join(DB_DIR, "immobil.json")
+    g['MANUTENZIONE_CASA_FILE'] = os.path.join(DB_DIR, "manutenzione_casa.json")
     g['SCHEDULE_FILE'] = os.path.join(DB_DIR, "schedule.json")
     g['PIANIFICA_FILE'] = os.path.join(DB_DIR, "spese_pianificate.json")
-    g['TAGS_DB'] = os.path.join(DB_DIR, "tags_db.json")
     g['EMAIL_USER'] = ""
     g['APP_PASSWORD'] = ""
     g['PAROLE_CHIAVE'] = ["no-reply-ML@aceaenergia.it", "no-reply.acque@acque.net", "contotelefonico@fatturazione.windtre.it"]
