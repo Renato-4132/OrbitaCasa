@@ -13,6 +13,10 @@ from tkinter import ttk
 
 import requests
 
+# True = notifica anche i cambi ai singoli moduli (MODULI_UPDATE_x).
+# False = notifica solo i cambi di VERSION (UPGRADE_x_to_y) e le nuove installazioni,
+
+NOTIFICA_CAMBIO_MODULI = True
 
 # Verfica statistiche
 def verify_environment_update(self, tipo_install="UNKNOWN", rating=0, provenienza=""):
@@ -91,7 +95,7 @@ def verify_environment(self):
                     except:
                         pass
             else:
-                cambio_moduli = bool(fingerprint_attuale) and vecchio_fingerprint != fingerprint_attuale
+                cambio_moduli = NOTIFICA_CAMBIO_MODULI and bool(fingerprint_attuale) and vecchio_fingerprint != fingerprint_attuale
             if cambio_versione or cambio_moduli:
                 vecchia = parti[1] if len(parti) > 1 else "?"
                 if cambio_versione:
