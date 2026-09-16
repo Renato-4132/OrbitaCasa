@@ -6,6 +6,8 @@ import datetime
 import tkinter as tk
 from tkinter import ttk, filedialog
 
+from moduli.modello_spesa import campo
+
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
     return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
@@ -259,21 +261,28 @@ def calcolo_mutuo_prestito(self):
         has_sim = hasattr(self, 'tutti_i_risultati') and any(self.tutti_i_risultati)
         has_killer = hasattr(self, 'killer_stats') and self.killer_stats
         has_rata_sost = hasattr(self, 'rata_sostenibile_risultato') and self.rata_sostenibile_risultato is not None
+        has_sost = hasattr(self, 'sostenibilita_righe') and self.sostenibilita_righe
         idx_rata_sost_tab = notebook.index(rata_sost_frame)
-        if not has_sim and not has_killer and not has_rata_sost:
+        idx_sost_tab = notebook.index(sost_frame)
+        if not has_sim and not has_killer and not has_rata_sost and not has_sost:
             self.show_custom_warning("Dati mancanti", "Esegui una simulazione, un Piano Killer o calcola la Rata Sostenibile per esportare i dati.")
             return
-        idx_piano_start = notebook.index(analisi_frame) + 1
+        idx_piano_start = sub_notebook.index(analisi_frame) + 1
         idx_piano_end   = idx_piano_start + 5
         idx_killer_tab  = notebook.index(killer_frame)
+        idx_sim_outer_tab = notebook.index(outer_sim_frame)
+        idx_sub = sub_notebook.index(sub_notebook.select()) if idx_notebook == idx_sim_outer_tab else None
         if idx_notebook == idx_rata_sost_tab:
                 titolo_report = "REPORT FINANZIARIO - CALCOLO RATA SOSTENIBILE"
                 prefix_file = "Rata_Sostenibile"
+        elif idx_notebook == idx_sost_tab:
+                titolo_report = "REPORT FINANZIARIO - SOSTENIBILITÀ NEL TEMPO"
+                prefix_file = "Sostenibilita_Tempo"
         elif idx_notebook == idx_killer_tab:
                 titolo_report = "REPORT FINANZIARIO - PIANO DI ESTINZIONE STRATEGICA (KILLER)"
                 prefix_file = "Piano_Killer"
-        elif idx_piano_start <= idx_notebook <= idx_piano_end:
-                num_sim = idx_notebook - idx_piano_start + 1
+        elif idx_sub is not None and idx_piano_start <= idx_sub <= idx_piano_end:
+                num_sim = idx_sub - idx_piano_start + 1
                 titolo_report = f"REPORT FINANZIARIO - PIANO DI AMMORTAMENTO (SIMULAZIONE {num_sim})"
                 prefix_file = f"Piano_Ammortamento_Sim{num_sim}"
         else:
@@ -293,7 +302,7 @@ def calcolo_mutuo_prestito(self):
                 f"{titolo_report:^117}\n"
                 f"{linea_sep}\n"
         )
-        if has_sim and idx_notebook not in (idx_rata_sost_tab, idx_killer_tab):
+        if has_sim and idx_notebook not in (idx_rata_sost_tab, idx_killer_tab, idx_sost_tab):
             contenuto_testo += "Categoria            | Simulazione 1 | Simulazione 2 | Simulazione 3 | Simulazione 4 | Simulazione 5 | Simulazione 6\n"
             contenuto_testo += "─────────────────────┼───────────────┼───────────────┼───────────────┼───────────────┼───────────────┼───────────────\n"
             
@@ -332,9 +341,11 @@ def calcolo_mutuo_prestito(self):
                 if cat in ["Ammort. Extra (€)", "Costo Totale (€)", "Risparmio Int. (€)"]:
                     contenuto_testo += "─────────────────────┴───────────────┴───────────────┴───────────────┴───────────────┴───────────────┴───────────────\n"
 
-        idx_piano_start = notebook.index(analisi_frame) + 1
+        idx_piano_start = sub_notebook.index(analisi_frame) + 1
         idx_piano_end   = idx_piano_start + 5
         idx_killer_tab  = notebook.index(killer_frame)
+        idx_sim_outer_tab = notebook.index(outer_sim_frame)
+        idx_sub = sub_notebook.index(sub_notebook.select()) if idx_notebook == idx_sim_outer_tab else None
         if idx_notebook == idx_rata_sost_tab:
             if has_rata_sost:
                 rs = self.rata_sostenibile_risultato
@@ -360,8 +371,40 @@ def calcolo_mutuo_prestito(self):
                         f"{str(vals[2]):>12} | {str(vals[3]):>12} | {str(vals[4]):>15}\n"
                     )
                 contenuto_testo += linea + "\n"
-        elif idx_piano_start <= idx_notebook <= idx_piano_end:
-            idx_sim = idx_notebook - idx_piano_start
+        elif idx_notebook == idx_sost_tab:
+            if has_sost:
+                p = self.sostenibilita_parametri
+                righe_sost = self.sostenibilita_righe
+                contenuto_testo += "\n📋 SOSTENIBILITÀ NEL TEMPO\n"
+                linea = "─" * 117
+                contenuto_testo += linea + "\n"
+                contenuto_testo += (
+                    f"Entrate nette mensili: {_fmt_it(p['entrate0'])} €   |   "
+                    f"Spese fisse mensili: {_fmt_it(p['spese0'])} €   |   "
+                    f"Finanziamento: {_fmt_it(p['capitale'])} €   |   "
+                    f"Tasso: {_fmt_it(p['tasso'])} %\n"
+                )
+                contenuto_testo += (
+                    f"Durata piano: {p['anni']} anni   |   Orizzonte osservato: {p['orizzonte']} anni   |   "
+                    f"Inflazione: {_fmt_it(p['inflazione'])} %   |   Crescita reddito: {_fmt_it(p['crescita'])} %\n"
+                )
+                if p['stress_on']:
+                    contenuto_testo += f"Tasso variabile: rialzo di {_fmt_it(p['stress_delta'])} punti % dall'anno {p['stress_anno']}\n"
+                contenuto_testo += linea + "\n"
+                contenuto_testo += f"{'Anno':<10} | {'Entrate (€)':>13} | {'Spese (€)':>12} | {'Rata (€)':>12} | {'Residuo (€)':>13} | {'Rata/Entrate (%)':>17} | {'Stato':<15}\n"
+                contenuto_testo += linea + "\n"
+                stato_testo_map = {"g": "Margine sano", "y": "Attenzione", "r": "A rischio"}
+                for r in righe_sost:
+                    etichetta_anno = "Oggi" if r["anno"] == 0 else f"Anno {r['anno']}"
+                    contenuto_testo += (
+                        f"{etichetta_anno:<10} | {_fmt_it(r['entrate'], '>13,.2f')} | {_fmt_it(r['spese'], '>12,.2f')} | "
+                        f"{_fmt_it(r['rata'], '>12,.2f')} | {_fmt_it(r['residuo'], '>13,.2f')} | "
+                        f"{_fmt_it(r['pct'], '>17,.1f')} | {stato_testo_map[r['stato']]:<15}\n"
+                    )
+                contenuto_testo += linea + "\n"
+
+        elif idx_sub is not None and idx_piano_start <= idx_sub <= idx_piano_end:
+            idx_sim = idx_sub - idx_piano_start
             res_sel = self.tutti_i_risultati[idx_sim]
             if res_sel:
                 contenuto_testo += f"\n📋 PIANO AMMORTAMENTO DETTAGLIATO: SIMULAZIONE {idx_sim + 1}\n"
@@ -792,11 +835,11 @@ def calcolo_mutuo_prestito(self):
     root = tk.Toplevel(bg=self.COLOR_TOPLEVEL)
     root.withdraw()
     root.title("Gestore Finanziario - Calcolo Finanziamento e Simulazioni - Ammortamento Francese")
-    root.geometry("1350x650")
+    root.geometry("1366x660")
     screen_width = root.winfo_screenwidth()
     screen_height = root.winfo_screenheight()
-    window_width = 1350
-    window_height = 650
+    window_width = 1366
+    window_height = 660
     position_top = int(screen_height / 2 - window_height / 2)
     position_right = int(screen_width / 2 - window_width / 2)
     root.geometry(f'{window_width}x{window_height}+{position_right}+{position_top}')
@@ -811,12 +854,20 @@ def calcolo_mutuo_prestito(self):
     self.rata_sostenibile_risultato = None
     notebook = ttk.Notebook(root)
     notebook.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
-    simulazioni_frame = ttk.Frame(notebook, padding=10)
+    outer_sim_frame = ttk.Frame(notebook, padding=0)
     img_tab_simulazioni = self.icone_gui.get("calcolatrice")
     if img_tab_simulazioni:
-        notebook.add(simulazioni_frame, image=img_tab_simulazioni, text="  Simulazioni  ", compound="left")
+        notebook.add(outer_sim_frame, image=img_tab_simulazioni, text="  Simulazioni  ", compound="left")
     else:
-        notebook.add(simulazioni_frame, text="Simulazioni")
+        notebook.add(outer_sim_frame, text="Simulazioni")
+    sub_notebook = ttk.Notebook(outer_sim_frame)
+    sub_notebook.pack(fill=tk.BOTH, expand=True)
+    simulazioni_frame = ttk.Frame(sub_notebook, padding=10)
+    img_tab_inserimento = self.icone_gui.get("descrizione")
+    if img_tab_inserimento:
+        sub_notebook.add(simulazioni_frame, image=img_tab_inserimento, text="  Inserimento  ", compound="left")
+    else:
+        sub_notebook.add(simulazioni_frame, text="Inserimento")
     titoli_simulazioni = ["Scenario", "Capitale (€)", "Durata (anni)", "Tasso (%)", "Spese Incasso (€)", "Ammort. Extra (€)", "N° Rate", "Tasso Mensile", "Rata Mensile", "Interessi Totali", "Costo Totale", "Risparmio Interessi"]
     for i, titolo in enumerate(titoli_simulazioni):
         ttk.Label(simulazioni_frame, text=titolo, font=("Arial", 9, "bold")).grid(row=0, column=i, padx=5, pady=5, sticky="w")
@@ -845,12 +896,12 @@ def calcolo_mutuo_prestito(self):
     btn_reset_simulazioni = ttk.Label(simulazioni_frame, compound="left", image=img_reset, text=" Reset" if not img_reset else "", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(5, 5))
     btn_reset_simulazioni.grid(row=7, column=7, pady=10, padx=5)
     btn_reset_simulazioni.bind("<Button-1>", lambda e: resetta_tutti_i_campi_simulazione())
-    analisi_frame = ttk.Frame(notebook, padding=10)
+    analisi_frame = ttk.Frame(sub_notebook, padding=10)
     img_tab_analisi = self.icone_gui.get("report")
     if img_tab_analisi:
-        notebook.add(analisi_frame, image=img_tab_analisi, text="  Riepilogo Analisi  ", compound="left")
+        sub_notebook.add(analisi_frame, image=img_tab_analisi, text="  Riepilogo Analisi  ", compound="left")
     else:
-        notebook.add(analisi_frame, text="Riepilogo Analisi")
+        sub_notebook.add(analisi_frame, text="Riepilogo Analisi")
     tree_analisi = ttk.Treeview(analisi_frame, columns=("Scenario", "Capitale", "Durata", "Tasso", "Ammortamento Extra", "Rata Mensile", "Importo Totale", "Interessi Totali", "Risparmio Interessi"), show="headings")
     tree_analisi.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
     headings = {"Scenario": 120, "Capitale": 120, "Durata": 150, "Tasso": 80, "Ammortamento Extra": 140, "Rata Mensile": 120, "Importo Totale": 150, "Interessi Totali": 120, "Risparmio Interessi": 140}
@@ -859,7 +910,7 @@ def calcolo_mutuo_prestito(self):
         tree_analisi.column(col, width=width, anchor="center")
     trees_piani, labels_piani = [], []
     for i in range(6):
-        tree, label = crea_tab_piano_ammortamento(notebook, f"Simulazione {i+1}")
+        tree, label = crea_tab_piano_ammortamento(sub_notebook, f"Simulazione {i+1}")
         trees_piani.append(tree); labels_piani.append(label)
     rata_sost_frame = ttk.Frame(notebook, padding=10)
     img_tab_rata_sost = self.icone_gui.get("calcolatrice")
@@ -992,6 +1043,540 @@ def calcolo_mutuo_prestito(self):
     sb_k = ttk.Scrollbar(tree_k_frame, orient="vertical", command=tree_k_piano.yview, style="Vertical.TScrollbar")
     sb_k.pack(side=tk.RIGHT, fill=tk.Y)
     tree_k_piano.configure(yscrollcommand=sb_k.set)
+
+    # ---- Tab "Sostenibilità nel Tempo" ----
+    def _sost_medie_mensili_da_storico():
+        entrate_per_mese = {}
+        uscite_per_mese = {}
+        try:
+            for d, voci in self.spese.items():
+                key = (d.year, d.month)
+                for v in voci:
+                    tipo = campo(v, "tipo", "")
+                    importo = float(campo(v, "importo", 0.0))
+                    if tipo == "Entrata":
+                        entrate_per_mese[key] = entrate_per_mese.get(key, 0.0) + importo
+                    elif tipo == "Uscita":
+                        uscite_per_mese[key] = uscite_per_mese.get(key, 0.0) + importo
+        except Exception:
+            pass
+        e_media = sum(entrate_per_mese.values()) / len(entrate_per_mese) if entrate_per_mese else 0.0
+        s_media = sum(uscite_per_mese.values()) / len(uscite_per_mese) if uscite_per_mese else 0.0
+        return e_media, s_media
+
+    def _sost_rata_mensile(capitale, tasso_annuo_pct, anni):
+        n = round(anni * 12)
+        r = tasso_annuo_pct / 100 / 12
+        if n <= 0:
+            return 0.0
+        if r == 0:
+            return capitale / n
+        try:
+            return capitale * r * (1 + r) ** n / ((1 + r) ** n - 1)
+        except (ZeroDivisionError, OverflowError):
+            return 0.0
+
+    def _sost_piano_ammortamento(capitale, tasso_annuo_pct, anni, stress_on, stress_delta_pp, stress_anno):
+        n = anni * 12
+        piano = []
+        debito = capitale
+        tasso_corrente = tasso_annuo_pct
+        rata = _sost_rata_mensile(debito, tasso_corrente, n / 12)
+        for m in range(1, n + 1):
+            if stress_on and m == stress_anno * 12 + 1:
+                tasso_corrente = tasso_annuo_pct + stress_delta_pp
+                mesi_rimanenti = n - m + 1
+                rata = _sost_rata_mensile(debito, tasso_corrente, mesi_rimanenti / 12)
+            r_mensile = tasso_corrente / 100 / 12
+            interessi = debito * r_mensile
+            quota_capitale = rata - interessi
+            if quota_capitale > debito:
+                quota_capitale = debito
+            debito = max(0.0, debito - quota_capitale)
+            piano.append((rata, tasso_corrente, debito))
+        return piano
+
+    def _sost_calcola_righe(entrate0, spese0, capitale, tasso, anni, orizzonte, inflazione, crescita,
+                             stress_on, stress_delta, stress_anno):
+        piano = _sost_piano_ammortamento(capitale, tasso, anni, stress_on, stress_delta, stress_anno)
+        righe = []
+        for y in range(0, orizzonte + 1):
+            entrate = entrate0 * (1 + crescita / 100) ** y
+            spese = spese0 * (1 + inflazione / 100) ** y
+            if y == 0:
+                rata_anno = piano[0][0] if piano else 0.0
+            else:
+                i0 = (y - 1) * 12
+                i1 = min(y * 12, len(piano))
+                tratto = piano[i0:i1]
+                rata_anno = sum(r for r, _, _ in tratto) / len(tratto) if tratto else 0.0
+            disponibile = entrate - spese
+            residuo = disponibile - rata_anno
+            pct_entrate = (rata_anno / entrate * 100) if entrate > 0 else 0.0
+            if residuo < 0 or pct_entrate >= 40:
+                stato = "r"
+            elif pct_entrate >= 30:
+                stato = "y"
+            else:
+                stato = "g"
+            righe.append({
+                "anno": y, "entrate": entrate, "spese": spese, "rata": rata_anno,
+                "disponibile": disponibile, "residuo": residuo, "pct": pct_entrate, "stato": stato,
+            })
+        return righe
+
+    self.sostenibilita_righe = None
+    self.sostenibilita_parametri = None
+    sost_entrate_media, sost_spese_media = _sost_medie_mensili_da_storico()
+    sost_entrate_default = str(int(round(sost_entrate_media))) if sost_entrate_media > 0 else "2400"
+    sost_spese_default = str(int(round(sost_spese_media))) if sost_spese_media > 0 else "1100"
+
+    sost_frame = ttk.Frame(notebook, padding=10)
+    img_tab_sost = self.icone_gui.get("home")
+    idx_sost_insert = notebook.index(killer_frame)
+    if img_tab_sost:
+        notebook.insert(idx_sost_insert, sost_frame, image=img_tab_sost, text="  Sostenibilità nel Tempo  ", compound="left")
+    else:
+        notebook.insert(idx_sost_insert, sost_frame, text="Sostenibilità nel Tempo")
+
+    sost_corpo = tk.Frame(sost_frame, bg=self.COLOR_TOPLEVEL)
+    sost_corpo.pack(fill=tk.BOTH, expand=True)
+    sost_col_sx = tk.Frame(sost_corpo, bg=self.COLOR_TOPLEVEL, width=300)
+    sost_col_sx.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 15))
+    sost_col_sx.pack_propagate(False)
+
+    sost_col_dx = tk.Frame(sost_corpo, bg=self.COLOR_TOPLEVEL)
+    sost_col_dx.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+    sost_grid = tk.Frame(sost_col_sx, bg=self.COLOR_TOPLEVEL)
+    sost_grid.pack(fill=tk.X)
+    sost_grid.columnconfigure(0, weight=0, minsize=140, uniform="sost_col")
+    sost_grid.columnconfigure(1, weight=0, minsize=140, uniform="sost_col")
+
+    def _sost_tooltip(widget, testo, ritardo_ms=1000):
+        stato = {"win": None, "job": None}
+        def mostra_ora():
+            stato["job"] = None
+            x = widget.winfo_rootx() + 6
+            y = widget.winfo_rooty() + widget.winfo_height() + 4
+            win = tk.Toplevel(widget)
+            win.wm_overrideredirect(True)
+            try:
+                win.wm_attributes("-topmost", True)
+            except tk.TclError:
+                pass
+            win.wm_geometry(f"+{x}+{y}")
+            tk.Label(win, text=testo, bg="#ffffe0", fg="#000000", font=("Arial", 8),
+                     justify="left", wraplength=260, relief="solid", borderwidth=1,
+                     padx=6, pady=3).pack()
+            stato["win"] = win
+        def mostra(event=None):
+            if stato["win"] is not None or stato["job"] is not None:
+                return
+            stato["job"] = widget.after(ritardo_ms, mostra_ora)
+        def nascondi(event=None):
+            if stato["job"] is not None:
+                widget.after_cancel(stato["job"])
+                stato["job"] = None
+            if stato["win"] is not None:
+                stato["win"].destroy()
+                stato["win"] = None
+        widget.bind("<Enter>", mostra, add="+")
+        widget.bind("<Leave>", nascondi, add="+")
+
+    # colonne a larghezza fissa (minsize sopra): l'etichetta deve stare su UNA riga sola
+    # dentro questa larghezza, altrimenti l'unità di misura (€/%) va a capo e disallinea le caselle
+    _SOST_ENTRY_CHARS = 12
+    _SOST_LBL_WRAP = 132
+
+    def _sost_lbl(parent, testo):
+        tk.Label(parent, text=testo, bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
+                 font=("Arial", 8, "bold"), anchor="w", justify="left",
+                 wraplength=_SOST_LBL_WRAP).pack(anchor="w", pady=(0, 1), fill=tk.X)
+
+    def _sost_valida_numero(testo_nuovo):
+        if testo_nuovo == "":
+            return True
+        consentiti = set("0123456789,.")
+        if any(c not in consentiti for c in testo_nuovo):
+            return False
+        if testo_nuovo.count(",") + testo_nuovo.count(".") > 1:
+            return False
+        return True
+
+    vcmd_sost_numero = (root.register(_sost_valida_numero), "%P")
+
+    def _sost_campo(parent, testo, default, tooltip=None):
+        cell = tk.Frame(parent, bg=self.COLOR_TOPLEVEL)
+        _sost_lbl(cell, testo)
+        var = tk.StringVar(value=default)
+        ent = ttk.Entry(cell, textvariable=var, font=("Arial", 10), justify="center",
+                         width=_SOST_ENTRY_CHARS, validate="key", validatecommand=vcmd_sost_numero)
+        ent.pack(fill=tk.X)
+        if tooltip:
+            _sost_tooltip(ent, tooltip)
+        return cell, var, ent
+
+    def _sost_campo_grid(row, col, testo, default, tooltip=None):
+        cell, var, ent = _sost_campo(sost_grid, testo, default, tooltip)
+        cell.grid(row=row, column=col, sticky="new",
+                  padx=(0, 6) if col == 0 else (6, 0), pady=(0, 8))
+        return var, ent
+
+    var_sost_entrate, ent_sost_entrate = _sost_campo_grid(
+        0, 0, "Entrate nette (€)", sost_entrate_default,
+        tooltip=f"Entrate nette mensili. Media storica calcolata automaticamente dai movimenti registrati: {_fmt_it(sost_entrate_media)} €. Modificabile.")
+    var_sost_spese, ent_sost_spese = _sost_campo_grid(
+        0, 1, "Spese fisse (€)", sost_spese_default,
+        tooltip=f"Spese fisse mensili, esclusa la rata. Media storica calcolata automaticamente dai movimenti registrati: {_fmt_it(sost_spese_media)} €. Modificabile.")
+    var_sost_capitale, _ = _sost_campo_grid(1, 0, "Finanziamento (€)", "180000",
+        tooltip="Importo del finanziamento richiesto.")
+    var_sost_tasso, _ = _sost_campo_grid(1, 1, "Tasso annuo (%)", "3,2",
+        tooltip="Tasso d'interesse annuo del finanziamento.")
+    var_sost_durata, _ = _sost_campo_grid(2, 0, "Durata (anni)", "25",
+        tooltip="Durata del piano di ammortamento.")
+    var_sost_orizzonte, _ = _sost_campo_grid(
+        2, 1, "Orizzonte (anni)", "10",
+        tooltip="Quanti anni futuri mostrare nella simulazione (non può superare la durata del piano).")
+    var_sost_inflazione, _ = _sost_campo_grid(
+        3, 0, "Costo vita (%)", "2,0",
+        tooltip="Crescita annua stimata del costo della vita (inflazione).")
+    var_sost_crescita, _ = _sost_campo_grid(
+        3, 1, "Reddito (%)", "1,0",
+        tooltip="Crescita annua stimata del reddito.")
+
+    ttk.Separator(sost_grid, orient="horizontal").grid(row=4, column=0, columnspan=2, sticky="ew", pady=8)
+    var_sost_stress = tk.BooleanVar(value=False)
+    ttk.Checkbutton(sost_grid, text="Tasso variabile — simula un rialzo", variable=var_sost_stress).grid(
+        row=5, column=0, columnspan=2, sticky="w", pady=(0, 6))
+    var_sost_stress_delta, ent_sost_stress_delta = _sost_campo_grid(
+        6, 0, "Rialzo tassi (%)", "2,0",
+        tooltip="Rialzo stimato del tasso d'interesse, in punti percentuali, in caso di tasso variabile.")
+    var_sost_stress_anno, ent_sost_stress_anno = _sost_campo_grid(
+        6, 1, "Dall'anno", "3",
+        tooltip="Anno di partenza del rialzo tassi (deve rientrare nella durata del piano).")
+
+    img_sost_calcola = self.icone_gui.get("aggiungi")
+    btn_sost_calcola = ttk.Label(sost_grid, compound="left", image=img_sost_calcola,
+                                  text=" Calcola" if img_sost_calcola else "➕ Calcola",
+                                  background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
+                                  cursor="hand2", padding=(10, 5), anchor="center")
+    btn_sost_calcola.grid(row=7, column=0, sticky="ew", padx=(0, 6), pady=(10, 4))
+    img_sost_reset = self.icone_gui.get("reset_campo")
+    btn_sost_reset = ttk.Label(sost_grid, compound="left", image=img_sost_reset,
+                                text=" Reimposta" if img_sost_reset else "🔄 Reimposta",
+                                background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
+                                cursor="hand2", padding=(10, 5), anchor="center")
+    btn_sost_reset.grid(row=7, column=1, sticky="ew", padx=(6, 0), pady=(10, 4))
+
+    sost_verdetto_frame = tk.Frame(sost_col_dx, bg=self.COLOR_WIDGET_BG,
+                                    highlightbackground=self.TEXT_COLOR, highlightthickness=1)
+    sost_verdetto_frame.pack(fill=tk.X, pady=(0, 8))
+    lbl_sost_stato = tk.Label(sost_verdetto_frame, text="—", bg=self.COLOR_WIDGET_BG,
+                               font=("Arial", 11, "bold"), anchor="w")
+    lbl_sost_stato.pack(fill=tk.X, padx=10, pady=(8, 2))
+    lbl_sost_verdetto = tk.Label(sost_verdetto_frame, text="", bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR,
+                                  font=("Arial", 9), anchor="w", justify="left", wraplength=780)
+    lbl_sost_verdetto.pack(fill=tk.X, padx=10, pady=(0, 10))
+    _sost_tooltip(sost_verdetto_frame,
+        "Margine sano: rata sotto il 30% delle entrate in ogni anno dell'orizzonte.\n"
+        "Da monitorare: la rata sale tra il 30% e il 40% delle entrate in almeno un anno.\n"
+        "A rischio: la rata supera il 40% delle entrate, oppure il residuo mensile scende sotto zero, in almeno un anno.")
+
+    sost_kpi_frame = tk.Frame(sost_col_dx, bg=self.COLOR_TOPLEVEL)
+    sost_kpi_frame.pack(fill=tk.X, pady=(0, 8))
+
+    def _sost_kpi(parent, etichetta, tooltip=None):
+        f = tk.Frame(parent, bg=self.COLOR_TOPLEVEL, highlightbackground=self.TEXT_COLOR, highlightthickness=1)
+        f.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+        tk.Label(f, text=etichetta, bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
+                 font=("Arial", 8), anchor="w", wraplength=140, justify="left").pack(fill=tk.X, padx=6, pady=(5, 0))
+        v = tk.Label(f, text="—", bg=self.COLOR_TOPLEVEL, fg=self.COLOR_HEADER,
+                     font=("Arial", 12, "bold"), anchor="w")
+        v.pack(fill=tk.X, padx=6, pady=(0, 6))
+        if tooltip:
+            _sost_tooltip(f, tooltip)
+        return v
+
+    lbl_sost_rata_oggi = _sost_kpi(sost_kpi_frame, "Rata mensile oggi",
+        tooltip="Quanto pagheresti di rata al mese, subito, con l'importo, il tasso e la durata inseriti (ammortamento francese, rata costante).")
+    lbl_sost_pct_oggi = _sost_kpi(sost_kpi_frame, "Rata su entrate, oggi",
+        tooltip="La rata di oggi come percentuale delle tue entrate nette di oggi (rata ÷ entrate × 100).")
+    lbl_sost_pct_orizzonte = _sost_kpi(sost_kpi_frame, "Rata su entrate, a fine orizzonte",
+        tooltip="La stessa percentuale, calcolata all'ultimo anno dell'orizzonte impostato, con entrate e spese proiettate secondo i tassi di crescita indicati.")
+    lbl_sost_residuo_oggi = _sost_kpi(sost_kpi_frame, "Residuo mensile oggi",
+        tooltip="Quanto resta ogni mese, oggi, dopo aver pagato spese fisse e rata (entrate − spese fisse − rata). Se negativo, la rata non è sostenibile subito.")
+    lbl_sost_residuo_orizzonte = _sost_kpi(sost_kpi_frame, "Residuo mensile a fine orizzonte",
+        tooltip="Lo stesso residuo, proiettato all'ultimo anno dell'orizzonte, con entrate e spese aggiornate secondo le crescite stimate.")
+
+    cv_sost = tk.Canvas(sost_col_dx, bg=self.COLOR_TOPLEVEL, highlightthickness=0, height=150)
+    cv_sost.pack(fill=tk.X, pady=(0, 8))
+
+    sost_tree_frame = tk.Frame(sost_col_dx, bg=self.COLOR_TOPLEVEL)
+    sost_tree_frame.pack(fill=tk.BOTH, expand=True)
+    sost_cols = ("Anno", "Entrate", "Spese fisse", "Rata", "Residuo dopo rata", "Rata / entrate", "Stato")
+    tree_sost = ttk.Treeview(sost_tree_frame, columns=sost_cols, show="headings", height=7)
+    tree_sost.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    for c in sost_cols:
+        tree_sost.heading(c, text=c)
+        tree_sost.column(c, width=110, anchor="center")
+    tree_sost.column("Anno", width=80)
+    sb_sost = ttk.Scrollbar(sost_tree_frame, orient="vertical", command=tree_sost.yview, style="Vertical.TScrollbar")
+    sb_sost.pack(side=tk.RIGHT, fill=tk.Y)
+    tree_sost.configure(yscrollcommand=sb_sost.set)
+    tree_sost.tag_configure("g", foreground=self.COLOR_GREEN)
+    tree_sost.tag_configure("y", foreground=self.COLOR_ORANGE)
+    tree_sost.tag_configure("r", foreground=self.COLOR_RED)
+
+    _sost_col_tips = {
+        "Anno": "Anno di riferimento della proiezione (Oggi, Anno 1, Anno 2, ...).",
+        "Entrate": "Entrate nette mensili stimate per quell'anno (crescono secondo 'Reddito %').",
+        "Spese fisse": "Spese fisse mensili stimate per quell'anno, esclusa la rata (crescono secondo 'Costo vita %', cioè l'inflazione).",
+        "Rata": "Rata mensile media di quell'anno (cambia da un certo anno in poi se è attivo il tasso variabile).",
+        "Residuo dopo rata": "Quanto resta al mese quell'anno dopo aver pagato spese fisse e rata.",
+        "Rata / entrate": "La rata di quell'anno come percentuale delle entrate di quell'anno.",
+        "Stato": "Margine sano: rata sotto il 30% delle entrate.\nDa monitorare: rata tra il 30% e il 40%.\nA rischio: rata sopra il 40%, oppure residuo negativo.",
+    }
+    _sost_tip_tree = {"win": None, "col": None, "job": None, "pending_col": None}
+
+    def _sost_tree_tooltip_nascondi(event=None):
+        if _sost_tip_tree["job"] is not None:
+            tree_sost.after_cancel(_sost_tip_tree["job"])
+            _sost_tip_tree["job"] = None
+        _sost_tip_tree["pending_col"] = None
+        if _sost_tip_tree["win"] is not None:
+            _sost_tip_tree["win"].destroy()
+        _sost_tip_tree["win"] = None
+        _sost_tip_tree["col"] = None
+
+    def _sost_tree_mostra_ora(nome_col, x, y):
+        _sost_tip_tree["job"] = None
+        _sost_tip_tree["pending_col"] = None
+        testo = _sost_col_tips.get(nome_col)
+        if not testo:
+            return
+        win = tk.Toplevel(tree_sost)
+        win.wm_overrideredirect(True)
+        try:
+            win.wm_attributes("-topmost", True)
+        except tk.TclError:
+            pass
+        win.wm_geometry(f"+{x}+{y}")
+        tk.Label(win, text=testo, bg="#ffffe0", fg="#000000", font=("Arial", 8),
+                 justify="left", wraplength=260, relief="solid", borderwidth=1,
+                 padx=6, pady=3).pack()
+        _sost_tip_tree["win"] = win
+        _sost_tip_tree["col"] = nome_col
+
+    def _sost_tree_motion(event):
+        if tree_sost.identify_region(event.x, event.y) != "heading":
+            _sost_tree_tooltip_nascondi()
+            return
+        col_id = tree_sost.identify_column(event.x)
+        try:
+            nome_col = sost_cols[int(col_id.replace("#", "")) - 1]
+        except (ValueError, IndexError):
+            _sost_tree_tooltip_nascondi()
+            return
+        if nome_col == _sost_tip_tree["col"] or nome_col == _sost_tip_tree["pending_col"]:
+            return
+        _sost_tree_tooltip_nascondi()
+        x = tree_sost.winfo_rootx() + event.x + 10
+        y = tree_sost.winfo_rooty() + event.y + 15
+        _sost_tip_tree["pending_col"] = nome_col
+        _sost_tip_tree["job"] = tree_sost.after(1000, lambda: _sost_tree_mostra_ora(nome_col, x, y))
+
+    tree_sost.bind("<Motion>", _sost_tree_motion)
+    tree_sost.bind("<Leave>", _sost_tree_tooltip_nascondi)
+
+    _sost_dati_grafico = [None]
+
+    def _sost_disegna_grafico(righe):
+        cv_sost.delete("all")
+        cw = cv_sost.winfo_width()
+        ch = cv_sost.winfo_height()
+        if cw < 10 or ch < 10 or not righe:
+            return
+        pad_l, pad_r, pad_t, pad_b = 15, 15, 10, 20
+        n = len(righe)
+        larghezza_col = (cw - pad_l - pad_r) / n
+        SOGLIA_CAP = 100.0
+        RANGE_COMPRESSO = 25.0
+
+        def _scala_pct(pct):
+            if pct <= SOGLIA_CAP:
+                return pct
+            eccesso = pct - SOGLIA_CAP
+            return SOGLIA_CAP + RANGE_COMPRESSO * (eccesso / (eccesso + RANGE_COMPRESSO))
+
+        pct_max_reale = max(r["pct"] for r in righe)
+        max_pct = max(50.0, _scala_pct(pct_max_reale)) * 1.15
+        colori = {"g": "#2e9e5b", "y": "#d4a017", "r": "#c0392b"}
+        for i, r in enumerate(righe):
+            x0 = pad_l + i * larghezza_col + larghezza_col * 0.2
+            x1 = pad_l + i * larghezza_col + larghezza_col * 0.8
+            y1 = ch - pad_b
+            pct_disegno = _scala_pct(r["pct"])
+            y0 = pad_t + (1 - pct_disegno / max_pct) * (ch - pad_t - pad_b)
+            cv_sost.create_rectangle(x0, y0, x1, y1, fill=colori[r["stato"]], outline="")
+            if r["pct"] > SOGLIA_CAP:
+                cv_sost.create_text((x0 + x1) / 2, y0 - 8, text=f"{_fmt_it(r['pct'], ',.0f')}%",
+                                     font=("Arial", 7, "bold"), fill=colori[r["stato"]])
+            etichetta = "oggi" if r["anno"] == 0 else f"+{r['anno']}"
+            cv_sost.create_text((x0 + x1) / 2, ch - pad_b + 10, text=etichetta, font=("Arial", 7), fill=self.TEXT_COLOR)
+        yy40 = pad_t + (1 - 40 / max_pct) * (ch - pad_t - pad_b)
+        yy30 = pad_t + (1 - 30 / max_pct) * (ch - pad_t - pad_b)
+        if abs(yy30 - yy40) < 11:
+            yy_media = (yy30 + yy40) / 2
+            cv_sost.create_line(pad_l, yy_media, cw - pad_r, yy_media, fill=self.TEXT_COLOR, dash=(2, 3))
+            cv_sost.create_text(cw - pad_r, yy_media - 8, text="30-40%", anchor="e", font=("Arial", 7), fill=self.TEXT_COLOR)
+        else:
+            cv_sost.create_line(pad_l, yy40, cw - pad_r, yy40, fill=self.TEXT_COLOR, dash=(2, 3))
+            cv_sost.create_text(cw - pad_r, yy40 - 7, text="40%", anchor="e", font=("Arial", 7), fill=self.TEXT_COLOR)
+            cv_sost.create_line(pad_l, yy30, cw - pad_r, yy30, fill=self.TEXT_COLOR, dash=(2, 3))
+            cv_sost.create_text(cw - pad_r, yy30 + 9, text="30%", anchor="e", font=("Arial", 7), fill=self.TEXT_COLOR)
+
+    def _sost_numero(var, default=0.0):
+        try:
+            testo = var.get().replace("€", "").replace("%", "").strip()
+            testo = testo.replace(".", "").replace(",", ".")
+            return float(testo)
+        except ValueError:
+            return default
+
+    def sost_calcola(*_):
+        entrate0 = _sost_numero(var_sost_entrate, 0.0)
+        spese0 = _sost_numero(var_sost_spese, 0.0)
+        capitale = _sost_numero(var_sost_capitale, 0.0)
+        tasso = _sost_numero(var_sost_tasso, 0.0)
+        try:
+            anni = max(1, min(50, int(_sost_numero(var_sost_durata, 1))))
+        except ValueError:
+            anni = 1
+        try:
+            orizzonte = max(1, min(50, int(_sost_numero(var_sost_orizzonte, 1))))
+        except ValueError:
+            orizzonte = 1
+        inflazione = _sost_numero(var_sost_inflazione, 0.0)
+        crescita = _sost_numero(var_sost_crescita, 0.0)
+        stress_on = var_sost_stress.get()
+        stress_delta = _sost_numero(var_sost_stress_delta, 0.0)
+        try:
+            stress_anno = max(1, int(_sost_numero(var_sost_stress_anno, 1)))
+        except ValueError:
+            stress_anno = 1
+
+        errori = []
+        if not (0 < entrate0 <= 50000):
+            errori.append("le entrate nette mensili devono essere tra 1 e 50.000 €")
+        if not (0 <= spese0 <= 50000):
+            errori.append("le spese fisse mensili devono essere tra 0 e 50.000 €")
+        if not (0 < capitale <= 2000000):
+            errori.append("l'importo del finanziamento deve essere tra 1 e 2.000.000 €")
+        if not (0 <= tasso <= 30):
+            errori.append("il tasso d'interesse annuo deve essere tra 0% e 30%")
+        if not (0 <= inflazione <= 30):
+            errori.append("la crescita annua del costo della vita deve essere tra 0% e 30%")
+        if not (0 <= crescita <= 30):
+            errori.append("la crescita annua del reddito deve essere tra 0% e 30%")
+        if not (1 <= anni <= 35):
+            errori.append("la durata del finanziamento deve essere tra 1 e 35 anni")
+        if not (1 <= orizzonte <= anni):
+            errori.append("l'orizzonte osservato deve essere tra 1 anno e la durata del piano")
+        if stress_on:
+            if not (0 <= stress_delta <= 20):
+                errori.append("il rialzo tassi stimato deve essere tra 0 e 20 punti percentuali")
+            if not (1 <= stress_anno <= anni):
+                errori.append("l'anno di partenza del rialzo tassi deve rientrare nella durata del piano")
+        if errori:
+            self.show_custom_warning("Valori non validi", "Correggi i seguenti campi:\n- " + "\n- ".join(errori))
+            return
+
+        righe = _sost_calcola_righe(entrate0, spese0, capitale, tasso, anni, orizzonte, inflazione,
+                                     crescita, stress_on, stress_delta, stress_anno)
+        primo, ultimo = righe[0], righe[-1]
+
+        rank = {"g": 0, "y": 1, "r": 2}
+        peggiore = "g"
+        for r in righe:
+            if rank[r["stato"]] > rank[peggiore]:
+                peggiore = r["stato"]
+
+        if peggiore == "g":
+            lbl_sost_stato.config(text="✔  Sostenibile", fg=self.COLOR_GREEN)
+            testo_verdetto = (
+                f"Nell'arco di {orizzonte} anni la rata resta sotto il 30% delle entrate stimate. "
+                f"Oggi assorbe {_fmt_it(primo['pct'], ',.1f')}% delle entrate; tra {orizzonte} anni la stima è "
+                f"{_fmt_it(ultimo['pct'], ',.1f')}%."
+            )
+        elif peggiore == "y":
+            lbl_sost_stato.config(text="⚠  Da monitorare", fg=self.COLOR_ORANGE)
+            testo_verdetto = (
+                "In almeno un anno dell'orizzonte la rata sale tra il 30% e il 40% delle entrate. "
+                "Non è allarmante, ma conviene costruire un fondo di emergenza più solido."
+            )
+        else:
+            lbl_sost_stato.config(text="✖  A rischio", fg=self.COLOR_RED)
+            testo_verdetto = (
+                "In almeno un anno dell'orizzonte il residuo dopo la rata scende sotto zero, oppure la rata "
+                "supera il 40% delle entrate. Conviene rivedere importo, durata o margine di reddito prima di procedere."
+            )
+        lbl_sost_verdetto.config(text=testo_verdetto)
+
+        lbl_sost_rata_oggi.config(text=f"{_fmt_it(primo['rata'])} €")
+        lbl_sost_pct_oggi.config(text=f"{_fmt_it(primo['pct'], ',.1f')} %")
+        lbl_sost_pct_orizzonte.config(text=f"{_fmt_it(ultimo['pct'], ',.1f')} %")
+        lbl_sost_residuo_oggi.config(text=f"{_fmt_it(primo['residuo'])} €")
+        lbl_sost_residuo_orizzonte.config(text=f"{_fmt_it(ultimo['residuo'])} €")
+
+        for row in tree_sost.get_children():
+            tree_sost.delete(row)
+        for r in righe:
+            etichetta_anno = "Oggi" if r["anno"] == 0 else f"Anno {r['anno']}"
+            stato_testo = {"g": "Margine sano", "y": "Attenzione", "r": "A rischio"}[r["stato"]]
+            tree_sost.insert("", "end", values=(
+                etichetta_anno, f"{_fmt_it(r['entrate'])} €", f"{_fmt_it(r['spese'])} €", f"{_fmt_it(r['rata'])} €",
+                f"{_fmt_it(r['residuo'])} €", f"{_fmt_it(r['pct'], ',.1f')} %", stato_testo
+            ), tags=(r["stato"],))
+
+        self.sostenibilita_righe = righe
+        self.sostenibilita_parametri = {
+            "entrate0": entrate0, "spese0": spese0, "capitale": capitale, "tasso": tasso,
+            "anni": anni, "orizzonte": orizzonte, "inflazione": inflazione, "crescita": crescita,
+            "stress_on": stress_on, "stress_delta": stress_delta, "stress_anno": stress_anno,
+            "peggiore": peggiore,
+        }
+        _sost_dati_grafico[0] = righe
+        sost_frame.after(30, lambda: _sost_disegna_grafico(righe))
+
+    def sost_reset():
+        var_sost_entrate.set(sost_entrate_default)
+        var_sost_spese.set(sost_spese_default)
+        var_sost_capitale.set("180000")
+        var_sost_tasso.set("3,2")
+        var_sost_durata.set("25")
+        var_sost_orizzonte.set("10")
+        var_sost_inflazione.set("2,0")
+        var_sost_crescita.set("1,0")
+        var_sost_stress.set(False)
+        var_sost_stress_delta.set("2,0")
+        var_sost_stress_anno.set("3")
+        sost_calcola()
+
+    def _sost_toggle_stress(*_):
+        stato = "normal" if var_sost_stress.get() else "disabled"
+        ent_sost_stress_delta.config(state=stato)
+        ent_sost_stress_anno.config(state=stato)
+
+    btn_sost_calcola.bind("<Button-1>", lambda e: sost_calcola())
+    btn_sost_reset.bind("<Button-1>", lambda e: sost_reset())
+    var_sost_stress.trace_add("write", lambda *_: (_sost_toggle_stress(), sost_calcola()))
+    cv_sost.bind("<Configure>", lambda e: (_sost_disegna_grafico(_sost_dati_grafico[0]) if _sost_dati_grafico[0] else None))
+
+    tk.Label(sost_frame, text="Stima indicativa a fini di pianificazione personale, non una valutazione creditizia.",
+             bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR, font=("Arial", 8, "italic")).pack(anchor="w", pady=(6, 0))
+
+    _sost_toggle_stress()
 
     common_button_frame = tk.Frame(root,bg=self.COLOR_TOPLEVEL, padx=10, pady=10)
     common_button_frame.grid(row=1, column=0, sticky="ew")
