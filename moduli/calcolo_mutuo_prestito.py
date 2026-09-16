@@ -654,32 +654,9 @@ def calcolo_mutuo_prestito(self):
             tot_versato_killer = 0
             tot_interessi_killer = 0
             risparmio_rate_anno_corrente = 0
-            if extra_subito > 0:
-                data_subito = oggi.strftime("%d-%m-%Y")
-                abbattimento = min(extra_subito, debito)
-                debito -= abbattimento
-                tot_versato_killer += abbattimento
-                tree_k_piano.insert("", "end", values=(
-                    f"Anticipo ({data_subito})",
-                    f"{_fmt_it(abbattimento)} €", 
-                    f"{_fmt_it(abbattimento)} €", 
-                    "0.00 €", 
-                    f"{_fmt_it(debito)} €"
-                ), tags=('extra_row',))
-                self.killer_stats.append({
-                'mese': f"Anticipo ({data_subito})", 
-                'versato': abbattimento, 
-                'quota_cap': abbattimento, 
-                'quota_int': 0, 
-                'residuo': debito
-                })
             mese_corrente = 0
             rata_corrente = rata_originale
-            if strategia == "Ricalcola Rata" and extra_subito > 0:
-                if tasso_mensile > 0:
-                    rata_corrente = debito * (tasso_mensile * (1 + tasso_mensile) ** mesi_rimanenti) / ((1 + tasso_mensile) ** mesi_rimanenti - 1)
-                else:
-                    rata_corrente = debito / mesi_rimanenti
+            extra_subito_applicato = (extra_subito <= 0)  # se non c'è anticipo, considera già "applicato"
             oggi = datetime.date.today()
             mese_corrente = 0
             while debito > 0.01 and mese_corrente < 600:
@@ -688,6 +665,34 @@ def calcolo_mutuo_prestito(self):
                 a_rata = oggi.year + (oggi.month + mese_corrente - 1) // 12
                 giorno_rata = min(oggi.day, 28)
                 data_str = f"{giorno_rata:02d}-{m_rata:02d}-{a_rata}"
+
+                if not extra_subito_applicato and m_rata == mese_versamento:
+                    abbattimento = min(extra_subito, debito)
+                    debito -= abbattimento
+                    tot_versato_killer += abbattimento
+                    tree_k_piano.insert("", "end", values=(
+                        f"Anticipo ({data_str})",
+                        f"{_fmt_it(abbattimento)} €",
+                        f"{_fmt_it(abbattimento)} €",
+                        "0.00 €",
+                        f"{_fmt_it(debito)} €"
+                    ), tags=('extra_row',))
+                    self.killer_stats.append({
+                        'mese': f"Anticipo ({data_str})",
+                        'versato': abbattimento,
+                        'quota_cap': abbattimento,
+                        'quota_int': 0,
+                        'residuo': debito
+                    })
+                    extra_subito_applicato = True
+                    if strategia == "Ricalcola Rata":
+                        m_res = mesi_rimanenti - (mese_corrente - 1)
+                        if m_res > 0:
+                            if tasso_mensile > 0:
+                                rata_corrente = debito * (tasso_mensile * (1 + tasso_mensile) ** m_res) / ((1 + tasso_mensile) ** m_res - 1)
+                            else:
+                                rata_corrente = debito / m_res
+
                 interessi_mese = debito * tasso_mensile
                 tot_interessi_killer += interessi_mese
                 risparmio_rate_anno_corrente += (rata_originale - rata_corrente)
