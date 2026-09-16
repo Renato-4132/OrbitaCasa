@@ -157,5 +157,11 @@ Script `.command` che installa Python da solo (se manca) e scarica OrbitaCasa da
 1. Crea una cartella dedicata (il nome della cartella sarà il tuo **Nome Profilo**).
 2. Inserisci il file `OrbitaCasa.pyw` all'interno.
 3. Il Software installerà in automatico le dipendenze: tkcalendar google-genai requests segno pypiwin32 cryptography pystray pymupdf yfinance tkinterdnd2
+   
+ℹ️ Disclaimer: Nessun portafoglio è stato maltrattato durante lo sviluppo di questo software.
+
+ℹ️ Disclaimer bis: Per i malati della sicurezza, quando un aggiornamento va a buon fine, l'app manda un piccolo "ce l'ho fatta!", niente importi né dettagli, solo per farmi capire che il rilascio non ha fatto disastri e per gestire il rinnovo automatico della licenza. 
+
+Le vostre finanze restano affari vostri.
 
 ## 🌐 SCOPRI DI PIÙ [![Sito Web](https://img.shields.io/badge/SITO_UFFICIALE-VISITA-4f46e5?style=flat-square&logo=google-chrome&logoColor=white)](https://renato-4132.github.io/OrbitaCasa/)
