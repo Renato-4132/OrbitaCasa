@@ -634,7 +634,7 @@ def draw_saldo_chart(self, event=None):
             tot_entrata_precalc = sum(t["variazione"] for t in transazioni_totali if t["variazione"] > 0)
             tot_uscita_precalc = -sum(t["variazione"] for t in transazioni_totali if t["variazione"] < 0)
             transazioni_totali.sort(key=lambda x: x["data"])
-            saldo_cumulativo_corrente = float(conto_sel.get("saldo", 0)) if conto_sel is not None else 0.0
+            saldo_cumulativo_corrente = float(conto_sel.get("saldo", 0)) if conto_sel is not None else sum(float(c.get("saldo", 0)) for c in conti_disponibili)
             saldi_mensili_cumulativi = {}
             ultima_data_registrata = datetime.date.min
             for transazione in transazioni_totali:
