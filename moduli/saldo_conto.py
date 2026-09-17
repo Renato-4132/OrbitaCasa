@@ -43,6 +43,8 @@ def _genera_date_ricorrenza_trasf(data_inizio, tipo, n):
         date_list.append(d)
     return date_list
 
+HOUSEHOLD_LABEL = "Patrimonio Complessivo"
+
 def _saldo_effettivo(self, conto, db):
     oggi = datetime.date.today()
     include_futuri = self.considera_futuri_portafoglio_var.get()
@@ -1577,19 +1579,38 @@ def open_saldo_conto(self, tab_iniziale=None):
                                 relief="flat", bd=1)
             lbl_mesi.pack(side="left", padx=(0, 4))
             lbl_anni.pack(side="left")
+            if not hasattr(self, 'storico_conto_filtro'):
+                self.storico_conto_filtro = HOUSEHOLD_LABEL
+            conti_disponibili_storico = carica_db().get("conti", [])
+            nomi_conti_storico = [HOUSEHOLD_LABEL] + [x.get("nome", "") for x in conti_disponibili_storico]
+            if self.storico_conto_filtro not in nomi_conti_storico:
+                self.storico_conto_filtro = HOUSEHOLD_LABEL
+            combo_storico_conto = ttk.Combobox(bar_top, values=nomi_conti_storico, state="readonly",
+                                                width=22, font=("Arial", 10), style="Border.TCombobox")
+            combo_storico_conto.set(self.storico_conto_filtro)
+            combo_storico_conto.pack(side="left", padx=(12, 0))
+            def _cambio_conto_storico(event=None):
+                self.storico_conto_filtro = combo_storico_conto.get()
+                disegna()
+            combo_storico_conto.bind("<<ComboboxSelected>>", _cambio_conto_storico)
             for col, testo in ((COL_ENT, "Entrate"), (COL_USC, "Uscite"), (COL_NET, "Saldo conto")):
                 tk.Frame(bar_top, bg=col, width=12, height=12).pack(side="right", padx=(0,2), pady=4)
                 tk.Label(bar_top, text=testo, bg=bg, fg=fg,
                          font=("Arial", 8)).pack(side="right", padx=(0,6))
-            lf_g = ttk.LabelFrame(tab_storico, text="Andamento conto principale", padding=4)
+            lf_g = ttk.LabelFrame(tab_storico, text="Andamento saldo", padding=4)
             lf_g.pack(fill=tk.BOTH, expand=True, padx=12, pady=(0, 6))
             c = tk.Canvas(lf_g, bg=self.COLOR_WIDGET_BG, highlightthickness=0)
             c.pack(fill=tk.BOTH, expand=True)
             def _aggrega():
                 db_now = carica_db()
                 conti  = db_now.get("conti", [])
-                conto_princ = next((c for c in conti if c.get("principale")), None)
-                saldo_attuale = self._saldo_effettivo(conto_princ, db_now) if conto_princ else 0.0
+                conto_sel = None
+                if self.storico_conto_filtro != HOUSEHOLD_LABEL:
+                    conto_sel = next((x for x in conti if x.get("nome", "") == self.storico_conto_filtro), None)
+                if conto_sel is not None:
+                    saldo_attuale = self._saldo_effettivo(conto_sel, db_now)
+                else:
+                    saldo_attuale = sum(self._saldo_effettivo(x, db_now) for x in conti)
                 bucket = {}
                 for d, voci in self.spese.items():
                     if not self.considera_ricorrenze_var.get() and d > datetime.date.today():
@@ -1599,6 +1620,8 @@ def open_saldo_conto(self, tab_iniziale=None):
                     else:
                         key = (d.year, 0)
                     for v in voci:
+                        if conto_sel is not None and campo(v, "conto", "") != conto_sel.get("nome", ""):
+                            continue
                         try:
                             imp  = float(v[2])
                             tipo = v[3]
@@ -1609,6 +1632,26 @@ def open_saldo_conto(self, tab_iniziale=None):
                             b["ent"] += imp
                         else:
                             b["usc"] += imp
+                if conto_sel is not None:
+                    for t in db_now.get("trasferimenti", []):
+                        if e_trasferimento_virtuale(t):
+                            continue
+                        try:
+                            data_t = datetime.datetime.strptime(t["data"], "%d-%m-%Y").date()
+                        except Exception:
+                            continue
+                        if not self.considera_ricorrenze_var.get() and data_t > datetime.date.today():
+                            continue
+                        try:
+                            imp = round(float(t.get("importo", 0)), 2)
+                        except Exception:
+                            continue
+                        key = (data_t.year, data_t.month) if _modo[0] == "mesi" else (data_t.year, 0)
+                        b = bucket.setdefault(key, {"ent": 0.0, "usc": 0.0})
+                        if t.get("da") == conto_sel.get("id"):
+                            b["usc"] += imp
+                        elif t.get("a") == conto_sel.get("id"):
+                            b["ent"] += imp
                 chiavi = sorted(bucket)
                 if not chiavi:
                     return []
