@@ -582,7 +582,7 @@ def open_saldo_conto(self, tab_iniziale=None):
                     pass
                 try:
                     if hasattr(self, 'cb_conto_movimento'):
-                        _n = ["(nessuno)", "📂 Portafoglio", "───────────"] + [c.get("nome", "?") for c in db_now.get("conti", [])]
+                        _n = ["(nessuno)", "📂 Portafoglio"] + [c.get("nome", "?") for c in db_now.get("conti", [])]
                         self.cb_conto_movimento['values'] = _n
                         _nuovo_princ = next((c.get("nome","") for c in db_now.get("conti",[]) if c.get("principale")), "(nessuno)")
                         self.v_conto_movimento.set(_nuovo_princ)

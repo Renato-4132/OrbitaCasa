@@ -227,7 +227,7 @@ def mostra_ricorrenza_popup(self):
     try:
         with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as _f:
             _db_c = json.load(_f)
-        _nomi_ric = ["(nessuno)", "📂 Portafoglio", "───────────"] + [c.get("nome","?") for c in _db_c.get("conti",[])]
+        _nomi_ric = ["(nessuno)", "📂 Portafoglio"] + [c.get("nome","?") for c in _db_c.get("conti",[])]
         _princ_ric = next((c.get("nome","") for c in _db_c.get("conti",[]) if c.get("principale")), "(nessuno)")
         self.v_conto_ricorrenza.set(_princ_ric)
     except Exception:
