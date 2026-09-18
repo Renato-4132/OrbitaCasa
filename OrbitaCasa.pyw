@@ -1702,7 +1702,7 @@ class GestioneSpese(tk.Tk):
         try:
                 with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as _f:
                         _db_c = json.load(_f)
-                _nomi_conti = ["(nessuno)", "📂 Portafoglio", "───────────"] + [c.get("nome", "?") for c in _db_c.get("conti", [])]
+                _nomi_conti = ["(nessuno)", "📂 Portafoglio"] + [c.get("nome", "?") for c in _db_c.get("conti", [])]
                 _principale = next((c.get("nome", "") for c in _db_c.get("conti", []) if c.get("principale")), "(nessuno)")
                 self.v_conto_movimento.set(_principale)
         except Exception:
@@ -5577,7 +5577,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "4a53c95b792342c3965cbab5fb339b028c10d3dc1ac27a81e46d66a8cf300291"
+        E_H_B = "1c6b31210de9c5949a9313293a37c1a57dc2b93b5b6519a3ab5f1e19fba71fa8"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
