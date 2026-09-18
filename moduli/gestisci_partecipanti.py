@@ -6,6 +6,10 @@ import json
 import tkinter as tk
 from tkinter import ttk
 
+def _fmt_pct(v):
+    s = f"{v:.2f}".rstrip("0").rstrip(".")
+    return s if s else "0"
+
 def gestisci_partecipanti(self, target_popup=None):
     import __main__ as _app
     PARTECIPANTI = _app.PARTECIPANTI
@@ -275,7 +279,6 @@ def gestisci_partecipanti(self, target_popup=None):
         if not sel:
             self.show_toast("Attenzione: Seleziona un partecipante da rimuovere.")
             return
-
         nome_da_rimuovere = _get_nome(self.nomi_partecipanti[sel[0]])
         self.nomi_partecipanti.pop(sel[0])
         with open(PARTECIPANTI, 'w', encoding='utf-8') as fp:
@@ -290,6 +293,179 @@ def gestisci_partecipanti(self, target_popup=None):
         aggiorna_lista()
         listbox.focus_set()
     listbox.bind("<Delete>", lambda e: rimuovi())
+    def apri_percentuali():
+        _profilo_attivo_gp = getattr(_app, "PROFILO_ATTIVO", "Principale")
+        NOME_GESTORE = _profilo_attivo_gp if _profilo_attivo_gp != "Principale" else os.path.basename(os.getcwd())
+        gestore_partecipa = self._gestore_partecipa()
+        persone = [p for p in self.nomi_partecipanti
+                   if isinstance(p, dict) and p.get("tipo", "persona") == "persona"]
+        nomi_esistenti = [p.get("nome") for p in persone]
+        if gestore_partecipa and NOME_GESTORE not in nomi_esistenti:
+            gest_dict = {"nome": NOME_GESTORE, "tipo": "persona"}
+            self.nomi_partecipanti.append(gest_dict)
+            persone.append(gest_dict)
+        if len(persone) < 2:
+            self.show_toast("Servono almeno due persone per impostare le percentuali.")
+            return
+        persone = sorted(persone, key=lambda p: p.get("nome", "").lower())
+        pop = tk.Toplevel(dialogo)
+        pop.title("FairShare - Percentuali di Ripartizione")
+        pop.resizable(False, False)
+        pop.withdraw()
+        pop.configure(bg=self.COLOR_TOPLEVEL)
+        pop.transient(dialogo)
+        RIGHE_VISIBILI = min(len(persone), 8)
+        w2 = 406
+        h2 = 140 + 34 * RIGHE_VISIBILI
+        x2 = dialogo.winfo_rootx() + (dialogo.winfo_width() // 2) - (w2 // 2)
+        y2 = dialogo.winfo_rooty() + (dialogo.winfo_height() // 2) - (h2 // 2)
+        pop.geometry(f"{w2}x{h2}+{x2}+{y2}")
+        pop.deiconify()
+        pop.lift()
+        pop.focus_force()
+        pop.grab_set()
+        fp2 = ttk.Frame(pop, padding=11)
+        fp2.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(fp2, text="Percentuale fissa per persona:",
+                  font=("Arial", 10, "bold")).pack(anchor="w", pady=(0, 2))
+        ttk.Label(fp2, text="Lascia vuoto per dividere in parti uguali il resto.",
+                  font=("Arial", 8)).pack(anchor="w", pady=(0, 8))
+        area = ttk.Frame(fp2)
+        area.pack(fill=tk.BOTH, expand=False)
+        border_frame = tk.Frame(area, bg="#5a5a5a", bd=1)
+        border_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        canvas_pct = tk.Canvas(border_frame, height=34 * RIGHE_VISIBILI,
+                               bg=self.COLOR_WIDGET_BG, highlightthickness=0, bd=0)
+        scroll_pct = ttk.Scrollbar(area, orient="vertical", command=canvas_pct.yview,
+                                   style="Vertical.TScrollbar")
+        righe_pct = ttk.Frame(canvas_pct)
+        window_id = canvas_pct.create_window((0, 0), window=righe_pct, anchor="nw")
+        def _on_canvas_configure(event):
+            canvas_pct.itemconfig(window_id, width=event.width)
+            canvas_pct.configure(scrollregion=canvas_pct.bbox("all"))
+        canvas_pct.bind("<Configure>", _on_canvas_configure)
+        righe_pct.bind("<Configure>", lambda e: canvas_pct.configure(scrollregion=canvas_pct.bbox("all")))
+        def _scroll_pct(event):
+            canvas_pct.yview_scroll(-1 * (event.delta // 120) if event.delta else 0, "units")
+            return "break"
+        def _bind_recursive(widget):
+            widget.bind("<MouseWheel>", _scroll_pct)
+            widget.bind("<Button-4>", lambda e: (canvas_pct.yview_scroll(-1, "units"), "break")[1])
+            widget.bind("<Button-5>", lambda e: (canvas_pct.yview_scroll(1, "units"), "break")[1])
+            for child in widget.winfo_children():
+                _bind_recursive(child)
+        for _w in (border_frame, canvas_pct, righe_pct):
+            _w.bind("<MouseWheel>", _scroll_pct)
+            _w.bind("<Button-4>", lambda e: (canvas_pct.yview_scroll(-1, "units"), "break")[1])
+            _w.bind("<Button-5>", lambda e: (canvas_pct.yview_scroll(1, "units"), "break")[1])
+            
+        canvas_pct.configure(yscrollcommand=scroll_pct.set)
+        canvas_pct.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scroll_pct.pack(side=tk.RIGHT, fill=tk.Y)
+        vcmd_pct = (self.register(lambda s: s == "" or (s.replace(",", ".").replace(".", "", 1).isdigit()
+                    and 0 <= float(s.replace(",", ".") or 0) <= 100)), '%P')
+        vars_pct = {}
+        for p in persone:
+            nome = p.get("nome")
+            riga = ttk.Frame(righe_pct)
+            riga.pack(fill=tk.X, pady=3)
+            ttk.Label(riga, text=nome, width=18).pack(side=tk.LEFT)
+            v = tk.StringVar()
+            pct_esistente = p.get("percentuale")
+            if pct_esistente is not None:
+                v.set(_fmt_pct(pct_esistente))
+            e = ttk.Entry(riga, textvariable=v, width=6, justify="right",
+                          validate="key", validatecommand=vcmd_pct)
+            e.pack(side=tk.LEFT)
+            ttk.Label(riga, text="%").pack(side=tk.LEFT, padx=(3, 0))
+            vars_pct[nome] = v
+        _bind_recursive(righe_pct)
+        lbl_tot = tk.Label(fp2, text="", bg=self.COLOR_TOPLEVEL,
+                           font=("Arial", 9, "bold"))
+        lbl_tot.pack(anchor="w", pady=(8, 4))
+        def aggiorna_totale(*args):
+            tot = 0.0
+            tutti_compilati = True
+            for v in vars_pct.values():
+                s = v.get().strip().replace(",", ".")
+                if s == "":
+                    tutti_compilati = False
+                else:
+                    try:
+                        tot += float(s)
+                    except ValueError:
+                        pass
+            if tot > 100.0:
+                lbl_tot.config(text=f"Totale impostato: {_fmt_pct(tot)}% (Attenzione: supera il 100%!)",
+                               fg="#ff4444")
+            elif tutti_compilati and abs(tot - 100.0) > 0.01:
+                lbl_tot.config(text=f"Totale impostato: {_fmt_pct(tot)}% (Deve essere esattamente 100%)",
+                               fg="#ff4444")
+            else:
+                lbl_tot.config(text=f"Totale impostato: {_fmt_pct(tot)}% (il resto si divide in parti uguali)",
+                               fg=self.TEXT_COLOR)
+        for v in vars_pct.values():
+            v.trace_add("write", aggiorna_totale)
+        aggiorna_totale()
+        def salva_percentuali():
+            valori = {}
+            totale_corrente = 0.0
+            for nome, v in vars_pct.items():
+                s = v.get().strip().replace(",", ".")
+                if s:
+                    try:
+                        val = float(s)
+                        if val < 0 or val > 100:
+                            self.show_toast(f"Valore non valido per {nome}.")
+                            return
+                        valori[nome] = val
+                        totale_corrente += val
+                    except ValueError:
+                        self.show_toast(f"Percentuale non valida per {nome}.")
+                        return
+            if valori:
+                if abs(totale_corrente - 100.0) > 0.01:
+                    self.show_toast(f"Il totale delle percentuali è {totale_corrente:.1f}%: deve essere esattamente 100%.")
+                    return
+            for p in self.nomi_partecipanti:
+                if isinstance(p, dict) and p.get("nome") in vars_pct:
+                    nome = p.get("nome")
+                    if nome in valori:
+                        p["percentuale"] = valori[nome]
+                    else:
+                        p.pop("percentuale", None)
+            with open(PARTECIPANTI, 'w', encoding='utf-8') as fp:
+                json.dump({"gestore_partecipa": self._gestore_partecipa(),
+                           "partecipanti": self.nomi_partecipanti}, fp, indent=2)
+            self.show_toast("Percentuali salvate.")
+            pop.destroy()
+        def azzera_percentuali():
+            for v in vars_pct.values():
+                v.set("")
+        btn_row = ttk.Frame(fp2)
+        btn_row.pack(fill=tk.X, pady=(6, 0))
+        img_salva2 = self.icone_gui.get("salva")
+        b_salva = ttk.Label(btn_row, compound="left", image=img_salva2,
+                            text=" Salva" if img_salva2 else "Salva",
+                            background=self.COLOR_WIDGET_BG, foreground="#98C379",
+                            cursor="hand2", padding=(8, 4), font=("Arial", 9, "bold"))
+        b_salva.pack(side=tk.LEFT, padx=2)
+        b_salva.bind("<Button-1>", lambda e: salva_percentuali())
+        img_azzera = self.icone_gui.get("reset")
+        b_azzera = ttk.Label(btn_row, compound="left" if img_azzera else "none", image=img_azzera,
+                             text=" Reset a parti uguali" if img_azzera else "Reset a parti uguali",
+                             background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
+                             cursor="hand2", padding=(8, 4), anchor="center")
+        b_azzera.pack(side=tk.LEFT, padx=2, expand=True)
+        b_azzera.bind("<Button-1>", lambda e: azzera_percentuali())
+        img_ann2 = self.icone_gui.get("chiudi")
+        b_ann = ttk.Label(btn_row, compound="left", image=img_ann2,
+                          text=" Chiudi" if img_ann2 else "Chiudi",
+                          background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
+                          cursor="hand2", padding=(8, 4))
+        b_ann.pack(side=tk.RIGHT, padx=2)
+        b_ann.bind("<Button-1>", lambda e: pop.destroy())
+        pop.bind("<Escape>", lambda e: pop.destroy())
     aggiorna_lista()
     btn_frame = ttk.Frame(f)
     btn_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=(4, 0))
@@ -299,7 +475,6 @@ def gestisci_partecipanti(self, target_popup=None):
     def _salva_gestore_e_chiudi():
         _scrivi_gestore_partecipa(var_gest_part.get())
         dialogo.destroy()
-
     gest_cb = ttk.Checkbutton(btn_frame,
                               text=f"'{_nome_gest}' partecipa alle spese condivise",
                               variable=var_gest_part)
@@ -311,6 +486,11 @@ def gestisci_partecipanti(self, target_popup=None):
                         cursor="hand2", padding=(8, 4))
     btn_del.pack(side=tk.LEFT)
     btn_del.bind("<Button-1>", lambda e: rimuovi())
+    btn_pct = ttk.Label(btn_frame, text=" % Percentuali",
+                        background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
+                        cursor="hand2", padding=(8, 4))
+    btn_pct.pack(side=tk.LEFT, padx=4)
+    btn_pct.bind("<Button-1>", lambda e: apri_percentuali())
     img_fs = self.icone_gui.get("saldo")
     btn_fs = ttk.Label(btn_frame, compound="left", image=img_fs,
                        text=" FairShare" if img_fs else "FairShare",
@@ -326,3 +506,4 @@ def gestisci_partecipanti(self, target_popup=None):
     btn_chiudi.pack(side=tk.RIGHT)
     btn_chiudi.bind("<Button-1>", lambda e: _salva_gestore_e_chiudi())
     dialogo.bind("<Escape>", lambda e: _salva_gestore_e_chiudi())
+    

@@ -6,6 +6,8 @@ import datetime
 import tkinter as tk
 from tkinter import ttk, filedialog
 
+from moduli.fairshare import _quota_persona
+
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
     return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
@@ -161,7 +163,6 @@ def mostra_dare_avere(self):
                 continue
             parti = deb.get("partecipanti", [])
             pag   = deb.get("pagamenti", {})
-            quota = deb.get("quota", 0.0)
             imp   = deb.get("importo_totale", 0.0)
             stato = deb.get("stato", "aperto")
             cat   = deb.get("categoria", "")
@@ -170,6 +171,7 @@ def mostra_dare_avere(self):
             for nome in parti:
                 if p_sel != "Tutti" and nome != p_sel:
                     continue
+                quota   = _quota_persona(deb, nome)
                 info_p  = pag.get(nome, {})
                 pagato  = info_p.get("pagato", False)
                 data_p  = info_p.get("data") or ""
@@ -321,7 +323,7 @@ def mostra_dare_avere(self):
             if st_sel != "Tutti" and deb.get("stato","aperto").lower() != st_sel.lower(): continue
             for nome in deb.get("partecipanti", []):
                 if p_sel != "Tutti" and nome != p_sel: continue
-                q = deb.get("quota", 0.0)
+                q = _quota_persona(deb, nome)
                 pagato = deb.get("pagamenti", {}).get(nome, {}).get("pagato", False)
                 tot_d2.setdefault(nome, 0.0); tot_d2[nome] += q
                 tot_v2.setdefault(nome, 0.0); tot_r2.setdefault(nome, 0.0)
@@ -357,7 +359,7 @@ def mostra_dare_avere(self):
                 if not deb.get("pagamenti", {}).get(nome, {}).get("pagato", False):
                     if creditore and creditore != nome:
                         chi2.setdefault((nome, creditore), 0.0)
-                        chi2[(nome, creditore)] += deb.get("quota", 0.0)
+                        chi2[(nome, creditore)] += _quota_persona(deb, nome)
         if chi2:
             riep_txt += "\nCHI DEVE A CHI:\n"
             for (debitore, creditore), importo in sorted(

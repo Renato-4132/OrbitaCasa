@@ -384,13 +384,13 @@ def registra_tutti_i_moduli(GestioneSpese):
         _on_partecipante_selected, _aggiorna_descrizione_con_partecipante, _on_ric_partecipante_selected, _aggiorna_descrizione_con_ric_partecipante,
         _gestore_partecipa, carica_fairshare_state, salva_fairshare_state, _sync_fairshare_e_aggiorna, sincronizza_fairshare_state,
         mostra_riepilogo_fairshare_periodo, popup_personali, popup_grafico_categorie_personali, mostra_guida_dare_avere,
-        get_fairshare_data_json,)
+        get_fairshare_data_json, _percentuale_di, calcola_quote_spesa,)
     _registra(_on_partecipante_selected, _aggiorna_descrizione_con_partecipante, 
     _on_ric_partecipante_selected, _aggiorna_descrizione_con_ric_partecipante, 
     _gestore_partecipa, carica_fairshare_state, salva_fairshare_state, 
     _sync_fairshare_e_aggiorna, sincronizza_fairshare_state, mostra_riepilogo_fairshare_periodo,
     popup_personali, popup_grafico_categorie_personali, mostra_guida_dare_avere, 
-    get_fairshare_data_json)
+    get_fairshare_data_json, _percentuale_di, calcola_quote_spesa)
 
     from moduli.webserver import (
         apri_webserver, _crea_flask_app, start_web_server, html_login, html_cambia_pw_web, html_log_web, pagina_risultati_avanzati,

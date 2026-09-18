@@ -15,6 +15,53 @@ def _fmt_it(v, spec=",.2f"):
     return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
 
 
+def _quota_persona(deb, nome):
+    return deb.get("quote", {}).get(nome, deb.get("quota", 0.0))
+
+
+def _percentuale_di(self, nome):
+    for p in self.nomi_partecipanti:
+        if isinstance(p, dict) and p.get("nome") == nome:
+            pct = p.get("percentuale")
+            if pct is None:
+                return None
+            try:
+                return float(pct)
+            except (TypeError, ValueError):
+                return None
+    return None
+
+
+def calcola_quote_spesa(self, imp, partecipanti):
+    partecipanti = list(dict.fromkeys(partecipanti))
+    n = len(partecipanti)
+    if n == 0:
+        return {}
+    percentuali = {nm: self._percentuale_di(nm) for nm in partecipanti}
+    fissi  = {nm: pct for nm, pct in percentuali.items() if pct is not None}
+    liberi = [nm for nm in partecipanti if percentuali[nm] is None]
+    somma_fissi = sum(fissi.values())
+    pct_finali = dict(fissi)
+    if liberi:
+        residuo     = max(0.0, 100.0 - somma_fissi)
+        pct_libero  = residuo / len(liberi)
+        for nm in liberi:
+            pct_finali[nm] = pct_libero
+    elif somma_fissi > 0 and abs(somma_fissi - 100.0) > 0.01:
+        fattore = 100.0 / somma_fissi
+        pct_finali = {nm: pct * fattore for nm, pct in fissi.items()}
+    quote = {}
+    residuo_imp = round(imp, 2)
+    for i, nm in enumerate(partecipanti):
+        if i == n - 1:
+            quote[nm] = round(residuo_imp, 2)
+        else:
+            q = round(imp * pct_finali.get(nm, 0.0) / 100.0, 2)
+            quote[nm] = q
+            residuo_imp -= q
+    return quote
+
+
 # Gestione Partecipanti 
 def _on_partecipante_selected(self, event=None):
     scelta = self.partecipante_var.get()
@@ -193,12 +240,13 @@ def sincronizza_fairshare_state(self):
         k = d.get("_key", "")
         if k:
             idx[k] = d
-    tutti_partecipanti = self.nomi_partecipanti
+    tutti_partecipanti = sorted(self.nomi_partecipanti, key=lambda p: len(p.get("nome", "")), reverse=True)
     persone_fisiche = [pp["nome"] for pp in tutti_partecipanti
                        if pp.get("tipo", "persona") == "persona"]
     gestore_partecipa = self._gestore_partecipa()
     if gestore_partecipa and NOME_GESTORE not in persone_fisiche:
         persone_fisiche.append(NOME_GESTORE)
+    persone_fisiche = sorted(persone_fisiche, key=len, reverse=True)
     soci_per_cont = {
         p["nome"]: [s for s in p.get("soci", []) if s in persone_fisiche]
         for p in tutti_partecipanti if p.get("tipo") == "contenitore"
@@ -242,6 +290,7 @@ def sincronizza_fairshare_state(self):
             n = len(parti_sorted)
             if n == 0:
                 continue
+            quote_map  = self.calcola_quote_spesa(imp, parti_sorted)
             quota      = round(imp / n, 2)
             key        = f"{data_str}#{idx_v}|{cat}|{imp:.2f}"
             desc_pulita = desc_str
@@ -272,6 +321,7 @@ def sincronizza_fairshare_state(self):
                     "descrizione":    desc_pulita,
                     "importo_totale": imp,
                     "quota":          quota,
+                    "quote":          quote_map,
                     "n_partecipanti": n,
                     "creditore":      creditore,
                     "partecipanti":   parti_sorted,
@@ -282,9 +332,12 @@ def sincronizza_fairshare_state(self):
                 d = idx[key]
                 d["importo_totale"] = imp
                 d["quota"]          = quota
+                d["quote"]          = quote_map
                 d["n_partecipanti"] = n
                 d["descrizione"]    = desc_pulita
                 d["creditore"]      = creditore
+                d["partecipanti"]   = parti_sorted
+                d["pagamenti"] = {nm: info for nm, info in d["pagamenti"].items() if nm in parti_sorted}
                 for nm in parti_sorted:
                     if nm not in d["pagamenti"]:
                         if nm == creditore:
@@ -320,11 +373,11 @@ def sincronizza_fairshare_state(self):
         if deb.get("stato") == "chiuso":
             continue
         cat_deb   = deb.get("categoria", "")
-        quota_deb = round(deb.get("quota", 0.0), 2)
         for nm, info in deb.get("pagamenti", {}).items():
             sorgente = info.get("sorgente", "")
             if sorgente in ("manuale", "creditore"):
                 continue
+            quota_deb = round(_quota_persona(deb, nm), 2)
             entrata_trovata = (nm, cat_deb, quota_deb) in entrate_valide
             if entrata_trovata and not info.get("pagato"):
                 info["pagato"]   = True
@@ -471,8 +524,8 @@ def mostra_riepilogo_fairshare_periodo(self):
             parti = deb.get("partecipanti", [])
             if p_sel != "Tutti" and p_sel not in parti:
                 continue
-            quota   = deb.get("quota", 0.0)
             imp     = deb.get("importo_totale", 0.0)
+            quota_col = _quota_persona(deb, p_sel) if p_sel != "Tutti" else deb.get("quota", 0.0)
             paganti = [n for n in parti if pag.get(n, {}).get("pagato", False)]
             attesa  = [n for n in parti if not pag.get(n, {}).get("pagato", False)]
             st_ic   = "Chiuso" if stato == "chiuso" else "Aperto"
@@ -482,7 +535,7 @@ def mostra_riepilogo_fairshare_periodo(self):
                 deb.get("categoria", ""),
                 deb.get("descrizione", ""),
                 f"{_fmt_it(imp)} €",
-                f"{_fmt_it(quota)} €",
+                f"{_fmt_it(quota_col)} €",
                 len(parti),
                 len(paganti),
                 len(attesa),
@@ -490,6 +543,7 @@ def mostra_riepilogo_fairshare_periodo(self):
             ))
             for nome in parti:
                 if p_sel != "Tutti" and nome != p_sel: continue
+                quota = _quota_persona(deb, nome)
                 tot_dovuto.setdefault(nome, 0.0);  tot_dovuto[nome] += quota
                 tot_versato.setdefault(nome, 0.0); tot_debito.setdefault(nome, 0.0)
                 if pag.get(nome, {}).get("pagato", False):
@@ -573,7 +627,7 @@ def mostra_riepilogo_fairshare_periodo(self):
             if st_sel2 != "Tutti" and st2 != st_sel2.lower(): continue
             for nome in deb.get("partecipanti", []):
                 if p_sel != "Tutti" and nome != p_sel: continue
-                q = deb.get("quota", 0.0)
+                q = _quota_persona(deb, nome)
                 pag2 = deb.get("pagamenti", {}).get(nome, {}).get("pagato", False)
                 tot_d3.setdefault(nome, 0.0); tot_d3[nome] += q
                 tot_v3.setdefault(nome, 0.0); tot_r3.setdefault(nome, 0.0)
@@ -606,7 +660,7 @@ def mostra_riepilogo_fairshare_periodo(self):
                 if not deb.get("pagamenti", {}).get(nome, {}).get("pagato", False):
                     if creditore and creditore != nome:
                         chi3.setdefault((nome, creditore), 0.0)
-                        chi3[(nome, creditore)] += deb.get("quota", 0.0)
+                        chi3[(nome, creditore)] += _quota_persona(deb, nome)
         if chi3:
             footer += "\nCHI DEVE A CHI:\n"
             for (debitore, creditore), importo in sorted(
@@ -746,12 +800,12 @@ def popup_personali(self):
                     continue
                 imp = float(imp)
                 tipo = campo(v, "tipo", "")
-                nome_ind = next((n for n in indips_names if f"CTP·{n}" in descrizione or f"CTP·{n}" in descrizione), None)
+                nome_ind = next((n for n in indips_names if f"CTP·{n}" in descrizione), None)
                 if not nome_ind:
                     continue
                 sel_ind = indip_v.get()
                 if sel_ind != "Tutti":
-                    sel_ind_puro = sel_ind.replace("CTP· ", "").replace("CTP· ", "").strip()
+                    sel_ind_puro = sel_ind.replace("CTP· ", "").strip()
                     if sel_ind_puro != nome_ind:
                         continue
                 if cat_v.get() != "Tutti" and cat_v.get() != categoria:
@@ -1053,10 +1107,12 @@ def popup_grafico_categorie_personali(self):
                 imp = float(imp)
                 tipo = campo(v, "tipo", "")
                 nome_trovato = next((n for n in indips_names
-                                     if f"CTP·{n}" in desc or f"CTP·{n}" in desc), None)
+                                     if f"CTP·{n}" in desc), None)
                 if not nome_trovato:
                     continue
                 if nome_sel != "Tutti" and nome_sel != nome_trovato:
+                    continue
+                if tipo_sel != "Entrambi" and tipo != tipo_sel:
                     continue
                 if cat not in saldi_cat:
                     saldi_cat[cat] = {"ent": 0.0, "usc": 0.0}
@@ -1068,8 +1124,6 @@ def popup_grafico_categorie_personali(self):
                     saldi_cat[cat]["usc"] += imp
                     t_usc += imp
                     totali_utenti[nome_trovato]["usc"] += imp
-                if tipo_sel != "Entrambi" and tipo != tipo_sel:
-                    continue
                 if chiave not in dati_graf:
                     dati_graf[chiave] = {}
                 if nome_trovato not in dati_graf[chiave]:
@@ -1319,10 +1373,10 @@ def get_fairshare_data_json(self, anno_sel, mese_sel, utente_sel):
     tot_versato = {}
     chi_deve    = {}
     for deb in debiti_filtrati:
-        quota     = deb.get("quota", 0.0)
         creditore = deb.get("creditore", "")
         pag       = deb.get("pagamenti", {})
         for nome in deb.get("partecipanti", []):
+            quota = _quota_persona(deb, nome)
             tot_dovuto.setdefault(nome, 0.0)
             tot_versato.setdefault(nome, 0.0)
             tot_dovuto[nome] += quota
@@ -1365,7 +1419,7 @@ def get_fairshare_data_json(self, anno_sel, mese_sel, utente_sel):
             except:
                 continue
             nome_trovato = next(
-                (n for n in indips if f"CTP·{n}" in desc_str or f"CTP·{n}" in desc_str), None
+                (n for n in indips if f"CTP·{n}" in desc_str), None
             )
             if not nome_trovato:
                 continue

@@ -6,6 +6,8 @@ import datetime
 import tkinter as tk
 from tkinter import ttk
 
+from moduli.fairshare import _quota_persona
+
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
     return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
@@ -183,11 +185,11 @@ def mostra_grafici_fairshare(self, anno_sel="Tutti", mese_sel="Tutti"):
         filtrati, p_sel = _dati_filtrati()
         dovuto = {}; versato = {}; cat_per_persona = {}
         for d_obj, deb in filtrati:
-            quota = deb.get("quota", 0.0)
             cat   = deb.get("categoria", "")
             pag   = deb.get("pagamenti", {})
             for nome in deb.get("partecipanti", []):
                 if p_sel != "Tutti" and nome != p_sel: continue
+                quota = _quota_persona(deb, nome)
                 dovuto.setdefault(nome, 0.0);  dovuto[nome] += quota
                 versato.setdefault(nome, 0.0)
                 if pag.get(nome, {}).get("pagato", False):
@@ -264,25 +266,27 @@ def mostra_grafici_fairshare(self, anno_sel="Tutti", mese_sel="Tutti"):
         for d_obj, deb in filtrati:
             cat   = deb.get("categoria", "—")
             imp   = deb.get("importo_totale", 0.0)
-            quota = deb.get("quota", 0.0)
-            stato = deb.get("stato", "aperto")
             pag   = deb.get("pagamenti", {})
             if p_sel != "Tutti" and p_sel not in deb.get("partecipanti", []): continue
-            valore = quota if p_sel != "Tutti" else imp
+            valore = _quota_persona(deb, p_sel) if p_sel != "Tutti" else imp
+            # Se filtrato su una persona, "chiuso" significa che LEI ha pagato
+            # la sua quota, non che l'intera spesa sia saldata da tutti.
+            stato = ("chiuso" if pag.get(p_sel, {}).get("pagato", False) else "aperto") \
+                    if p_sel != "Tutti" else deb.get("stato", "aperto")
             cat_tot_imp.setdefault(cat, 0.0); cat_tot_imp[cat] += valore
             if stato == "chiuso":
                 cat_chiuso.setdefault(cat, 0.0); cat_chiuso[cat] += valore
                 cat_creditori.setdefault(cat, {})
                 for nome in deb.get("partecipanti", []):
                     cat_creditori[cat].setdefault(nome, 0.0)
-                    cat_creditori[cat][nome] += quota
+                    cat_creditori[cat][nome] += _quota_persona(deb, nome)
             else:
                 cat_aperto.setdefault(cat, 0.0); cat_aperto[cat] += valore
                 cat_debitori.setdefault(cat, {})
                 for nome in deb.get("partecipanti", []):
                     if not pag.get(nome, {}).get("pagato", False):
                         cat_debitori[cat].setdefault(nome, 0.0)
-                        cat_debitori[cat][nome] += quota
+                        cat_debitori[cat][nome] += _quota_persona(deb, nome)
         cats = sorted(cat_tot_imp.keys())
         if not cats:
             cv2.create_text(W//2, H//2, text="Nessun dato", fill="#777", font=("Arial", 11))
@@ -352,11 +356,11 @@ def mostra_grafici_fairshare(self, anno_sel="Tutti", mese_sel="Tutti"):
         mensile_cat_ver = {}
         for d_obj, deb in filtrati:
             mkey  = (d_obj.year, d_obj.month)
-            quota = deb.get("quota", 0.0)
             cat   = deb.get("categoria", "—")
             pag   = deb.get("pagamenti", {})
             for nome in deb.get("partecipanti", []):
                 if p_sel != "Tutti" and nome != p_sel: continue
+                quota = _quota_persona(deb, nome)
                 mensile_dov.setdefault(mkey, 0.0); mensile_dov[mkey] += quota
                 mensile_ver.setdefault(mkey, 0.0)
                 mensile_cat_dov.setdefault(mkey, {})
