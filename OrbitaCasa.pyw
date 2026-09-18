@@ -3655,7 +3655,9 @@ class GestioneSpese(tk.Tk):
             _desc_low = str(desc).lower()
             _partecipante_nome = ""
             _partecipante_tipo = ""
-            for _p in getattr(self, "nomi_partecipanti", []):
+            _nomi_part_ord = sorted(getattr(self, "nomi_partecipanti", []),
+                                     key=lambda _p: len(_p.get("nome", "") if isinstance(_p, dict) else _p), reverse=True)
+            for _p in _nomi_part_ord:
                 _p_nome = _p.get("nome", "") if isinstance(_p, dict) else _p
                 if not _p_nome:
                     continue
@@ -3992,7 +3994,9 @@ class GestioneSpese(tk.Tk):
                 _desc_low_st = str(desc).lower()
                 _partecipante_nome_st = ""
                 _partecipante_tipo_st = ""
-                for _p in getattr(self, "nomi_partecipanti", []):
+                _nomi_part_ord_st = sorted(getattr(self, "nomi_partecipanti", []),
+                                            key=lambda _p: len(_p.get("nome", "") if isinstance(_p, dict) else _p), reverse=True)
+                for _p in _nomi_part_ord_st:
                     _p_nome = _p.get("nome", "") if isinstance(_p, dict) else _p
                     if not _p_nome:
                         continue
@@ -5577,7 +5581,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "1c6b31210de9c5949a9313293a37c1a57dc2b93b5b6519a3ab5f1e19fba71fa8"
+        E_H_B = "865df01abeff5dc895c885256757edd0bc471af873bf6e39cc39c5af72d5aac8"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
