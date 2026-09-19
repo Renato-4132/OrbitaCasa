@@ -1756,6 +1756,7 @@ def pagina_risultati_avanzati(self, params):
         for v in voci:
             simbolo = "+" if v["tipo"].lower() == "entrata" else "−"
             colore_tipo = "#4caf82" if v["tipo"].lower() == "entrata" else "#e05a5a"
+            _cat_js = v['cat'].replace("'", "\\'")
             voce_html += f"""
             <li class="voce-item">
                 <div class="voce-actions">
@@ -1766,7 +1767,7 @@ def pagina_risultati_avanzati(self, params):
                         <button type="submit" class="btn-action btn-edit">✏️</button>
                     </form>
                     <button type="button" class="btn-action btn-delete"
-                        onclick="apriModal('{v['data']}', '{v['idx']}', '{v['cat'].replace("'", "\\'")}', '{_fmt_it(v['imp'])}', {'1' if 'ALL·' in v['desc'] else '0'})">❌</button>
+                        onclick="apriModal('{v['data']}', '{v['idx']}', '{_cat_js}', '{_fmt_it(v['imp'])}', {'1' if 'ALL·' in v['desc'] else '0'})">❌</button>
                     <span class="voce-data">{v['data']}</span>
                 </div>
                 <div class="voce-body">

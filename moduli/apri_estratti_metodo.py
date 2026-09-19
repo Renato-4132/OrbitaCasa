@@ -415,7 +415,8 @@ def _esporta_estratti_metodo(self, tree, var_metodo, var_periodo, var_anno, var_
     righe.append(SEP)
     righe.append(f"{'Totale Entrate:':>{C_DATA+C_CAT+C_DESC+2}} {f'{_app._fmt_it(tot_e)} €':>{C_IMP}} {'':>{C_IMP}}")
     righe.append(f"{'Totale Uscite:':>{C_DATA+C_CAT+C_DESC+2}} {'':>{C_IMP}} {f'{_app._fmt_it(tot_u)} €':>{C_IMP}}")
-    righe.append(f"{'Saldo:':>{C_DATA+C_CAT+C_DESC+2}} {f'{_app._fmt_it(saldo, spec="+,.2f")} €':>{C_IMP}} {'':>{C_IMP}}")
+    _saldo_fmt = f"{_app._fmt_it(saldo, spec='+,.2f')} €"
+    righe.append(f"{'Saldo:':>{C_DATA+C_CAT+C_DESC+2}} {_saldo_fmt:>{C_IMP}} {'':>{C_IMP}}")
     contenuto = "\n".join(righe)
     oggi = datetime.date.today()
     nome_file = f"Estratti_{metodo_pagamento_pulito(metodo) if metodo != 'Tutti i metodi' else 'tutti'}_{oggi.strftime('%d-%m-%Y')}.txt"
