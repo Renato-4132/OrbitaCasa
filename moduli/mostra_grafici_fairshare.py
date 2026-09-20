@@ -18,7 +18,7 @@ def mostra_grafici_fairshare(self, anno_sel="Tutti", mese_sel="Tutti"):
         self._grafici_fairshare_win.lift()
         self._grafici_fairshare_win.focus_force()
         return
-    debiti = self.carica_fairshare_state()
+    debiti = self.sincronizza_fairshare_state()
     parent = self._dare_avere_popup if hasattr(self, '_dare_avere_popup') and self._dare_avere_popup and self._dare_avere_popup.winfo_exists() else self
     popup = tk.Toplevel(parent, bg=self.COLOR_TOPLEVEL)
     self._grafici_fairshare_win = popup
@@ -265,28 +265,21 @@ def mostra_grafici_fairshare(self, anno_sel="Tutti", mese_sel="Tutti"):
         cat_creditori = {}
         for d_obj, deb in filtrati:
             cat   = deb.get("categoria", "—")
-            imp   = deb.get("importo_totale", 0.0)
             pag   = deb.get("pagamenti", {})
-            if p_sel != "Tutti" and p_sel not in deb.get("partecipanti", []): continue
-            valore = _quota_persona(deb, p_sel) if p_sel != "Tutti" else imp
-            # Se filtrato su una persona, "chiuso" significa che LEI ha pagato
-            # la sua quota, non che l'intera spesa sia saldata da tutti.
-            stato = ("chiuso" if pag.get(p_sel, {}).get("pagato", False) else "aperto") \
-                    if p_sel != "Tutti" else deb.get("stato", "aperto")
-            cat_tot_imp.setdefault(cat, 0.0); cat_tot_imp[cat] += valore
-            if stato == "chiuso":
-                cat_chiuso.setdefault(cat, 0.0); cat_chiuso[cat] += valore
-                cat_creditori.setdefault(cat, {})
-                for nome in deb.get("partecipanti", []):
+            for nome in deb.get("partecipanti", []):
+                if p_sel != "Tutti" and nome != p_sel: continue
+                quota = _quota_persona(deb, nome)
+                cat_tot_imp.setdefault(cat, 0.0); cat_tot_imp[cat] += quota
+                if pag.get(nome, {}).get("pagato", False):
+                    cat_chiuso.setdefault(cat, 0.0); cat_chiuso[cat] += quota
+                    cat_creditori.setdefault(cat, {})
                     cat_creditori[cat].setdefault(nome, 0.0)
-                    cat_creditori[cat][nome] += _quota_persona(deb, nome)
-            else:
-                cat_aperto.setdefault(cat, 0.0); cat_aperto[cat] += valore
-                cat_debitori.setdefault(cat, {})
-                for nome in deb.get("partecipanti", []):
-                    if not pag.get(nome, {}).get("pagato", False):
-                        cat_debitori[cat].setdefault(nome, 0.0)
-                        cat_debitori[cat][nome] += _quota_persona(deb, nome)
+                    cat_creditori[cat][nome] += quota
+                else:
+                    cat_aperto.setdefault(cat, 0.0); cat_aperto[cat] += quota
+                    cat_debitori.setdefault(cat, {})
+                    cat_debitori[cat].setdefault(nome, 0.0)
+                    cat_debitori[cat][nome] += quota
         cats = sorted(cat_tot_imp.keys())
         if not cats:
             cv2.create_text(W//2, H//2, text="Nessun dato", fill="#777", font=("Arial", 11))
@@ -343,7 +336,7 @@ def mostra_grafici_fairshare(self, anno_sel="Tutti", mese_sel="Tutti"):
             cv2.create_text(lx+18, H-21, text=lab, fill=txt, font=("Arial", 8), anchor="w")
             lx += len(lab)*7 + 30
         cv2.create_text(canvas_w//2, H-6,
-            text="Barra sx = importo ancora aperto  |  Barra dx = importo già chiuso",
+            text="Barra sx = quote ancora da versare  |  Barra dx = quote già versate",
             fill="#666", font=("Arial", 7))
         cv2.configure(scrollregion=(0, 0, canvas_w, H))
     def disegna_tab3(event=None):
@@ -440,10 +433,20 @@ def mostra_grafici_fairshare(self, anno_sel="Tutti", mese_sel="Tutti"):
     cv3.bind("<Motion>",  lambda e: _show_tip(e, cv3, _tooltip_data3))
     cv3.bind("<Leave>",   _hide_tip)
     def aggiorna_grafici(*_args):
-        disegna_tab1(); disegna_tab2(); disegna_tab3()
-    cv1.bind("<Configure>", lambda e: disegna_tab1())
-    cv2.bind("<Configure>", lambda e: disegna_tab2())
-    cv3.bind("<Configure>", lambda e: disegna_tab3())
+        try:
+            if popup.winfo_exists():
+                disegna_tab1(); disegna_tab2(); disegna_tab3()
+        except tk.TclError:
+            pass
+    def _safe_draw(fn):
+        try:
+            if popup.winfo_exists():
+                fn()
+        except tk.TclError:
+            pass
+    cv1.bind("<Configure>", lambda e: _safe_draw(disegna_tab1))
+    cv2.bind("<Configure>", lambda e: _safe_draw(disegna_tab2))
+    cv3.bind("<Configure>", lambda e: _safe_draw(disegna_tab3))
     nb.bind("<<NotebookTabChanged>>", lambda e: aggiorna_grafici())
     for cb_w in toolbar.winfo_children():
         if isinstance(cb_w, ttk.Combobox):
@@ -457,4 +460,13 @@ def mostra_grafici_fairshare(self, anno_sel="Tutti", mese_sel="Tutti"):
                               cursor="hand2", padding=(12, 5))
     btn_chiudi_gb.pack(side=tk.RIGHT)
     btn_chiudi_gb.bind("<Button-1>", lambda e: popup.destroy())
-    popup.after(150, aggiorna_grafici)
+    _after_id = popup.after(150, aggiorna_grafici)
+    def _on_popup_destroy(e):
+        if e.widget is not popup:
+            return
+        try:
+            popup.after_cancel(_after_id)
+        except Exception:
+            pass
+        _hide_tip()
+    popup.bind("<Destroy>", _on_popup_destroy)

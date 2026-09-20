@@ -6,7 +6,7 @@ import datetime
 import tkinter as tk
 from tkinter import ttk, filedialog
 
-from moduli.fairshare import _quota_persona
+from moduli.fairshare import _quota_persona, _compensa_debiti
 
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
@@ -245,6 +245,7 @@ def mostra_dare_avere(self):
             lbl_riep.insert("end", f"{_fmt_it(tot_ver_all, '>11,.2f')} €  ", "verde")
             lbl_riep.insert("end", f"{_fmt_it(tot_deb_all, '>11,.2f')} €\n",
                             "verde" if tot_deb_all < 0.01 else "rosso")
+            chi_deve_a_chi = _compensa_debiti(chi_deve_a_chi)
             if chi_deve_a_chi:
                 lbl_riep.insert("end", "\n", "neutro")
                 lbl_riep.insert("end", "  CHI DEVE A CHI:\n", "bold")
@@ -267,7 +268,7 @@ def mostra_dare_avere(self):
             pag = deb.setdefault("pagamenti", {})
             era_pagato = pag.get(nome, {}).get("pagato", False)
             if era_pagato:
-                pag[nome] = {"pagato": False, "data": None}
+                pag[nome] = {"pagato": False, "data": None, "sorgente": "manuale"}
             else:
                 pag[nome] = {"pagato": True,
                              "data": datetime.date.today().strftime("%d/%m/%Y"),
@@ -360,6 +361,7 @@ def mostra_dare_avere(self):
                     if creditore and creditore != nome:
                         chi2.setdefault((nome, creditore), 0.0)
                         chi2[(nome, creditore)] += _quota_persona(deb, nome)
+        chi2 = _compensa_debiti(chi2)
         if chi2:
             riep_txt += "\nCHI DEVE A CHI:\n"
             for (debitore, creditore), importo in sorted(
@@ -379,6 +381,8 @@ def mostra_dare_avere(self):
         prev_win.bind("<Escape>", lambda e: prev_win.destroy())
         prev_win.transient(popup)
         def centra():
+            if not prev_win.winfo_exists():
+                return
             w_a, h_a = 1100, 600
             x = popup.winfo_rootx() + (popup.winfo_width() // 2) - (w_a // 2)
             y = popup.winfo_rooty() + (popup.winfo_height() // 2) - (h_a // 2)
@@ -460,7 +464,7 @@ def mostra_dare_avere(self):
     popup.bind("<Destroy>", lambda e: (
         setattr(self, '_dare_avere_popup', None),
         setattr(self, '_dare_avere_aggiorna', None)
-    ))
+    ) if e.widget is popup else None)
     pulsanti = [
         ("salva",     " Esporta",   lambda e: anteprima_esporta(),                         "LEFT"),
         ("reset",     " Aggiorna",  _aggiorna_tutto,                                       "LEFT"),

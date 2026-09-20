@@ -6,6 +6,7 @@ import json
 import tkinter as tk
 from tkinter import ttk, filedialog
 import datetime
+from collections import Counter
 
 import __main__ as _app
 from moduli.modello_spesa import SIMBOLI_METODO, campo
@@ -18,6 +19,15 @@ def _fmt_it(v, spec=",.2f"):
 def _quota_persona(deb, nome):
     return deb.get("quote", {}).get(nome, deb.get("quota", 0.0))
 
+
+
+def _compensa_debiti(chi_deve):
+    netto = {}
+    for (debitore, creditore), imp in chi_deve.items():
+        diff = round(imp - chi_deve.get((creditore, debitore), 0.0), 2)
+        if diff > 0.005:
+            netto[(debitore, creditore)] = diff
+    return netto
 
 def _percentuale_di(self, nome):
     for p in self.nomi_partecipanti:
@@ -41,6 +51,10 @@ def calcola_quote_spesa(self, imp, partecipanti):
     fissi  = {nm: pct for nm, pct in percentuali.items() if pct is not None}
     liberi = [nm for nm in partecipanti if percentuali[nm] is None]
     somma_fissi = sum(fissi.values())
+    if somma_fissi > 100.0 + 1e-9 and fissi:
+        fattore = 100.0 / somma_fissi
+        fissi = {nm: pct * fattore for nm, pct in fissi.items()}
+        somma_fissi = 100.0
     pct_finali = dict(fissi)
     if liberi:
         residuo     = max(0.0, 100.0 - somma_fissi)
@@ -115,7 +129,7 @@ def _aggiorna_descrizione_con_partecipante(self, scelta_combo, target_var=None):
     if not blocco_trovato:
             for ico_v in icone_possibili:
                     if desc.startswith(ico_v):
-                            desc = desc[1:].strip()
+                            desc = desc[len(ico_v):].strip()
                             break
     parti = []
     if prefisso_pag:
@@ -179,7 +193,7 @@ def _aggiorna_descrizione_con_ric_partecipante(self, scelta_combo, target_var=No
     if not blocco_trovato:
         for ico_v in icone_possibili:
             if desc.startswith(ico_v):
-                desc = desc[1:].strip()
+                desc = desc[len(ico_v):].strip()
                 break
     parti = []
     if prefisso_pag:
@@ -252,7 +266,7 @@ def sincronizza_fairshare_state(self):
         for p in tutti_partecipanti if p.get("tipo") == "contenitore"
     }
     nuove_chiavi = set()
-    for data_obj in sorted(self.spese.keys()):
+    for data_obj in sorted(k for k in self.spese.keys() if isinstance(k, datetime.date)):
         if not isinstance(data_obj, datetime.date):
             continue
         voci     = self.spese[data_obj]
@@ -292,7 +306,12 @@ def sincronizza_fairshare_state(self):
                 continue
             quote_map  = self.calcola_quote_spesa(imp, parti_sorted)
             quota      = round(imp / n, 2)
-            key        = f"{data_str}#{idx_v}|{cat}|{imp:.2f}"
+            id_spesa_v = campo(voce, "id_spesa", "") or str(idx_v)
+            key        = f"{data_str}#{id_spesa_v}|{cat}|{imp:.2f}"
+            key_legacy = f"{data_str}#{idx_v}|{cat}|{imp:.2f}"
+            if key not in idx and key_legacy != key and key_legacy in idx:
+                idx[key] = idx.pop(key_legacy)
+                idx[key]["_key"] = key
             desc_pulita = desc_str
             for p in tutti_partecipanti:
                 desc_pulita = desc_pulita.replace(f"PER·{p['nome']}", "").replace(f"CNT·{p['nome']}", "").replace(f"CTP·{p['nome']}", "")
@@ -330,6 +349,13 @@ def sincronizza_fairshare_state(self):
                 }
             else:
                 d = idx[key]
+                vecchio_creditore = d.get("creditore")
+                if vecchio_creditore != creditore and vecchio_creditore in d.get("pagamenti", {}):
+                    info_vecchio = d["pagamenti"][vecchio_creditore]
+                    if info_vecchio.get("sorgente") == "creditore":
+                        # Il vecchio creditore non e' piu' esente: torna a dover
+                        # versare la propria quota come chiunque altro.
+                        d["pagamenti"][vecchio_creditore] = {"pagato": False, "data": None}
                 d["importo_totale"] = imp
                 d["quota"]          = quota
                 d["quote"]          = quote_map
@@ -344,10 +370,11 @@ def sincronizza_fairshare_state(self):
                             d["pagamenti"][nm] = {"pagato": True, "data": data_str, "sorgente": "creditore"}
                         else:
                             d["pagamenti"][nm] = {"pagato": False, "data": None}
-                    elif nm == creditore and not d["pagamenti"][nm].get("pagato"):
+                    elif (nm == creditore and not d["pagamenti"][nm].get("pagato")
+                          and d["pagamenti"][nm].get("sorgente") != "manuale"):
                         d["pagamenti"][nm] = {"pagato": True, "data": data_str, "sorgente": "creditore"}
-    entrate_valide = set()
-    for data_obj in sorted(self.spese.keys()):
+    entrate_valide = Counter()
+    for data_obj in sorted(k for k in self.spese.keys() if isinstance(k, datetime.date)):
         if not isinstance(data_obj, datetime.date):
             continue
         for voce in self.spese[data_obj]:
@@ -368,22 +395,27 @@ def sincronizza_fairshare_state(self):
             if not pagante and f"PER·{NOME_GESTORE}" in desc_str:
                 pagante = NOME_GESTORE
             if pagante:
-                entrate_valide.add((pagante, cat, round(imp, 2)))
-    for deb in idx.values():
-        if deb.get("stato") == "chiuso":
-            continue
-        cat_deb   = deb.get("categoria", "")
+                entrate_valide[(pagante, cat, round(imp, 2))] += 1
+    def _data_ordinabile(deb):
+        try:
+            return datetime.datetime.strptime(deb.get("data", ""), "%d/%m/%Y")
+        except Exception:
+            return datetime.datetime.min
+    for deb in sorted(idx.values(), key=_data_ordinabile):
+        cat_deb = deb.get("categoria", "")
         for nm, info in deb.get("pagamenti", {}).items():
             sorgente = info.get("sorgente", "")
             if sorgente in ("manuale", "creditore"):
                 continue
             quota_deb = round(_quota_persona(deb, nm), 2)
-            entrata_trovata = (nm, cat_deb, quota_deb) in entrate_valide
-            if entrata_trovata and not info.get("pagato"):
-                info["pagato"]   = True
-                info["data"]     = datetime.date.today().strftime("%d/%m/%Y")
-                info["sorgente"] = "auto"
-            elif not entrata_trovata and info.get("pagato"):
+            chiave_entrata = (nm, cat_deb, quota_deb)
+            if entrate_valide.get(chiave_entrata, 0) > 0:
+                if not info.get("pagato"):
+                    info["pagato"]   = True
+                    info["data"]     = datetime.date.today().strftime("%d/%m/%Y")
+                    info["sorgente"] = "auto"
+                entrate_valide[chiave_entrata] -= 1
+            elif info.get("pagato") and sorgente == "auto":
                 info["pagato"] = False
                 info["data"]   = None
                 info.pop("sorgente", None)
@@ -404,7 +436,7 @@ def sincronizza_fairshare_state(self):
 def mostra_riepilogo_fairshare_periodo(self):
     if hasattr(self, '_analitico_popup') and self._analitico_popup and self._analitico_popup.winfo_exists():
         self._analitico_popup.lift(); self._analitico_popup.focus_force(); return
-    debiti = self.carica_fairshare_state()
+    debiti = self.sincronizza_fairshare_state()
     parent = self._dare_avere_popup if hasattr(self, '_dare_avere_popup') and self._dare_avere_popup and self._dare_avere_popup.winfo_exists() else self
     popup = tk.Toplevel(parent, bg=self.COLOR_TOPLEVEL)
     popup.title("FairShare — Estratto Analitico per Spesa")
@@ -477,8 +509,33 @@ def mostra_riepilogo_fairshare_periodo(self):
     w_map = {"Data": 90, "Categoria": 110, "Descrizione": 260,
              "Totale €": 90, "Quota €": 80, "N.Part.": 55,
              "Paganti ✅": 110, "In Attesa 🔴": 120, "Stato": 90}
+    _col_num = ("Totale €", "Quota €", "N.Part.", "Paganti ✅", "In Attesa 🔴")
+    def _val_sort(col, v):
+        s = str(v).replace("€", "").strip()
+        if col == "Data":
+            try:
+                return datetime.datetime.strptime(s, "%d/%m/%Y")
+            except Exception:
+                return None
+        if col in _col_num:
+            try:
+                return float(s.replace(".", "").replace(",", "."))
+            except Exception:
+                return None
+        return s.lower()
+    def _sort_analitico(col, reverse=False):
+        righe = [(_val_sort(col, tree_a.set(k, col)), k) for k in tree_a.get_children("")]
+        con    = [(v, k) for v, k in righe if v is not None]
+        senza  = [k for v, k in righe if v is None]
+        con.sort(key=lambda t: t[0], reverse=reverse)
+        for i, k in enumerate([k for _, k in con] + senza):
+            tree_a.move(k, "", i)
+        for c in cols_a:
+            freccia = (" ▼" if reverse else " ▲") if c == col else ""
+            tree_a.heading(c, text=c + freccia,
+                           command=lambda _c=c: _sort_analitico(_c, not reverse if _c == col else False))
     for col in cols_a:
-        tree_a.heading(col, text=col, command=lambda c=col: self.treeview_sort_column(tree_a, c, False))
+        tree_a.heading(col, text=col, command=lambda c=col: _sort_analitico(c, False))
         tree_a.column(col, width=w_map.get(col, 100),
                       anchor="w" if col == "Descrizione" else "center")
     tree_a.tag_configure("aperto",  foreground="#E06C75")
@@ -525,7 +582,11 @@ def mostra_riepilogo_fairshare_periodo(self):
             if p_sel != "Tutti" and p_sel not in parti:
                 continue
             imp     = deb.get("importo_totale", 0.0)
-            quota_col = _quota_persona(deb, p_sel) if p_sel != "Tutti" else deb.get("quota", 0.0)
+            if p_sel != "Tutti":
+                quota_txt = f"{_fmt_it(_quota_persona(deb, p_sel))} €"
+            else:
+                _qv = [_quota_persona(deb, n) for n in parti]
+                quota_txt = "—" if _qv and max(_qv) - min(_qv) > 0.01 else f"{_fmt_it(deb.get('quota', 0.0))} €"
             paganti = [n for n in parti if pag.get(n, {}).get("pagato", False)]
             attesa  = [n for n in parti if not pag.get(n, {}).get("pagato", False)]
             st_ic   = "Chiuso" if stato == "chiuso" else "Aperto"
@@ -535,7 +596,7 @@ def mostra_riepilogo_fairshare_periodo(self):
                 deb.get("categoria", ""),
                 deb.get("descrizione", ""),
                 f"{_fmt_it(imp)} €",
-                f"{_fmt_it(quota_col)} €",
+                quota_txt,
                 len(parti),
                 len(paganti),
                 len(attesa),
@@ -554,6 +615,7 @@ def mostra_riepilogo_fairshare_periodo(self):
                     if creditore and creditore != nome:
                         chi_deve_a_chi_a.setdefault((nome, creditore), 0.0)
                         chi_deve_a_chi_a[(nome, creditore)] += quota
+        chi_deve_a_chi_a = _compensa_debiti(chi_deve_a_chi_a)
         lbl_det.config(state="normal")
         lbl_det.delete("1.0", "end")
         lbl_det.insert("end",
@@ -661,6 +723,7 @@ def mostra_riepilogo_fairshare_periodo(self):
                     if creditore and creditore != nome:
                         chi3.setdefault((nome, creditore), 0.0)
                         chi3[(nome, creditore)] += _quota_persona(deb, nome)
+        chi3 = _compensa_debiti(chi3)
         if chi3:
             footer += "\nCHI DEVE A CHI:\n"
             for (debitore, creditore), importo in sorted(
@@ -715,6 +778,7 @@ def popup_personali(self):
                  "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
     indips_names = [p["nome"] for p in self.nomi_partecipanti if p.get("tipo") == "personale"]
     indips_display = [f"CTP· {n}" for n in indips_names]
+    indips_names_match = sorted(indips_names, key=len, reverse=True)
     anni_disponibili = sorted(set(str(d.year) for d in self.spese.keys()), reverse=True)
     anno_v  = tk.StringVar(value="Tutti")
     mese_v  = tk.StringVar(value="Tutti")
@@ -757,17 +821,6 @@ def popup_personali(self):
     tree.tag_configure("pos", foreground="#98C379")
     tree.tag_configure("neg", foreground="#E06C75")
     self._bind_tooltip_metodo(tree, col_desc=3)
-    def _sort(col, reverse):
-        rows = [(tree.set(k, col), k) for k in tree.get_children("")]
-        if col == "Importo":
-            rows.sort(reverse=reverse,
-                      key=lambda t: float(t[0].replace("€", "").replace(".", "")
-                                           .replace(",", ".").strip()))
-        else:
-            rows.sort(key=lambda t: t[0].lower(), reverse=reverse)
-        for i, (_, k) in enumerate(rows):
-            tree.move(k, "", i)
-        tree.heading(col, command=lambda: _sort(col, not reverse))
     summary_f = tk.Frame(popup, bg=self.COLOR_TOPLEVEL,
                          highlightbackground=self.COLOR_WIDGET_BG, highlightthickness=1)
     summary_f.pack(fill=tk.X, padx=15, pady=5)
@@ -800,7 +853,7 @@ def popup_personali(self):
                     continue
                 imp = float(imp)
                 tipo = campo(v, "tipo", "")
-                nome_ind = next((n for n in indips_names if f"CTP·{n}" in descrizione), None)
+                nome_ind = next((n for n in indips_names_match if f"CTP·{n}" in descrizione), None)
                 if not nome_ind:
                     continue
                 sel_ind = indip_v.get()
@@ -966,6 +1019,7 @@ def popup_grafico_categorie_personali(self):
         "#D4AC0D", "#EB5757", "#48CAE4", "#B5838D", "#52B788",
     ]
     indips_names = [p["nome"] for p in self.nomi_partecipanti if p.get("tipo") == "personale"]
+    indips_names_match = sorted(indips_names, key=len, reverse=True)
     top_f = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
     top_f.pack(fill=tk.X, padx=15, pady=8)
     anni_disponibili = sorted(set(str(d.year) for d in self.spese.keys()), reverse=True)
@@ -1074,12 +1128,7 @@ def popup_grafico_categorie_personali(self):
         tooltip_lbl.place_forget()
     _pronto = [False]
     _disegnando = [False]
-    def disegna(*_):
-        if not _pronto[0]:
-            return
-        if _disegnando[0]:
-            return
-        _disegnando[0] = True
+    def _disegna_impl():
         canvas.delete("all")
         for widget in leg_inner.winfo_children():
             widget.destroy()
@@ -1106,7 +1155,7 @@ def popup_grafico_categorie_personali(self):
                     continue
                 imp = float(imp)
                 tipo = campo(v, "tipo", "")
-                nome_trovato = next((n for n in indips_names
+                nome_trovato = next((n for n in indips_names_match
                                      if f"CTP·{n}" in desc), None)
                 if not nome_trovato:
                     continue
@@ -1153,7 +1202,6 @@ def popup_grafico_categorie_personali(self):
         if not dati_graf or not any(dati_graf.values()):
             canvas.create_text(300, 150, text="Nessun dato disponibile",
                                fill=self.TEXT_COLOR, font=("Arial", 14))
-            _disegnando[0] = False
             return
         mesi_ordinati   = sorted(dati_graf.keys())
         categorie_usate = set(cat for m in dati_graf.values()
@@ -1162,6 +1210,9 @@ def popup_grafico_categorie_personali(self):
         categorie_lista = sorted(categorie_usate, key=lambda c: c.lower())
         n_cat  = len(categorie_lista)
         n_mesi = len(mesi_ordinati)
+        utenti_lista = sorted({nu for m in dati_graf.values() for nu in m}, key=lambda n: n.lower())
+        pos_ut = {nu: i for i, nu in enumerate(utenti_lista)}
+        n_ut   = max(len(utenti_lista), 1)
         colori = {cat: PALETTE[i % len(PALETTE)] for i, cat in enumerate(
             sorted(saldi_cat.keys(), key=lambda c: c.lower())
         )}
@@ -1176,7 +1227,7 @@ def popup_grafico_categorie_personali(self):
         base_y  = PAD_T + CHART_H
         bar_w   = 14
         bar_gap = 3
-        group_w = max(n_cat * (bar_w + bar_gap) + 20, 80)
+        group_w = max(n_cat * n_ut * (bar_w + bar_gap) + 20, 80)
         total_w = PAD_L + n_mesi * group_w + PAD_R
         canvas.config(scrollregion=(0, 0, max(total_w, CW), CH))
         max_val = max(
@@ -1198,7 +1249,7 @@ def popup_grafico_categorie_personali(self):
         for mi, mese_key in enumerate(mesi_ordinati):
             anno_m, mese_m = mese_key
             x_group  = PAD_L + mi * group_w
-            centro_x = x_group + (n_cat * (bar_w + bar_gap)) // 2
+            centro_x = x_group + (n_cat * n_ut * (bar_w + bar_gap)) // 2
             label_m  = f"{MESI_NOMI[mese_m-1]}\n{anno_m}" if anno_sel == "Tutti" else MESI_NOMI[mese_m-1]
             canvas.create_text(centro_x, base_y + 6, text=label_m,
                                anchor="n", fill=self.TEXT_COLOR, font=("Arial", 8))
@@ -1210,7 +1261,7 @@ def popup_grafico_categorie_personali(self):
                     val = d["ent"] + d["usc"]
                     if val == 0:
                         continue
-                    x0    = x_group + ci * (bar_w + bar_gap)
+                    x0    = x_group + (ci * n_ut + pos_ut[nome_u]) * (bar_w + bar_gap)
                     x1    = x0 + bar_w
                     y0    = val_to_y(val)
                     barra = canvas.create_rectangle(x0, y0, x1, base_y,
@@ -1236,14 +1287,31 @@ def popup_grafico_categorie_personali(self):
             tk.Label(f_row, text=f"{_fmt_it(sal, ',.0f')}€", bg=self.COLOR_TOPLEVEL,
                      fg=fg_sal, font=("Arial", 8, "bold"),
                      anchor="e").pack(side=tk.RIGHT, padx=(0, 4))
-        _disegnando[0] = False
-    canvas.bind("<Configure>", disegna)    
+    def disegna(*_):
+        if not _pronto[0] or _disegnando[0]:
+            return
+        _disegnando[0] = True
+        try:
+            if popup.winfo_exists():
+                _disegna_impl()
+        except tk.TclError:
+            pass
+        finally:
+            _disegnando[0] = False
+    canvas.bind("<Configure>", disegna)
     for cb in [cb_anno, cb_mese, cb_tipo, cb_nome]:
         cb.bind("<<ComboboxSelected>>", disegna)
     def _avvia():
         _pronto[0] = True
         disegna()
-    popup.after(150, _avvia)
+    _avvia_id = popup.after(150, _avvia)
+    def _annulla_avvia(e):
+        if e.widget is popup:
+            try:
+                popup.after_cancel(_avvia_id)
+            except Exception:
+                pass
+    popup.bind("<Destroy>", _annulla_avvia)
 
 def mostra_guida_dare_avere(self, popup=None):
     if hasattr(self, '_guida_popup') and self._guida_popup and self._guida_popup.winfo_exists():
@@ -1254,7 +1322,7 @@ def mostra_guida_dare_avere(self, popup=None):
     guida_win.title("Guida FairShare — Dare & Avere per Spesa")
     guida_win.resizable(True, True)
     guida_win.bind("<Escape>", lambda e: guida_win.destroy())
-    guida_win.bind("<Destroy>", lambda e: setattr(self, '_guida_popup', None))
+    guida_win.bind("<Destroy>", lambda e: setattr(self, '_guida_popup', None) if e.widget is guida_win else None)
     guida_win.transient(popup)
     import __main__ as _app
     _profilo_attivo_fs = getattr(_app, "PROFILO_ATTIVO", "Principale")
@@ -1282,7 +1350,8 @@ def mostra_guida_dare_avere(self, popup=None):
         "   MANUALE: doppio click sulla riga nella vista Dare & Avere.\n"
         "   - Primo doppio click  → segna PAGATO (con data odierna)\n"
         "   - Secondo doppio click → ANNULLA il pagamento\n"
-        "   Il pagamento manuale non viene mai sovrascritto dal sync automatico.\n\n"
+        "   Sia il pagamento sia il suo annullamento manuale restano fissi:\n"
+        "   il sync automatico non li modifica piu'.\n\n"
         "   Quando TUTTI i partecipanti hanno pagato, lo stato diventa Chiuso.\n\n"
         "5. CALCOLO DEL SALDO FAIRSHARE\n"
         "   Saldo = (Uscite pagate + Entrate ricevute) − Quota pro capite\n"
@@ -1303,16 +1372,21 @@ def mostra_guida_dare_avere(self, popup=None):
         "   Gestibili dal pannello Ricorrenze nel form principale.\n\n"
         "9. GRAFICI\n"
         "   Tab 1 → Dovuto vs Versato per persona.\n"
-        "   Tab 2 → Importo Aperto vs Chiuso per categoria.\n"
+        "   Tab 2 → Quote ancora da versare (Aperto) vs già versate (Chiuso) per categoria.\n"
         "   Tab 3 → Andamento mensile dovuto/versato.\n"
         "   Filtrabili per anno, mese, persona e categoria.\n"
         "   Hover sul grafico → tooltip con i valori.\n\n"
         "10. ESPORTAZIONE\n"
         "    Esporta → anteprima con salvataggio PDF o TXT.\n"
         "    Analitico → estratto completo per partecipante e periodo.\n"
-        "    Entrambi includono il riepilogo 'Chi deve a chi'.\n"
+        "    Entrambi includono il riepilogo 'Chi deve a chi', compensato\n"
+        "    (se A deve a B e B deve ad A, resta solo la differenza).\n"
+        "    Con 'Tutti' e percentuali fisse la colonna Quota mostra '—':\n"
+        "    la quota dipende dalla persona, filtra per partecipante per vederla.\n"
     )
     def centra_guida():
+        if not guida_win.winfo_exists():
+            return
         w_g, h_g = 960, 700
         if popup:
             x = popup.winfo_rootx() + (popup.winfo_width() // 2) - (w_g // 2)
@@ -1398,11 +1472,13 @@ def get_fairshare_data_json(self, anno_sel, mese_sel, utente_sel):
             "versato": round(ver, 2),
             "residuo": res,
         })
+    chi_deve = _compensa_debiti(chi_deve)
     chi_deve_list = [
         {"da": d, "a": c, "importo": round(v, 2)}
         for (d, c), v in sorted(chi_deve.items(), key=lambda x: (x[0][1], x[0][0]))
     ]
     indips      = [p["nome"] for p in personali]
+    indips_match = sorted(indips, key=len, reverse=True)
     saldi_cat_p = {n: {} for n in indips}
     totali_p    = {n: {"ent": 0.0, "usc": 0.0} for n in indips}
     for data, voci in self.spese.items():
@@ -1419,7 +1495,7 @@ def get_fairshare_data_json(self, anno_sel, mese_sel, utente_sel):
             except:
                 continue
             nome_trovato = next(
-                (n for n in indips if f"CTP·{n}" in desc_str), None
+                (n for n in indips_match if f"CTP·{n}" in desc_str), None
             )
             if not nome_trovato:
                 continue

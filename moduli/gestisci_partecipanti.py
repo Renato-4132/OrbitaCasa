@@ -20,6 +20,25 @@ def gestisci_partecipanti(self, target_popup=None):
         self._gestione_popup.lift()
         self._gestione_popup.focus_force()
         return
+
+    def _salva_partecipanti_json():
+        _gp_val = _leggi_gestore_partecipa()
+        payload = {"gestore_partecipa": _gp_val, "partecipanti": self.nomi_partecipanti}
+        tmp_path = PARTECIPANTI + ".tmp"
+        try:
+            with open(tmp_path, 'w', encoding='utf-8') as fp:
+                json.dump(payload, fp, indent=2)
+            os.replace(tmp_path, PARTECIPANTI)
+            return True
+        except Exception as e:
+            try:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            except Exception:
+                pass
+            self.show_toast(f"Errore salvataggio partecipanti: {e}")
+            return False
+
     dialogo = tk.Toplevel(self)
     self._gestione_popup = dialogo
     dialogo.title("Fair Share - Gestisci Partecipanti")
@@ -43,7 +62,8 @@ def gestisci_partecipanti(self, target_popup=None):
         if target_popup:
             try:
                 if target_popup.winfo_exists():
-                    target_popup.grab_set()
+                    target_popup.lift()
+                    target_popup.focus_force()
             except Exception:
                 pass
     dialogo.bind("<Destroy>", _on_dialogo_destroy)
@@ -66,11 +86,19 @@ def gestisci_partecipanti(self, target_popup=None):
             nome = p.get("nome", "")
             tipo = p.get("tipo", "persona")
             icona = "CNT·" if tipo == "contenitore" else ("CTP·" if tipo == "personale" else "PER·")
-            info = f" ({len(p.get('soci', []))} soci)" if tipo == "contenitore" else ""
+            info = f" ({len(_soci_effettivi(p))} soci)" if tipo == "contenitore" else ""
             return f"{icona} {nome}{info}"
         return f"PER· {p}"
     def _get_nome(p):
         return p.get("nome", p) if isinstance(p, dict) else p
+    def _soci_effettivi(p):
+        _pa = getattr(_app, "PROFILO_ATTIVO", "Principale")
+        _gest = _pa if _pa != "Principale" else os.path.basename(os.getcwd())
+        validi = {_get_nome(x) for x in self.nomi_partecipanti
+                  if isinstance(x, dict) and x.get("tipo", "persona") == "persona"}
+        if _leggi_gestore_partecipa():
+            validi.add(_gest)
+        return [n for n in p.get("soci", []) if n in validi]
     def aggiorna_lista():
         _profilo_attivo_gp = getattr(_app, "PROFILO_ATTIVO", "Principale")
         NOME_GESTORE = _profilo_attivo_gp if _profilo_attivo_gp != "Principale" else os.path.basename(os.getcwd())
@@ -215,9 +243,7 @@ def gestisci_partecipanti(self, target_popup=None):
             if isinstance(p, dict) and p.get("nome") == nome_cont:
                 p["soci"] = scelti
                 break
-        with open(PARTECIPANTI, 'w', encoding='utf-8') as fp:
-            json.dump({"gestore_partecipa": self._gestore_partecipa(),
-                       "partecipanti": self.nomi_partecipanti}, fp, indent=2)
+        _salva_partecipanti_json()
         self.show_toast(f"Soci di '{nome_cont}' aggiornati.")
         nascondi_soci()
         aggiorna_lista()
@@ -268,9 +294,7 @@ def gestisci_partecipanti(self, target_popup=None):
                 return
             dati_p["soci"] = scelti
         self.nomi_partecipanti.append(dati_p)
-        with open(PARTECIPANTI, 'w', encoding='utf-8') as fp:
-            json.dump({"gestore_partecipa": self._gestore_partecipa(),
-                       "partecipanti": self.nomi_partecipanti}, fp, indent=2)
+        _salva_partecipanti_json()
         nuovo_var.set("")
         nascondi_soci()
         aggiorna_lista()
@@ -281,9 +305,15 @@ def gestisci_partecipanti(self, target_popup=None):
             return
         nome_da_rimuovere = _get_nome(self.nomi_partecipanti[sel[0]])
         self.nomi_partecipanti.pop(sel[0])
-        with open(PARTECIPANTI, 'w', encoding='utf-8') as fp:
-            json.dump({"gestore_partecipa": self._gestore_partecipa(),
-                       "partecipanti": self.nomi_partecipanti}, fp, indent=2)
+        gruppi_vuoti = []
+        for p in self.nomi_partecipanti:
+            if isinstance(p, dict) and p.get("tipo") == "contenitore" and nome_da_rimuovere in p.get("soci", []):
+                p["soci"] = [s for s in p["soci"] if s != nome_da_rimuovere]
+                if not p["soci"]:
+                    gruppi_vuoti.append(p.get("nome", ""))
+        _salva_partecipanti_json()
+        if gruppi_vuoti:
+            self.show_toast(f"Gruppo senza soci: {', '.join(gruppi_vuoti)}. Aggiungi almeno un socio.")
         valore_corrente = self.partecipante_var.get()
         nome_corrente = valore_corrente.split(" ", 1)[1].strip() if " " in valore_corrente else valore_corrente
         if nome_corrente == nome_da_rimuovere:
@@ -300,10 +330,10 @@ def gestisci_partecipanti(self, target_popup=None):
         persone = [p for p in self.nomi_partecipanti
                    if isinstance(p, dict) and p.get("tipo", "persona") == "persona"]
         nomi_esistenti = [p.get("nome") for p in persone]
+        gest_dict = None
         if gestore_partecipa and NOME_GESTORE not in nomi_esistenti:
             gest_dict = {"nome": NOME_GESTORE, "tipo": "persona"}
-            self.nomi_partecipanti.append(gest_dict)
-            persone.append(gest_dict)
+            persone = persone + [gest_dict]
         if len(persone) < 2:
             self.show_toast("Servono almeno due persone per impostare le percentuali.")
             return
@@ -427,6 +457,8 @@ def gestisci_partecipanti(self, target_popup=None):
                 if abs(totale_corrente - 100.0) > 0.01:
                     self.show_toast(f"Il totale delle percentuali è {totale_corrente:.1f}%: deve essere esattamente 100%.")
                     return
+            if gest_dict is not None and gest_dict not in self.nomi_partecipanti and _leggi_gestore_partecipa():
+                self.nomi_partecipanti.append(gest_dict)
             for p in self.nomi_partecipanti:
                 if isinstance(p, dict) and p.get("nome") in vars_pct:
                     nome = p.get("nome")
@@ -434,9 +466,7 @@ def gestisci_partecipanti(self, target_popup=None):
                         p["percentuale"] = valori[nome]
                     else:
                         p.pop("percentuale", None)
-            with open(PARTECIPANTI, 'w', encoding='utf-8') as fp:
-                json.dump({"gestore_partecipa": self._gestore_partecipa(),
-                           "partecipanti": self.nomi_partecipanti}, fp, indent=2)
+            _salva_partecipanti_json()
             self.show_toast("Percentuali salvate.")
             pop.destroy()
         def azzera_percentuali():
@@ -466,6 +496,15 @@ def gestisci_partecipanti(self, target_popup=None):
         b_ann.pack(side=tk.RIGHT, padx=2)
         b_ann.bind("<Button-1>", lambda e: pop.destroy())
         pop.bind("<Escape>", lambda e: pop.destroy())
+        def _on_pop_destroy(e):
+            if e.widget is not pop:
+                return
+            try:
+                if dialogo.winfo_exists():
+                    dialogo.grab_set()
+            except Exception:
+                pass
+        pop.bind("<Destroy>", _on_pop_destroy)
     aggiorna_lista()
     btn_frame = ttk.Frame(f)
     btn_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=(4, 0))
@@ -475,9 +514,17 @@ def gestisci_partecipanti(self, target_popup=None):
     def _salva_gestore_e_chiudi():
         _scrivi_gestore_partecipa(var_gest_part.get())
         dialogo.destroy()
+    dialogo.protocol("WM_DELETE_WINDOW", _salva_gestore_e_chiudi)
+    def _on_gestore_toggle():
+        _scrivi_gestore_partecipa(var_gest_part.get())
+        aggiorna_lista()
+        if soci_wrapper.winfo_ismapped():
+            attuali = [n for n, v in check_vars.items() if v.get()]
+            aggiorna_soci_ui(attuali or None, readonly=False)
     gest_cb = ttk.Checkbutton(btn_frame,
                               text=f"'{_nome_gest}' partecipa alle spese condivise",
-                              variable=var_gest_part)
+                              variable=var_gest_part,
+                              command=_on_gestore_toggle)
     gest_cb.pack(side=tk.LEFT, padx=(0, 10))
     img_del = self.icone_gui.get("cancella")
     btn_del = ttk.Label(btn_frame, compound="left", image=img_del,
@@ -497,7 +544,7 @@ def gestisci_partecipanti(self, target_popup=None):
                        background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
                        cursor="hand2", padding=(8, 4))
     btn_fs.pack(side=tk.LEFT, padx=4)
-    btn_fs.bind("<Button-1>", lambda e: self.mostra_dare_avere())
+    btn_fs.bind("<Button-1>", lambda e: (_salva_gestore_e_chiudi(), self.mostra_dare_avere()))
     img_chiudi = self.icone_gui.get("chiudi")
     btn_chiudi = ttk.Label(btn_frame, compound="left", image=img_chiudi,
                            text=" Chiudi" if img_chiudi else "Chiudi",
