@@ -2,9 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import os
+import threading
 import webbrowser
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog
 
 from __main__ import NAME, VERSION, DB_DIR
 
@@ -24,7 +25,125 @@ def show_info_app(self):
 
     def apri_manuale_risparmio(event):
         self.scarica_manuale_risparmio()
-        
+
+    URL_DOCKER_ZIP = "https://github.com/Renato-4132/OrbitaCasa/raw/main/orbitacasa-docker.zip"
+    _docker_dlg = [None]
+
+    def apri_docker(event=None):
+        if _docker_dlg[0] is not None and _docker_dlg[0].winfo_exists():
+            _docker_dlg[0].lift()
+            _docker_dlg[0].focus_force()
+            return
+        dlg = tk.Toplevel(info_win, bg=self.COLOR_TOPLEVEL)
+        _docker_dlg[0] = dlg
+        dlg.title("OrbitaCasa in Docker")
+        dlg.resizable(False, False)
+        dlg.transient(info_win)
+        dlg.withdraw()
+        testo_docker = (
+            "OrbitaCasa in Docker\n\n"
+            "Fai girare OrbitaCasa su un server (NAS, Raspberry, VPS, PC sempre acceso) "
+            "e usalo da qualsiasi browser su https://IP-DEL-SERVER:5800, "
+            "senza installare nulla sui PC client. È la stessa app, trasmessa nel browser.\n\n"
+            "Il pacchetto contiene Dockerfile, docker-compose.yml, script di avvio e LEGGIMI.md "
+            "con le istruzioni passo passo.\n\n"
+            "Ti serve Docker con Compose e il file OrbitaCasa.pyw nella stessa cartella. "
+            "Poi basta: docker compose up -d --build\n\n"
+            "Non usare l'app sul PC e nel container sullo stesso database (./db) nello stesso momento."
+        )
+        tk.Label(dlg, text=testo_docker, justify=tk.LEFT, anchor="nw", wraplength=460,
+                 bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR, font=("Arial", 9)
+                 ).pack(fill="both", expand=True, padx=18, pady=(14, 6))
+        lbl_stato = tk.Label(dlg, text="", bg=self.COLOR_TOPLEVEL, fg="gray",
+                             font=("Arial", 8), wraplength=460, justify=tk.LEFT)
+        lbl_stato.pack(fill="x", padx=18)
+        btn_frame = tk.Frame(dlg, bg=self.COLOR_TOPLEVEL)
+        btn_frame.pack(fill="x", padx=18, pady=(6, 12))
+        _in_corso = [False]
+        def _scarica(event=None):
+            if _in_corso[0]:
+                return
+            cartella_dl = os.path.join(os.path.expanduser("~"), "Downloads")
+            if not os.path.isdir(cartella_dl):
+                cartella_dl = os.path.expanduser("~")
+            dest = filedialog.asksaveasfilename(
+                parent=dlg, defaultextension=".zip", filetypes=[("ZIP", "*.zip")],
+                initialdir=cartella_dl, initialfile="orbitacasa-docker.zip")
+            if not dest:
+                return
+            _in_corso[0] = True
+            lbl_stato.config(text="Download in corso...", fg="gray")
+            esito = {}
+            def _worker():
+                tmp = dest + ".part"
+                try:
+                    import requests
+                    r = requests.get(URL_DOCKER_ZIP, timeout=30, stream=True)
+                    r.raise_for_status()
+                    with open(tmp, "wb") as fh:
+                        for chunk in r.iter_content(65536):
+                            fh.write(chunk)
+                    os.replace(tmp, dest)
+                    esito["ok"] = True
+                except Exception as ex:
+                    try:
+                        if os.path.exists(tmp):
+                            os.remove(tmp)
+                    except Exception:
+                        pass
+                    esito["err"] = str(ex)
+            def _controlla():
+                if not dlg.winfo_exists():
+                    return
+                if not esito:
+                    dlg.after(200, _controlla)
+                    return
+                _in_corso[0] = False
+                if esito.get("ok"):
+                    lbl_stato.config(text=f"Download completato: {dest}", fg="#27ae60")
+                    self.show_toast("Download completato.")
+                else:
+                    lbl_stato.config(text=f"Download NON completato: {esito.get('err', '')}", fg="#c0392b")
+            threading.Thread(target=_worker, daemon=True).start()
+            dlg.after(200, _controlla)
+        img_dl = self.icone_gui.get("salva")
+        btn_scarica = tk.Label(btn_frame, compound="left", image=img_dl, text=" Scarica ZIP",
+                               background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
+                               cursor="hand2", padx=15, pady=6, font=("Arial", 9, "bold"))
+        btn_scarica.image = img_dl
+        btn_scarica.pack(side=tk.LEFT)
+        btn_scarica.bind("<Button-1>", _scarica)
+        img_ch = self.icone_gui.get("chiudi")
+        btn_ch = tk.Label(btn_frame, compound="left", image=img_ch, text=" Chiudi",
+                          background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
+                          cursor="hand2", padx=15, pady=6, font=("Arial", 9, "bold"))
+        btn_ch.image = img_ch
+        btn_ch.pack(side=tk.RIGHT)
+        btn_ch.bind("<Button-1>", lambda e: dlg.destroy())
+        def _on_destroy(e):
+            if e.widget is not dlg:
+                return
+            _docker_dlg[0] = None
+            try:
+                if info_win.winfo_exists():
+                    info_win.grab_set()
+            except Exception:
+                pass
+        dlg.bind("<Destroy>", _on_destroy)
+        dlg.bind("<Escape>", lambda e: dlg.destroy())
+        dlg.update_idletasks()
+        w, h = 500, dlg.winfo_reqheight()
+        x = info_win.winfo_rootx() + (info_win.winfo_width() // 2) - (w // 2)
+        y = info_win.winfo_rooty() + (info_win.winfo_height() // 2) - (h // 2)
+        dlg.geometry(f"{w}x{h}+{max(0, x)}+{max(0, y)}")
+        dlg.deiconify()
+        dlg.lift()
+        dlg.focus_force()
+        try:
+            dlg.grab_set()
+        except tk.TclError:
+            pass
+
     testo_filtri = f"💰 {NAME} - Guida Rapida Interattiva\n\n"
     testo_filtri += (
             "💰 FILTRI TEMPORALI (Controllo Statistiche)\n"
@@ -264,7 +383,7 @@ def show_info_app(self):
     tk.Label(main_frame, text=f"Versione {VERSION} © 2026 Renato-4132 — Tutti i diritti riservati", font=("Arial", 9), bg=self.COLOR_TOPLEVEL, fg="gray").pack()
     links_frame = tk.Frame(main_frame, bg=self.COLOR_TOPLEVEL)
     links_frame.pack(pady=5)
-    for ico_key, txt, cmd in [("email", " Email", apri_email), ("github", " GitHub", apri_github), ("studio", " Manuale Online", apri_manuale), ("studio", " Manuale Risparmio", apri_manuale_risparmio), ("python", " Python", apri_link_python)]:
+    for ico_key, txt, cmd in [("email", " Email", apri_email), ("github", " GitHub", apri_github), ("studio", " Manuale Online", apri_manuale), ("studio", " Manuale Risparmio", apri_manuale_risparmio), ("docker", " Docker", apri_docker), ("python", " Python", apri_link_python)]:
         img = self.icone_gui.get(ico_key)
         lbl = tk.Label(links_frame, text=txt, image=img, compound="left", fg="#3498db", bg=self.COLOR_TOPLEVEL, cursor="hand2", font=("Arial", 9))
         lbl.image = img

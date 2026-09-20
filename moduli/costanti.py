@@ -344,6 +344,10 @@ def carica_costanti(path_locale):
         ("badge_esperto", ("1f3c5", "🏅")),
         ("badge_maestro", ("1f3c6", "🏆")),
         ("badge_leggenda", ("1f451", "👑")),
+        ("email", ("1f4e7", "📧")),
+        ("github", ("1f419", "🐙")),
+        ("python", ("1f40d", "🐍")),
+        ("docker", ("1f433", "🐳")),
     ]
 
     return g
