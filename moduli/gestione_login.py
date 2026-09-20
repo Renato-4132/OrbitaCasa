@@ -9,6 +9,8 @@ import threading
 import tkinter as tk
 from tkinter import ttk
 
+IN_DOCKER = os.path.exists("/.dockerenv") or os.environ.get("OC_RUNNING_IN_DOCKER") == "1"
+
 def gestione_login(self):
     import __main__ as _app
     THEMA = _app.THEMA
@@ -253,8 +255,11 @@ def gestione_login(self):
         _timeout_sec = [60]
         lbl_timeout = tk.Label(login, text="⏱ Chiusura automatica tra 60s",
                                font=("Arial", 8), bg=BG, fg=FG_DIM)
-        lbl_timeout.place(x=0, y=360, relwidth=1.0)
+        if not IN_DOCKER:
+            lbl_timeout.place(x=0, y=360, relwidth=1.0)
         def _reset_timeout(event=None):
+            if IN_DOCKER:
+                return
             try:
                 if not login.winfo_exists():
                     return
@@ -266,6 +271,8 @@ def gestione_login(self):
             lbl_timeout.config(text="⏱ Chiusura automatica tra 60s", fg=FG_DIM)
             _timeout_id[0] = login.after(1000, _timeout_tick)
         def _timeout_tick():
+            if IN_DOCKER:
+                return
             try:
                 if not login.winfo_exists():
                     return
@@ -278,10 +285,11 @@ def gestione_login(self):
             colore = FG_ERR if _timeout_sec[0] <= 10 else FG_DIM
             lbl_timeout.config(text=f"⏱ Chiusura automatica tra {_timeout_sec[0]}s", fg=colore)
             _timeout_id[0] = login.after(1000, _timeout_tick)
-        _reset_timeout()
-        login.bind_all("<Key>",    _reset_timeout)
-        login.bind_all("<Motion>", _reset_timeout)
-        login.bind_all("<Button>", _reset_timeout)
+        if not IN_DOCKER:
+            _reset_timeout()
+            login.bind_all("<Key>",    _reset_timeout)
+            login.bind_all("<Motion>", _reset_timeout)
+            login.bind_all("<Button>", _reset_timeout)
         tk.Label(login, text="🔒", font=("Arial", 30), bg=BG, fg=FG).pack(pady=(10, 0))
         if is_primo_accesso:
             tk.Label(login, text="BENVENUTO!", font=("Arial", 16, "bold"), bg=BG, fg=FG_OK).pack(pady=(10, 0))
