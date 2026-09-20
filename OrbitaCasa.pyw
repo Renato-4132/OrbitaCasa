@@ -1611,7 +1611,7 @@ class GestioneSpese(tk.Tk):
                 (2 if x.get("tipo") == "personale" else 1),
                 x.get("nome", "").lower()
         ))
-        _gestore_init = os.path.basename(os.getcwd())
+        _gestore_init = PROFILO_ATTIVO if PROFILO_ATTIVO != "Principale" else os.path.basename(os.getcwd())
         _nomi_init    = [p.get("nome", "") for p in self.nomi_partecipanti]
         if self._gestore_partecipa() and _gestore_init not in _nomi_init:
             self.nomi_con_icone.append(f"PER· {_gestore_init}")
@@ -5581,7 +5581,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "865df01abeff5dc895c885256757edd0bc471af873bf6e39cc39c5af72d5aac8"
+        E_H_B = "abc3d0482f54155633722770431fb89f58a91524aa19f4f18af08e159e74eac5"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
