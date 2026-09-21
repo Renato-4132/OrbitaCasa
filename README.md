@@ -129,7 +129,11 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 58. **Streak & Livelli** — Da Novizio a Leggenda (e oltre): mantieni la costanza giorno dopo giorno e scala i livelli a vita
 59. **Badge Mese & Anno** — Oltre al livello a vita, guadagni riconoscimenti dedicati al mese e all'anno in corso
 60. **Gestione Multi-Profilo** — Ogni utente ha il proprio database, movimenti, categorie e credenziali.
-       
+
+### 🐳 Docker & Accesso via Browser
+
+Esegui OrbitaCasa sul tuo server o NAS tramite Docker e gestisci le tue finanze domestiche direttamente dal browser di qualsiasi PC o tablet remoto, senza installazioni locali.
+
 ### 📺 [Guarda il Video](https://github.com/Renato-4132/OrbitaCasa/raw/main/OrbitaCasa.mp4)
 
 📩 ASSISTENZA TECNICA
