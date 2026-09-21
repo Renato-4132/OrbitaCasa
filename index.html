@@ -278,6 +278,166 @@
             max-width: 620px;
             margin: 0 auto;
         }
+        .story-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #4f46e5, #6366f1);
+            color: #fff;
+            border: 1px solid rgba(165,180,252,0.4);
+            border-radius: 999px;
+            padding: 10px 22px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            box-shadow: 0 0 22px rgba(99,102,241,0.35);
+            transition: transform 0.2s, box-shadow 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .story-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 0 30px rgba(99,102,241,0.6);
+        }
+        .story-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            background: rgba(2,6,23,0.86);
+            backdrop-filter: blur(4px);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.25s, visibility 0.25s;
+        }
+        .story-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        .story-modal {
+            position: relative;
+            width: 100%;
+            max-width: 720px;
+            max-height: 88vh;
+            display: flex;
+            flex-direction: column;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 1.25rem;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.6);
+            transform: translateY(14px);
+            transition: transform 0.25s;
+        }
+        .story-overlay.open .story-modal {
+            transform: translateY(0);
+        }
+        .story-scroll {
+            overflow-y: auto;
+            padding: clamp(1.25rem, 4vw, 2.25rem);
+            text-align: left;
+        }
+        .story-close {
+            position: absolute;
+            top: 12px; right: 12px;
+            width: 34px; height: 34px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            background: #1e293b;
+            color: #94a3b8;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 2;
+            transition: all 0.2s;
+        }
+        .story-close:hover {
+            background: #4f46e5;
+            border-color: #6366f1;
+            color: #fff;
+        }
+        .story-kicker {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #6366f1;
+            margin: 0 0 4px;
+        }
+        .story-modal h2 {
+            font-size: clamp(1.9rem, 6vw, 2.6rem);
+            font-weight: 900;
+            font-style: italic;
+            text-transform: uppercase;
+            color: #fff;
+            line-height: 1.05;
+            margin: 0 0 6px;
+        }
+        .story-sub {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            font-style: italic;
+            margin: 0 0 1.5rem;
+            padding-bottom: 1.25rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .story-modal h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #818cf8;
+            margin: 1.5rem 0 0.5rem;
+        }
+        .story-modal p {
+            font-size: 0.95rem;
+            line-height: 1.7;
+            color: #cbd5e1;
+            margin: 0 0 0.9rem;
+        }
+        .story-modal ul {
+            list-style: none;
+            padding: 0;
+            margin: 0.5rem 0 1rem;
+        }
+        .story-modal li {
+            position: relative;
+            padding-left: 1.4rem;
+            margin-bottom: 0.6rem;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #cbd5e1;
+        }
+        .story-modal li::before {
+            content: '›';
+            position: absolute;
+            left: 0.2rem;
+            color: #6366f1;
+            font-weight: 700;
+        }
+        .story-modal li strong {
+            color: #fff;
+        }
+        .story-motto {
+            border-left: 3px solid #4f46e5;
+            background: rgba(79,70,229,0.08);
+            border-radius: 0 10px 10px 0;
+            padding: 10px 16px;
+            margin: 1rem 0;
+            font-style: italic;
+            color: #a5b4fc;
+        }
+        .story-sign {
+            margin-top: 1.5rem;
+            text-align: right;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 1.3rem;
+            font-style: italic;
+            font-weight: 700;
+            color: #fff;
+        }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-200">
@@ -318,6 +478,9 @@
                         ℹ️ Nell'articolo citata come <em>CasaFacilePro</em> — il nome precedente del progetto, ora <strong style="color:#a5b4fc;">Orbita Casa</strong>.
                     </span>
                 </div>
+                <button type="button" class="story-btn" onclick="openStory()">
+                    <span style="font-size:16px;">📖</span> Come è nata OrbitaCasa: la storia
+                </button>
             </div>
             <div class="relative max-w-4xl mx-auto group">
                 <div class="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-slate-800 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
@@ -953,6 +1116,85 @@
         </div>
         <p class="text-[10px] text-slate-600 uppercase tracking-widest font-black italic">Orbita Casa 2026 - Licenza BSL</p>
     </footer>
+    <div class="story-overlay" id="storyOverlay" aria-hidden="true" onclick="if (event.target === this) closeStory()">
+        <div class="story-modal" role="dialog" aria-modal="true" aria-labelledby="storyTitle">
+            <button type="button" class="story-close" onclick="closeStory()" aria-label="Chiudi">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="story-scroll">
+                <p class="story-kicker">Dietro le quinte</p>
+                <h2 id="storyTitle">La storia di OrbitaCasa</h2>
+                <p class="story-sub">Da una scrivania tappezzata di post-it a più di 80.000 righe di codice.</p>
+
+                <h3>Chi c'è dietro</h3>
+                <p>Mi chiamo Renato e programmo da 40 anni, e in tutto questo tempo ho scritto tante di quelle cose che i pivelli leoni da tastiera di oggi nemmeno se le immaginano.<br>
+                   Non ho una laurea né un titolo di studio, ma non mi sono mai mancate la voglia di imparare e la fantasia per creare cose a cui magari nessuno aveva ancora pensato.<br>
+                   Ho scritto dei software che hanno lasciato una storia.</p>
+                <p>Poi sono arrivate la famiglia e una lunga pausa, e col passare degli anni, per fortuna, la pensione.<br>
+                   Lì ho iniziato a guardarmi intorno, immaginando che da sola non mi sarebbe bastata.</p>
+
+                <h3>Colpa dei post-it</h3>
+                <p>Per anni ho tenuto i conti di casa con un'app sullo smartphone che andava sempre in crash e mi faceva perdere i dati, con un foglio Excel e con un archivio per documenti, fatture e bollette.<br>
+                   Finché un giorno ho visto la mia compagna tappezzare la scrivania di post-it per tenere i conti.<br>
+                   E lì ho detto: così non si può andare avanti.</p>
+                <p>Classificatori, garanzie, fatture, buste paga: un foglio Excel, per quanto potente, non sarebbe mai arrivato dove volevo io.<br>
+                   Ho scritto 100 righe di codice e l'ho chiamato «Spese».<br>
+                   Dopo un mese si chiamava già CasaFacile, e potevamo inserire i conti e guardarci le statistiche.</p>
+
+                <h3>L'ambizione, questa brutta bestia</h3>
+                <p>Poi, siccome l'ambizione è una brutta bestia (e forse eravamo troppo gasati), è diventato CasaFacilePro.<br>
+                   A maggio l'ho ribattezzato OrbitaCasa.<br>
+                   Non si trattava più di fare due conti: volevo sapere dove fossero le fatture, capire davvero dove andavano i soldi e tenere traccia dei consumi.<br>
+                   Dopo più di una bolletta stratosferica per colpa di una perdita, la cosa era diventata personale.</p>
+                <p>Il buon Vittorio, su Finanza Cafona, ci ha dedicato una recensione top e l'effetto è stato devastante: in tanti l'hanno installata.<br>
+                   Tra notti insonni, un saggio copia-incolla e un pizzico di IA, siamo arrivati a più di 80.000 righe di codice.</p>
+
+                <h3>Cosa sa fare oggi</h3>
+                <p>Nel frattempo siamo cresciuti.<br>
+                   OrbitaCasa vanta ora quasi 60 funzioni diverse, un manuale di oltre 80 pagine e tante cose che altri software nemmeno si sognano.<br>
+                   Serve a gestire:</p>
+                <ul><br>
+                    <li>Conti personali e famiglia.</li><br>
+                    <li>Finanziamenti, immobili, parco auto e mezzi e micro-attività.</li><br>
+                    <li>Fondi risparmio, gestione della manutenzione casa, gestione dei nostri cari animaletti domestici.</li><br>
+                    <li><strong>Organizzazione chirurgica:</strong> ogni spesa è puntualmente assegnata a uno specifico conto o a un tag dedicato, con in più la possibilità di dilazionare le spese in automatico fino al raggiungimento della quota prefissata.</li><br>
+                    <li><strong>Importazione e archiviazione documentale:</strong> potete importare gli estratti conto per i vostri movimenti, e archiviare in un unico posto documenti, fatture e bollette.</li><br>
+                    <li><strong>Report ed email automatiche:</strong> l'app vi manda report ed estratti conto giornalieri, settimanali o mensili direttamente via email.</li><br>
+                    <li><strong>Alert di budget:</strong> ti avvisa in tempo reale se sfori la soglia impostata su una categoria.</li><br>
+                    <li><strong>Il "Chi l'ha visto?" delle scadenze:</strong> tiene traccia e avvisa per qualsiasi scadenza immaginabile (documenti, patenti, bollette, revisioni).</li><br>
+                    <li><strong>Architettura locale:</strong> i dati restano sul vostro PC, con tanto di webserver integrato e accesso biometrico da qualsiasi device.</li><br>
+                    <li><strong>AI integrata:</strong> analizza le bollette, calcola i costi medi, prevede le spese future e fa un'analisi finanziaria completa (e questi sono gli unici dati che escono, e solo se volete).</li>
+                </ul>
+
+                <h3>La grande svolta sulla licenza (e basta con le mazzette)</h3>
+                <p>Visto il tempo investito, all'inizio avevo pensato: «Faccio pagare un bel canone e sistemo la pensione».<br>
+                   Poi ho capito che mi dà molta più soddisfazione parlare con le persone, cercare di risolvere i loro problemi e leggere i vostri feedback.<br>
+                   Risultato? Nessun abbonamento commerciale.<br>
+                   Ho sempre pensato di tenerlo gratuito, perché tanti «sciagurati» come me potessero iniziare a gestire la propria casa, e tutto quello che le ruota intorno, con semplicità.</p>
+                <p>Il codice licenza c'è ancora, ma viene concesso completamente gratis.<br>
+                   Ho lasciato tutta la logica per un motivo preciso: tenere traccia di quello che mi chiedete, per potervi ricontattare all'occorrenza.<br>
+                   Visto che per la privacy non conservo né i nomi né i dati, l'unico riferimento è l'ID assegnato a ogni installazione: con quello posso scrivere un log e seguire le richieste di ciascuno.</p>
+                <p>Poi c'è l'altro motivo: invogliare le persone a usarla davvero, senza lasciarla scadere.<br>
+                   Per questo il sistema assegna dei livelli di utilizzo: chi la usa con costanza viene premiato con l'allungamento automatico della licenza di mese in mese, senza scadenze traumatiche o la rottura di dover fare continue richieste.<br>
+                   Più la usi per metterti in riga, più lei ti regala serenità.</p>
+
+                <h3>Per chi è?</h3>
+                <p>L'idea originaria era nata per aiutare un gruppo di disgraziati della finanza domestica (tipo il sottoscritto) e per dare una mano alla mia situazione un po' precaria.<br>
+                   Poi, tra richieste folli arrivate su Reddit, idee rubate su Facebook e ore passate a studiare podcast e pagine di settore, l'ho resa una suite il cui motto è:</p>
+                <div class="story-motto">«Per tanti, ma non per tutti.»</div>
+                <p>Se cercate una gestione veramente meticolosa delle finanze e di tutto ciò che orbita intorno alla vostra casa (da qui il nome, OrbitaCasa), fateci un giro.</p>
+
+                <h3>Grazie</h3>
+                <p>Devo ringraziare tutti quelli che sono stati presenti in questo percorso.<br>
+                   Prima di tutti Vittorio, che mi ha sempre dato una spinta morale per andare avanti.<br>
+                   Poi i mod, le pagine di finanza su Reddit, chi ha contribuito con le proprie idee (compresi chi lavora in U.C. e I.S.P.) e le pagine Facebook da cui ho preso spunto, come «Maleducati Finanziari» e «La Budgettista».<br>
+                   E voi che leggete e ascoltate sempre con ironia.</p>
+                <p>Per qualsiasi richiesta resto a disposizione via email.<br>
+                   Grazie e buon divertimento!</p>
+                <div class="story-sign">— Renato</div>
+            </div>
+        </div>
+    </div>
     <script>
     const slides = [
         { 
@@ -1302,6 +1544,28 @@
         const collapsed = wrap.classList.toggle('collapsed');
         btn.classList.toggle('collapsed', collapsed);
     }
+
+    let storyLastFocus = null;
+    function openStory() {
+        const ov = document.getElementById('storyOverlay');
+        storyLastFocus = document.activeElement;
+        ov.classList.add('open');
+        ov.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        ov.querySelector('.story-scroll').scrollTop = 0;
+        ov.querySelector('.story-close').focus();
+    }
+    function closeStory() {
+        const ov = document.getElementById('storyOverlay');
+        if (!ov.classList.contains('open')) return;
+        ov.classList.remove('open');
+        ov.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        if (storyLastFocus) storyLastFocus.focus();
+    }
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeStory();
+    });
     </script>
 </body>
 </html>
