@@ -25,6 +25,7 @@
 > ℹ️ **Nota:** nell'articolo il software è citato con il nome precedente **"CasaFacilePro"**. Orbita Casa è la versione attuale, aggiornata e mantenuta attivamente dello stesso progetto.
 
 [![FaceBook](https://img.shields.io/badge/FaceBook-4f46e5?style=flat-square&logo=google-chrome&logoColor=white)](https://www.facebook.com/orbitahome/)
+[![Sito Web](https://img.shields.io/badge/SITO_UFFICIALE-VISITA-4f46e5?style=flat-square&logo=google-chrome&logoColor=white)](https://renato-4132.github.io/OrbitaCasa/)
 ---
 
 ### 🚀 L'ESSENZA DEL SOFTWARE
@@ -32,6 +33,10 @@
 
 
 ### 🏅 LICENZA VIVA — GRATIS, A PUNTI
+
+<details>
+<summary><b>Clicca per i dettagli sulla licenza</b></summary>
+
 Non paghi mai, ma la licenza non è "per sempre" a prescindere: **più usi l'app, più sali di livello, più si allunga**. Ogni traguardo raggiunto estende in automatico la scadenza.
 
 Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2) per proteggere la privacy dell'utente ed evitare i costi di sottoscrizione che renderebbero il progetto a pagamento. Crediamo in un software libero da canoni e da occhi indiscreti.
@@ -41,9 +46,14 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 * 📱 **Mobile Ready**: Accesso rapido tramite QR Code.
 * 📑 **Paperless**: Archiviazione digitale di tutti i tuoi documenti PDF.
 
+</details>
+
 ---
 
 ### 🔥 POTENZA IN 50+ FUNZIONI
+
+<details>
+<summary><b>Clicca per vedere tutte le funzioni</b></summary>
 
 ---
 
@@ -130,17 +140,12 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 59. **Badge Mese & Anno** — Oltre al livello a vita, guadagni riconoscimenti dedicati al mese e all'anno in corso
 60. **Gestione Multi-Profilo** — Ogni utente ha il proprio database, movimenti, categorie e credenziali.
 
-### 🐳 Docker & Accesso via Browser
-
-Esegui OrbitaCasa sul tuo server o NAS tramite Docker e gestisci le tue finanze domestiche direttamente dal browser di qualsiasi PC o tablet remoto, senza installazioni locali.
-
-### 📺 [Guarda il Video](https://github.com/Renato-4132/OrbitaCasa/raw/main/OrbitaCasa.mp4)
-
-📩 ASSISTENZA TECNICA
-
-Per bug, suggerimenti o supporto: helporbitacasa@gmail.com
+</details>
 
 ## ⚙️ INSTALLAZIONE
+
+<details>
+<summary><b>Clicca per vedere le istruzioni di installazione</b></summary>
 
 ### 🟦 Windows (Automatico)
 Metodo consigliato per utenti Windows.
@@ -161,11 +166,100 @@ Script `.command` che installa Python da solo (se manca) e scarica OrbitaCasa da
 1. Crea una cartella dedicata (il nome della cartella sarà il tuo **Nome Profilo**).
 2. Inserisci il file `OrbitaCasa.pyw` all'interno.
 3. Il Software installerà in automatico le dipendenze: tkcalendar google-genai requests segno pypiwin32 cryptography pystray pymupdf yfinance tkinterdnd2
-   
-ℹ️ Disclaimer: Nessun portafoglio è stato maltrattato durante lo sviluppo di questo software.
 
-ℹ️ Disclaimer bis: Per i malati della sicurezza, quando un aggiornamento va a buon fine, l'app manda un piccolo "ce l'ho fatta!", niente importi né dettagli, solo per farmi capire che il rilascio non ha fatto disastri e per gestire il rinnovo automatico della licenza. 
+</details>
 
-Le vostre finanze restano affari vostri.
+### 🐳 Docker & Accesso via Browser
 
-## 🌐 SCOPRI DI PIÙ [![Sito Web](https://img.shields.io/badge/SITO_UFFICIALE-VISITA-4f46e5?style=flat-square&logo=google-chrome&logoColor=white)](https://renato-4132.github.io/OrbitaCasa/)
+Esegui OrbitaCasa sul tuo server o NAS tramite Docker e gestisci le tue finanze domestiche direttamente dal browser di qualsiasi PC o tablet remoto, senza installazioni locali.
+
+### 📺 [Guarda il Video](https://github.com/Renato-4132/OrbitaCasa/raw/main/OrbitaCasa.mp4)
+
+📩 ASSISTENZA TECNICA
+
+Per bug, suggerimenti o supporto: helporbitacasa@gmail.com
+
+## La storia di OrbitaCasa
+
+<details>
+<summary><b>Dietro le quinte — Da una scrivania tappezzata di post-it a più di 80.000 righe di codice</b> (clicca per espandere)</summary>
+
+### Chi c'è dietro
+Mi chiamo Renato e programmo da 40 anni, e in tutto questo tempo ho scritto tante di quelle cose che i pivelli leoni da tastiera di oggi nemmeno se le immaginano.
+Non ho una laurea né un titolo di studio, ma non mi sono mai mancate la voglia di imparare e la fantasia per creare cose a cui magari nessuno aveva ancora pensato.
+Ho scritto dei software che hanno lasciato una storia.
+
+Poi sono arrivate la famiglia e una lunga pausa, ma senza mai perdere la voglia di creare.
+
+### Colpa dei post-it
+Per anni ho tenuto i conti di casa con un'app sullo smartphone che andava sempre in crash e mi faceva perdere i dati, con un foglio Excel e con un archivio per documenti, fatture e bollette.
+Finché un giorno ho visto la mia compagna tappezzare la scrivania di post-it per tenere i conti.
+E lì ho detto: così non si può andare avanti.
+
+Classificatori, garanzie, fatture, buste paga: un foglio Excel, per quanto potente, non sarebbe mai arrivato dove volevo io.
+Ho scritto 100 righe di codice e l'ho chiamato «Spese».
+Dopo un mese si chiamava già CasaFacile, e potevamo inserire i conti e guardarci le statistiche.
+
+### L'ambizione, questa brutta bestia
+Poi, siccome l'ambizione è una brutta bestia (e forse eravamo troppo gasati), è diventato CasaFacilePro.
+A maggio l'ho ribattezzato OrbitaCasa.
+Non si trattava più di fare due conti: volevo sapere dove fossero le fatture, capire davvero dove andavano i soldi e tenere traccia dei consumi.
+Dopo più di una bolletta stratosferica per colpa di una perdita, la cosa era diventata personale.
+
+Il buon Vittorio, su Finanza Cafona, ci ha dedicato una recensione top e l'effetto è stato devastante: in tanti l'hanno installata.
+Tra notti insonni, un saggio copia-incolla e un pizzico di IA, siamo arrivati a più di 80.000 righe di codice.
+
+### Cosa sa fare oggi
+Nel frattempo siamo cresciuti.
+OrbitaCasa vanta ora quasi 60 funzioni diverse, un manuale di oltre 80 pagine e tante cose che altri software nemmeno si sognano.
+Serve a gestire:
+
+- Conti personali e famiglia.
+- Finanziamenti, immobili, parco auto e mezzi e micro-attività.
+- Fondi risparmio, gestione della manutenzione casa, gestione dei nostri cari animaletti domestici.
+- **Organizzazione chirurgica:** ogni spesa è puntualmente assegnata a uno specifico conto o a un tag dedicato, con in più la possibilità di dilazionare le spese in automatico fino al raggiungimento della quota prefissata.
+- **Importazione e archiviazione documentale:** potete importare gli estratti conto per i vostri movimenti, e archiviare in un unico posto documenti, fatture e bollette.
+- **Report ed email automatiche:** l'app vi manda report ed estratti conto giornalieri, settimanali o mensili direttamente via email.
+- **Alert di budget:** ti avvisa in tempo reale se sfori la soglia impostata su una categoria.
+- **Il "Chi l'ha visto?" delle scadenze:** tiene traccia e avvisa per qualsiasi scadenza immaginabile (documenti, patenti, bollette, revisioni).
+- **Architettura locale:** i dati restano sul vostro PC, con tanto di webserver integrato e accesso biometrico da qualsiasi device.
+- **AI integrata:** analizza le bollette, calcola i costi medi, prevede le spese future e fa un'analisi finanziaria completa (e questi sono gli unici dati che escono, e solo se volete).
+
+### La grande svolta sulla licenza (e basta con le mazzette)
+Visto il tempo investito, all'inizio avevo pensato a un bel canone in abbonamento.
+Poi ho capito che mi dà molta più soddisfazione parlare con le persone, cercare di risolvere i loro problemi e leggere i vostri feedback.
+Risultato? Nessun abbonamento commerciale.
+Ho sempre pensato di tenerlo gratuito, perché tanti «sciagurati» come me potessero iniziare a gestire la propria casa, e tutto quello che le ruota intorno, con semplicità.
+
+Il codice licenza c'è ancora, ma viene concesso completamente gratis.
+Ho lasciato tutta la logica per un motivo preciso: tenere traccia di quello che mi chiedete, per potervi ricontattare all'occorrenza.
+Visto che per la privacy non conservo né i nomi né i dati, l'unico riferimento è l'ID assegnato a ogni installazione: con quello posso scrivere un log e seguire le richieste di ciascuno.
+
+Poi c'è l'altro motivo: invogliare le persone a usarla davvero, senza lasciarla scadere.
+Per questo il sistema assegna dei livelli di utilizzo: chi la usa con costanza viene premiato con l'allungamento automatico della licenza di mese in mese, senza scadenze traumatiche o la rottura di dover fare continue richieste.
+Più la usi per metterti in riga, più lei ti regala serenità.
+
+### Per chi è?
+L'idea originaria era nata per aiutare un gruppo di disgraziati della finanza domestica (tipo il sottoscritto).
+Poi, tra richieste folli arrivate su Reddit, idee rubate su Facebook e ore passate a studiare podcast e pagine di settore, l'ho resa una suite il cui motto è:
+
+> «Per tanti, ma non per tutti.»
+
+Se cercate una gestione veramente meticolosa delle finanze e di tutto ciò che orbita intorno alla vostra casa (da qui il nome, OrbitaCasa), fateci un giro.
+
+### Grazie
+Devo ringraziare tutti quelli che sono stati presenti in questo percorso.
+Prima di tutti Vittorio, che mi ha sempre dato una spinta morale per andare avanti.
+Poi i mod, le pagine di finanza su Reddit, chi ha contribuito con le proprie idee (compresi chi lavora in U.C. e I.S.P.) e le pagine Facebook da cui ho preso spunto, come «Maleducati Finanziari» e «La Budgettista».
+E voi che leggete e ascoltate sempre con ironia.
+
+Per qualsiasi richiesta resto a disposizione via email.
+Grazie e buon divertimento!
+
+*— Renato*
+
+</details>
+
+---
+
+## 🌐 SCOPRI DI PIÙ [![Sito Web](https://img.shields.io/badge/SITO_UFFICIALE-VISITA-4f46e5?style=flat-square&logo=google-chrome&logoColor=white)](https://renato-4132.github.io/OrbitaCasa/) [![FaceBook](https://img.shields.io/badge/FaceBook-4f46e5?style=flat-square&logo=google-chrome&logoColor=white)](https://www.facebook.com/orbitahome/)
