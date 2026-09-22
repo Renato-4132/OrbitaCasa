@@ -1487,6 +1487,19 @@ class GestioneSpese(tk.Tk):
         self.btn_importa_popup.pack(side="left", padx=6)
         self.btn_importa_popup.bind("<ButtonRelease-1>", lambda e: self.apri_finestra_importa())
         add_tt(self.btn_importa_popup, "Importa dati tramite IA")
+        self.btn_chiedi_ia_popup = ttk.Label(
+            data_frame,
+            text="Chiedi IA",
+            image=self.icone_gui.get("ia") or self.icone_gui.get("report"),
+            compound="left",
+            cursor="hand2",
+            font=("Arial", 9, "bold"),
+            background=self.COLOR_WIDGET_BG,
+            foreground=self.COLOR_HIGHLIGHT
+        )
+        self.btn_chiedi_ia_popup.pack(side="left", padx=6)
+        self.btn_chiedi_ia_popup.bind("<ButtonRelease-1>", lambda e: self.chiedi_ia_database())
+        add_tt(self.btn_chiedi_ia_popup, "Chiedi al Database con l'IA (Ctrl+H)")
         row += 1
         self.label_categoria_form = ttk.Label(
             form_frame, 
@@ -2646,9 +2659,10 @@ class GestioneSpese(tk.Tk):
             self.backup_documenti()
             self.backup_documenti_personali()
             try:
-                if hasattr(self, "server") and self.server:
-                    self.server.shutdown()
-                    self.server.server_close()
+                srv = getattr(self, "server", None)
+                if srv:
+                    srv.shutdown()
+                    srv.server_close()
                     print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Web server chiuso.")
                 else:
                     print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Nessun web server attivo.")
@@ -5581,7 +5595,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "abc3d0482f54155633722770431fb89f58a91524aa19f4f18af08e159e74eac5"
+        E_H_B = "0b3545d49f7ab8dda7b98ec81d29413b6a317800845ef01aa46a22b0b74bb342"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
