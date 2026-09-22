@@ -188,6 +188,8 @@ def contrai_sidebar_manuale(self):
         (self.btn_mese, " Mese"),
         (self.btn_anno, " Anno"),
         (self.btn_totali, " Totali"),
+        (self.btn_importa_popup, "Import IA"),
+        (self.btn_chiedi_ia_popup, "Chiedi IA"),
     ]:
         btn.configure(text=testo)
     self._ricerca_globale_var.set("")
@@ -450,7 +452,7 @@ def espandi_sidebar(self):
     if hasattr(self, '_search_var'):
         self._search_var.set("")
     self.after(100, lambda: self._search_entry.focus_set() if hasattr(self, '_search_entry') else None)
-    for btn, testo in [(self.btn_oggi_stats, " Oggi"), (self.btn_giorno, " Giorno"), (self.btn_mese, " Mese"), (self.btn_anno, " Anno"), (self.btn_totali, " Totali")]:
+    for btn, testo in [(self.btn_oggi_stats, " Oggi"), (self.btn_giorno, " Giorno"), (self.btn_mese, " Mese"), (self.btn_anno, " Anno"), (self.btn_totali, " Totali"), (self.btn_importa_popup, "Import IA"), (self.btn_chiedi_ia_popup, "Chiedi IA")]:
         btn.configure(text="")
             
 def _add_m_item(self, target, label, icon_key, command, acc=""): 
