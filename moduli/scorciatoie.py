@@ -4,6 +4,7 @@
 import tkinter as tk
 
 SCORCIATOIE = [
+    ("<Control-h>",       "Ctrl+H",       "chiedi_ia_database",       "Chiedi IA"),
     ("<Control-u>",       "Ctrl+U",       "utenze",                   "Utenze"),
     ("<Control-r>",       "Ctrl+R",       "rubrica_app",              "Rubrica"),
     ("<Control-y>",       "Ctrl+Y",       "gestisci_promemoria",      "Promemoria"),

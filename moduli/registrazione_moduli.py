@@ -313,6 +313,9 @@ def registra_tutti_i_moduli(GestioneSpese):
     from moduli.analizza_andamento_ia import analizza_andamento_ia
     _registra(analizza_andamento_ia)
     
+    from moduli.chiedi_ia import chiedi_ia_database
+    _registra(chiedi_ia_database)
+    
     from moduli.mostra_spese_simili import mostra_spese_simili
     _registra(mostra_spese_simili)
     

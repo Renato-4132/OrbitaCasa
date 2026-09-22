@@ -348,6 +348,7 @@ def carica_costanti(path_locale):
         ("github", ("1f419", "🐙")),
         ("python", ("1f40d", "🐍")),
         ("docker", ("1f433", "🐳")),
+        ("sparkles", ("2728", "✨")),
     ]
 
     return g

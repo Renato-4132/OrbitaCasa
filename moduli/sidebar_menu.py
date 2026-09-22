@@ -301,6 +301,7 @@ def pop_finanze(self):
     self._add_m_item(m, "Estratti per Metodo e Conti", "ccv", self.apri_estratti_metodo, "")
     self._add_m_item(m, "Analisi Andamento Bilancio OpenAI", "report", self.analizza_andamento_ia)
     self._add_m_item(m, "Analisi e Confronto Documenti OpenAI", "report", self.confronta_bollette_ia)
+    self._add_m_item(m, "Chiedi al Database (Gemini AI)", "sparkles", self.chiedi_ia_database)
     self._mostra_popup(m, 140)
     
 def pop_ricorrenze(self): 
@@ -394,14 +395,6 @@ def _mostra_popup(self, menu, y_offset):
         try: self.menu_aperto.unpost() 
         except: pass 
     self.menu_aperto = menu 
-    # Il click che apre il menu puo' generare PIU' di un evento globale
-    # (es. <Button-1> e, se sposta il focus da un altro widget come la
-    # casella di ricerca, anche <FocusIn>). Un flag "usa e getta" viene
-    # consumato dal primo evento e lascia passare il secondo, chiudendo
-    # subito il menu appena aperto. Usiamo invece una piccola finestra
-    # temporale: qualsiasi evento di chiusura entro questo intervallo
-    # dallo stesso click di apertura viene ignorato, indipendentemente
-    # da quanti eventi genera.
     self._menu_opened_at = time.monotonic()
     x = self.sidebar.winfo_rootx() + self.sidebar.winfo_width() 
     y = self.sidebar.winfo_rooty() + y_offset 
@@ -524,6 +517,7 @@ def _filtra_sidebar(self, *_):
         ("Estratti per Metodo e Conti",           self.apri_estratti_metodo),
         ("Analisi Andamento OpenAI",              self.analizza_andamento_ia),
         ("Confronto Bollette OpenAI",             self.confronta_bollette_ia),
+        ("Chiedi al Database (Gemini AI)",        self.chiedi_ia_database),
         ("Gestione Ricorrenze",                   self.mostra_ricorrenza_popup),
         ("Lista Ricorrenze",                      self.mostra_lista_ricorrenze),
         ("Scadenze Mese",                         self.scadenze_mese),
