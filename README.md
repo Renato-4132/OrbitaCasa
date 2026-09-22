@@ -93,52 +93,53 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 22. **Proiezioni Finanziarie** — Rendite, spese e patrimonio nel futuro
 23. **Stampa Report** — Documentazione professionale pronta all'uso
 24. **Analisi Finanziaria OpenAI** — Analisi intelligente dell'andamento complessivo
-25. **Calcolo Inflazione** — Tasso reale calcolato sullo storico personale
-26. **Invio Estratti Mail** — Distribuzione automatica dei report
+25. **Chiedi al Database con l'IA** — Domande in linguaggio naturale su spese, conti, veicoli, immobili e tutti i moduli
+26. **Calcolo Inflazione** — Tasso reale calcolato sullo storico personale
+27. **Invio Estratti Mail** — Distribuzione automatica dei report
 
 ---
 
 ## 🟡 Strumenti avanzati
 
-27. **Gestione Immobili** — Entrate/uscite per immobile, estratto conto, riepilogo
-28. **Gestione Veicoli** — Scadenze bollo/assicurazione/revisione, consumi, costo al km, spese per veicolo
-29. **Gestione MyBusiness** — Agenda, preventivi, fatturazione, magazzino
-30. **Gestione Associativa e Multiconto** — Associazione tra entità contabili e conti bancari
-31. **Ammortamento Mutui** — Rate, interessi reali, piani di ammortamento completi
-32. **Algoritmo FairShare** — Ripartizione equa spese tra più persone
-33. **Conti Personali FairShare** — Conto individuale per tracciare spese nel gruppo
-34. **Mercati Finanziari** — Monitoraggio real-time indici e asset globali
-35. **Monitor Utenze** — Consumi di luce, gas e acqua sotto controllo
-36. **Manutenzione e Risparmio Casa** — Calendario manutenzioni periodiche per impianti ed elettrodomestici
-37. **Confronto Prezzi** — Ottimizza la spesa alimentare nel tempo
-38. **Analizzatore Semantico IA** — Analisi intelligente e confronto multi-documento
-39. **Webserver Remoto** — Consulta i dati da smartphone anche in remoto
-40. **Sistema di Backup Evoluto (PRG)** — Snapshot, backup incrementali e rollback integrato
-41. **Fondo Pensione** — Piano, versamenti per tipologia, valorizzazioni e riscatti/anticipazioni.
-42. **Portafoglio Bancario Multi-Conto** — Riepilogo di tutti i conti con distribuzione per categoria.
-43. **Trasferimenti tra Conti** — Pianifica trasferimenti singoli o in serie ricorrenti tra conti.
-44. **Notifiche Email Pianificate** — Report multipli programmabili con frequenza personalizzata.
+28. **Gestione Immobili** — Entrate/uscite per immobile, estratto conto, riepilogo
+29. **Gestione Veicoli** — Scadenze bollo/assicurazione/revisione, consumi, costo al km, spese per veicolo
+30. **Gestione MyBusiness** — Agenda, preventivi, fatturazione, magazzino
+31. **Gestione Associativa e Multiconto** — Associazione tra entità contabili e conti bancari
+32. **Ammortamento Mutui** — Rate, interessi reali, piani di ammortamento completi
+33. **Algoritmo FairShare** — Ripartizione equa spese tra più persone
+34. **Conti Personali FairShare** — Conto individuale per tracciare spese nel gruppo
+35. **Mercati Finanziari** — Monitoraggio real-time indici e asset globali
+36. **Monitor Utenze** — Consumi di luce, gas e acqua sotto controllo
+37. **Manutenzione e Risparmio Casa** — Calendario manutenzioni periodiche per impianti ed elettrodomestici
+38. **Confronto Prezzi** — Ottimizza la spesa alimentare nel tempo
+39. **Analizzatore Semantico IA** — Analisi intelligente e confronto multi-documento
+40. **Webserver Remoto** — Consulta i dati da smartphone anche in remoto
+41. **Sistema di Backup Evoluto (PRG)** — Snapshot, backup incrementali e rollback integrato
+42. **Fondo Pensione** — Piano, versamenti per tipologia, valorizzazioni e riscatti/anticipazioni.
+43. **Portafoglio Bancario Multi-Conto** — Riepilogo di tutti i conti con distribuzione per categoria.
+44. **Trasferimenti tra Conti** — Pianifica trasferimenti singoli o in serie ricorrenti tra conti.
+45. **Notifiche Email Pianificate** — Report multipli programmabili con frequenza personalizzata.
 
 ---
 
 ## ⚫ Specialistiche e comfort
 
-45. **Archivio Documenti Personali** — Documenti sempre a portata di mano
-46. **Modulo Dieta** — Pasti, macronutrienti, peso e grafico BMI
-47. **Modulo Petcare** — Anagrafica animali, vaccinazioni e scadenze veterinarie, promemoria cura e peso sotto controllo
-48. **Rubrica Vcard/Android** — Esporta/importa contatti dallo smartphone
-49. **Retention Automatica** — Rimuove automaticamente i dati più vecchi
-50. **Tasti Shortcut Personali** — Funzioni rapide con combinazioni di tasti
-51. **Temi Personalizzabili** — Interfaccia adattata al proprio stile
-52. **Smart Info Point** — Popup rapido sui movimenti al passaggio del mouse
-53. **Carosello Grafici** — Tour automatico degli andamenti all'avvio
-54. **Auto-Iconizza** — Riduzione a icona per inattività
-55. **Notifiche Auto-chiudenti** — Avvisi che scompaiono dopo tempo prestabilito
-56. **Aggiornamento Librerie Python** — Manutenzione automatica delle dipendenze
-57. **Licenza a Punti (Gamification)** — Usa l'app, sali di livello, allunghi la licenza gratuita
-58. **Streak & Livelli** — Da Novizio a Leggenda (e oltre): mantieni la costanza giorno dopo giorno e scala i livelli a vita
-59. **Badge Mese & Anno** — Oltre al livello a vita, guadagni riconoscimenti dedicati al mese e all'anno in corso
-60. **Gestione Multi-Profilo** — Ogni utente ha il proprio database, movimenti, categorie e credenziali.
+46. **Archivio Documenti Personali** — Documenti sempre a portata di mano
+47. **Modulo Dieta** — Pasti, macronutrienti, peso e grafico BMI
+48. **Modulo Petcare** — Anagrafica animali, vaccinazioni e scadenze veterinarie, promemoria cura e peso sotto controllo
+49. **Rubrica Vcard/Android** — Esporta/importa contatti dallo smartphone
+50. **Retention Automatica** — Rimuove automaticamente i dati più vecchi
+51. **Tasti Shortcut Personali** — Funzioni rapide con combinazioni di tasti
+52. **Temi Personalizzabili** — Interfaccia adattata al proprio stile
+53. **Smart Info Point** — Popup rapido sui movimenti al passaggio del mouse
+54. **Carosello Grafici** — Tour automatico degli andamenti all'avvio
+55. **Auto-Iconizza** — Riduzione a icona per inattività
+56. **Notifiche Auto-chiudenti** — Avvisi che scompaiono dopo tempo prestabilito
+57. **Aggiornamento Librerie Python** — Manutenzione automatica delle dipendenze
+58. **Licenza a Punti (Gamification)** — Usa l'app, sali di livello, allunghi la licenza gratuita
+59. **Streak & Livelli** — Da Novizio a Leggenda (e oltre): mantieni la costanza giorno dopo giorno e scala i livelli a vita
+60. **Badge Mese & Anno** — Oltre al livello a vita, guadagni riconoscimenti dedicati al mese e all'anno in corso
+61. **Gestione Multi-Profilo** — Ogni utente ha il proprio database, movimenti, categorie e credenziali.
 
 </details>
 
