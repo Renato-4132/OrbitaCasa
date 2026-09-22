@@ -18,6 +18,10 @@ from moduli.spinner_animato import crea_spinner_animato
 
 def apri_dieta(self):
 
+    if hasattr(self, '_dieta_popup') and self._dieta_popup and self._dieta_popup.winfo_exists():
+        self._dieta_popup.lift()
+        return
+
     import __main__ as _app
     DB_DIR         = _app.DB_DIR
     EXPORT_FILES   = _app.EXPORT_FILES
@@ -91,6 +95,8 @@ def apri_dieta(self):
       ]},
     ]
 
+    def _fmt_it(v):
+        return f"{v:,}".replace(",", ".")
     def carica_alimenti_da_github():
         try:
             response = requests.get(ALIMENTI, timeout=10)
@@ -413,9 +419,6 @@ def apri_dieta(self):
         cs.geometry(f"{w2}x{h2}+{x2}+{y2}")
         cs.grab_set()
         cs.focus_force()
-    if hasattr(self, '_dieta_popup') and self._dieta_popup and self._dieta_popup.winfo_exists():
-        self._dieta_popup.lift()
-        return
     def _carica_piano():
         try:
             if os.path.exists(DIETA_FILE):
@@ -430,23 +433,32 @@ def apri_dieta(self):
         piano = [{"titolo": s["titolo"], "giorni": [list(g) for g in s["giorni"]]}
                  for s in DIETA_DEFAULT]
         return piano, {}
+    _modificato = False
     def _salva_piano():
+        nonlocal _modificato
         try:
             os.makedirs(DB_DIR, exist_ok=True)
             with open(DIETA_FILE, 'w', encoding='utf-8') as f:
                 json.dump({"piano": piano_dati, "composizioni": composizioni},
                           f, indent=2, ensure_ascii=False)
+            _modificato = False
             self.show_toast("Piano dieta salvato.")
         except Exception as e:
             self.show_custom_warning("Errore", f"Salvataggio fallito:\n{e}")
+    def _puo_procedere_con_modifiche():
+        if not _modificato:
+            return True
+        return self.show_custom_askyesno("Modifiche non salvate",
+            "Il piano dieta ha modifiche non salvate che andranno perse.\nContinuare comunque?")
     def _ripristina_default():
-        nonlocal piano_dati, composizioni
+        nonlocal piano_dati, composizioni, _modificato
         if not self.show_custom_askyesno("Ripristina",
                 "Ripristinare il piano predefinito?\nLe modifiche andranno perse."):
             return
         piano_dati = [{"titolo": s["titolo"], "giorni": [list(g) for g in s["giorni"]]}
                       for s in DIETA_DEFAULT]
         composizioni = {}
+        _modificato = True
         _ricarica_settimane()
         self.show_toast("Piano ripristinato.")
     def _genera_pdf(dest=None):
@@ -515,6 +527,9 @@ def apri_dieta(self):
                         bmi_cat = "Obesità III — Rischio molto elevato, consulta subito il medico"
                     bmi_txt = f"{bmi_val} — {bmi_cat}"
             except: pass
+            info_fisico = (f"Peso Attuale: {ultimo_peso} kg ({data_peso})  |  "
+                           f"Altezza: {altezza} cm  |  Obiettivo: {obiettivo} kg  |  "
+                           f"BMI: {bmi_txt}")
             for si, sett in enumerate(piano_dati):
                     page = doc.new_page(width=PAGE_W, height=PAGE_H)
                     cy = MT
@@ -524,11 +539,7 @@ def apri_dieta(self):
                     cy += 10
                     page.draw_line(fitz.Point(ML, cy), fitz.Point(PAGE_W - MR, cy), color=GREEN, width=1.0)
                     cy += 12
-                    if si == 0:
-                        _dr(page, ML, cy, tw, 25, fill=GREEN_LITE, stroke=GRAY, lw=0.3)
-                        info_fisico = (f"Peso Attuale: {ultimo_peso} kg ({data_peso})  |  "
-                        f"Altezza: {altezza} cm  |  Obiettivo: {obiettivo} kg  |  "
-                        f"BMI: {bmi_txt}")
+                    _dr(page, ML, cy, tw, 25, fill=GREEN_LITE, stroke=GRAY, lw=0.3)
                     _tx(page, info_fisico, ML + 10, cy + 16, fs=8.5, col=BLACK, bold=True)
                     cy += 35
                     _dr(page, ML, cy, tw, 18, fill=GREEN2)
@@ -767,10 +778,10 @@ def apri_dieta(self):
                                if 0 <= (oggi_d - datetime.datetime.strptime(ds, "%d-%m-%Y").date()).days < 30]
                     riepilogo = (
                         f"Giorni registrati: {len(vals_p)}   |   "
-                        f"Record: {max(vals_p):,} passi   |   "
-                        f"Media (30gg): {round(sum(media30)/len(media30)):,}" if media30 else
+                        f"Record: {_fmt_it(max(vals_p))} passi   |   "
+                        f"Media (30gg): {_fmt_it(round(sum(media30)/len(media30)))}" if media30 else
                         f"Giorni registrati: {len(vals_p)}   |   "
-                        f"Record: {max(vals_p):,} passi"
+                        f"Record: {_fmt_it(max(vals_p))} passi"
                     )
                     riepilogo += f"   |   Giorni obiettivo raggiunto: {giorni_ok}/{len(vals_p)}"
                     _dr(page, ML, cy, PAGE_W - ML - MR, 22, fill=BLUE_LITE, stroke=GRAY, lw=0.3)
@@ -813,7 +824,7 @@ def apri_dieta(self):
                         fill   = BLUE_LITE if i % 2 == 0 else WHITE
                         _dr(page, ML, cy, tw_ped, RH_PED, fill=fill, stroke=(0.75, 0.88, 0.95))
                         xc = ML
-                        vals_ped = [data_str, f"{p_val:,}", f"{ob_val:,}", f"{pct}%", esito, rec.get("note","")]
+                        vals_ped = [data_str, _fmt_it(p_val), _fmt_it(ob_val), f"{pct}%", esito, rec.get("note","")]
                         for vi, (val, w3) in enumerate(zip(vals_ped, CW_PED)):
                             col_t = col_e if vi == 4 else BLACK
                             _tx(page, val, xc + 2, cy + 11, fs=7.5,
@@ -824,9 +835,9 @@ def apri_dieta(self):
                     cy += 8
                     _dr(page, ML, cy, tw_ped, 20, fill=BLUE_LITE, stroke=BLUE2, lw=0.5)
                     stats_ped = (
-                        f"Totale passi: {sum(vals_p):,}   |   "
-                        f"Media giornaliera: {round(sum(vals_p)/len(vals_p)):,}   |   "
-                        f"Record: {max(vals_p):,}   |   "
+                        f"Totale passi: {_fmt_it(sum(vals_p))}   |   "
+                        f"Media giornaliera: {_fmt_it(round(sum(vals_p)/len(vals_p)))}   |   "
+                        f"Record: {_fmt_it(max(vals_p))}   |   "
                         f"Giorni obiettivo: {giorni_ok}/{len(vals_p)}"
                     )
                     _tx(page, stats_ped, ML + 8, cy + 14, fs=8, col=BLUE, bold=True)
@@ -1121,9 +1132,10 @@ def apri_dieta(self):
             if not sel: return
             nome_sel = tr_ali.item(sel[0], "values")[0]
             try:
-                g = float(gr_v.get())
+                g = float(gr_v.get().strip().replace(",", "."))
                 if g <= 0: raise ValueError
             except ValueError:
+                self.show_custom_warning("Errore", "Inserisci un valore di grammi valido.")
                 return
             row_db = _ali_map.get(nome_sel)
             if not row_db: return
@@ -1139,11 +1151,13 @@ def apri_dieta(self):
                 items.pop(idx)
                 _aggiorna_tree_cp()
         def _salva_e_chiudi():
+            nonlocal _modificato
             composizioni[chiave] = [list(x) for x in items]
             riga = piano_dati[s_idx]["giorni"][g_idx]
             if items:
                 nomi = ", ".join(it[0] for it in items)
                 riga[{"colazione":1,"pranzo":2,"cena":3,"spuntino":4}[pasto_key]] = nomi
+            _modificato = True
             _ricalcola_totali_riga(s_idx, g_idx)
             _popola_tree(trees[s_idx], s_idx)
             cp.destroy()
@@ -1228,6 +1242,7 @@ def apri_dieta(self):
         cb_giorno.pack(padx=16, pady=(2, 6))
         sett_v.trace_add("write", _aggiorna_giorni)
         def _esegui():
+            nonlocal _modificato
             s_idx_dst = sett_nomi.index(sett_v.get())
             g_idx_dst = [r[0] for r in piano_dati[s_idx_dst]["giorni"]].index(giorno_v.get())
             if s_idx_src == s_idx_dst and g_idx_src == g_idx_dst:
@@ -1244,6 +1259,7 @@ def apri_dieta(self):
                     composizioni[chiave_dst] = [list(x) for x in composizioni[chiave_src]]
                 else:
                     composizioni.pop(chiave_dst, None)
+            _modificato = True
             _popola_tree(trees[s_idx_dst], s_idx_dst)
             cp.destroy()
             self.show_toast(
@@ -1271,6 +1287,7 @@ def apri_dieta(self):
         cp.grab_set()
         cp.focus_force()
     def _azzera_giorno(s_idx, g_idx):
+            nonlocal _modificato
             riga = piano_dati[s_idx]["giorni"][g_idx]
             nome = riga[0]
             if not self.show_custom_askyesno("Azzera", f"Azzerare tutti i pasti di {nome}?"):
@@ -1281,6 +1298,7 @@ def apri_dieta(self):
                  riga[i] = 0
             for pk in ("colazione", "pranzo", "cena", "spuntino"):
                 composizioni.pop(f"{s_idx}_{g_idx}_{pk}", None)
+            _modificato = True
             _popola_tree(trees[s_idx], s_idx)
     def _on_right_click(event, s_idx):
         tree = trees[s_idx]
@@ -1312,10 +1330,13 @@ def apri_dieta(self):
     popup.resizable(True, True)
     popup.withdraw()
     popup.transient(self)
-    popup.protocol("WM_DELETE_WINDOW",
-                   lambda: [popup.destroy(), setattr(self, '_dieta_popup', None)])
-    popup.bind("<Escape>",
-               lambda e: [popup.destroy(), setattr(self, '_dieta_popup', None)])
+    def _chiudi_popup():
+        if not _puo_procedere_con_modifiche():
+            return
+        popup.destroy()
+        setattr(self, '_dieta_popup', None)
+    popup.protocol("WM_DELETE_WINDOW", _chiudi_popup)
+    popup.bind("<Escape>", lambda e: _chiudi_popup())
     nb = ttk.Notebook(popup)
     nb.pack(fill="both", expand=True, padx=10, pady=(10,0))
     def _add_tab(frame, ico_key, testo):
@@ -1863,7 +1884,7 @@ def apri_dieta(self):
         ped_passi_var.set("")
         ped_note_var.set("")
         _ped_aggiorna_tutto()
-        self.show_toast(f" {passi:,} passi salvati per il {data_str}.")
+        self.show_toast(f" {_fmt_it(passi)} passi salvati per il {data_str}.")
     def _ped_elimina_voce():
         sel = ped_tree.selection()
         if not sel: return
@@ -1993,7 +2014,7 @@ def apri_dieta(self):
             p_oggi = int(oggi_rec.get("passi", 0))
             ob_oggi = int(oggi_rec.get("obiettivo", 10000))
             pct_oggi = round(p_oggi / ob_oggi * 100) if ob_oggi > 0 else 0
-            ped_stat_labels["oggi"].config(text=f"{p_oggi:,}",
+            ped_stat_labels["oggi"].config(text=_fmt_it(p_oggi),
                 fg="#98C379" if p_oggi >= ob_oggi else self.COLOR_ORANGE)
             ped_stat_labels["ob_pct"].config(text=f"{pct_oggi}%",
                 fg="#98C379" if pct_oggi >= 100 else self.COLOR_ORANGE)
@@ -2004,17 +2025,17 @@ def apri_dieta(self):
                  for ds, r in passi_db.items()]
         if tutti:
             vals = [t[1] for t in tutti]
-            ped_stat_labels["record"].config(text=f"{max(vals):,}")
+            ped_stat_labels["record"].config(text=_fmt_it(max(vals)))
             oggi_d = datetime.date.today()
             ultimi7  = [t[1] for t in tutti
                         if 0 <= (oggi_d - datetime.datetime.strptime(t[0],"%d-%m-%Y").date()).days < 7]
             ultimi30 = [t[1] for t in tutti
                         if 0 <= (oggi_d - datetime.datetime.strptime(t[0],"%d-%m-%Y").date()).days < 30]
             ped_stat_labels["media7"].config(
-                text=f"{round(sum(ultimi7)/len(ultimi7)):,}" if ultimi7 else "—")
+                text=_fmt_it(round(sum(ultimi7)/len(ultimi7))) if ultimi7 else "—")
             ped_stat_labels["media30"].config(
-                text=f"{round(sum(ultimi30)/len(ultimi30)):,}" if ultimi30 else "—")
-            ped_stat_labels["tot_mese"].config(text=f"{sum(r[1] for r in righe):,}")
+                text=_fmt_it(round(sum(ultimi30)/len(ultimi30))) if ultimi30 else "—")
+            ped_stat_labels["tot_mese"].config(text=_fmt_it(sum(r[1] for r in righe)))
             giorni_ok = sum(1 for t in tutti if t[1] >= t[2])
             ped_stat_labels["giorni_ok"].config(text=f"{giorni_ok} / {len(tutti)}")
         else:
@@ -2091,7 +2112,7 @@ def apri_dieta(self):
             data_str, p, ob, pct, note, _ = r
             tag = "ok" if p >= ob else ("warn" if pct < 50 else ("alt" if i % 2 == 0 else "norm"))
             ped_tree.insert("", "end",
-                            values=(data_str, f"{p:,}", f"{ob:,}", f"{pct}%", note),
+                            values=(data_str, _fmt_it(p), _fmt_it(ob), f"{pct}%", note),
                             tags=(tag,))
         _ped_aggiorna_stats(righe)
         ped_canvas.after(50, lambda: _ped_disegna_grafico(righe))
@@ -2111,7 +2132,7 @@ def apri_dieta(self):
             ped_obiettivo_var.set(str(rec.get("obiettivo", _ped_ob_default)))
             ped_note_var.set(rec.get("note", ""))
     ped_tree.bind("<<TreeviewSelect>>", _ped_on_select)
-    ped_canvas.bind("<Configure>", lambda e: _ped_aggiorna_tutto())
+    ped_canvas.bind("<Configure>", lambda e: _ped_disegna_grafico(_ped_righe_filtrate()))
     popup.after(120, _ped_aggiorna_tutto)
     
     # Gestione utenti
@@ -2148,6 +2169,9 @@ def apri_dieta(self):
     def _carica_profilo_utente(nome):
         nonlocal _utente_corrente
         if nome == _utente_corrente:
+            return
+        if not _puo_procedere_con_modifiche():
+            utente_var.set(_utente_corrente)
             return
         risposta = self.show_custom_askyesno(
             "Cambia utente",
@@ -2230,6 +2254,8 @@ def apri_dieta(self):
         if nome == "Generico":
             self.show_custom_warning("Attenzione", "Non puoi eliminare il profilo Generico.")
             return
+        if nome == _utente_corrente and not _puo_procedere_con_modifiche():
+            return
         if not self.show_custom_askyesno(
                 "Elimina utente",
                 f"Eliminare il profilo «{nome}» e tutti i suoi dati?\nOperazione irreversibile."):
@@ -2265,23 +2291,39 @@ def apri_dieta(self):
         if nome == "Generico":
             self.show_custom_warning("Attenzione", "Seleziona prima un utente diverso da Generico.")
             return
+        ricarica = (nome == _utente_corrente)
+        if ricarica and not _puo_procedere_con_modifiche():
+            return
         if not self.show_custom_askyesno(
                 "Copia da Generico",
                 f"Copiare tutti i dati del Generico nel profilo «{nome}»?\nI dati esistenti verranno sovrascritti."):
             return
         _copia_profilo("Generico", nome)
-        self.show_toast(f"Dati Generico copiati in «{nome}».")
+        if ricarica:
+            popup.destroy()
+            setattr(self, '_dieta_popup', None)
+            self.after(100, self.apri_dieta)
+        else:
+            self.show_toast(f"Dati Generico copiati in «{nome}».")
     def _copia_a_generico():
         nome = utente_var.get()
         if nome == "Generico":
             self.show_custom_warning("Attenzione", "Seleziona prima un utente diverso da Generico.")
+            return
+        ricarica = (_utente_corrente == "Generico")
+        if ricarica and not _puo_procedere_con_modifiche():
             return
         if not self.show_custom_askyesno(
                 "Copia verso Generico",
                 f"Copiare i dati di «{nome}» nel profilo Generico?\nI dati Generico verranno sovrascritti."):
             return
         _copia_profilo(nome, "Generico")
-        self.show_toast(f"Dati «{nome}» copiati nel profilo Generico.")
+        if ricarica:
+            popup.destroy()
+            setattr(self, '_dieta_popup', None)
+            self.after(100, self.apri_dieta)
+        else:
+            self.show_toast(f"Dati «{nome}» copiati nel profilo Generico.")
     def _aggiorna_lista_utenti():
         nomi = _get_utenti()
         cb_utenti["values"] = nomi
@@ -2437,8 +2479,7 @@ def apri_dieta(self):
         font=("Arial", 9, "bold"), padx=10, pady=5)
     if img_c2: btn_close.image = img_c2
     btn_close.pack(side="right", padx=5)
-    btn_close.bind("<Button-1>",
-        lambda e: [popup.destroy(), setattr(self, '_dieta_popup', None)])
+    btn_close.bind("<Button-1>", lambda e: _chiudi_popup())
     popup.update_idletasks()
     popup.configure(bg=self.COLOR_WIDGET_BG)
     w, h = 1360, 630
