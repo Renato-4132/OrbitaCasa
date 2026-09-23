@@ -931,6 +931,10 @@ def aggiorna_librerie_pip(self):
                              bg=self.COLOR_BACKGROUND, fg="gray60",
                              font=("Segoe UI", 8, "italic"))
     lbl_check_ver.pack(side=tk.RIGHT)
+    btn_refresh_ver = tk.Label(frame_top, image=self.icone_gui.get("reset"),
+                               text="" if self.icone_gui.get("reset") else "🔄",
+                               bg=self.COLOR_BACKGROUND, cursor="hand2")
+    btn_refresh_ver.pack(side=tk.RIGHT, padx=(0, 10))
     frame_pyver = tk.Frame(body, bg=self.COLOR_BACKGROUND)
     frame_pyver.pack(anchor="w", pady=(0, 8))
     tk.Label(frame_pyver, text=f"Interprete: Python {sys.version.split()[0]}  —  {sys.executable}",
@@ -1056,6 +1060,24 @@ def aggiorna_librerie_pip(self):
                     lib_da_aggiornare[pkg] = True
             self.after(0, _aggiorna_lbl)
         self.after(0, lambda: lbl_check_ver.config(text="✓ Versioni verificate") if popup.winfo_exists() else None)
+    def _refresh_versioni(e=None):
+        if getattr(btn_refresh_ver, "_in_corso", False):
+            return
+        btn_refresh_ver._in_corso = True
+        btn_refresh_ver.config(cursor="X_cursor")
+        _imposta_silenzioso(var_tutti, False)
+        _imposta_silenzioso(var_solo_agg, False)
+        for pkg, v in vars_lib:
+            v.set(False)
+        lib_da_aggiornare.clear()
+        for pkg, (lbl_inst, lbl_disp, ver_inst) in righe_ver.items():
+            lbl_disp.config(text="...", fg="gray60")
+        lbl_check_ver.config(text="🔄 Verifica versioni PyPI...", fg="gray60")
+        def _fine():
+            btn_refresh_ver._in_corso = False
+            btn_refresh_ver.config(cursor="hand2")
+        threading.Thread(target=lambda: (_carica_versioni_disponibili(), self.after(0, _fine)), daemon=True).start()
+    btn_refresh_ver.bind("<Button-1>", _refresh_versioni)
     threading.Thread(target=_carica_versioni_disponibili, daemon=True).start()
     tk.Label(body, text="Output:", bg=self.COLOR_BACKGROUND,
              fg=self.TEXT_COLOR, font=("Segoe UI", 8)).pack(anchor="w", pady=(10, 2))
@@ -1247,6 +1269,10 @@ def verifica_moduli_git(self):
                                bg=self.COLOR_BACKGROUND, fg="gray60",
                                font=("Segoe UI", 8, "italic"))
     lbl_check_stato.pack(side=tk.RIGHT)
+    btn_refresh_lista = tk.Label(frame_top, image=self.icone_gui.get("reset"),
+                                 text="" if self.icone_gui.get("reset") else "🔄",
+                                 bg=self.COLOR_BACKGROUND, cursor="hand2")
+    btn_refresh_lista.pack(side=tk.RIGHT, padx=(0, 10))
     frame_lista = tk.Frame(body, bg=self.COLOR_WIDGET_BG,
                            highlightbackground=self.COLOR_HEADER_BG, highlightthickness=1)
     frame_lista.pack(fill=tk.BOTH, expand=True)
@@ -1443,6 +1469,34 @@ def verifica_moduli_git(self):
             lbl_check_stato.config(text="✓ Elenco verificato")
             _log(f"Verifica completata: {len(elenco_ord)} moduli controllati, {diversi} da aggiornare.")
         self.after(0, _popola)
+    def _refresh_lista(e=None):
+        if getattr(btn_refresh_lista, "_in_corso", False):
+            return
+        btn_refresh_lista._in_corso = True
+        btn_refresh_lista.config(cursor="X_cursor")
+        _imposta_silenzioso(var_tutti, False)
+        _imposta_silenzioso(var_solo_agg, False)
+        vars_moduli.clear()
+        righe_stato.clear()
+        moduli_da_aggiornare.clear()
+        elenco_remoto_cache.clear()
+        pyw_allineato_ref["ok"] = True
+        for w_ in col_sx.winfo_children():
+            w_.destroy()
+        for w_ in col_dx.winfo_children():
+            w_.destroy()
+        tk.Label(col_sx, text="🔄 Recupero elenco moduli dal repository...",
+                bg=self.COLOR_WIDGET_BG, fg="gray60",
+                font=("Segoe UI", 8, "italic")).pack(anchor="w", pady=10)
+        lbl_check_stato.config(text="🔄 Recupero elenco dal repository...", fg="gray60")
+        btn_avvia.config(cursor="hand2")
+        btn_avvia.unbind("<Button-1>")
+        btn_avvia.bind("<Button-1>", _avvia_click)
+        def _fine():
+            btn_refresh_lista._in_corso = False
+            btn_refresh_lista.config(cursor="hand2")
+        threading.Thread(target=lambda: (_carica_elenco(), self.after(0, _fine)), daemon=True).start()
+    btn_refresh_lista.bind("<Button-1>", _refresh_lista)
     threading.Thread(target=_carica_elenco, daemon=True).start()
     def _esegui():
         if not pyw_allineato_ref["ok"]:
@@ -1501,6 +1555,16 @@ def verifica_moduli_git(self):
         self.after(0, lambda: _log(msg))
         if aggiornati:
             self.after(0, _abilita_riavvia)
+            def _chiedi_changelog():
+                vedi = self.show_custom_askyesno(
+                    title="Moduli aggiornati",
+                    message=(f"{aggiornati} modul{'i' if aggiornati != 1 else 'o'} "
+                             f"aggiornat{'i' if aggiornati != 1 else 'o'}.\n\n"
+                             "Vuoi vedere il changelog?")
+                )
+                if vedi:
+                    self.visualizza_changelog()
+            self.after(300, _chiedi_changelog)
         else:
             self.after(0, lambda: btn_avvia.config(cursor="hand2"))
             self.after(0, lambda: btn_avvia.bind("<Button-1>", _avvia_click))
