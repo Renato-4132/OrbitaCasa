@@ -86,6 +86,8 @@ def carica_costanti(path_locale):
     g['MEM_CAT'] = os.path.join(DB_DIR, "memoria_categorie.json")
     g['CONFIG_FILE'] = os.path.join(DB_DIR, "config.json")
     g['RIMANDA_FILE'] = os.path.join(DB_DIR, "update.json")
+    g['MESSAGGI_SERVIZIO_URL'] = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/main/resources/messaggi_servizio.json"
+    g['MESSAGGI_VISTI_FILE'] = os.path.join(DB_DIR, "messaggi_servizio_visti.json")
     g['PROMEMORIA_FILE'] = os.path.join(DB_DIR, "promemoria.json")
     g['PORTAFOGLIO_AZIONI'] = os.path.join(DB_DIR, "portafoglio.json")
     g['PENSIONE_FILE'] = os.path.join(DB_DIR, "fondo_pensione.json")
@@ -147,7 +149,7 @@ def carica_costanti(path_locale):
     g['WARN_TIMEOUT'] = 20000                       # Timeout Messaggi Popup (ms)
     g['USE_WAIT_WINDOW'] = False                    # Timeout chiusura self.show_custom_warning
     g['TOLL'] = 15                                  # Tolleranza Movimenti simili (SmartCat) - Euro
-    g['VERSION'] = "2.4.7"
+    g['VERSION'] = "2.4.8"
     g['ICONIZZA_INATTIVITA'] = True                 # Attiva/disattiva Timer Minimizza
     g['TIMEOUT_INATTIVITA_MS'] = 1200000            # 20 minuti in ms - Timer Minimizza
     g['ANNI_DA_MANTENERE'] = 10                     # Anni conservati nel db

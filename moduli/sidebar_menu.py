@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
+#testa
 import time
 import tkinter as tk
 import tkinter.font as tkfont
@@ -112,6 +112,13 @@ def setup_sidebar(self):
         bg=self.MENU_BG_DARK, fg=self.COLOR_GREEN
     )
     self.lbl_logo_testo.bind("<Button-1>", lambda e: self.mostra_piramide())
+    self.badge_messaggi_servizio = tk.Canvas(
+        self.lbl_logo_container, width=10, height=10,
+        bg=self.MENU_BG_DARK, highlightthickness=0, cursor="hand2"
+    )
+    if getattr(self, "_messaggi_servizio_pendenti", []):
+        self.badge_messaggi_servizio.create_oval(0, 0, 10, 10, fill="#E65100", outline="")
+    self.badge_messaggi_servizio.bind("<Button-1>", lambda e: self.mostra_messaggi_servizio())
     self._search_var = tk.StringVar()
     self._search_entry = tk.Entry(
         self.sidebar, textvariable=self._search_var,
@@ -172,6 +179,8 @@ def contrai_sidebar_manuale(self):
     self.sidebar_espansa = False
     if hasattr(self, 'lbl_logo_testo'):
         self.lbl_logo_testo.pack_forget()
+    if hasattr(self, 'badge_messaggi_servizio'):
+        self.badge_messaggi_servizio.pack_forget()
     if hasattr(self, 'lbl_tipo_percentuale'): 
         self.lbl_tipo_percentuale.pack(side=tk.LEFT, padx=4)
     if hasattr(self, '_search_entry'):
@@ -443,6 +452,8 @@ def espandi_sidebar(self):
     self.sidebar.configure(width=120) 
     if hasattr(self, 'lbl_logo_testo'):
         self.lbl_logo_testo.pack(side="left", padx=(0, 6))
+    if hasattr(self, 'badge_messaggi_servizio'):
+        self.badge_messaggi_servizio.pack(side="left", padx=(0, 6))
     if hasattr(self, 'lbl_tipo_percentuale'): 
         self.lbl_tipo_percentuale.pack_forget()
     if hasattr(self, '_search_entry'):

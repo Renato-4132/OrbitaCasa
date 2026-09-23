@@ -436,6 +436,10 @@ def registra_tutti_i_moduli(GestioneSpese):
     _mostra_popup_aggiornamento, forza_check_aggiornamento_con_api, _forza_check_thread, _mostra_popup_forza_aggiornamento, 
     aggiorna_librerie_pip, verifica_moduli_git, ripristina_da_backup)
 
+    from moduli.messaggi_servizio import (
+        _check_messaggi_servizio_in_background, mostra_messaggi_servizio,)
+    _registra(_check_messaggi_servizio_in_background, mostra_messaggi_servizio)
+
     from moduli.attivazione import (
         verify_environment_update, verify_environment, apri_registrazione, _licenza_valida, _c_r,)
     _registra(verify_environment_update, verify_environment, apri_registrazione, _licenza_valida, _c_r)
