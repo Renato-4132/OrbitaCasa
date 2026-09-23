@@ -1,14 +1,14 @@
 [
- {
+  {
     "target": "all",
     "livello": "info",
     "testo": "📬 Da oggi OrbitaCasa ha i messaggi di servizio: novità, manutenzioni e avvisi importanti compariranno qui, segnalati da un pallino arancione sull'icona in alto a sinistra.",
-    "scadenza": "2026-11-30"
+    "scadenza": "30-11-2026"
   },
   {
     "target": "ID_xxxxxxxxxxxx",
     "livello": "warning",
     "testo": "Messaggio riservato a un singolo utente (usare il suo device_id come target)",
-    "scadenza": "2026-12-31"
+    "scadenza": "31-12-2026"
   }
 ]
