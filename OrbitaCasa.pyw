@@ -1941,6 +1941,7 @@ class GestioneSpese(tk.Tk):
         self.after(1000, self.check_aggiornamento_con_api)
         self.after(5000, self._check_librerie_in_background)
         self.after(5500, self._check_moduli_in_background)
+        self.after(6000, self._check_messaggi_servizio_in_background)
         if _BOOT_MODULI_AGGIORNATI_NOMI:
             _n_moduli_agg_boot = len(_BOOT_MODULI_AGGIORNATI_NOMI)
             def _mostra_label_changelog_boot():
@@ -5660,7 +5661,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "548938d2303b7e08b3a1ecd3b4b2d6086261babcda7df7c9e22f3ab16723dd37"
+        E_H_B = "e566e877d4396ae9f946681a4622288e5ed6cd2b57987be709e54bdbe73c4b28"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
