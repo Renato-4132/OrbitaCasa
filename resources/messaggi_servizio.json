@@ -2,11 +2,11 @@
   {
     "target": "all",
     "livello": "info",
-    "testo": "Novità in arrivo nella prossima versione: badge messaggi di servizio test 📬 ",
+    "testo": "Novità in arrivo nella prossima versione: badge messaggi di servizio test 📬  ",
     "scadenza": null
   },
   {
-    "target": "ID_XXXXXXXXXXXX",
+    "target": "ID_61cf1eeb46a7",
     "livello": "warning",
     "testo": "Messaggio riservato a un singolo utente (usare il suo device_id come target)",
     "scadenza": "2026-12-31"
