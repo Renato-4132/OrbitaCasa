@@ -34,10 +34,13 @@ def _scadenza_valida(msg):
     scad = msg.get("scadenza")
     if not scad:
         return True
-    try:
-        return datetime.date.today() <= datetime.date.fromisoformat(scad)
-    except Exception:
-        return True
+    scad = str(scad).strip()
+    for fmt in ("%d-%m-%Y", "%Y-%m-%d"):
+        try:
+            return datetime.date.today() <= datetime.datetime.strptime(scad, fmt).date()
+        except ValueError:
+            continue
+    return True
 
 def _norm_id(valore):
     v = str(valore or "").strip().lower()
@@ -86,6 +89,7 @@ def _check_messaggi_servizio_in_background(self):
             device_id = _get_device_id()
         except Exception:
             device_id = None
+
         prima_esecuzione = installazione_vuota and not os.path.exists(MESSAGGI_VISTI_FILE)
         visti = _leggi_messaggi_visti(MESSAGGI_VISTI_FILE)
         nuovi = []
@@ -114,6 +118,7 @@ def _check_messaggi_servizio_in_background(self):
             self.after(0, _applica)
     threading.Thread(target=_check, daemon=True).start()
 
+# Popup che elenca i messaggi di servizio pendenti; alla chiusura li marca come visti
 def mostra_messaggi_servizio(self):
     import __main__ as _app
     from tkinter import ttk
