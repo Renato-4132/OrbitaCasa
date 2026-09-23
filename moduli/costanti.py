@@ -65,6 +65,7 @@ def carica_costanti(path_locale):
     g['REPO_NAME'] = "OrbitaCasa"
     g['NAME'] = "Orbita Casa"
     g['MODULI_DIR'] = os.path.join(path_locale, "moduli")
+    g['MODULI_BAK_DIR'] = os.path.join(path_locale, "moduli_bak")
     g['BRANCH_PRINCIPALE'] = "main"
     g['EXPORTDB_DIR'] = "export"
 

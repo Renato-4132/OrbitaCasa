@@ -34,6 +34,19 @@ LIBRERIE_PIP_INFO = [
     ("webauthn",     "Autenticazione biometrica"),
 ]
 
+def _backup_moduli_atomico(moduli_dir, moduli_bak_dir):
+    if not os.path.isdir(moduli_dir):
+        return
+    bak_new = moduli_bak_dir + "_new"
+    bak_old = moduli_bak_dir + "_old"
+    shutil.rmtree(bak_new, ignore_errors=True)
+    shutil.copytree(moduli_dir, bak_new)
+    if os.path.isdir(moduli_bak_dir):
+        shutil.rmtree(bak_old, ignore_errors=True)
+        os.replace(moduli_bak_dir, bak_old)
+    os.replace(bak_new, moduli_bak_dir)
+    shutil.rmtree(bak_old, ignore_errors=True)
+
 # Controllo Manuale Forzato dell'Aggiornamento Software (conferma utente + riavvio)
 def forza_aggiorna(self):
     import __main__ as _app
@@ -60,28 +73,58 @@ def aggiorna(self, url, nome_file):
     import __main__ as _app
     APRI_BROWSER = _app.APRI_BROWSER
     URL_QST = _app.URL_QST
-    import subprocess, sys, os
+    MODULI_DIR = _app.MODULI_DIR
+    MODULI_BAK_DIR = _app.MODULI_BAK_DIR
+    REPO_OWNER = getattr(_app, "REPO_OWNER", None)
+    REPO_NAME = getattr(_app, "REPO_NAME", None)
+    BRANCH_PRINCIPALE = getattr(_app, "BRANCH_PRINCIPALE", None)
+    _boot_git_blob_sha1 = getattr(_app, "_boot_git_blob_sha1", None)
+    import subprocess, sys, os, py_compile
     import time
     self.update()
     nome_backup = f"{nome_file}.bak"
+    nome_tmp = f"{nome_file}.tmp"
     try:
+        if REPO_OWNER and REPO_NAME and _boot_git_blob_sha1 and os.path.exists(nome_file):
+            try:
+                contents_url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{nome_file}"
+                params = {"ref": BRANCH_PRINCIPALE} if BRANCH_PRINCIPALE else {}
+                resp = requests.get(contents_url, params=params, timeout=5)
+                resp.raise_for_status()
+                sha_remoto = resp.json().get("sha", "")
+                sha_locale = _boot_git_blob_sha1(nome_file)
+                if sha_remoto and sha_locale == sha_remoto:
+                    self.show_custom_warning("Aggiornamento", "Il file è già allineato all'ultima versione su GitHub.")
+                    return
+            except Exception as sha_err:
+                print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Impossibile verificare lo SHA remoto prima dell'aggiornamento: {sha_err}")
+        try:
+            urllib.request.urlretrieve(url, nome_tmp)
+            if nome_file.endswith((".py", ".pyw")):
+                py_compile.compile(nome_tmp, doraise=True)
+            print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Download completato e validato: {nome_file}")
+        except Exception as download_err:
+            print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] ERRORE download/validazione: {download_err}")
+            if os.path.exists(nome_tmp):
+                os.remove(nome_tmp)
+            self.show_custom_warning("Attenzione", "❌ Aggiornamento NON completato! \n\n Problema di rete/download o file scaricato non valido. 😕")
+            return
+        try:
+            _backup_moduli_atomico(MODULI_DIR, MODULI_BAK_DIR)
+        except Exception as moduli_backup_err:
+            print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] ERRORE backup moduli: {moduli_backup_err}")
+            self.show_custom_warning("Attenzione", "Impossibile creare il backup dei moduli. Aggiornamento annullato.")
+            os.remove(nome_tmp)
+            return
         if os.path.exists(nome_file):
             try:
                 shutil.copy2(nome_file, nome_backup)
             except Exception as backup_err:
                 print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] ERRORE backup: {backup_err}")
                 self.show_custom_warning("Attenzione", "Impossibile creare il backup. Aggiornamento annullato.")
+                os.remove(nome_tmp)
                 return
-        try:
-            urllib.request.urlretrieve(url, nome_file)
-            print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Download completato! {nome_file} è stato aggiornato.")
-        except Exception as download_err:
-            print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] ERRORE download: {download_err}")
-            if os.path.exists(nome_backup):
-                shutil.copy2(nome_backup, nome_file)
-                os.remove(nome_backup)
-            self.show_custom_warning("Attenzione", "❌ Aggiornamento NON completato! \n\n Problema di rete/download. 😕")
-            return
+        os.replace(nome_tmp, nome_file)
         if APRI_BROWSER:
             webbrowser.open(URL_QST) 
             _app.APRI_BROWSER = False
@@ -330,6 +373,8 @@ def _mostra_popup_aggiornamento(self, remote_time, local_time, changelog_text):
     NOME_FILE = _app.NOME_FILE
     RIMANDA_FILE = _app.RIMANDA_FILE
     VERSION = _app.VERSION
+    MODULI_DIR = _app.MODULI_DIR
+    MODULI_BAK_DIR = _app.MODULI_BAK_DIR
     BRANCH_PRINCIPALE = _app.BRANCH_PRINCIPALE
     import time, subprocess, sys, os
     from datetime import datetime, timedelta
@@ -441,13 +486,25 @@ def _mostra_popup_aggiornamento(self, remote_time, local_time, changelog_text):
         win.after_cancel(timeout_id)
     def aggiorna():
         annulla_timeout()
-        url = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/{BRANCH_PRINCIPALE}/{NOME_FILE.replace(' ', '%20')}"
+        # Backup completo (snapshot) della cartella moduli PRIMA di aggiornare il .pyw,
+        # cosi' un eventuale ripristino riporta pyw e moduli allo stesso stato precedente.
         try:
-            nome_backup = f"{NOME_FILE}.bak"
+            _backup_moduli_atomico(MODULI_DIR, MODULI_BAK_DIR)
+        except Exception as moduli_backup_err:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] ERRORE backup moduli: {moduli_backup_err}")
+            self.show_custom_warning("Attenzione", "Impossibile creare il backup dei moduli. Aggiornamento annullato.")
+            return
+        url = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/{BRANCH_PRINCIPALE}/{NOME_FILE.replace(' ', '%20')}"
+        nome_backup = f"{NOME_FILE}.bak"
+        nome_tmp = f"{NOME_FILE}.tmp"
+        try:
+            import py_compile
+            urllib.request.urlretrieve(url, nome_tmp)
+            py_compile.compile(nome_tmp, doraise=True)
             if os.path.exists(NOME_FILE):
                 shutil.copy2(NOME_FILE, nome_backup)
-            urllib.request.urlretrieve(url, NOME_FILE)
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Download completato! {NOME_FILE} è stato aggiornato.")
+            os.replace(nome_tmp, NOME_FILE)
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Download completato e validato! {NOME_FILE} è stato aggiornato.")
             threading.Thread(
                 target=lambda: self.verify_environment_update(f"UPDATED_to_{VERSION}"),
                 daemon=True
@@ -472,7 +529,12 @@ def _mostra_popup_aggiornamento(self, remote_time, local_time, changelog_text):
                 subprocess.Popen(args, start_new_session=True, close_fds=True)
             os._exit(0)
         except Exception as e:
-            if 'shutil' in sys.modules and os.path.exists(nome_backup):
+            if os.path.exists(nome_tmp):
+                try:
+                    os.remove(nome_tmp)
+                except Exception:
+                    pass
+            if os.path.exists(nome_backup):
                 shutil.copy2(nome_backup, NOME_FILE)
                 os.remove(nome_backup)
             self.show_custom_warning(
@@ -767,41 +829,18 @@ def _mostra_popup_forza_aggiornamento(self, remote_time, local_time, changelog_t
     def aggiorna():
         annulla_timeout()
         url = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/{BRANCH_PRINCIPALE}/{NOME_FILE.replace(' ', '%20')}"
-        try:
-            nome_backup = f"{NOME_FILE}.bak"
-            if os.path.exists(NOME_FILE):
-                shutil.copy2(NOME_FILE, nome_backup)
-            urllib.request.urlretrieve(url, NOME_FILE)
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Download completato! {NOME_FILE} è stato aggiornato.")
-            threading.Thread(
-                target=lambda: self.verify_environment_update(f"UPDATED_to_{VERSION}"),
-                daemon=True
-            ).start()
-            if os.path.exists(RIMANDA_FILE):
-                try:
-                    os.remove(RIMANDA_FILE)
-                    print(f"[{datetime.now().strftime('%H:%M:%S')}] File rimando eliminato dopo aggiornamento.")
-                except Exception as err:
-                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Errore durante l'eliminazione del file rimando: {err}")
-            win.destroy()
-            self.show_toast("Riavvio in corso. File aggiornato! ATTENDERE...", duration=2000)
-            self.save_db()
-            self._on_close_lock()
-            script_path = os.path.abspath(sys.argv[0])
-            args = [sys.executable, script_path] + sys.argv[1:]
-            if os.name == 'nt':
-                subprocess.Popen(args, creationflags=0x00000008, shell=False, close_fds=True)
-            else:
-                subprocess.Popen(args, start_new_session=True, close_fds=True)
-            os._exit(0)
-        except Exception as e:
-            if 'shutil' in sys.modules and os.path.exists(nome_backup):
-                shutil.copy2(nome_backup, NOME_FILE)
-                os.remove(nome_backup)
-            self.show_custom_warning(
-                "Attenzione",
-                f"❌ Aggiornamento fallito durante il download/riavvio:\n{e}"
-            )
+        threading.Thread(
+            target=lambda: self.verify_environment_update(f"UPDATED_to_{VERSION}"),
+            daemon=True
+        ).start()
+        if os.path.exists(RIMANDA_FILE):
+            try:
+                os.remove(RIMANDA_FILE)
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] File rimando eliminato dopo aggiornamento.")
+            except Exception as err:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Errore durante l'eliminazione del file rimando: {err}")
+        win.destroy()
+        self.aggiorna(url, NOME_FILE)
     def chiudi():
         annulla_timeout()
         win.destroy()
@@ -1136,6 +1175,7 @@ def aggiorna_librerie_pip(self):
         self.show_toast("Riavvio In Corso !", duration=3000)
         def esegui_kill():
             self.save_db()
+            self._on_close_lock()
             if popup.winfo_exists():
                 popup.destroy()
             script_path = os.path.abspath(sys.argv[0])
@@ -1528,10 +1568,15 @@ def verifica_moduli_git(self):
             url_raw = voce.get("download_url")
             if not url_raw:
                 continue
+            dest_tmp = dest + ".tmp"
             try:
                 req = urllib.request.Request(url_raw, headers={"User-Agent": "OrbitaCasa-Sync"})
-                with urllib.request.urlopen(req, timeout=20) as resp, open(dest, "wb") as out:
+                with urllib.request.urlopen(req, timeout=20) as resp, open(dest_tmp, "wb") as out:
                     shutil.copyfileobj(resp, out)
+                if _boot_git_blob_sha1(dest_tmp) != sha_remoto:
+                    os.remove(dest_tmp)
+                    raise ValueError("SHA non corrispondente dopo il download (file corrotto o troncato)")
+                os.replace(dest_tmp, dest)
                 aggiornati += 1
                 self.after(0, lambda n=nome: _log(f"✓ {n} aggiornato"))
                 if nome in righe_stato:
@@ -1549,6 +1594,11 @@ def verifica_moduli_git(self):
                                 break
                     self.after(0, _aggiorna_riga)
             except Exception as e:
+                if os.path.exists(dest_tmp):
+                    try:
+                        os.remove(dest_tmp)
+                    except Exception:
+                        pass
                 errori += 1
                 self.after(0, lambda n=nome, err=e: _log(f"❌ {n}: {err}"))
         msg = f"\n✅ Completato. {aggiornati} moduli aggiornati, {errori} errori." if (aggiornati or errori) else "\n✅ I moduli selezionati erano già aggiornati."
@@ -1572,6 +1622,7 @@ def verifica_moduli_git(self):
         self.show_toast("Riavvio In Corso !", duration=3000)
         def esegui_kill():
             self.save_db()
+            self._on_close_lock()
             if popup.winfo_exists():
                 popup.destroy()
             script_path = os.path.abspath(sys.argv[0])
@@ -1600,7 +1651,6 @@ def ripristina_da_backup(self):
     NOME_FILE = _app.NOME_FILE
     PATH_LOCALE = _app.PATH_LOCALE
     nome_backup = f"{NOME_FILE}.bak"
-    file_config = os.path.join(PATH_LOCALE, "db", "config.json")
     if not os.path.exists(nome_backup):
         self.show_custom_info("Non Riuscito", 
                               f"File di backup ({nome_backup}) non trovato. Impossibile procedere al ripristino.")
@@ -1614,13 +1664,32 @@ def ripristina_da_backup(self):
         self.show_custom_warning("Annullato", "Ripristino annullato dall'utente.")
         return
     try:
-        shutil.copy2(nome_backup, NOME_FILE)
-        if os.path.exists(file_config):
+        MODULI_DIR = _app.MODULI_DIR
+        MODULI_BAK_DIR = getattr(_app, "MODULI_BAK_DIR", None)
+        if MODULI_BAK_DIR and os.path.isdir(MODULI_BAK_DIR):
+            moduli_tmp = MODULI_DIR + "_new"
+            moduli_old = MODULI_DIR + "_old"
             try:
-                os.remove(file_config)
+                shutil.rmtree(moduli_tmp, ignore_errors=True)
+                shutil.copytree(MODULI_BAK_DIR, moduli_tmp)   # se fallisce, nulla e' stato toccato
+                if os.path.isdir(moduli_old):
+                    shutil.rmtree(moduli_old, ignore_errors=True)
+                os.replace(MODULI_DIR, moduli_old)
+                os.replace(moduli_tmp, MODULI_DIR)
+                shutil.copy2(nome_backup, NOME_FILE)   # il .pyw viene ripristinato per ultimo
+                shutil.rmtree(moduli_old, ignore_errors=True)
+                shutil.rmtree(MODULI_BAK_DIR, ignore_errors=True)
             except Exception as e:
-                print(f"Errore rimozione config: {e}")
-        if os.path.exists(nome_backup):        
+                print(f"Errore ripristino moduli: {e}")
+                self.show_custom_warning("Errore Grave",
+                    f"Ripristino dei moduli non riuscito, il .pyw NON è stato toccato:\n{e}")
+                return
+        else:
+            shutil.copy2(nome_backup, NOME_FILE)
+            self.show_custom_warning("Attenzione",
+                "Backup dei moduli non trovato: è stato ripristinato solo il file principale.\n"
+                "I moduli restano quelli attualmente installati.")
+        if os.path.exists(nome_backup):
             os.remove(nome_backup)
         self.save_db()
         self._on_close_lock() 
