@@ -1,0 +1,14 @@
+[
+  {
+    "target": "all",
+    "livello": "info",
+    "testo": "Novità in arrivo nella prossima versione: badge messaggi di servizio 📬",
+    "scadenza": null
+  },
+  {
+    "target": "ID_XXXXXXXXXXXX",
+    "livello": "warning",
+    "testo": "Messaggio riservato a un singolo utente (usare il suo device_id come target)",
+    "scadenza": "2026-12-31"
+  }
+]
