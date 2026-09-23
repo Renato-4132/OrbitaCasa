@@ -1941,6 +1941,71 @@ class GestioneSpese(tk.Tk):
         self.after(1000, self.check_aggiornamento_con_api)
         self.after(5000, self._check_librerie_in_background)
         self.after(5500, self._check_moduli_in_background)
+        if _BOOT_MODULI_AGGIORNATI_NOMI:
+            _n_moduli_agg_boot = len(_BOOT_MODULI_AGGIORNATI_NOMI)
+            def _mostra_label_changelog_boot():
+                _plurale = _n_moduli_agg_boot != 1
+                try:
+                    parent = self.btn_verifica_moduli.master
+                except Exception:
+                    return
+                _icon_changelog = self.icone_gui.get("reset")
+                lbl_changelog_boot = tk.Label(
+                    parent,
+                    image=_icon_changelog,
+                    cursor="hand2",
+                    bg=self.COLOR_WIDGET_BG,
+                )
+                lbl_changelog_boot.image = _icon_changelog
+                lbl_changelog_boot.pack(side=tk.LEFT, padx=(10, 0))
+                add_tt(lbl_changelog_boot, (
+                    f"{_n_moduli_agg_boot} modul{'i' if _plurale else 'o'} "
+                    f"aggiornat{'i' if _plurale else 'o'}: vedi changelog"
+                ))
+                def _blink_icona():
+                    try:
+                        if not lbl_changelog_boot.winfo_exists():
+                            return
+                    except Exception:
+                        return
+                    lbl_changelog_boot._blink_phase = not getattr(lbl_changelog_boot, '_blink_phase', False)
+                    lbl_changelog_boot.config(
+                        bg="#61AFEF" if lbl_changelog_boot._blink_phase else self.COLOR_WIDGET_BG
+                    )
+                    lbl_changelog_boot._blink_id = lbl_changelog_boot.after(500, _blink_icona)
+                _blink_icona()
+                def _stop_blink_icona():
+                    if hasattr(lbl_changelog_boot, '_blink_id'):
+                        try:
+                            lbl_changelog_boot.after_cancel(lbl_changelog_boot._blink_id)
+                        except Exception:
+                            pass
+                        lbl_changelog_boot._blink_id = None
+                    try:
+                        lbl_changelog_boot.config(bg=self.COLOR_WIDGET_BG)
+                    except Exception:
+                        pass
+                def _rimuovi_label():
+                    _stop_blink_icona()
+                    try:
+                        if hasattr(self, 'tooltip_after_id') and self.tooltip_after_id:
+                            self.after_cancel(self.tooltip_after_id)
+                            self.tooltip_after_id = None
+                        self.hide_tooltip()
+                    except Exception:
+                        pass
+                    try:
+                        lbl_changelog_boot.destroy()
+                    except Exception:
+                        pass
+                def _apri_changelog_boot(e=None):
+                    _rimuovi_label()
+                    self.visualizza_changelog()
+                lbl_changelog_boot.bind("<Button-1>", _apri_changelog_boot)
+                lbl_changelog_boot.bind("<Enter>", lambda e: _stop_blink_icona(), add="+")
+                lbl_changelog_boot.after(20000, _rimuovi_label)
+            self.after(1500, _mostra_label_changelog_boot)
+
         if CLOSE:
                 self.protocol("WM_DELETE_WINDOW", self._iconizza_finestra_x)
         else:
@@ -5595,7 +5660,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "0b3545d49f7ab8dda7b98ec81d29413b6a317800845ef01aa46a22b0b74bb342"
+        E_H_B = "548938d2303b7e08b3a1ecd3b4b2d6086261babcda7df7c9e22f3ab16723dd37"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
@@ -6498,7 +6563,10 @@ def _boot_pyw_allineato():
     except Exception as e:
         print(f"[{time.strftime('%H:%M:%S')}] Verifica allineamento .pyw non riuscita: {e}")
         return True
+_BOOT_MODULI_AGGIORNATI_NOMI = []
+
 def _boot_sincronizza_moduli():
+    global _BOOT_MODULI_AGGIORNATI_NOMI
     sp, lbl_status, aggiorna_bar = _boot_crea_splash_barra("Verifica aggiornamenti...")
     try:
         elenco_remoto = _boot_lista_moduli_remoti()
@@ -6528,6 +6596,7 @@ def _boot_sincronizza_moduli():
                     with urllib.request.urlopen(req, timeout=20) as resp, open(dest, "wb") as out:
                         shutil.copyfileobj(resp, out)
                     aggiornati += 1
+                    _BOOT_MODULI_AGGIORNATI_NOMI.append(nome)
                     scaricato_ok = True
                 except Exception as e:
                     tentativi_falliti += 1
