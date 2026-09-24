@@ -389,7 +389,6 @@ def gestisci_backup_popup(self):
         self.show_toast("Backup in corso...")
         def _thread():
             self._esegui_backup_json()
-            self._esegui_snapshot_db()
             win.after(0, lambda: _carica_lista(var_filtro.get()) if win.winfo_exists() else None)
             win.after(0, lambda: self.show_toast("Backup e snapshot completati") if win.winfo_exists() else None)
         threading.Thread(target=_thread, daemon=True).start()
