@@ -4198,6 +4198,10 @@ class GestioneSpese(tk.Tk):
         self._tot_anno_year = year
         totale_entrate = 0.0
         totale_uscite = 0.0
+        _in_piano = set()
+        if getattr(self, "considera_pianificate_anno_var", None) is not None and self.considera_pianificate_anno_var.get() \
+                and hasattr(self, "ids_spese_pianificate"):
+            _in_piano = self.ids_spese_pianificate()
         for d, sp in self.spese.items():
             if d.year == year:
                 for entry in sp:
@@ -4206,6 +4210,8 @@ class GestioneSpese(tk.Tk):
                             continue
                     tipo = entry[3]
                     imp = entry[2]
+                    if _in_piano and tipo != "Entrata" and campo(entry, "id_spesa", None) in _in_piano:
+                        continue
                     if tipo == "Entrata":
                         totale_entrate += imp
                     else:
@@ -4270,6 +4276,10 @@ class GestioneSpese(tk.Tk):
             self.lbl_titolo_mese.config(text=f" Riepilogo {m_nomi[month-1]} {year}")
         totale_entrate = 0.0
         totale_uscite = 0.0
+        _in_piano = set()
+        if getattr(self, "considera_pianificate_var", None) is not None and self.considera_pianificate_var.get() \
+                and hasattr(self, "ids_spese_pianificate"):
+            _in_piano = self.ids_spese_pianificate()
         for d, sp in self.spese.items():
             if d.year == year and d.month == month:
                 for entry in sp:
@@ -4278,6 +4288,8 @@ class GestioneSpese(tk.Tk):
                             continue
                     tipo = entry[3]
                     imp = entry[2]
+                    if _in_piano and tipo != "Entrata" and campo(entry, "id_spesa", None) in _in_piano:
+                        continue
                     if tipo == "Entrata":
                         totale_entrate += imp
                     else:
@@ -5661,7 +5673,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "e566e877d4396ae9f946681a4622288e5ed6cd2b57987be709e54bdbe73c4b28"
+        E_H_B = "aea85b796a73a594c4ee661de293bd5b0c3af9832ccfc8fb0561b62d79f703a5"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
