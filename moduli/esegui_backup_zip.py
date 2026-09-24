@@ -94,8 +94,11 @@ def esegui_backup_zip(self):
             base_dir=cartella_dati_nel_temp_nome
         )
         aggiorna_UI(100, "Operazione completata!")
-        popup.after(400, popup.destroy)
-        self.show_custom_warning("Backup", f"Salvataggio di '{self.current_folder}' eseguito con successo!")
+        def _fine():
+            if popup.winfo_exists():
+                popup.destroy()
+            self.show_custom_warning("Backup", f"Salvataggio di '{self.current_folder}' eseguito con successo!")
+        popup.after(400, _fine)
     except Exception as e:
         if 'popup' in locals():
             popup.destroy()
