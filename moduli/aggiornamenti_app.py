@@ -34,6 +34,19 @@ LIBRERIE_PIP_INFO = [
     ("webauthn",     "Autenticazione biometrica"),
 ]
 
+def _imposta_permessi_file(nome_file, nome_tmp):
+    """Su Linux/macOS il file scaricato nasce senza +x: copia i permessi del vecchio
+    file e, per gli script (.py/.pyw), garantisce il bit di esecuzione."""
+    if os.name == "nt":
+        return
+    try:
+        if os.path.exists(nome_file):
+            shutil.copymode(nome_file, nome_tmp)
+        if str(nome_file).endswith((".py", ".pyw")):
+            os.chmod(nome_tmp, os.stat(nome_tmp).st_mode | 0o111)
+    except Exception as perm_err:
+        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Impossibile impostare i permessi su {nome_file}: {perm_err}")
+
 def _backup_moduli_atomico(moduli_dir, moduli_bak_dir):
     if not os.path.isdir(moduli_dir):
         return
@@ -124,6 +137,7 @@ def aggiorna(self, url, nome_file):
                 self.show_custom_warning("Attenzione", "Impossibile creare il backup. Aggiornamento annullato.")
                 os.remove(nome_tmp)
                 return
+        _imposta_permessi_file(nome_file, nome_tmp)
         os.replace(nome_tmp, nome_file)
         if APRI_BROWSER:
             webbrowser.open(URL_QST) 
@@ -503,6 +517,7 @@ def _mostra_popup_aggiornamento(self, remote_time, local_time, changelog_text):
             py_compile.compile(nome_tmp, doraise=True)
             if os.path.exists(NOME_FILE):
                 shutil.copy2(NOME_FILE, nome_backup)
+            _imposta_permessi_file(NOME_FILE, nome_tmp)
             os.replace(nome_tmp, NOME_FILE)
             print(f"[{datetime.now().strftime('%H:%M:%S')}] Download completato e validato! {NOME_FILE} è stato aggiornato.")
             threading.Thread(
