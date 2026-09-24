@@ -61,6 +61,7 @@ def _elenco_file_variabili(_app):
         ("Login Web - Passkey / WebAuthn",    "Credenziali passkey/WebAuthn salvate (webauthn_credentials.json)", "CREDENTIALS_FILE", False),
         ("Login Locale",                      "Storico degli accessi dall'app desktop (login_lcl.json)", "LOGIN_LCL", False),
         ("Controllo Accessi Web",             "Whitelist/blacklist IP per l'accesso web (web_access_control.json)", "ACCESS_CONTROL_WEB", False),
+        ("Messaggi di Servizio (Visti)",      "Elenco degli ID dei messaggi di servizio già letti: azzerandolo, tutti i messaggi ancora validi verranno rinotificati (messaggi_servizio_visti.json)", "MESSAGGI_VISTI_FILE", False),
     ]
     voci = []
     for etichetta, descrizione, nome_costante, is_dir in voci_raw:

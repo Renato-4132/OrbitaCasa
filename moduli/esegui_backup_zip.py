@@ -204,7 +204,7 @@ def _esegui_backup_json(self):
         _app.STUDIO_APPUNTAMENTI, _app.STUDIO_PRESTAZIONI, _app.STUDIO_FATTURE, _app.STUDIO_EMITTENTE,
         _app.STUDIO_CASSA, _app.STUDIO_MAGAZZINO, _app.IMMOBIL_FILE, _app.FR_FILE, _app.PORTAFOGLIO_BANCARIO,
         _app.SCHEDULE_FILE, _app.VEICOLI_FILE, _app.GAMIFICATION_FILE, _app.CREDENTIALS_FILE, _app.PENSIONE_FILE,
-        _app.ANIMALI_FILE, _app.PIANIFICA_FILE, _app.MANUTENZIONE_CASA_FILE
+        _app.ANIMALI_FILE, _app.PIANIFICA_FILE, _app.MANUTENZIONE_CASA_FILE, _app.MESSAGGI_VISTI_FILE
     ]
     file_copiati = 0
     for f in lista_file:
