@@ -179,8 +179,6 @@ def contrai_sidebar_manuale(self):
     self.sidebar_espansa = False
     if hasattr(self, 'lbl_logo_testo'):
         self.lbl_logo_testo.pack_forget()
-    if hasattr(self, 'badge_messaggi_servizio'):
-        self.badge_messaggi_servizio.pack_forget()
     if hasattr(self, 'lbl_tipo_percentuale'): 
         self.lbl_tipo_percentuale.pack(side=tk.LEFT, padx=4)
     if hasattr(self, '_search_entry'):
@@ -452,8 +450,7 @@ def espandi_sidebar(self):
     self.sidebar.configure(width=120) 
     if hasattr(self, 'lbl_logo_testo'):
         self.lbl_logo_testo.pack(side="left", padx=(0, 6))
-    if hasattr(self, 'badge_messaggi_servizio'):
-        self.badge_messaggi_servizio.pack(side="left", padx=(0, 6))
+
     if hasattr(self, 'lbl_tipo_percentuale'): 
         self.lbl_tipo_percentuale.pack_forget()
     if hasattr(self, '_search_entry'):

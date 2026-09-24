@@ -52,16 +52,36 @@ def _messaggio_per_me(msg, device_id):
         return True
     return bool(device_id) and _norm_id(target) == _norm_id(device_id)
 
+def _lampeggia_badge_messaggi_servizio(self):
+    badge = getattr(self, "badge_messaggi_servizio", None)
+    if badge is None or not badge.winfo_exists() or not getattr(self, "_messaggi_servizio_pendenti", []):
+        self._badge_blink_job = None
+        return
+    acceso = not getattr(self, "_badge_blink_acceso", False)
+    self._badge_blink_acceso = acceso
+    badge.delete("all")
+    colore = "#E65100" if acceso else self.MENU_BG_DARK
+    badge.create_oval(0, 0, 10, 10, fill=colore, outline="")
+    self._badge_blink_job = self.after(500, lambda: _lampeggia_badge_messaggi_servizio(self))
+
 def _aggiorna_badge_messaggi_servizio(self):
     badge = getattr(self, "badge_messaggi_servizio", None)
     if badge is None or not badge.winfo_exists():
         return
-    badge.delete("all")
     if getattr(self, "_messaggi_servizio_pendenti", []):
-        badge.create_oval(0, 0, 10, 10, fill="#E65100", outline="")
-        badge.place(x=30, y=4)
+        badge.place(relx=1.0, x=-8, y=4, anchor="ne")
         tk.Misc.lift(badge)
+        if not getattr(self, "_badge_blink_job", None):
+            _lampeggia_badge_messaggi_servizio(self)
     else:
+        job = getattr(self, "_badge_blink_job", None)
+        if job:
+            try:
+                self.after_cancel(job)
+            except Exception:
+                pass
+            self._badge_blink_job = None
+        badge.delete("all")
         badge.place_forget()
 
 # Intervallo tra un controllo e il successivo (ms); GitHub raw ha comunque una cache di ~5 minuti
@@ -114,7 +134,7 @@ def _check_messaggi_servizio_in_background(self):
                 self._messaggi_servizio_notificati = notificati | {m["_id"] for m in nuovi}
                 _aggiorna_badge_messaggi_servizio(self)
                 if da_notificare:
-                    self.show_toast("📬 Nuovo messaggio di servizio: clicca il pallino arancione sull'icona", duration=5000)
+                    self.show_toast("📬 Nuovo messaggio di servizio\n\nClicca sul pallino arancione lampeggiante in alto a sinistra per leggerlo", duration=6000)
             self.after(0, _applica)
     threading.Thread(target=_check, daemon=True).start()
 
