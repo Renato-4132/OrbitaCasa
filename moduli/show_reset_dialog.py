@@ -335,7 +335,7 @@ def show_reset_dialog(self):
         ):
             return
         win.destroy()
-                try:
+        try:
             if os.path.exists(DB_DIR):
                 shutil.rmtree(DB_DIR)
             if os.path.exists(EXPORT_FILES):
