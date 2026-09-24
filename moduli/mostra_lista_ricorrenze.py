@@ -67,15 +67,26 @@ def mostra_lista_ricorrenze(self):
         if not selected_ids:
             self.show_toast("Seleziona almeno una ricorrenza da cancellare.")
             return
+        n_voci_passate = sum(
+            1
+            for ric_id in selected_ids
+            for voci in self.spese.values()
+            for v in voci
+            if campo(v, "id_ricorrenza", None) == ric_id
+        )
+        avviso_voci = (
+            f"\n\nVerranno eliminate anche {n_voci_passate} spesa/e già registrata/e in passato."
+            if n_voci_passate else ""
+        )
         response = self.show_custom_askyesno(
             "Conferma Cancellazione", 
-            f"Sei sicuro di voler cancellare {len(selected_ids)} ricorrenza/e selezionata/e?"
+            f"Sei sicuro di voler cancellare {len(selected_ids)} ricorrenza/e selezionata/e?{avviso_voci}"
         )
         if not response:
             return
         ids_to_delete = list(selected_ids)
         deleted_count = 0
-        voci_cancellate = []
+        voci_cancellate = 0
         for ric_id in ids_to_delete:
             if ric_id not in self.ricorrenze:
                 continue
@@ -89,7 +100,8 @@ def mostra_lista_ricorrenze(self):
                 for v in rimosse:
                     if hasattr(self, "elimina_piano_per_spesa"):
                         self.elimina_piano_per_spesa(campo(v, "id_spesa", None))
-                    voci_cancellate.append((data_key.strftime("%d-%m-%Y"), round(float(campo(v, "importo", 0.0)),2), campo(v, "tipo", "")))
+                    self.annulla_azione_gamification("movimento")
+                    voci_cancellate += 1
                 if nuove_voci:
                     self.spese[data_key] = nuove_voci
                 else:
@@ -97,9 +109,9 @@ def mostra_lista_ricorrenze(self):
             for data_key in keys_to_delete:
                 del self.spese[data_key]
             del self.ricorrenze[ric_id]
+            deleted_count += 1
             try:
                 tree.delete(ric_id) 
-                deleted_count += 1
             except tk.TclError:
                 pass
         if deleted_count > 0:
@@ -107,20 +119,16 @@ def mostra_lista_ricorrenze(self):
                 self.db["spese"] = self.spese
                 self.db["ricorrenze"] = self.ricorrenze
             self.save_db()
-            self.show_custom_info("Cancellazione Eseguita", f"Sono state rimosse con successo {deleted_count} transazione/i dal registro.")
+            self.show_custom_info(
+                "Cancellazione Eseguita",
+                f"Sono state rimosse con successo {deleted_count} ricorrenza/e "
+                f"({voci_cancellate} spesa/e passata/e) dal registro."
+            )
         self.refresh_gui() 
         self.ricorrenza_cat_sel.set(self.categorie[0]) 
         self.ricorrenza_tipo_voce.set("Uscita")
         self.btn_tipo_voce.configure(text="Uscita", style="RedOutline.TButton")
-    def treeview_sort_column(tv, col, reverse):
-        l = [(tv.set(k, col), k) for k in tv.get_children('')]
-        try:
-            l.sort(key=lambda t: float(t[0].replace(' €', '').replace('.', '').replace(',', '.').strip()), reverse=reverse)
-        except (ValueError, IndexError):
-            l.sort(key=lambda t: t[0], reverse=reverse)
-        for index, (val, k) in enumerate(l):
-            tv.move(k, '', index)
-        tv.heading(col, command=lambda: treeview_sort_column(tv, col, not reverse))
+
     lista_window = tk.Toplevel(self)
     self.lista_window_ref = lista_window
     lista_window.withdraw()
@@ -357,6 +365,10 @@ def on_ricorrenza_double_click(self, event):
             popup_movimenti.destroy()
     ))
     popup_movimenti.bind("<Escape>", lambda e: (
+            self.reset_ricorrenza_popup(),
+            popup_movimenti.destroy()
+    ))
+    popup_movimenti.protocol("WM_DELETE_WINDOW", lambda: (
             self.reset_ricorrenza_popup(),
             popup_movimenti.destroy()
     ))
