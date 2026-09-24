@@ -54,8 +54,11 @@ def _salva_sp(dati):
     import __main__ as _app
     try:
         os.makedirs(_app.DB_DIR, exist_ok=True)
-        with open(_sp_file(), "w", encoding="utf-8") as fh:
+        percorso = _sp_file()
+        percorso_tmp = f"{percorso}.tmp"
+        with open(percorso_tmp, "w", encoding="utf-8") as fh:
             json.dump(dati, fh, indent=2, ensure_ascii=False)
+        os.replace(percorso_tmp, percorso)
         return True
     except Exception:
         return False
@@ -143,7 +146,7 @@ def ottieni_promemoria_mese(self, anno, mese):
         mesi_lista = _mesi_coperti(inizio, scad)
         if (anno, mese) in mesi_lista:
             idx = mesi_lista.index((anno, mese))
-            quote = _quote_mensili(p.get("importo_totale", 0.0), len(mesi_lista))
+            quote = _quote_mensili(float(p.get("importo_totale", 0) or 0), len(mesi_lista))
             piano_copia = dict(p)
             piano_copia["quota_mese"] = quote[idx] if idx < len(quote) else piano_copia.get("quota", 0.0)
             risultato.append(piano_copia)
@@ -344,7 +347,6 @@ def apri_gestione_spese_pianificate(self):
     win.geometry(f"{w_win}x{h_win}+{max(0, pos_x)}+{max(0, pos_y)}")
     win.minsize(w_win, h_win)
     win.bind("<Escape>", lambda e: win.destroy())
-    win.deiconify()
 
     frm = ttk.Frame(win, padding=10)
     frm.pack(fill="both", expand=True)
@@ -476,3 +478,4 @@ def apri_gestione_spese_pianificate(self):
             ))
 
     _ricarica()
+    win.deiconify()
