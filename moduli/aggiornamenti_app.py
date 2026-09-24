@@ -35,8 +35,6 @@ LIBRERIE_PIP_INFO = [
 ]
 
 def _imposta_permessi_file(nome_file, nome_tmp):
-    """Su Linux/macOS il file scaricato nasce senza +x: copia i permessi del vecchio
-    file e, per gli script (.py/.pyw), garantisce il bit di esecuzione."""
     if os.name == "nt":
         return
     try:
@@ -289,7 +287,7 @@ def check_aggiornamento_thread(self):
     ConnectionError = _app.ConnectionError
     RequestException = _app.RequestException
     import os
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timezone
     try:
         if os.path.exists(RIMANDA_FILE):
             with open(RIMANDA_FILE, "r") as f:
@@ -500,23 +498,25 @@ def _mostra_popup_aggiornamento(self, remote_time, local_time, changelog_text):
         win.after_cancel(timeout_id)
     def aggiorna():
         annulla_timeout()
-        # Backup completo (snapshot) della cartella moduli PRIMA di aggiornare il .pyw,
-        # cosi' un eventuale ripristino riporta pyw e moduli allo stesso stato precedente.
-        try:
-            _backup_moduli_atomico(MODULI_DIR, MODULI_BAK_DIR)
-        except Exception as moduli_backup_err:
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] ERRORE backup moduli: {moduli_backup_err}")
-            self.show_custom_warning("Attenzione", "Impossibile creare il backup dei moduli. Aggiornamento annullato.")
-            return
         url = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/{BRANCH_PRINCIPALE}/{NOME_FILE.replace(' ', '%20')}"
         nome_backup = f"{NOME_FILE}.bak"
         nome_tmp = f"{NOME_FILE}.tmp"
+        backup_creato = False
         try:
             import py_compile
             urllib.request.urlretrieve(url, nome_tmp)
             py_compile.compile(nome_tmp, doraise=True)
+            try:
+                _backup_moduli_atomico(MODULI_DIR, MODULI_BAK_DIR)
+            except Exception as moduli_backup_err:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] ERRORE backup moduli: {moduli_backup_err}")
+                if os.path.exists(nome_tmp):
+                    os.remove(nome_tmp)
+                self.show_custom_warning("Attenzione", "Impossibile creare il backup dei moduli. Aggiornamento annullato.")
+                return
             if os.path.exists(NOME_FILE):
                 shutil.copy2(NOME_FILE, nome_backup)
+                backup_creato = True
             _imposta_permessi_file(NOME_FILE, nome_tmp)
             os.replace(nome_tmp, NOME_FILE)
             print(f"[{datetime.now().strftime('%H:%M:%S')}] Download completato e validato! {NOME_FILE} è stato aggiornato.")
@@ -549,7 +549,7 @@ def _mostra_popup_aggiornamento(self, remote_time, local_time, changelog_text):
                     os.remove(nome_tmp)
                 except Exception:
                     pass
-            if os.path.exists(nome_backup):
+            if backup_creato and os.path.exists(nome_backup):
                 shutil.copy2(nome_backup, NOME_FILE)
                 os.remove(nome_backup)
             self.show_custom_warning(
@@ -602,7 +602,6 @@ def _mostra_popup_aggiornamento(self, remote_time, local_time, changelog_text):
     min_w = 1000
     w = max(win.winfo_reqwidth(), min_w)
     h = win.winfo_reqheight()
-    sx = self.winfo_screenwidth()
     sy = self.winfo_screenheight()
     h = min(h, sy - 80)
     x = self.winfo_rootx() + (self.winfo_width() // 2) - (w // 2)
@@ -639,7 +638,7 @@ def _forza_check_thread(self):
     ConnectionError = _app.ConnectionError
     RequestException = _app.RequestException
     import os
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timezone
     try:
         api_url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/commits"
         params = {"path": NOME_FILE, "per_page": 1}
@@ -737,7 +736,7 @@ def _mostra_popup_forza_aggiornamento(self, remote_time, local_time, changelog_t
     RIMANDA_FILE = _app.RIMANDA_FILE
     VERSION = _app.VERSION
     BRANCH_PRINCIPALE = _app.BRANCH_PRINCIPALE
-    import subprocess, sys, os
+    import os
     from datetime import datetime, timedelta
     def make_separator(parent):
         tk.Frame(parent, bg=self.COLOR_BACKGROUND, height=1).pack(fill="x")
@@ -902,7 +901,6 @@ def _mostra_popup_forza_aggiornamento(self, remote_time, local_time, changelog_t
     min_w = 1000
     w = max(win.winfo_reqwidth(), min_w)
     h = win.winfo_reqheight()
-    sx = self.winfo_screenwidth()
     sy = self.winfo_screenheight()
     h = min(h, sy - 80)
     x = self.winfo_rootx() + (self.winfo_width() // 2) - (w // 2)
@@ -918,6 +916,10 @@ def aggiorna_librerie_pip(self):
     import subprocess, sys, threading, os, platform, json as _json
     import importlib.metadata as metadata
     import urllib.request
+    if getattr(self, "_popup_aggiorna_lib", None) and self._popup_aggiorna_lib.winfo_exists():
+        self._popup_aggiorna_lib.lift()
+        self._popup_aggiorna_lib.focus_force()
+        return
     LIBRERIE = list(LIBRERIE_PIP_INFO)
     if platform.system() == "Windows":
         LIBRERIE.append(("pywin32", "Stampa Windows"))
@@ -942,6 +944,7 @@ def aggiorna_librerie_pip(self):
         except Exception:
             return False
     popup = tk.Toplevel(self)
+    self._popup_aggiorna_lib = popup
     popup.withdraw()
     popup.title("Aggiornamento Librerie Python")
     popup.configure(bg=self.COLOR_BACKGROUND)
@@ -1228,7 +1231,7 @@ def aggiorna_librerie_pip(self):
             try:
                 result = subprocess.run(
                     [sys.executable, "-m", "pip", "install", "-U", pkg, "--break-system-packages"],
-                    capture_output=True, text=True, timeout=120
+                    capture_output=True, text=True, timeout=300
                 )
                 if result.returncode == 0:
                     aggiornati += 1
@@ -1272,6 +1275,10 @@ def aggiorna_librerie_pip(self):
 # Verifica i moduli locali rispetto al repository GitHub e li aggiorna in automatico
 def verifica_moduli_git(self):
     import threading
+    if getattr(self, "_popup_verifica_moduli", None) and self._popup_verifica_moduli.winfo_exists():
+        self._popup_verifica_moduli.lift()
+        self._popup_verifica_moduli.focus_force()
+        return
     import __main__ as _app
     MODULI_DIR = _app.MODULI_DIR
     REPO_OWNER = _app.REPO_OWNER
@@ -1281,6 +1288,7 @@ def verifica_moduli_git(self):
     _boot_git_blob_sha1 = _app._boot_git_blob_sha1
     _boot_pyw_allineato = _app._boot_pyw_allineato
     popup = tk.Toplevel(self)
+    self._popup_verifica_moduli = popup
     popup.withdraw()
     popup.title("Verifica Moduli (GitHub)")
     popup.configure(bg=self.COLOR_BACKGROUND)
@@ -1496,10 +1504,15 @@ def verifica_moduli_git(self):
             msg_err = str(e)
             self.after(0, lambda m=msg_err: lbl_check_stato.config(text=f"❌ Impossibile contattare GitHub: {m}", fg="#C62828"))
             return
-        elenco_remoto_cache.extend(elenco)
+        elenco_remoto_cache[:] = elenco
         def _popola():
             for w_ in col_sx.winfo_children():
                 w_.destroy()
+            for w_ in col_dx.winfo_children():
+                w_.destroy()
+            vars_moduli.clear()
+            righe_stato.clear()
+            moduli_da_aggiornare.clear()
             elenco_ord = sorted(elenco, key=lambda v: v.get("name", ""))
             meta = len(elenco_ord) // 2 + len(elenco_ord) % 2
             diversi = 0
@@ -1664,7 +1677,6 @@ def verifica_moduli_git(self):
 def ripristina_da_backup(self):
     import __main__ as _app
     NOME_FILE = _app.NOME_FILE
-    PATH_LOCALE = _app.PATH_LOCALE
     nome_backup = f"{NOME_FILE}.bak"
     if not os.path.exists(nome_backup):
         self.show_custom_info("Non Riuscito", 
