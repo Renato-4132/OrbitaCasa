@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import re
 import json
 import threading
 import datetime
@@ -13,7 +14,7 @@ from moduli.spinner_animato import crea_spinner_animato
 from moduli.mappa_conti_trasferimenti import e_trasferimento_virtuale
 
 def _crea_periodi(oggi):
-    lun_corrente = oggi - datetime.timedelta(days=oggi.weekday())  # lunedì della settimana in corso
+    lun_corrente = oggi - datetime.timedelta(days=oggi.weekday())
     lun_scorsa = lun_corrente - datetime.timedelta(days=7)
     dom_scorsa = lun_corrente - datetime.timedelta(days=1)
     primo_mese_corrente = oggi.replace(day=1)
@@ -549,13 +550,6 @@ def _costruisci_contesto_database(self, _app, _fmt_it):
     limite_365 = oggi - datetime.timedelta(days=365)
     periodi = _crea_periodi(oggi)
 
-    ANNI_DETTAGLIO_MENSILE = 2
-    try:
-        cutoff_mese_dettaglio = oggi.replace(year=oggi.year - ANNI_DETTAGLIO_MENSILE)
-    except ValueError:
-        cutoff_mese_dettaglio = oggi.replace(year=oggi.year - ANNI_DETTAGLIO_MENSILE, day=28)
-    n_movimenti_esclusi_dettaglio = 0
-    mesi_esclusi_dettaglio = set()
 
     e_tot_all, u_tot_all = 0.0, 0.0
     e_tot_365, u_tot_365 = 0.0, 0.0
@@ -592,12 +586,8 @@ def _costruisci_contesto_database(self, _app, _fmt_it):
 
         periodi_coinvolti = [nome for nome, (ini, fine) in periodi.items() if ini <= d_obj <= fine]
         mese_key = (d_obj.year, d_obj.month)
-        in_finestra_mese = d_obj >= cutoff_mese_dettaglio
-        if in_finestra_mese:
-            per_mese.setdefault(mese_key, {"entrate": 0.0, "uscite": 0.0, "categorie": {}, "conti": {},
-                                           "categorie_per_conto": {}})
-        else:
-            mesi_esclusi_dettaglio.add(mese_key)
+        per_mese.setdefault(mese_key, {"entrate": 0.0, "uscite": 0.0, "categorie": {}, "conti": {},
+                                       "categorie_per_conto": {}})
 
         for mov in lista_movimenti:
             try:
@@ -1038,15 +1028,14 @@ def chiedi_ia_database(self):
         _stampa_in_area("domanda", riga_domanda)
         self._chiedi_ia_storico.append(("domanda", riga_domanda))
 
-        contesto = _costruisci_contesto_database(self, _app, _fmt_it)
-
         cronologia_precedente = [t for _, t in self._chiedi_ia_storico[-9:-1]]
         cronologia_txt = ""
         if cronologia_precedente:
             cronologia_txt = "CONVERSAZIONE PRECEDENTE (per mantenere il contesto):\n" + \
                               "\n".join(cronologia_precedente) + "\n\n"
 
-        prompt = f"""
+        def _componi_prompt(contesto):
+            return f"""
         Sei un assistente esperto di finanza personale integrato nell'app {nome_app}.
         Rispondi ESCLUSIVAMENTE sulla base dei dati del database forniti sotto. Se un dato
         richiesto non è disponibile nel contesto, dillo chiaramente invece di inventare numeri.
@@ -1101,7 +1090,7 @@ def chiedi_ia_database(self):
            entrate/uscite delle altre sezioni.
         """
 
-        def _run():
+        def _chiedi_a_gemini(prompt):
             try:
                 client = genai_client.Client(api_key=API_KEY)
                 response = client.models.generate_content(model=GEMINI, contents=prompt)
@@ -1110,31 +1099,43 @@ def chiedi_ia_database(self):
                 testo_err = str(err)
                 if "RESOURCE_EXHAUSTED" in testo_err or "429" in testo_err:
                     if "PerDay" in testo_err:
-                        risposta = ("quota giornaliera gratuita di gemini esaurita (20 richieste/giorno "
-                                    f"per il modello {GEMINI}). riprova domani, oppure attiva la fatturazione "
+                        m_quota = re.search(r"quotaValue\W+(\d+)", testo_err)
+                        dettaglio_quota = f" ({m_quota.group(1)} richieste/giorno)" if m_quota else ""
+                        risposta = (f"quota giornaliera gratuita di gemini esaurita{dettaglio_quota} "
+                                    f"per il modello {GEMINI}. riprova domani, oppure attiva la fatturazione "
                                     "sulla tua chiave API su ai.google.dev per aumentare il limite.")
                     else:
                         risposta = ("hai fatto troppe richieste in poco tempo (limite di gemini per minuto "
                                     "raggiunto). attendi qualche secondo e riprova.")
                 else:
                     risposta = f"ERRORE API GEMINI:\n{testo_err}"
+            return risposta
+
+        def _run():
+            try:
+                contesto = _costruisci_contesto_database(self, _app, _fmt_it)
+                prompt = _componi_prompt(contesto)
+            except Exception as err:
+                risposta = f"ERRORE nella lettura dei dati del database:\n{err}"
+            else:
+                risposta = _chiedi_a_gemini(prompt)
 
             def _fine():
                 _stato_richiesta["in_corso"] = False
+                riga_risposta = f"GEMINI: {risposta}\n"
+                self._chiedi_ia_storico.append(("risposta", riga_risposta))
                 try:
                     spinner_stop()
                     cvs.destroy()
                 except Exception:
                     pass
+                if not popup.winfo_exists():
+                    return
                 lbl_stato.config(text="")
                 if entry_domanda.winfo_exists():
                     entry_domanda.config(state="normal")
                     entry_domanda.focus_set()
-                if not popup.winfo_exists():
-                    return
-                riga_risposta = f"GEMINI: {risposta}\n"
                 _stampa_in_area("risposta", riga_risposta)
-                self._chiedi_ia_storico.append(("risposta", riga_risposta))
             self.after(0, _fine)
 
         threading.Thread(target=_run, daemon=True).start()
