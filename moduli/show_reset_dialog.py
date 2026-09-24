@@ -335,14 +335,17 @@ def show_reset_dialog(self):
         ):
             return
         win.destroy()
-        try:
+                try:
             if os.path.exists(DB_DIR):
                 shutil.rmtree(DB_DIR)
             if os.path.exists(EXPORT_FILES):
                 shutil.rmtree(EXPORT_FILES)
         except Exception as e:
-            self.show_custom_warning("Errore Reset", f"Errore durante l'azzeramento completo:\n{e}")
-            return
+            self.show_custom_warning(
+                "Errore Reset",
+                f"Errore durante l'azzeramento completo:\n{e}\n\n"
+                "Per sicurezza l'app verrà comunque riavviata."
+            )
         self.show_toast("Riavvio in corso. Dati azzerati allo stato predefinito!")
         _blocca_finestra_principale("Riavvio in corso...\nNon chiudere l'applicazione.")
         self._on_close_lock()
