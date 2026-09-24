@@ -87,6 +87,8 @@ def mostra_lista_ricorrenze(self):
                 ]
                 rimosse = [v for v in voci if campo(v, "id_ricorrenza", None) == ric_id]
                 for v in rimosse:
+                    if hasattr(self, "elimina_piano_per_spesa"):
+                        self.elimina_piano_per_spesa(campo(v, "id_spesa", None))
                     voci_cancellate.append((data_key.strftime("%d-%m-%Y"), round(float(campo(v, "importo", 0.0)),2), campo(v, "tipo", "")))
                 if nuove_voci:
                     self.spese[data_key] = nuove_voci

@@ -117,6 +117,20 @@ def _quote_mensili(importo_totale, mesi):
     quote[-1] = round(quote[-1] + diff, 2)
     return quote
 
+def _quota_effettiva(piano, anno, mese):
+    try:
+        mesi_lista = _mesi_coperti(_parse_data(piano["inizio"]), _parse_data(piano["data_scadenza"]))
+    except Exception:
+        return None
+    if (anno, mese) not in mesi_lista:
+        return None
+    quote = _quote_mensili(float(piano.get("importo_totale", 0) or 0), len(mesi_lista))
+    return quote[mesi_lista.index((anno, mese))]
+
+def ids_spese_pianificate(self):
+    dati = _carica_sp()
+    return {p.get("id_spesa_collegata") for p in dati.get("piani", []) if p.get("id_spesa_collegata")}
+
 def ottieni_promemoria_mese(self, anno, mese):
     dati = _carica_sp()
     risultato = []
@@ -160,11 +174,12 @@ def apri_spalma_spesa(self, entry, data_spesa):
             "Questa spesa scade nel mese corrente: non ci sono mesi precedenti disponibili in cui accantonarla."
         )
         return
-    mesi_max = min(mesi_max, 36)
-    mesi_default = mesi_max
+    mesi_max_tot = min(mesi_max, 36)   # con il mese corrente incluso
+    stato = {"max": mesi_max_tot}
+    mesi_default = mesi_max_tot
 
     ico = getattr(self, "icone_gui", {}) or {}
-    WIN_W, WIN_H = 480, 300
+    WIN_W, WIN_H = 480, 330
 
     win = tk.Toplevel(self)
     win.transient(self)
@@ -215,6 +230,12 @@ def apri_spalma_spesa(self, entry, data_spesa):
     combo_mesi = ttk.Combobox(riga_mesi, textvariable=v_mesi, values=list(range(1, mesi_max + 1)),
                                width=6, justify="center", state="readonly", style="Border.TCombobox")
     combo_mesi.pack(side="left", padx=(8, 0))
+    v_corrente = tk.BooleanVar(value=True)
+    chk_corrente = ttk.Checkbutton(frm, text="Includi il mese corrente come primo mese di accantonamento",
+                                    variable=v_corrente)
+    chk_corrente.pack(anchor="w", pady=(8, 0))
+    if mesi_max_tot < 2:
+        chk_corrente.state(["disabled"])
 
     lbl_quota = tk.Label(frm, text="", font=("Arial", 10, "bold"),
                           image=ico.get("saldo"), compound="left",
@@ -231,11 +252,13 @@ def apri_spalma_spesa(self, entry, data_spesa):
     lbl_periodo.pack(anchor="w", fill="x")
 
     def _aggiorna(*_):
+        stato["max"] = mesi_max_tot if v_corrente.get() else max(1, mesi_max_tot - 1)
+        combo_mesi.config(values=list(range(1, stato["max"] + 1)))
         try:
             n = int(v_mesi.get())
         except Exception:
-            n = mesi_max
-        n_clamp = min(max(1, n), mesi_max)
+            n = stato["max"]
+        n_clamp = min(max(1, n), stato["max"])
         if n_clamp != n:
             v_mesi.set(n_clamp)
             return
@@ -250,6 +273,7 @@ def apri_spalma_spesa(self, entry, data_spesa):
                                  f"a {MESI_ESTESI[data_spesa.month-1]} {data_spesa.year} (escluso)")
 
     v_mesi.trace_add("write", _aggiorna)
+    v_corrente.trace_add("write", _aggiorna)
     _aggiorna()
 
     btn_frame = tk.Frame(frm, bg=self.COLOR_BACKGROUND)
@@ -257,9 +281,9 @@ def apri_spalma_spesa(self, entry, data_spesa):
 
     def _conferma():
         try:
-            n = min(max(1, int(v_mesi.get())), mesi_max)
+            n = min(max(1, int(v_mesi.get())), stato["max"])
         except Exception:
-            n = mesi_max
+            n = stato["max"]
         inizio = _sottrai_mesi(data_spesa, n)
         dati = _carica_sp()
         dati["piani"].append({
@@ -272,7 +296,7 @@ def apri_spalma_spesa(self, entry, data_spesa):
             "data_scadenza": data_spesa.isoformat(),
             "inizio": inizio.isoformat(),
             "mesi": n,
-            "quota": round(importo / n, 2),
+            "quota": _quote_mensili(importo, n)[0],
             "id_spesa_collegata": id_spesa,
             "creato_il": datetime.date.today().isoformat(),
         })
@@ -406,9 +430,12 @@ def apri_gestione_spese_pianificate(self):
         else:
             for p in piani:
                 importo = float(p.get("importo_totale", 0) or 0)
-                quota = float(p.get("quota", 0) or 0)
+                oggi_e = datetime.date.today()
+                q_eff = _quota_effettiva(p, oggi_e.year, oggi_e.month)
+                quota = q_eff if q_eff is not None else float(p.get("quota", 0) or 0)
                 tot_importo += importo
-                tot_quota += quota
+                if q_eff is not None:
+                    tot_quota += quota
                 try:
                     inizio = _parse_data(p["inizio"])
                     scad = _parse_data(p["data_scadenza"])
@@ -424,7 +451,7 @@ def apri_gestione_spese_pianificate(self):
         lines.append(sep)
         lines.append(f"Totale piani: {len(piani)}")
         lines.append(f"Totale importo: {_fmt(tot_importo)}")
-        lines.append(f"Totale quota mensile: {_fmt(tot_quota)}")
+        lines.append(f"Totale quota del mese corrente: {_fmt(tot_quota)}")
         lines.append("═" * len(header))
         oggi = datetime.date.today()
         self.show_export_preview(

@@ -105,6 +105,8 @@ def apri_cancella_spese_treeview_unica(self):
                     if giorno_obj not in self.spese_cancellate_tmp:
                         self.spese_cancellate_tmp[giorno_obj] = []
                     self.spese_cancellate_tmp[giorno_obj].append(voce)
+                    if hasattr(self, "elimina_piano_per_spesa"):
+                        self.elimina_piano_per_spesa(getattr(voce, "id_spesa", None) or (voce.get("id_spesa") if isinstance(voce, dict) else None))
         for giorno_obj in self.spese.keys():
             giorno_interno = str(giorno_obj)
             spese_mantenute_giorno = []
