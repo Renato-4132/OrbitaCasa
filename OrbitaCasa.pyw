@@ -3576,7 +3576,11 @@ class GestioneSpese(tk.Tk):
             return
         old_dt, idx = self.modifica_idx
         new_data = self.data_spesa_var.get()
-        new_dt = datetime.datetime.strptime(new_data, "%d-%m-%Y").date()
+        try:
+            new_dt = datetime.datetime.strptime(new_data, "%d-%m-%Y").date()
+        except Exception:
+            self.show_toast("Errore: Data mancante o non valida.")
+            return
         cat = self.cat_sel.get()
         desc = self.desc_entry.get().strip()
         try:
@@ -5673,7 +5677,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "aea85b796a73a594c4ee661de293bd5b0c3af9832ccfc8fb0561b62d79f703a5"
+        E_H_B = "7d07b3b255394954ec4433ba3e8a62c4abb8a7938120bdcdc562fe23f30aa6cf"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
