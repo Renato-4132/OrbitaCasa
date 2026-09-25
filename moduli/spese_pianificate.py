@@ -155,13 +155,78 @@ def ottieni_promemoria_mese(self, anno, mese):
             risultato.append(piano_copia)
     return risultato
 
+def _chiedi_ricalcolo_piano(self, piano, importo_live):
+    importo_salvato = round(float(piano.get("importo_totale", 0) or 0), 2)
+    try:
+        importo_live = round(float(importo_live), 2)
+    except Exception:
+        return "nessuno"
+    if abs(importo_live - importo_salvato) < 0.01:
+        if "_importo_confermato" in piano:
+            del piano["_importo_confermato"]
+            return "pulito"
+        return "nessuno"
+    if piano.get("_importo_confermato") == importo_live:
+        return "nessuno"
+    nome_p = piano.get("categoria") or piano.get("nome") or "Spesa"
+    try:
+        ini_d = _parse_data(piano["inizio"])
+        scad_d = _parse_data(piano["data_scadenza"])
+        periodo_txt = f"{MESI_BREVI[ini_d.month-1]} {ini_d.year} → {MESI_BREVI[scad_d.month-1]} {scad_d.year}"
+    except Exception:
+        periodo_txt = "l'intero periodo del piano"
+    msg = (
+        f"L'importo della spesa pianificata '{nome_p}' è cambiato "
+        f"da {_fmt(importo_salvato)} a {_fmt(importo_live)}.\n\n"
+        f"Vuoi ricalcolare la quota mensile distribuendo il nuovo importo "
+        f"su {periodo_txt}?\n\n"
+        f"(Se scegli No, il piano resta invariato con l'importo precedente.)"
+    )
+    if self.show_custom_askyesno("Importo modificato", msg):
+        try:
+            mesi_lista = _mesi_coperti(_parse_data(piano["inizio"]), _parse_data(piano["data_scadenza"]))
+            n_mesi = len(mesi_lista) or 1
+        except Exception:
+            n_mesi = piano.get("mesi", 1) or 1
+        piano["importo_totale"] = importo_live
+        piano["quota"] = _quote_mensili(importo_live, n_mesi)[0]
+        piano.pop("_importo_confermato", None)
+        return "ricalcolato"
+    else:
+        piano["_importo_confermato"] = importo_live
+        return "invariato"
+
+def _refresh_dashboard_pianificazione(self):
+    vy = getattr(self, "_view_year", None)
+    vm = getattr(self, "_view_month", None)
+    if hasattr(self, "update_stats"):
+        self.update_stats()
+    if hasattr(self, "update_totalizzatore_anno_corrente"):
+        self.update_totalizzatore_anno_corrente(year=vy)
+    if hasattr(self, "update_totalizzatore_mese_corrente"):
+        self.update_totalizzatore_mese_corrente(year=vy, month=vm)
+    if hasattr(self, "update_spese_mese_corrente"):
+        self.update_spese_mese_corrente(year=vy, month=vm)
+
 def apri_spalma_spesa(self, entry, data_spesa):
     from moduli.modello_spesa import campo
     import __main__ as _app
 
     id_spesa = campo(entry, "id_spesa", None)
-    if esiste_piano_per_spesa(self, id_spesa):
-        self.show_custom_warning("Ammortamento", "Questa spesa è già in un piano di accantonamento.")
+    dati_esistenti = _carica_sp()
+    piano_esistente = next(
+        (p for p in dati_esistenti.get("piani", []) if p.get("id_spesa_collegata") == id_spesa), None
+    )
+    if piano_esistente:
+        importo_attuale = float(campo(entry, "importo", 0.0))
+        esito = _chiedi_ricalcolo_piano(self, piano_esistente, importo_attuale)
+        if esito in ("ricalcolato", "pulito", "invariato"):
+            _salva_sp(dati_esistenti)
+        if esito == "ricalcolato":
+            self.show_toast("Piano di accantonamento aggiornato con il nuovo importo")
+            _refresh_dashboard_pianificazione(self)
+        else:
+            self.show_custom_warning("Ammortamento", "Questa spesa è già in un piano di accantonamento.")
         return
     if data_spesa <= datetime.date.today():
         self.show_custom_warning("Ammortamento", "Puoi accantonare solo spese con data futura.")
@@ -386,7 +451,7 @@ def apri_gestione_spese_pianificate(self):
     win.withdraw()
     win.title("Pianifica")
     win.configure(bg=self.COLOR_BACKGROUND)
-    w_win, h_win = 1366, 420
+    w_win, h_win = 1500, 420
     self.update_idletasks()
     root_x, root_y = self.winfo_rootx(), self.winfo_rooty()
     root_w, root_h = self.winfo_width(), self.winfo_height()
@@ -584,57 +649,14 @@ def apri_gestione_spese_pianificate(self):
             spesa_viva = _trova_spesa_viva(p.get("id_spesa_collegata"))
             if spesa_viva is None:
                 continue
-            try:
-                importo_live = round(float(campo(spesa_viva, "importo", 0.0)), 2)
-            except Exception:
-                continue
-            importo_salvato = round(float(p.get("importo_totale", 0) or 0), 2)
-            if abs(importo_live - importo_salvato) < 0.01:
-                if "_importo_confermato" in p:
-                    del p["_importo_confermato"]
-                    modificato = True
-                continue
-            if p.get("_importo_confermato") == importo_live:
-                continue
-            nome_p = p.get("categoria") or p.get("nome") or "Spesa"
-            try:
-                ini_d = _parse_data(p["inizio"])
-                scad_d = _parse_data(p["data_scadenza"])
-                periodo_txt = f"{MESI_BREVI[ini_d.month-1]} {ini_d.year} → {MESI_BREVI[scad_d.month-1]} {scad_d.year}"
-            except Exception:
-                periodo_txt = "l'intero periodo del piano"
-            msg = (
-                f"L'importo della spesa pianificata '{nome_p}' è cambiato "
-                f"da {_fmt(importo_salvato)} a {_fmt(importo_live)}.\n\n"
-                f"Vuoi ricalcolare la quota mensile distribuendo il nuovo importo "
-                f"su {periodo_txt}?\n\n"
-                f"(Se scegli No, il piano resta invariato con l'importo precedente.)"
-            )
-            if self.show_custom_askyesno("Importo modificato", msg):
-                try:
-                    mesi_lista = _mesi_coperti(_parse_data(p["inizio"]), _parse_data(p["data_scadenza"]))
-                    n_mesi = len(mesi_lista) or 1
-                except Exception:
-                    n_mesi = p.get("mesi", 1) or 1
-                p["importo_totale"] = importo_live
-                p["quota"] = _quote_mensili(importo_live, n_mesi)[0]
-                p.pop("_importo_confermato", None)
-            else:
-                p["_importo_confermato"] = importo_live
-            modificato = True
+            importo_live = campo(spesa_viva, "importo", 0.0)
+            esito = _chiedi_ricalcolo_piano(self, p, importo_live)
+            if esito != "nessuno":
+                modificato = True
         if modificato:
             _salva_sp(dati)
             _ricarica()
-            vy = getattr(self, "_view_year", None)
-            vm = getattr(self, "_view_month", None)
-            if hasattr(self, "update_stats"):
-                self.update_stats()
-            if hasattr(self, "update_totalizzatore_anno_corrente"):
-                self.update_totalizzatore_anno_corrente(year=vy)
-            if hasattr(self, "update_totalizzatore_mese_corrente"):
-                self.update_totalizzatore_mese_corrente(year=vy, month=vm)
-            if hasattr(self, "update_spese_mese_corrente"):
-                self.update_spese_mese_corrente(year=vy, month=vm)
+            _refresh_dashboard_pianificazione(self)
 
     _ricarica()
     win.deiconify()
