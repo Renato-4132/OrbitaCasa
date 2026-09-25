@@ -381,8 +381,8 @@ def gestisci_backup_popup(self):
             else:
                 subprocess.Popen(["xdg-open", cartella_backup])
     img_backup  = self.icone_gui.get("salva")
-    img_restore = self.icone_gui.get("aggiorna")
-    img_folder  = self.icone_gui.get("cartella")
+    img_restore = self.icone_gui.get("reset_campo")
+    img_folder  = self.icone_gui.get("documenti")
     img_del     = self.icone_gui.get("cancella")
     img_close   = self.icone_gui.get("chiudi")
     def _esegui_backup_ora():
@@ -399,7 +399,7 @@ def gestisci_backup_popup(self):
         (img_del,     "Elimina",       _elimina),
     ]:
         btn = ttk.Label(frame_footer, compound="left", image=img,
-                        text=f" {testo}" if img else f" {testo}",
+                        text=f" {testo}" if img else testo,
                         background=self.COLOR_BACKGROUND, foreground=self.TEXT_COLOR,
                         cursor="hand2", padding=(10, 5))
         btn.pack(side="left", padx=(0, 6))

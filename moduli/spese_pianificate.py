@@ -130,6 +130,9 @@ def _quota_effettiva(piano, anno, mese):
     quote = _quote_mensili(float(piano.get("importo_totale", 0) or 0), len(mesi_lista))
     return quote[mesi_lista.index((anno, mese))]
 
+def piani_puliti(self):
+    return _carica_sp()
+
 def ids_spese_pianificate(self):
     dati = _carica_sp()
     return {p.get("id_spesa_collegata") for p in dati.get("piani", []) if p.get("id_spesa_collegata")}

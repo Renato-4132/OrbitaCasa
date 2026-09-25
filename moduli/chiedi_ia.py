@@ -748,7 +748,10 @@ def _costruisci_contesto_database(self, _app, _fmt_it):
         db.get("trasferimenti", []) if isinstance(db, dict) else [],
         id_a_nome_conti, _fmt_it)
 
-    righe += _blocco_spese_pianificate(_leggi_json(getattr(_app, 'PIANIFICA_FILE', None)), _fmt_it)
+    righe += _blocco_spese_pianificate(
+        self.piani_puliti() if hasattr(self, "piani_puliti") else _leggi_json(getattr(_app, 'PIANIFICA_FILE', None)),
+        _fmt_it
+    )
     righe += _blocco_scadenze_ricorrenti_mese(self, oggi, _fmt_it)
     righe += _blocco_fondo_pensione(_leggi_json(getattr(_app, 'PENSIONE_FILE', None)), _fmt_it)
     righe += _blocco_fondo_risparmio(_leggi_json(getattr(_app, 'FR_FILE', None)), _fmt_it)
