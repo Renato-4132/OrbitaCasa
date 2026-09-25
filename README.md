@@ -22,8 +22,6 @@
 
 > *"Questa è forse la chicca dell'articolo e l'app per gestire il budget familiare più completa fra tutte"* — [FinanzaCafona, Maggio 2026](https://finanzacafona.it/2026/05/app-per-gestire-il-budget-familiare.html)
 
-> ℹ️ **Nota:** nell'articolo il software è citato con il nome precedente **"CasaFacilePro"**. Orbita Casa è la versione attuale, aggiornata e mantenuta attivamente dello stesso progetto.
-
 [![FaceBook](https://img.shields.io/badge/FaceBook-4f46e5?style=flat-square&logo=google-chrome&logoColor=white)](https://www.facebook.com/orbitahome/)
 [![Sito Web](https://img.shields.io/badge/SITO_UFFICIALE-VISITA-4f46e5?style=flat-square&logo=google-chrome&logoColor=white)](https://renato-4132.github.io/OrbitaCasa/)
 ---
