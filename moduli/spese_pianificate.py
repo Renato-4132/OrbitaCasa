@@ -170,6 +170,8 @@ def apri_spalma_spesa(self, entry, data_spesa):
     nome = campo(entry, "descrizione", "").strip() or campo(entry, "categoria", "Spesa")
     categoria = campo(entry, "categoria", "")
     conto = campo(entry, "conto", "")
+    hashtag = campo(entry, "hashtag", []) or []
+    metodo_pagamento = campo(entry, "metodo_pagamento", "")
     importo = float(campo(entry, "importo", 0.0))
 
     oggi = datetime.date.today()
@@ -298,6 +300,8 @@ def apri_spalma_spesa(self, entry, data_spesa):
             "descrizione": campo(entry, "descrizione", "").strip(),
             "categoria": categoria,
             "conto": conto,
+            "hashtag": hashtag,
+            "metodo_pagamento": metodo_pagamento,
             "importo_totale": importo,
             "data_scadenza": data_spesa.isoformat(),
             "inizio": inizio.isoformat(),
@@ -310,7 +314,10 @@ def apri_spalma_spesa(self, entry, data_spesa):
         self.show_toast("Piano di accantonamento creato")
         win.destroy()
         if hasattr(self, "update_spese_mese_corrente"):
-            self.update_spese_mese_corrente()
+            self.update_spese_mese_corrente(
+                year=getattr(self, "_view_year", None),
+                month=getattr(self, "_view_month", None)
+            )
 
     btn_conferma = ttk.Label(btn_frame, image=ico.get("check"), text=" Conferma",
                           compound="left", cursor="hand2", background=self.COLOR_BACKGROUND,
@@ -329,6 +336,44 @@ def apri_spalma_spesa(self, entry, data_spesa):
     win.deiconify()
     win.grab_set()
 
+def on_piano_doppio_click(self, event):
+    tree = event.widget
+    item_id = tree.focus()
+    if not item_id:
+        return
+    dati = _carica_sp()
+    piano = next((p for p in dati.get("piani", []) if p.get("id") == item_id), None)
+    if not piano:
+        return
+    try:
+        giorno = _parse_data(piano["data_scadenza"])
+    except Exception:
+        return
+    self.set_stats_mode("giorno")
+    if hasattr(self, "cal"):
+        self.cal.selection_set(giorno)
+        self.cal._sel_date = giorno
+        self.stats_refdate = giorno
+    self.update_stats()
+    if hasattr(self, "estratto_month_var"):
+        self.estratto_month_var.set(f"{giorno.month:02d}")
+    if hasattr(self, "estratto_year_var"):
+        self.estratto_year_var.set(str(giorno.year))
+    if hasattr(self, "stats_label"):
+        self.stats_label.config(
+            text=f"Riepilogo Giornaliero - {giorno.strftime('%d-%m-%Y')}",
+            foreground="purple", font=("Arial", 10, "bold"))
+        if giorno != datetime.date.today():
+            self.blink_label_colors(self.stats_label, "purple", "yellow")
+        else:
+            self.stop_blink_label_colors(self.stats_label, final_color="purple")
+    if hasattr(self, "_win_spese_pianificate") and self._win_spese_pianificate:
+        try:
+            self._win_spese_pianificate.destroy()
+        except Exception:
+            pass
+        self._win_spese_pianificate = None
+
 def apri_gestione_spese_pianificate(self):
     if hasattr(self, "_win_spese_pianificate") and self._win_spese_pianificate and self._win_spese_pianificate.winfo_exists():
         self._win_spese_pianificate.lift()
@@ -341,7 +386,7 @@ def apri_gestione_spese_pianificate(self):
     win.withdraw()
     win.title("Pianifica")
     win.configure(bg=self.COLOR_BACKGROUND)
-    w_win, h_win = 1300, 420
+    w_win, h_win = 1366, 420
     self.update_idletasks()
     root_x, root_y = self.winfo_rootx(), self.winfo_rooty()
     root_w, root_h = self.winfo_width(), self.winfo_height()
@@ -354,7 +399,7 @@ def apri_gestione_spese_pianificate(self):
     frm = ttk.Frame(win, padding=10)
     frm.pack(fill="both", expand=True)
 
-    cols = ("nome", "descrizione", "importo", "quota", "periodo")
+    cols = ("nome", "descrizione", "conto", "metodo", "tag", "importo", "quota", "periodo")
 
     def _cancella_selezionato():
         sel = tree.selection()
@@ -370,7 +415,10 @@ def apri_gestione_spese_pianificate(self):
             _ricarica()
             self.show_toast("Piano eliminato" if n == 1 else f"{n} piani eliminati")
             if hasattr(self, "update_spese_mese_corrente"):
-                self.update_spese_mese_corrente()
+                self.update_spese_mese_corrente(
+                    year=getattr(self, "_view_year", None),
+                    month=getattr(self, "_view_month", None)
+                )
 
     ico = getattr(self, "icone_gui", {}) or {}
     btn_frame = ttk.Frame(frm)
@@ -403,6 +451,16 @@ def apri_gestione_spese_pianificate(self):
     btn_chiudi.pack(side="right")
     btn_chiudi.bind("<Button-1>", lambda e: win.destroy())
 
+    img_mouse = ico.get("mouse")
+    lbl_hint = ttk.Label(
+        btn_frame, text="Doppio clic → Vai alla spesa sulla Dashboard",
+        image=img_mouse, compound="right",
+        foreground="gray", font=("Arial", 8, "italic")
+    )
+    if img_mouse:
+        lbl_hint.image = img_mouse
+    lbl_hint.pack(side="right", padx=10)
+
     tree_frame = ttk.Frame(frm)
     tree_frame.pack(side="top", fill="both", expand=True)
     vsb = ttk.Scrollbar(tree_frame, orient="vertical")
@@ -410,21 +468,28 @@ def apri_gestione_spese_pianificate(self):
                          yscrollcommand=vsb.set)
     vsb.config(command=tree.yview)
     vsb.pack(side="right", fill="y")
-    intestazioni = {"descrizione": "Descrizione", "nome": "Categoria", "importo": "Importo totale",
+    intestazioni = {"descrizione": "Descrizione", "nome": "Categoria", "conto": "Conto",
+                     "metodo": "Metodo", "tag": "Tag", "importo": "Importo totale",
                      "quota": "Quota mensile", "periodo": "Periodo accantonamento"}
     for c in cols:
         tree.heading(c, text=intestazioni[c], command=lambda _c=c: self.treeview_sort_column(tree, _c, False))
-    tree.column("nome", width=150)
-    tree.column("descrizione", width=180)
-    tree.column("importo", width=110, anchor="center")
-    tree.column("quota", width=110, anchor="center")
-    tree.column("periodo", width=260, anchor="center")
+    tree.column("nome", width=130)
+    tree.column("descrizione", width=160)
+    tree.column("conto", width=110, anchor="center")
+    tree.column("metodo", width=110, anchor="center")
+    tree.column("tag", width=110, anchor="center")
+    tree.column("importo", width=100, anchor="center")
+    tree.column("quota", width=100, anchor="center")
+    tree.column("periodo", width=230, anchor="center")
     tree.pack(side="left", fill="both", expand=True)
+    tree.tag_configure("orfano", foreground="#E5C07B")
+    tree.bind("<Double-1>", lambda e: self.on_piano_doppio_click(e))
 
     def _esporta_piani_testo():
         piani = sorted(_carica_sp().get("piani", []), key=lambda x: x.get("data_scadenza", ""))
-        col_desc, col_nome, col_imp, col_quota, col_per = 24, 22, 16, 16, 22
-        header = (f"{'Categoria':<{col_nome}} {'Descrizione':<{col_desc}} {'Importo totale':>{col_imp}} "
+        col_desc, col_nome, col_conto, col_metodo, col_tag, col_imp, col_quota, col_per = 20, 18, 12, 12, 14, 16, 16, 22
+        header = (f"{'Categoria':<{col_nome}} {'Descrizione':<{col_desc}} {'Conto':<{col_conto}} "
+                  f"{'Metodo':<{col_metodo}} {'Tag':<{col_tag}} {'Importo totale':>{col_imp}} "
                   f"{'Quota mensile':>{col_quota}} {'Periodo':<{col_per}}")
         sep = "─" * len(header)
         lines = ["═" * len(header), "SPESE PIANIFICATE (ACCANTONAMENTO)".center(len(header)),
@@ -449,8 +514,12 @@ def apri_gestione_spese_pianificate(self):
                     periodo = "-"
                 desc_p = str(p.get("descrizione", "") or "-")
                 nome_p = str(p.get("categoria", "") or p.get("nome", ""))
+                conto_p = str(p.get("conto", "") or "-")
+                metodo_p = str(p.get("metodo_pagamento", "") or "-")
+                tag_p = str(" ".join(p.get("hashtag", []) or []) or "-")
                 lines.append(
-                    f"{nome_p:<{col_nome}.{col_nome}} {desc_p:<{col_desc}.{col_desc}} {_fmt(importo):>{col_imp}} "
+                    f"{nome_p:<{col_nome}.{col_nome}} {desc_p:<{col_desc}.{col_desc}} {conto_p:<{col_conto}.{col_conto}} "
+                    f"{metodo_p:<{col_metodo}.{col_metodo}} {tag_p:<{col_tag}.{col_tag}} {_fmt(importo):>{col_imp}} "
                     f"{_fmt(quota):>{col_quota}} {periodo:<{col_per}.{col_per}}"
                 )
         lines.append(sep)
@@ -464,7 +533,18 @@ def apri_gestione_spese_pianificate(self):
             default_filename=f"Spese_Pianificate_{oggi.strftime('%d-%m-%Y')}.txt"
         )
 
+    def _trova_spesa_viva(id_spesa):
+        if not id_spesa:
+            return None
+        from moduli.modello_spesa import campo
+        for voci in getattr(self, "spese", {}).values():
+            for v in voci:
+                if campo(v, "id_spesa", None) == id_spesa:
+                    return v
+        return None
+
     def _ricarica():
+        from moduli.modello_spesa import campo
         for i in tree.get_children():
             tree.delete(i)
         dati = _carica_sp()
@@ -475,10 +555,87 @@ def apri_gestione_spese_pianificate(self):
                 periodo = f"{MESI_BREVI[inizio.month-1]} {inizio.year} → {MESI_BREVI[scad.month-1]} {scad.year}"
             except Exception:
                 periodo = "-"
+            spesa_viva = _trova_spesa_viva(p.get("id_spesa_collegata"))
+            if spesa_viva is not None:
+                categoria_v = campo(spesa_viva, "categoria", "") or (p.get("categoria") or p.get("nome", ""))
+                descrizione_v = campo(spesa_viva, "descrizione", "") or p.get("descrizione", "")
+                conto_v = campo(spesa_viva, "conto", "") or p.get("conto", "")
+                metodo_v = campo(spesa_viva, "metodo_pagamento", "") or p.get("metodo_pagamento", "")
+                tag_v = " ".join(campo(spesa_viva, "hashtag", []) or p.get("hashtag", []) or [])
+                riga_tags = ()
+            else:
+                categoria_v = p.get("categoria", "") or p.get("nome", "")
+                descrizione_v = (p.get("descrizione", "") or "") + " ⚠️ spesa non trovata"
+                conto_v = p.get("conto", "")
+                metodo_v = p.get("metodo_pagamento", "")
+                tag_v = " ".join(p.get("hashtag", []) or [])
+                riga_tags = ("orfano",)
             tree.insert("", "end", iid=p.get("id"), values=(
-                p.get("categoria", "") or p.get("nome", ""), p.get("descrizione", ""),
+                categoria_v, descrizione_v,
+                conto_v, metodo_v, tag_v,
                 _fmt(p.get("importo_totale", 0)), _fmt(p.get("quota", 0)), periodo
-            ))
+            ), tags=riga_tags)
+
+    def _verifica_importi_variati():
+        from moduli.modello_spesa import campo
+        dati = _carica_sp()
+        modificato = False
+        for p in dati.get("piani", []):
+            spesa_viva = _trova_spesa_viva(p.get("id_spesa_collegata"))
+            if spesa_viva is None:
+                continue
+            try:
+                importo_live = round(float(campo(spesa_viva, "importo", 0.0)), 2)
+            except Exception:
+                continue
+            importo_salvato = round(float(p.get("importo_totale", 0) or 0), 2)
+            if abs(importo_live - importo_salvato) < 0.01:
+                if "_importo_confermato" in p:
+                    del p["_importo_confermato"]
+                    modificato = True
+                continue
+            if p.get("_importo_confermato") == importo_live:
+                continue
+            nome_p = p.get("categoria") or p.get("nome") or "Spesa"
+            try:
+                ini_d = _parse_data(p["inizio"])
+                scad_d = _parse_data(p["data_scadenza"])
+                periodo_txt = f"{MESI_BREVI[ini_d.month-1]} {ini_d.year} → {MESI_BREVI[scad_d.month-1]} {scad_d.year}"
+            except Exception:
+                periodo_txt = "l'intero periodo del piano"
+            msg = (
+                f"L'importo della spesa pianificata '{nome_p}' è cambiato "
+                f"da {_fmt(importo_salvato)} a {_fmt(importo_live)}.\n\n"
+                f"Vuoi ricalcolare la quota mensile distribuendo il nuovo importo "
+                f"su {periodo_txt}?\n\n"
+                f"(Se scegli No, il piano resta invariato con l'importo precedente.)"
+            )
+            if self.show_custom_askyesno("Importo modificato", msg):
+                try:
+                    mesi_lista = _mesi_coperti(_parse_data(p["inizio"]), _parse_data(p["data_scadenza"]))
+                    n_mesi = len(mesi_lista) or 1
+                except Exception:
+                    n_mesi = p.get("mesi", 1) or 1
+                p["importo_totale"] = importo_live
+                p["quota"] = _quote_mensili(importo_live, n_mesi)[0]
+                p.pop("_importo_confermato", None)
+            else:
+                p["_importo_confermato"] = importo_live
+            modificato = True
+        if modificato:
+            _salva_sp(dati)
+            _ricarica()
+            vy = getattr(self, "_view_year", None)
+            vm = getattr(self, "_view_month", None)
+            if hasattr(self, "update_stats"):
+                self.update_stats()
+            if hasattr(self, "update_totalizzatore_anno_corrente"):
+                self.update_totalizzatore_anno_corrente(year=vy)
+            if hasattr(self, "update_totalizzatore_mese_corrente"):
+                self.update_totalizzatore_mese_corrente(year=vy, month=vm)
+            if hasattr(self, "update_spese_mese_corrente"):
+                self.update_spese_mese_corrente(year=vy, month=vm)
 
     _ricarica()
     win.deiconify()
+    win.after(150, _verifica_importi_variati)

@@ -193,11 +193,11 @@ def registra_tutti_i_moduli(GestioneSpese):
     from moduli.spese_pianificate import (
         apri_spalma_spesa, apri_gestione_spese_pianificate, ottieni_promemoria_mese,
         esiste_piano_per_spesa, elimina_piano, elimina_piano_per_spesa, ids_spese_pianificate,
-        piani_puliti,
+        piani_puliti, on_piano_doppio_click,
     )
     _registra(apri_spalma_spesa, apri_gestione_spese_pianificate, ottieni_promemoria_mese,
               esiste_piano_per_spesa, elimina_piano, elimina_piano_per_spesa, ids_spese_pianificate,
-              piani_puliti)
+              piani_puliti, on_piano_doppio_click)
 
     from moduli.pensione import apri_fondo_pensione
     _registra(apri_fondo_pensione)
