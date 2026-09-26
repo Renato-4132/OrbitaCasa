@@ -2,23 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import os
-import re
 import json
-import time
-import socket
-import hashlib
-import logging
-import platform
-import ctypes
-import shutil
 import html
 import datetime
 import threading
-import webbrowser
-import tkinter as tk
-from tkinter import ttk
 from moduli.modello_spesa import SpesaEntry, campo, METODI_PAGAMENTO
-from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa, e_trasferimento_virtuale
+from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa
 from moduli.web_utils import _fmt_it, _saldo_effettivo_web
 
 
@@ -1538,7 +1527,7 @@ def cancella_voce_web(self, giorno_str, idx):
         data_obj = datetime.datetime.strptime(giorno_str, "%d-%m-%Y").date()
         if data_obj in self.spese:
             if 0 <= idx < len(self.spese[data_obj]):
-                voce_rimossa = self.spese[data_obj].pop(idx)
+                self.spese[data_obj].pop(idx)
                 self.annulla_azione_gamification("movimento")
                 if not self.spese[data_obj]:
                     del self.spese[data_obj]
@@ -1554,7 +1543,6 @@ def cancella_voce_web(self, giorno_str, idx):
 def aggiungi_voce_web(self, voce):
     import __main__ as _app
     DB_FILE = _app.DB_FILE
-    PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
     try:
         with open(DB_FILE, "r", encoding="utf-8") as f:
             dati = json.load(f)

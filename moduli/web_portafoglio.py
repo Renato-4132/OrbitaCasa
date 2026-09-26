@@ -2,23 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import os
-import re
 import json
-import time
-import socket
-import hashlib
-import logging
-import platform
-import ctypes
-import shutil
 import html
 import datetime
-import threading
-import webbrowser
-import tkinter as tk
-from tkinter import ttk
-from moduli.modello_spesa import SpesaEntry, campo, METODI_PAGAMENTO
-from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa, e_trasferimento_virtuale
+from moduli.modello_spesa import campo
+from moduli.mappa_conti_trasferimenti import e_trasferimento_virtuale
 from moduli.web_utils import _fmt_it, _saldo_effettivo_web
 
 
@@ -446,7 +434,6 @@ def pagina_portafoglio_web(self):
     TIPO_COLORI = _PORTAFOGLIO_TIPO_COLORI
     TIPI = _PORTAFOGLIO_TIPI
 
-    # --- Riepilogo ---
     totale_conti = sum(_saldo_effettivo_web(self, c, db) for c in conti)
     totale_abs = sum(abs(_saldo_effettivo_web(self, c, db)) for c in conti) or 1
     cards_html = ""
@@ -473,7 +460,6 @@ def pagina_portafoglio_web(self):
         for tipo, col in TIPO_COLORI.items()
     )
 
-    # --- Conti ---
     conti_rows = ""
     for c in conti:
         saldo_c = _saldo_effettivo_web(self, c, db)
@@ -895,12 +881,12 @@ def pagina_portafoglio_web(self):
                 <a href="/">🏠 Aggiungi Operazione</a>
                 <a href="/lista">📈 Gestione Movimenti Mese</a>
                 <a href="/stats">📊 Bilancio Mese</a>
-                <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
                 <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/scadenze_web">📅 Scadenze del Mese</a>
                 <a href="/fairshare_web">⚖️ FairShare</a>
                 <a href="/menu_esplora">🔍 Esplora</a>
                 <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>
         </div>

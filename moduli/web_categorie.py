@@ -1,24 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import os
-import re
-import json
-import time
-import socket
-import hashlib
-import logging
-import platform
-import ctypes
-import shutil
-import html
 import datetime
-import threading
-import webbrowser
-import tkinter as tk
-from tkinter import ttk
-from moduli.modello_spesa import SpesaEntry, campo, METODI_PAGAMENTO
-from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa, e_trasferimento_virtuale
+from moduli.modello_spesa import SpesaEntry
 
 
 # Html Gestione Categorie Web

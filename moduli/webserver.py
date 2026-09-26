@@ -2,23 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import os
-import re
 import json
 import time
-import socket
-import hashlib
-import logging
-import platform
-import ctypes
-import shutil
-import html
 import datetime
-import threading
 import webbrowser
-import tkinter as tk
-from tkinter import ttk
-from moduli.modello_spesa import SpesaEntry, campo, METODI_PAGAMENTO
-from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa, e_trasferimento_virtuale
 
 
 # Apri WebServer nel Browser   
@@ -591,7 +578,7 @@ def _crea_flask_app(self):
         return redirect(f"/cambia_profilo_web?errore={quote(risultato.get('errore', 'Errore sconosciuto'))}", code=303)
 
     from moduli.webauthn_login import aggiungi_rotte_webauthn
-    aggiungi_rotte_webauthn(flask_app, tk_app, richiede_login, html_resp, get_ip, request)
+    aggiungi_rotte_webauthn(flask_app, tk_app, richiede_login, html_resp, get_ip)
 
     return flask_app
 
@@ -1653,7 +1640,7 @@ def html_info_sys(self):
     LOGIN_WEB = _app.LOGIN_WEB
     NAME = _app.NAME
     VERSION = _app.VERSION
-    import shutil, sys, multiprocessing, datetime, platform, os, json
+    import shutil, multiprocessing, datetime, platform, os, json
     PROFILO_ATTIVO = _app.PROFILO_ATTIVO
     folder = (PROFILO_ATTIVO if PROFILO_ATTIVO != "Principale" else os.path.basename(os.getcwd())).upper()
     sistema = platform.system()

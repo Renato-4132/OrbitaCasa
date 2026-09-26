@@ -1,24 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import os
-import re
 import json
-import time
-import socket
-import hashlib
-import logging
-import platform
-import ctypes
-import shutil
 import html
 import datetime
-import threading
-import webbrowser
-import tkinter as tk
-from tkinter import ttk
-from moduli.modello_spesa import SpesaEntry, campo, METODI_PAGAMENTO
-from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa, e_trasferimento_virtuale
+from moduli.modello_spesa import campo
+from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa
 from moduli.web_utils import _fmt_it
 
 
@@ -38,7 +25,6 @@ def pagina_grafici_web(self, conto_filtro=""):
     )
     oggi = datetime.date.today()
     anno_corrente = oggi.year
-    oggi_formattata = oggi.strftime('%d/%m/%Y')
     anno_corrente_format = str(anno_corrente)
     fallback_storico     = '{"labels": ["N/D"], "datasets": [{"label": "Dati non caricati", "data": [0], "backgroundColor": ["#333"]}]}'
     fallback_mensile     = '{"labels": ["N/D"], "datasets": [{"label": "Dati non caricati", "data": [0], "backgroundColor": ["#333"]}]}'
@@ -481,10 +467,9 @@ def pagina_grafici_web(self, conto_filtro=""):
 </body>
 </html>"""
 
-# Html Genera la pagina web delle scadenze/ricorrenze del mese corrente (equivalente web del popup scadenze_mese)
+# Html Genera la pagina web delle scadenze/ricorrenze del mese corrente
 def html_scadenze_mese(self):
     import datetime
-    from moduli.modello_spesa import campo
     def calcola_data_fine(data_inizio, n_volte, periodo):
         if not data_inizio or not isinstance(n_volte, int) or n_volte < 1:
             return "N/D"

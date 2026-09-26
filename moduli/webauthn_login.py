@@ -30,7 +30,7 @@ def _da_b64u(s):
     padding = "=" * (-len(s) % 4)
     return base64.urlsafe_b64decode(s + padding)
 
-def aggiungi_rotte_webauthn(flask_app, tk_app, richiede_login, html_resp, get_ip, request_module):
+def aggiungi_rotte_webauthn(flask_app, tk_app, richiede_login, html_resp, get_ip):
     try:
         import webauthn
         from webauthn import (
@@ -192,7 +192,6 @@ def aggiungi_rotte_webauthn(flask_app, tk_app, richiede_login, html_resp, get_ip
         except Exception as e:
             return Response(json.dumps({"ok": False, "errore": str(e)}), status=401, mimetype="application/json")
 
-        # Aggiorna il contatore anti-clonazione della chiave usata
         trovata["sign_count"] = risultato.new_sign_count
         _salva_credenziali(CREDENTIALS_FILE, credenziali)
 
