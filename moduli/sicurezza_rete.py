@@ -15,23 +15,15 @@ from tkinter import ttk, filedialog
 import requests
 import pymupdf as fitz
 
+def hash_pw(pw):
+    return hashlib.sha256(pw.encode()).hexdigest()
+
 # Cambio Password Manuale
 def apri_cambio_password(self):
     import __main__ as _app
     PW_FILE = _app.PW_FILE
     NAME = _app.NAME
     VERSION = _app.VERSION
-    def hash_pw(pw):
-        return hashlib.sha256(pw.encode()).hexdigest()
-    def salva_hash(pw):
-        with open(PW_FILE, "w") as f:
-            json.dump({"hash": hash_pw(pw)}, f)
-    def leggi_hash():
-        if not os.path.exists(PW_FILE): return None
-        try:
-            with open(PW_FILE) as f:
-                return json.load(f).get("hash")
-        except: return None
     def crea_campo_password_moderno(parent, etichetta=""):
         if etichetta:
             tk.Label(parent, text=etichetta, bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
@@ -92,7 +84,7 @@ def apri_cambio_password(self):
         attuale  = entry_attuale.get()
         nuova    = entry_nuova.get()
         conferma = entry_conferma.get()
-        if hash_pw(attuale) != leggi_hash():
+        if hash_pw(attuale) != self.leggi_hash():
             mess.config(text="Password attuale errata!", fg=self.COLOR_RED_SMOOTH)
             entry_attuale.delete(0, tk.END)
             entry_nuova.delete(0, tk.END)
@@ -100,7 +92,7 @@ def apri_cambio_password(self):
             entry_attuale.focus_set()
             return
         if not nuova:
-            salva_hash("")
+            self.salva_hash("")
             def lampeggia(n=6):
                 if n <= 0:
                     win.destroy()
@@ -117,7 +109,7 @@ def apri_cambio_password(self):
             entry_conferma.delete(0, tk.END)
             entry_attuale.focus_set()
             return
-        salva_hash(nuova)
+        self.salva_hash(nuova)
         mess.config(text="Password Aggiornata!", fg=self.COLOR_GREEN_SMOOTH)
         win.after(1200, win.destroy)
     for entry in [entry_attuale, entry_nuova, entry_conferma]:
@@ -493,9 +485,8 @@ def leggi_hash(self):
 def salva_hash(self, pw):
     import __main__ as _app
     PW_FILE = _app.PW_FILE
-    import hashlib, json
     with open(PW_FILE, "w") as f:
-        json.dump({"hash": hashlib.sha256(pw.encode()).hexdigest()}, f)
+        json.dump({"hash": hash_pw(pw)}, f)
 
 # Verifica la password inserita, gestendo contatore tentativi e ban temporaneo
 def verifica_password(self, password):

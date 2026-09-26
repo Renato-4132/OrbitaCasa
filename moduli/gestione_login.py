@@ -3,11 +3,12 @@
 
 import os
 import json
-import hashlib
 import datetime
 import threading
 import tkinter as tk
 from tkinter import ttk
+
+from moduli.sicurezza_rete import hash_pw
 
 IN_DOCKER = os.path.exists("/.dockerenv") or os.environ.get("OC_RUNNING_IN_DOCKER") == "1"
 
@@ -40,19 +41,8 @@ def gestione_login(self):
     FG_OK   = t["FG_OK"]
     FG_DIM  = t["FG_DIM"]
     FG_WARN = t["FG_WARN"]
-    def hash_pw(pw):
-        return hashlib.sha256(pw.encode()).hexdigest()
-    def salva_hash(pw):
-        with open(PW_FILE, "w") as f:
-            json.dump({"hash": hash_pw(pw)}, f)
-    def leggi_hash():
-        if not os.path.exists(PW_FILE): return None
-        try:
-            with open(PW_FILE) as f: 
-                return json.load(f).get("hash")
-        except: return None
     login_riuscito = [False]
-    salvata = leggi_hash()
+    salvata = self.leggi_hash()
     def crea_campo_password_moderno(parent, etichetta=""):
         if etichetta:
             tk.Label(parent, text=etichetta, bg=BG, fg=FG,
@@ -155,7 +145,7 @@ def gestione_login(self):
             attuale  = entry_attuale.get()
             nuova    = entry_nuova.get()
             conferma = entry_conferma.get()
-            if hash_pw(attuale) != leggi_hash():
+            if hash_pw(attuale) != self.leggi_hash():
                 mess.config(text="Password attuale errata!", fg=FG_ERR)
                 entry_attuale.delete(0, tk.END)
                 entry_nuova.delete(0, tk.END)
@@ -163,7 +153,7 @@ def gestione_login(self):
                 entry_attuale.focus_set()
                 return
             if not nuova:
-                salva_hash("")
+                self.salva_hash("")
                 def lampeggia(n=6):
                     if n <= 0:
                         on_close_cambio()
@@ -180,7 +170,7 @@ def gestione_login(self):
                 entry_conferma.delete(0, tk.END)
                 entry_attuale.focus_set()
                 return
-            salva_hash(nuova)
+            self.salva_hash(nuova)
             mess.config(text="Password Aggiornata!", fg=FG_OK)
             win.after(1200, lambda: [win.destroy(), parent_login.deiconify(), parent_login.lift(), parent_login.focus_force(), field_pw.focus_force()])
         for entry in [entry_attuale, entry_nuova, entry_conferma]:
@@ -360,10 +350,10 @@ def gestione_login(self):
             if bloccato_fino and (bloccato_fino - datetime.datetime.now()).total_seconds() > 0:
                 return
             inserita = entry_pw.get()
-            salvata = leggi_hash()
+            salvata = self.leggi_hash()
             adesso = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
             if salvata is None:
-                salva_hash(inserita)
+                self.salva_hash(inserita)
                 try:
                     with open(LOGIN_LCL, "r") as f: log = json.load(f)
                 except: log = {}
