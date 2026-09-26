@@ -398,17 +398,28 @@ def registra_tutti_i_moduli(GestioneSpese):
     get_fairshare_data_json, _percentuale_di, calcola_quote_spesa)
 
     from moduli.webserver import (
-        apri_webserver, _crea_flask_app, start_web_server, html_login, html_cambia_pw_web, html_log_web, pagina_risultati_avanzati,
-        html_info_sys, html_form, html_saluto, html_fairshare_web, documenti_pdf_web, documenti_personali_web, genera_html_utenze,
-        genera_html_consultazione, pagina_menu_esplora, add_categoria_web, modifica_categoria_web, cancella_categoria_web,
-        refresh_categorie_web, html_gestione_categorie, pagina_fondo_risparmio_web, pagina_grafici_web, html_lista_spese_mensili,
-        html_scadenze_mese,
-        stats_mensili_html, modifica_voce_form, cancella_voce_web, aggiungi_voce_web, carica_db_web, analizza_pdf_web,
-        ricalcola_operazioni_web, notifica_modifica_web, pianifica_sincro_web,
-        manda_push, get_dati_entrate_uscite_tutti_gli_anni_json, get_dati_saldo_annuale_json,
-        get_dati_entrate_uscite_json, get_dati_saldo_json, esegui_switch_profilo_web, pagina_cambia_profilo_web,
-        pagina_switch_in_corso_web, pagina_portafoglio_web, salva_conto_web, elimina_conto_web,
-        salva_trasferimento_web, elimina_trasferimento_web, refresh_portafoglio_web,)
+        apri_webserver, _crea_flask_app, start_web_server, manda_push,
+        html_login, html_cambia_pw_web, html_log_web, html_info_sys, html_saluto,)
+    from moduli.web_form_movimenti import (
+        html_form, pagina_risultati_avanzati, modifica_voce_form, cancella_voce_web,
+        aggiungi_voce_web, carica_db_web, analizza_pdf_web, ricalcola_operazioni_web,
+        notifica_modifica_web, pianifica_sincro_web,)
+    from moduli.web_categorie import (
+        add_categoria_web, modifica_categoria_web, cancella_categoria_web,
+        refresh_categorie_web, html_gestione_categorie,)
+    from moduli.web_portafoglio import (
+        get_dati_entrate_uscite_tutti_gli_anni_json, get_dati_saldo_annuale_json,
+        get_dati_entrate_uscite_json, get_dati_saldo_json,
+        refresh_portafoglio_web, salva_conto_web, elimina_conto_web,
+        salva_trasferimento_web, elimina_trasferimento_web, pagina_portafoglio_web,)
+    from moduli.web_grafici_statistiche import (
+        pagina_grafici_web, html_scadenze_mese, html_lista_spese_mensili, stats_mensili_html,)
+    from moduli.web_fondo_risparmio import (pagina_fondo_risparmio_web,)
+    from moduli.web_fairshare import (html_fairshare_web,)
+    from moduli.web_documenti import (
+        documenti_pdf_web, documenti_personali_web, genera_html_utenze, genera_html_consultazione,)
+    from moduli.web_profili_menu import (
+        pagina_menu_esplora, esegui_switch_profilo_web, pagina_cambia_profilo_web, pagina_switch_in_corso_web,)
     _registra(apri_webserver, _crea_flask_app, start_web_server, html_login, 
     html_cambia_pw_web, html_log_web, pagina_risultati_avanzati, html_info_sys, 
     html_form, html_saluto, html_fairshare_web, documenti_pdf_web, documenti_personali_web, 
