@@ -26,6 +26,17 @@ def salva_profilo_attivo(path_locale, nome_profilo):
 
 def carica_costanti(path_locale):
     g = {}
+    from moduli.licenza_persistente import migra_e_ripulisci, percorsi_file_licenza
+
+    CARTELLA_LICENZA = migra_e_ripulisci(path_locale)
+    FILE_LICENZA = percorsi_file_licenza(CARTELLA_LICENZA)
+    g['CARTELLA_LICENZA'] = CARTELLA_LICENZA
+    g['KEY_REG_FILE'] = FILE_LICENZA[".key_reg"]
+    g['REG_FILE'] = FILE_LICENZA["._reg.json"]
+    g['TRIAL_FILE'] = FILE_LICENZA["._trial.json"]
+    g['SYNC_CHK_FILE'] = FILE_LICENZA["._sync_chk"]
+    g['BN_CACHE_FILE'] = FILE_LICENZA["._bn_cache"]
+
     app_config_globale = leggi_configurazione_globale(path_locale)
     g['app_config_globale'] = app_config_globale
     DB_CONDIVISO = app_config_globale.get("shared_db", False)
@@ -100,7 +111,7 @@ def carica_costanti(path_locale):
     g['LOGIN_WEB'] = os.path.join(DB_DIR, "login_web.json")
     g['LOGIN_WEB_FAIL'] = os.path.join(DB_DIR, "login_web_fail.json")
     g['LOGIN_LCL'] = os.path.join(DB_DIR, "login_lcl.json")
-    g['ACCESS_CONTROL_WEB'] = os.path.join(DB_DIR, "web_access_control.json")
+    g['ACCESS_CONTROL_WEB'] = FILE_LICENZA["web_access_control.json"]
     g['PARTECIPANTI'] = os.path.join(DB_DIR, "fairshare.json")
     g['FAIRSHARE_STATE'] = os.path.join(DB_DIR, "fairshare_state.json")
     g['FR_FILE'] = os.path.join(DB_DIR, "fondo_risparmio.json")
@@ -149,7 +160,7 @@ def carica_costanti(path_locale):
     g['WARN_TIMEOUT'] = 20000                       # Timeout Messaggi Popup (ms)
     g['USE_WAIT_WINDOW'] = False                    # Timeout chiusura self.show_custom_warning
     g['TOLL'] = 15                                  # Tolleranza Movimenti simili (SmartCat) - Euro
-    g['VERSION'] = "2.4.8"
+    g['VERSION'] = "2.4.9"
     g['ICONIZZA_INATTIVITA'] = True                 # Attiva/disattiva Timer Minimizza
     g['TIMEOUT_INATTIVITA_MS'] = 1200000            # 20 minuti in ms - Timer Minimizza
     g['ANNI_DA_MANTENERE'] = 10                     # Anni conservati nel db

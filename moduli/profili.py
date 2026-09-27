@@ -33,7 +33,7 @@ def elenco_profili(self):
     return profili
 
 def _copia_certificati_e_licenza(db_sorgente, db_destinazione):
-    for nome_file in ("cert.pem", "key.pem", "._reg.json", "._trial.json", ".key_reg"):
+    for nome_file in ("cert.pem", "key.pem"):
         src = os.path.join(db_sorgente, nome_file)
         dst = os.path.join(db_destinazione, nome_file)
         if os.path.isfile(src) and not os.path.exists(dst):
@@ -177,8 +177,6 @@ def cancella_profilo(self, nome_profilo):
         self.show_toast(f"Errore durante l'eliminazione del profilo: {e}")
         return False
 
-
-# Export / Import profili
 
 _FILE_ESCLUSI_EXPORT = ("cert.pem", "key.pem", "._reg.json", "._trial.json", ".key_reg", "._sync_chk")
 _PATTERN_ESCLUSI_EXPORT = (".lock", "-journal", ".db-wal", ".tmp")

@@ -717,7 +717,7 @@ def html_login(self, path):
     secondi_restanti = 0
     current_count = 0
     ultimo_login = "Benvenuto nel tuo spazio sicuro"
-    BAN_FILE = globals().get('ACCESS_CONTROL_WEB', os.path.join(DB_DIR, "web_access_control.json"))
+    BAN_FILE = getattr(_app, 'ACCESS_CONTROL_WEB', None) or os.path.join(DB_DIR, "web_access_control.json")
     if os.path.exists(BAN_FILE):
         try:
             with open(BAN_FILE, "r") as f:

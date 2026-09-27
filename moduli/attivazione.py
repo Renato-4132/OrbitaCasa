@@ -69,16 +69,20 @@ def verify_environment(self):
     VERSION = _app.VERSION
     NAME = _app.NAME
     PATH_LOCALE = _app.PATH_LOCALE
+    KEY_REG_FILE = _app.KEY_REG_FILE
+    REG_FILE = _app.REG_FILE
+    TRIAL_FILE = _app.TRIAL_FILE
+    SYNC_CHK_FILE = _app.SYNC_CHK_FILE
     _get_device_id = _app._get_device_id
     get_fernet_licenza = _app.get_fernet_licenza
     from PIL import Image, ImageTk
-    flag_versione = os.path.join(DB_DIR, ".key_reg")
-    ha_licenza = os.path.exists(os.path.join(DB_DIR, "._reg.json"))
+    flag_versione = KEY_REG_FILE
+    ha_licenza = os.path.exists(REG_FILE)
     uid = _get_device_id()
     fingerprint_attuale = _calcola_fingerprint_moduli(PATH_LOCALE)
     if os.path.exists(flag_versione):
-        _trial_file_chk = os.path.join(DB_DIR, "._trial.json")
-        _reg_file_chk   = os.path.join(DB_DIR, "._reg.json")
+        _trial_file_chk = TRIAL_FILE
+        _reg_file_chk   = REG_FILE
         ha_files = os.path.exists(_trial_file_chk) or os.path.exists(_reg_file_chk)
         try:
             contenuto = open(flag_versione).read().strip()
@@ -124,7 +128,7 @@ def verify_environment(self):
             target=lambda: self.verify_environment_update("NEW INSTALL"),
             daemon=True).start()
         return
-    _trial_solo = os.path.join(DB_DIR, "._trial.json")
+    _trial_solo = TRIAL_FILE
     if os.path.exists(_trial_solo):
         try:
             with open(flag_versione, "w") as f:
@@ -232,7 +236,7 @@ def verify_environment(self):
         from cryptography.fernet import Fernet
         import json
         _f = get_fernet_licenza()
-        _trial_file = os.path.join(DB_DIR, "._trial.json")
+        _trial_file = TRIAL_FILE
         if not os.path.exists(_trial_file):
             primo = datetime.date.today().isoformat()
             json.dump({"primo": _f.encrypt(primo.encode()).decode()}, open(_trial_file, "w"))
@@ -268,6 +272,9 @@ def apri_registrazione(self):
     VERSION = _app.VERSION
     SYNC_H = _app.SYNC_H
     PROFILO_ATTIVO = _app.PROFILO_ATTIVO
+    REG_FILE = _app.REG_FILE
+    TRIAL_FILE = _app.TRIAL_FILE
+    SYNC_CHK_FILE = _app.SYNC_CHK_FILE
     _get_device_id = _app._get_device_id
     get_fernet_licenza = _app.get_fernet_licenza
     if hasattr(self, '_win_reg') and self._win_reg.winfo_exists():
@@ -292,7 +299,8 @@ def apri_registrazione(self):
     win.deiconify()
     win.focus_force()
     win.grab_set()
-    _reg_file = os.path.join(DB_DIR, "._reg.json")
+    _reg_file = REG_FILE
+    _colore_scad = self.TEXT_COLOR
     if os.path.exists(_reg_file):
         try:
             import json
@@ -304,12 +312,23 @@ def apri_registrazione(self):
                 _f = get_fernet_licenza()
                 payload = _f.decrypt(raw.encode()).decode()
                 dev, scadenza = payload.split("|")
-                testo_scad = f"Licenza attiva — scadenza: {datetime.date.fromisoformat(scadenza).strftime('%d/%m/%Y')}" if scadenza != "9999-12-31" else "Licenza attiva — illimitata"
+                if scadenza == "9999-12-31":
+                    testo_scad = "Licenza attiva — illimitata"
+                else:
+                    _data_scad = datetime.date.fromisoformat(scadenza)
+                    _giorni_scad = (_data_scad - datetime.date.today()).days
+                    _data_str = _data_scad.strftime('%d/%m/%Y')
+                    if _giorni_scad <= 7:
+                        if _giorni_scad == 0:
+                            testo_scad = f"Licenza attiva — scade oggi ({_data_str})"
+                        else:
+                            testo_scad = f"Licenza attiva — scadenza tra {_giorni_scad} giorni ({_data_str})"
+                        _colore_scad = "#E53935" if _giorni_scad <= 3 else "#FB8C00"
         except Exception:
             testo_scad = "Licenza non valida"
     else:
         testo_scad = "Nessuna licenza registrata"
-    tk.Label(win, text=testo_scad, bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
+    tk.Label(win, text=testo_scad, bg=self.COLOR_TOPLEVEL, fg=_colore_scad,
              font=("Arial", 10, "italic")).pack(pady=(5,0))
     tk.Label(win, text="Licenza gratuita: decade automaticamente in caso di inattività prolungata.",
              bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
@@ -382,7 +401,7 @@ def apri_registrazione(self):
         num_mov = sum(len(v) for v in self.spese.values()) if hasattr(self, 'spese') else 0
         giorni_utilizzo = "?"
         try:
-            _trial_file_r = os.path.join(DB_DIR, "._trial.json")
+            _trial_file_r = TRIAL_FILE
             if os.path.exists(_trial_file_r):
                 import json
                 from cryptography.fernet import Fernet
@@ -411,10 +430,10 @@ def apri_registrazione(self):
             self.show_toast("Inserisci una KEY prima di procedere.", duration=3000)
             return
         if hashlib.sha256(key.encode()).hexdigest() == SYNC_H:
-            _sync_chk_file = os.path.join(DB_DIR, "._sync_chk")
+            _sync_chk_file = SYNC_CHK_FILE
             if os.path.exists(_sync_chk_file):
                 os.remove(_sync_chk_file)
-            json.dump({"key": "__MASTER__", "data_registrazione": datetime.date.today().isoformat()}, open(os.path.join(DB_DIR, "._reg.json"), "w"))
+            json.dump({"key": "__MASTER__", "data_registrazione": datetime.date.today().isoformat()}, open(REG_FILE, "w"))
             threading.Thread(
                 target=lambda: self.verify_environment_update("LICENSED_MASTER"),
                 daemon=True
@@ -429,7 +448,7 @@ def apri_registrazione(self):
                     self._attiva_timer_inattivita()
             return
         try:
-            _sync_chk_file = os.path.join(DB_DIR, "._sync_chk")
+            _sync_chk_file = SYNC_CHK_FILE
             if os.path.exists(_sync_chk_file):
                 with open(_sync_chk_file) as _fchk:
                     _contenuto_chk = _fchk.read()
@@ -449,7 +468,7 @@ def apri_registrazione(self):
                 self.show_toast("Key scaduta.", duration=3000)
                 entry_key.delete(0, "end")
                 return
-            json.dump({"key": key, "data_registrazione": datetime.date.today().isoformat()}, open(os.path.join(DB_DIR, "._reg.json"), "w"))
+            json.dump({"key": key, "data_registrazione": datetime.date.today().isoformat()}, open(REG_FILE, "w"))
             if os.path.exists(_sync_chk_file):
                 os.remove(_sync_chk_file)
             threading.Thread(
@@ -493,7 +512,7 @@ def apri_registrazione(self):
         win.destroy()
         if hasattr(self, '_attiva_timer_inattivita'):
                 self._attiva_timer_inattivita()
-        if not os.path.exists(os.path.join(DB_DIR, "._reg.json")):
+        if not os.path.exists(REG_FILE):
             self._on_close()
     _mk_btn(frame_btn, img_chiudi, "Chiudi", _chiudi).pack(side="left", padx=5)
     _mk_btn(frame_btn, img_chiudi, "Esci",   lambda: (self.bind("<Map>", self._gestisci_ripristino_focus), self.unbind("<Unmap>"), win.destroy(), self._on_close())).pack(side="left", padx=5)
@@ -508,15 +527,19 @@ def _licenza_valida(self):
 def _c_r(self):
     import __main__ as _app
     DB_DIR = _app.DB_DIR
+    TRIAL_FILE = _app.TRIAL_FILE
+    REG_FILE = _app.REG_FILE
+    KEY_REG_FILE = _app.KEY_REG_FILE
+    SYNC_CHK_FILE = _app.SYNC_CHK_FILE
     _get_device_id = _app._get_device_id
     get_fernet_licenza = _app.get_fernet_licenza
     self._lic_ok = False
     from cryptography.fernet import Fernet
     import json
     _f = get_fernet_licenza()
-    _trial_file = os.path.join(DB_DIR, "._trial.json")
-    _reg_file = os.path.join(DB_DIR, "._reg.json")
-    _key_reg = os.path.join(DB_DIR, ".key_reg")
+    _trial_file = TRIAL_FILE
+    _reg_file = REG_FILE
+    _key_reg = KEY_REG_FILE
     GIORNI_INATTIVITA_LICENZA = 60
     if os.path.exists(_reg_file):
         try:
@@ -541,6 +564,12 @@ def _c_r(self):
                 self.show_toast("Licenza scaduta.", duration=4000)
                 self.after(4100, self.destroy)
                 return
+            _giorni_alla_scadenza = (datetime.date.fromisoformat(scadenza) - datetime.date.today()).days
+            if scadenza != "9999-12-31" and 0 <= _giorni_alla_scadenza <= 7:
+                if _giorni_alla_scadenza == 0:
+                    self.show_toast("Licenza in scadenza oggi.", duration=4000)
+                else:
+                    self.show_toast(f"Licenza in scadenza tra {_giorni_alla_scadenza} giorni.", duration=4000)
             _data_reg_str = _dati_reg.get("data_registrazione")
             if _data_reg_str:
                 riferimento = datetime.date.fromisoformat(_data_reg_str)
@@ -557,7 +586,7 @@ def _c_r(self):
                 if ultima_data > riferimento:
                     riferimento = ultima_data
             if (datetime.date.today() - riferimento).days > GIORNI_INATTIVITA_LICENZA:
-                with open(os.path.join(DB_DIR, "._sync_chk"), "w") as _fb:
+                with open(SYNC_CHK_FILE, "w") as _fb:
                     _fb.write(f"{datetime.date.today().isoformat()}|{raw}")
                 os.remove(_reg_file)
                 self.aggiorna_titolo_finestra()

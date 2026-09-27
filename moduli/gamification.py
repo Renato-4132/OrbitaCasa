@@ -130,8 +130,7 @@ def _gami_salva(self, dati):
 def _gami_estendi_licenza(self, giorni):
     import __main__ as _app
     from cryptography.fernet import Fernet
-    DB_DIR = _app.DB_DIR
-    reg_file = os.path.join(DB_DIR, "._reg.json")
+    reg_file = _app.REG_FILE
     if not os.path.exists(reg_file):
         return False
     try:
