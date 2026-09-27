@@ -2596,8 +2596,8 @@ class GestioneSpese(tk.Tk):
             from cryptography.fernet import Fernet
             import json
             _f = get_fernet_licenza()
-            _reg_file   = os.path.join(DB_DIR, "._reg.json")
-            _trial_file = os.path.join(DB_DIR, "._trial.json")
+            _reg_file   = REG_FILE
+            _trial_file = TRIAL_FILE
             if os.path.exists(_reg_file):
                 with open(_reg_file) as fh:
                     raw = json.load(fh)["key"]
@@ -5626,7 +5626,7 @@ def _rb():
     try:
         import requests
         uid = _get_device_id()
-        bn_cache = os.path.join(DB_DIR, "._bn_cache")
+        bn_cache = BN_CACHE_FILE
         URL = "68747470733a2f2f646f63732e676f6f676c652e636f6d2f7370726561647368656574732f642f652f32504143582d3176546562377770477874356972357347714d5044616145314e574a5a545a566c364e625f5258355144456a4738356e324e6f4247737141316f684a6b333169716e616163456870426e61435457482d2f7075623f6f75747075743d637376"
         url = bytes.fromhex(URL).decode()
         CACHE_MAX_AGE = 24 * 3600
@@ -5677,7 +5677,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "7d07b3b255394954ec4433ba3e8a62c4abb8a7938120bdcdc562fe23f30aa6cf"
+        E_H_B = "c656db74449ceacf677806c7c22706d6fc1125b3ae7956f0bddab9165a2457f4"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
