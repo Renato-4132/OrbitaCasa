@@ -520,10 +520,6 @@ def _mostra_popup_aggiornamento(self, remote_time, local_time, changelog_text):
             _imposta_permessi_file(NOME_FILE, nome_tmp)
             os.replace(nome_tmp, NOME_FILE)
             print(f"[{datetime.now().strftime('%H:%M:%S')}] Download completato e validato! {NOME_FILE} è stato aggiornato.")
-            threading.Thread(
-                target=lambda: self.verify_environment_update(f"UPDATE_STARTED_from_{VERSION}"),
-                daemon=True
-            ).start()
             if os.path.exists(RIMANDA_FILE):
                 try:
                     os.remove(RIMANDA_FILE)
@@ -843,10 +839,6 @@ def _mostra_popup_forza_aggiornamento(self, remote_time, local_time, changelog_t
     def aggiorna():
         annulla_timeout()
         url = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/{BRANCH_PRINCIPALE}/{NOME_FILE.replace(' ', '%20')}"
-        threading.Thread(
-            target=lambda: self.verify_environment_update(f"UPDATE_STARTED_from_{VERSION}"),
-            daemon=True
-        ).start()
         if os.path.exists(RIMANDA_FILE):
             try:
                 os.remove(RIMANDA_FILE)
