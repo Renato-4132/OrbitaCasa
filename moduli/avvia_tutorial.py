@@ -140,21 +140,6 @@ def _avvia_tutorial(self):
             "btn_azione": None,
         },
         {
-            "screenshot": None,
-            "titolo": "Vuoi provarla con dati di esempio?",
-            "intro": "La Modalità Demo apre OrbitaCasa con movimenti, categorie e conti già compilati, così puoi esplorare tutto senza inserire nulla.\n\nI tuoi dati non vengono toccati: la Demo usa un profilo separato e temporaneo.\n\nSe preferisci iniziare subito con i tuoi dati, vai avanti: potrai attivarla in qualsiasi momento.",
-            "punti": [
-                "COME SI ATTIVA:  pulsante qui sotto → conferma → l'app scarica i dati di esempio (serve internet) e si riavvia",
-                f"Si apre nel profilo «{NOME_PROFILO_DEMO}»: puoi inserire, modificare e cancellare quello che vuoi",
-                "I tuoi dati veri non vengono modificati",
-                "COME SI DISATTIVA:  menu «Sistema» nella barra laterale → «Esci da Modalità Demo»",
-                "Scorciatoia:  scrivi «demo» nella ricerca della barra laterale e scegli «Modalità Demo»",
-                "L'app si riavvia sul tuo profilo e i dati di esempio vengono cancellati al riavvio successivo",
-                "Attenzione: se chiudi l'app mentre sei in Demo, alla riapertura sei ancora in Demo finché non esci",
-            ],
-            "btn_azione": ("Avvia in Modalità Demo", lambda: [win.destroy(), self.attiva_modalita_demo()]),
-        },
-        {
             "screenshot": "saldo.png",
             "titolo": "Tutto pronto. Si parte!",
             "intro": "Setup iniziale: meno di 5 minuti.\nPoi OrbitaCasa lavora per te.\n\nUsa il pulsante qui sotto per scaricare e aprire il manuale PDF completo, una guida dettagliata sempre a portata di mano.",
@@ -167,6 +152,21 @@ def _avvia_tutorial(self):
             ],
             "btn_azione": ("Apri il Manuale Completo", lambda: [win.destroy(), self.scarica_manuale()]),
         },
+        {
+            "screenshot": None,
+            "titolo": "Vuoi provarla con dati di esempio?",
+            "intro": "La Modalità Demo apre OrbitaCasa con movimenti, categorie e conti già compilati, così puoi esplorare tutto senza inserire nulla.\n\nI tuoi dati non vengono toccati: la Demo usa un profilo separato e temporaneo.\n\nSe preferisci iniziare subito con i tuoi dati, premi «Inizia!»: potrai attivarla in qualsiasi momento.",
+            "punti": [
+                "COME SI ATTIVA:  pulsante qui sotto → conferma → l'app scarica i dati di esempio (serve internet) e si riavvia",
+                f"Si apre nel profilo «{NOME_PROFILO_DEMO}»: puoi inserire, modificare e cancellare quello che vuoi",
+                "I tuoi dati veri non vengono modificati",
+                "COME SI DISATTIVA:  menu «Sistema» nella barra laterale → «Esci da Modalità Demo»",
+                "Scorciatoia:  scrivi «demo» nella ricerca della barra laterale e scegli «Modalità Demo»",
+                "L'app si riavvia sul tuo profilo e i dati di esempio vengono cancellati al riavvio successivo",
+                "Attenzione: se chiudi l'app mentre sei in Demo, alla riapertura sei ancora in Demo finché non esci",
+            ],
+            "btn_azione": ("Avvia in Modalità Demo", lambda: [win.destroy(), self.attiva_modalita_demo()]),
+        },
     ]
     stato = {"passo": 0, "imgs": {}}
     try:
@@ -176,6 +176,10 @@ def _avvia_tutorial(self):
         stato["imgs"][0] = ImageTk.PhotoImage(img_logo)
     except Exception:
         stato["imgs"][0] = None
+    # i passi senza screenshot (benvenuto, demo) mostrano il logo
+    for i, p in enumerate(passi):
+        if p["screenshot"] is None:
+            stato["imgs"][i] = stato["imgs"][0]
     W, H = 980, 560
     win = tk.Toplevel(self)
     win.title(f"{NAME} — Benvenuto!")
