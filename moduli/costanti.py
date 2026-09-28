@@ -67,6 +67,9 @@ def carica_costanti(path_locale):
     g['URL_PDF_CONSUMI'] = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/main/resources/Tabella%20Contatori.pdf"
     g['URL_PDF_SSL'] = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/main/resources/Manuale_CertBot_SSL.pdf"
     g['URL_LOGO'] = "https://github.com/Renato-4132/OrbitaCasa/raw/main/resources/info_image.png"
+    g['URL_DEMO_ZIP'] = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/main/resources/Profilo_Demo.zip"
+    g['NOME_PROFILO_DEMO'] = "Demo_Mode"
+    g['DEMO_MARKER_FILE'] = os.path.join(PROFILI_DIR, "_demo_pending_cleanup.json")
     g['GITHUB_FILE_URL'] = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/refs/heads/main/OrbitaCasa.pyw"
     g['GITHUB_SUPERMARKET'] = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/main/resources/supermarket.pyw"
     g['ALIMENTI'] = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/main/resources/alimenti.json"

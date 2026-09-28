@@ -334,6 +334,11 @@ def pop_opzioni(self):
     self._add_m_item(m, "Impostazioni App", "filtri", self.gestisci_configurazione)
     m.add_separator()
     self._add_m_item(m, "Gestisci Profili Utenti", "api_key", self.mostra_selettore_profilo)
+    import __main__ as _app
+    if _app.PROFILO_ATTIVO == _app.NOME_PROFILO_DEMO:
+        self._add_m_item(m, "Esci da Modalità Demo", "reset", self.esci_modalita_demo)
+    else:
+        self._add_m_item(m, "Attiva Modalità Demo", "sync", self.attiva_modalita_demo)
     m.add_separator()
     self._add_m_item(m, "Cambia Password", "api_key", self.apri_cambio_password)
     m.add_separator()
@@ -477,6 +482,7 @@ def _add_m_item(self, target, label, icon_key, command, acc=""):
                         command=wrapped, accelerator=acc)
                         
 def _filtra_sidebar(self, *_):
+    import __main__ as _app
     testo = self._search_var.get().strip().lower()
     if hasattr(self, '_search_overlay') and self._search_overlay and self._search_overlay.winfo_exists():
         self._search_overlay.place_forget()
@@ -543,6 +549,7 @@ def _filtra_sidebar(self, *_):
         ("Registra Prodotto",                     self.apri_registrazione),
         ("Gamification",                          self.mostra_dettaglio_gamification),
         ("Gestisci Profili Utenti",               self.mostra_selettore_profilo),
+        ("Modalità Demo",                         lambda: self.esci_modalita_demo() if _app.PROFILO_ATTIVO == _app.NOME_PROFILO_DEMO else self.attiva_modalita_demo()),
         ("Controlla Aggiornamenti",               self.forza_check_aggiornamento_con_api),
         ("Forza Aggiornamento",                   self.forza_aggiorna),
         ("Annulla Ultimo Aggiornamento",          self.ripristina_da_backup),

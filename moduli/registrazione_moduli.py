@@ -83,8 +83,15 @@ def registra_tutti_i_moduli(GestioneSpese):
     from moduli.temi import applica_temi
     _registra(applica_temi)
 
-    from moduli.profili import mostra_selettore_profilo, elenco_profili, cambia_profilo
-    _registra(mostra_selettore_profilo, elenco_profili, cambia_profilo)
+    from moduli.profili import (
+        mostra_selettore_profilo, elenco_profili, cambia_profilo,
+        attiva_modalita_demo, esci_modalita_demo, pulisci_demo_residua
+    )
+    _registra(
+        mostra_selettore_profilo, elenco_profili, cambia_profilo,
+        attiva_modalita_demo, esci_modalita_demo, pulisci_demo_residua
+    )
+    pulisci_demo_residua()
 
     from moduli.dashboard_grafici_estratti import (
         _mostra_tip_safe, _nascondi_tip_safe, draw_estratto_metodo, draw_estratto_conto,

@@ -7,9 +7,12 @@ import json
 import shutil
 import subprocess
 import zipfile
+import requests
 import tkinter as tk
 from tkinter import ttk, filedialog
 from datetime import datetime
+
+from moduli.licenza_persistente import NOMI_FILE_LICENZA
 
 MAX_LUNGHEZZA_NOME_PROFILO = 30
 MAX_PROFILI = 8
@@ -28,6 +31,8 @@ def elenco_profili(self):
     profili = ["Principale"]
     if os.path.isdir(_app.PROFILI_DIR):
         for nome in sorted(os.listdir(_app.PROFILI_DIR), key=str.lower):
+            if nome == _app.NOME_PROFILO_DEMO:
+                continue
             if os.path.isdir(os.path.join(_app.PROFILI_DIR, nome)):
                 profili.append(nome)
     return profili
@@ -61,8 +66,9 @@ def _propaga_config_webserver(db_sorgente, db_destinazione):
         pass
 
 def _nome_profilo_valido(nome):
+    import __main__ as _app
     nome = (nome or "").strip()
-    if not nome or nome.lower() == "principale":
+    if not nome or nome.lower() in ("principale", _app.NOME_PROFILO_DEMO.lower()):
         return None
     if len(nome) > MAX_LUNGHEZZA_NOME_PROFILO:
         return None
@@ -77,7 +83,7 @@ def _etichetta_profilo(self, nome_profilo):
         return getattr(_app, "current_folder", "Principale")
     return nome_profilo
 
-def cambia_profilo(self, nome_profilo, nuovo=False):
+def cambia_profilo(self, nome_profilo, nuovo=False, conferma=True):
     import __main__ as _app
     from moduli.costanti import salva_profilo_attivo
 
@@ -93,7 +99,7 @@ def cambia_profilo(self, nome_profilo, nuovo=False):
             _copia_certificati_e_licenza(_app.DB_DIR, db_profilo)
             _propaga_config_webserver(_app.DB_DIR, db_profilo)
 
-    if not self.show_custom_askyesno(
+    if conferma and not self.show_custom_askyesno(
         "Cambio Profilo",
         f"Passare al profilo '{_etichetta_profilo(self, nome_profilo)}'?\n\nL'app verrà riavviata per caricare i dati del nuovo profilo."
     ):
@@ -113,30 +119,23 @@ def cambia_profilo(self, nome_profilo, nuovo=False):
         pass
     self.after(900, _restart_application)
 
-
 def rinomina_profilo(self, vecchio_nome, nuovo_nome):
     import __main__ as _app
-
     if vecchio_nome == "Principale":
         self.show_toast("Il profilo Principale non può essere rinominato")
         return False
-
     if vecchio_nome == _app.PROFILO_ATTIVO:
         self.show_toast("Non puoi rinominare il profilo attivo: passa prima a un altro profilo")
         return False
-
     nuovo_nome = _nome_profilo_valido(nuovo_nome)
     if not nuovo_nome:
         self.show_toast("Nuovo nome profilo non valido")
         return False
-
     vecchio_path = os.path.join(_app.PROFILI_DIR, vecchio_nome)
     nuovo_path = os.path.join(_app.PROFILI_DIR, nuovo_nome)
-
     if os.path.exists(nuovo_path):
         self.show_toast("Esiste già un profilo con questo nome")
         return False
-
     try:
         if os.path.isdir(vecchio_path):
             os.rename(vecchio_path, nuovo_path)
@@ -147,18 +146,14 @@ def rinomina_profilo(self, vecchio_nome, nuovo_nome):
         return False
     return False
 
-
 def cancella_profilo(self, nome_profilo):
     import __main__ as _app
-
     if nome_profilo == "Principale":
         self.show_toast("Il profilo Principale non può essere eliminato")
         return False
-
     if nome_profilo == _app.PROFILO_ATTIVO:
         self.show_toast("Non puoi eliminare il profilo attivo: passa prima a un altro profilo")
         return False
-
     if not self.show_custom_askyesno(
         "Elimina Profilo",
         f"Eliminare definitivamente il profilo '{nome_profilo}'?\n\n"
@@ -166,7 +161,6 @@ def cancella_profilo(self, nome_profilo):
         "cancellati e NON potranno essere recuperati."
     ):
         return False
-
     cartella = os.path.join(_app.PROFILI_DIR, nome_profilo)
     try:
         if os.path.isdir(cartella):
@@ -177,11 +171,103 @@ def cancella_profilo(self, nome_profilo):
         self.show_toast(f"Errore durante l'eliminazione del profilo: {e}")
         return False
 
+def attiva_modalita_demo(self):
+    import __main__ as _app
+    import threading
+    if _app.PROFILO_ATTIVO == _app.NOME_PROFILO_DEMO:
+        self.show_toast("Sei già in modalità Demo")
+        return
+    if not self.show_custom_askyesno(
+        "Modalità Demo",
+        "Verranno scaricati dei dati fittizi e l'app passerà a un profilo 'Demo' temporaneo.\n\n"
+        "L'app verrà riavviata. Procedere?"
+    ):
+        return
+    self.show_toast("Preparazione Demo in corso...", duration=4000)
+    def _lavoro():
+        cartella_demo = os.path.join(_app.PROFILI_DIR, _app.NOME_PROFILO_DEMO)
+        db_demo = os.path.join(cartella_demo, "db")
+        try:
+            if os.path.isdir(cartella_demo):
+                shutil.rmtree(cartella_demo)
+            os.makedirs(db_demo, exist_ok=True)
+            risposta = requests.get(_app.URL_DEMO_ZIP, timeout=15)
+            risposta.raise_for_status()
+            percorso_tmp = os.path.join(db_demo, "_demo_download.zip")
+            with open(percorso_tmp, "wb") as f:
+                f.write(risposta.content)
+            if not zipfile.is_zipfile(percorso_tmp):
+                raise ValueError("Il file scaricato non è un archivio valido")
+            _estrai_zip_sicuro(percorso_tmp, db_demo)
+            os.remove(percorso_tmp)
+            _copia_certificati_e_licenza(_app.DB_DIR, db_demo)
+            _propaga_config_webserver(_app.DB_DIR, db_demo)
+        except Exception as e:
+            msg_errore = str(e)
+            try:
+                if os.path.isdir(cartella_demo):
+                    shutil.rmtree(cartella_demo)
+            except Exception:
+                pass
+            self.after(0, lambda: self.show_toast(f"Errore durante la preparazione della Demo: {msg_errore}"))
+            return
+        try:
+            os.makedirs(_app.PROFILI_DIR, exist_ok=True)
+            with open(_app.DEMO_MARKER_FILE, "w", encoding="utf-8") as f:
+                json.dump({
+                    "profilo_precedente": _app.PROFILO_ATTIVO,
+                    "profilo_demo": _app.NOME_PROFILO_DEMO
+                }, f)
+        except Exception:
+            pass
+        self.after(0, lambda: cambia_profilo(self, _app.NOME_PROFILO_DEMO, conferma=False))
+    threading.Thread(target=_lavoro, daemon=True).start()
 
-_FILE_ESCLUSI_EXPORT = ("cert.pem", "key.pem", "._reg.json", "._trial.json", ".key_reg", "._sync_chk")
+def esci_modalita_demo(self):
+    import __main__ as _app
+    if _app.PROFILO_ATTIVO != _app.NOME_PROFILO_DEMO:
+        self.show_toast("Non sei in modalità Demo")
+        return
+    profilo_precedente = "Principale"
+    marker = _app.DEMO_MARKER_FILE
+    if os.path.isfile(marker):
+        try:
+            with open(marker, "r", encoding="utf-8") as f:
+                profilo_precedente = json.load(f).get("profilo_precedente", "Principale")
+        except Exception:
+            pass
+    cambia_profilo(self, profilo_precedente)
+
+def pulisci_demo_residua(self=None):
+    import __main__ as _app
+    marker = _app.DEMO_MARKER_FILE
+    if not os.path.isfile(marker):
+        return
+    try:
+        with open(marker, "r", encoding="utf-8") as f:
+            dati = json.load(f)
+    except Exception:
+        try:
+            os.remove(marker)
+        except Exception:
+            pass
+        return
+    if _app.PROFILO_ATTIVO != dati.get("profilo_precedente"):
+        return
+    cartella_demo = os.path.join(_app.PROFILI_DIR, dati.get("profilo_demo", _app.NOME_PROFILO_DEMO))
+    try:
+        if os.path.isdir(cartella_demo):
+            shutil.rmtree(cartella_demo)
+    except Exception:
+        pass
+    try:
+        os.remove(marker)
+    except Exception:
+        pass
+
+_FILE_ESCLUSI_EXPORT = ("cert.pem", "key.pem") + tuple(NOMI_FILE_LICENZA)
 _PATTERN_ESCLUSI_EXPORT = (".lock", "-journal", ".db-wal", ".tmp")
 _CARTELLE_ESCLUSE_EXPORT = ("resources",)
-
 
 def _percorso_db_profilo(nome_profilo):
     import __main__ as _app
@@ -190,13 +276,11 @@ def _percorso_db_profilo(nome_profilo):
         return os.path.join(radice_dati, "db")
     return os.path.join(_app.PROFILI_DIR, nome_profilo, "db")
 
-
 def esporta_profilo(self, nome_profilo):
     db_sorgente = _percorso_db_profilo(nome_profilo)
     if not os.path.isdir(db_sorgente):
         self.show_toast("Nessun dato da esportare per questo profilo")
         return
-
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     nome_pulito = "".join(c if c.isalnum() else "_" for c in nome_profilo)
     percorso_output = filedialog.asksaveasfilename(
@@ -208,7 +292,6 @@ def esporta_profilo(self, nome_profilo):
     )
     if not percorso_output:
         return
-
     try:
         with zipfile.ZipFile(percorso_output, "w", zipfile.ZIP_DEFLATED) as zf:
             for radice, cartelle, file_list in os.walk(db_sorgente):
@@ -226,7 +309,6 @@ def esporta_profilo(self, nome_profilo):
     except Exception as e:
         self.show_custom_warning("Errore", f"Errore durante l'esportazione:\n{e}")
 
-
 def _estrai_zip_sicuro(percorso_zip, cartella_destinazione):
     cartella_destinazione = os.path.normpath(cartella_destinazione)
     with zipfile.ZipFile(percorso_zip, "r") as zf:
@@ -234,12 +316,13 @@ def _estrai_zip_sicuro(percorso_zip, cartella_destinazione):
             dest = os.path.normpath(os.path.join(cartella_destinazione, member))
             if dest != cartella_destinazione and not dest.startswith(cartella_destinazione + os.sep):
                 raise ValueError(f"Percorso non sicuro nell'archivio: {member}")
-        zf.extractall(cartella_destinazione)
-
+        for member in zf.infolist():
+            if os.path.basename(member.filename) in NOMI_FILE_LICENZA:
+                continue
+            zf.extract(member, cartella_destinazione)
 
 def importa_profilo(self):
     import __main__ as _app
-
     percorso_zip = filedialog.askopenfilename(
         title="Seleziona archivio profilo da importare",
         initialdir=os.path.expanduser('~'),
@@ -250,7 +333,6 @@ def importa_profilo(self):
     if not zipfile.is_zipfile(percorso_zip):
         self.show_toast("Il file selezionato non è un archivio valido")
         return
-
     win = tk.Toplevel(self)
     win.title("Importa Profilo")
     win.configure(bg=self.COLOR_BACKGROUND)
@@ -269,7 +351,6 @@ def importa_profilo(self):
                        validate="key", validatecommand=vcmd_nome_profilo_imp)
     entry.pack(padx=14, pady=(0, 10), fill="x")
     entry.focus_set()
-
     def _conferma():
         nome = _nome_profilo_valido(entry.get())
         if not nome:
@@ -282,7 +363,6 @@ def importa_profilo(self):
         if len(profili_esistenti) >= MAX_PROFILI:
             self.show_toast(f"Limite massimo di {MAX_PROFILI} profili raggiunto")
             return
-
         cartella = os.path.join(_app.PROFILI_DIR, nome)
         db_profilo = os.path.join(cartella, "db")
         try:
@@ -293,18 +373,15 @@ def importa_profilo(self):
         except Exception as e:
             self.show_toast(f"Errore durante l'importazione: {e}")
             return
-
         win.destroy()
         if self.show_custom_askyesno("Importa Profilo",
                 f"Profilo '{nome}' importato con successo.\n\nPassare subito al nuovo profilo?"):
             cambia_profilo(self, nome)
-
     entry.bind("<Return>", lambda e: _conferma())
     btnf = tk.Frame(win, bg=self.COLOR_BACKGROUND)
     btnf.pack(pady=(0, 14))
     _crea_bottone_icona(self, btnf, "check", "Importa", _conferma).pack(side="left", padx=6)
     _crea_bottone_icona(self, btnf, "chiudi", "Annulla", win.destroy).pack(side="left", padx=6)
-
 
 def _crea_bottone_icona(self, parent, icon_key, testo, comando):
     img = self.icone_gui.get(icon_key)
@@ -316,7 +393,6 @@ def _crea_bottone_icona(self, parent, icon_key, testo, comando):
 
 def mostra_selettore_profilo(self):
     import __main__ as _app
-
     win = tk.Toplevel(self)
     win.title("Profili Utente")
     win.configure(bg=self.COLOR_BACKGROUND)
@@ -327,12 +403,10 @@ def mostra_selettore_profilo(self):
     y = self.winfo_rooty() + (self.winfo_height() // 2) - (h // 2)
     win.geometry(f"{w}x{h}+{max(0, x)}+{max(0, y)}")
     win.bind("<Escape>", lambda e: win.destroy())
-    
     tk.Label(win, text="Profilo attivo:", bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
              font=("Arial", 9, "bold")).pack(anchor="w", padx=14, pady=(14, 0))
     tk.Label(win, text=_etichetta_profilo(self, _app.PROFILO_ATTIVO), bg=self.COLOR_BACKGROUND,
              fg=self.MENU_ACT_BG_COLOR, font=("Arial", 11, "bold")).pack(anchor="w", padx=14, pady=(0, 10))
-
     lista_frame = tk.Frame(win, bg=self.COLOR_BACKGROUND)
     lista_frame.pack(fill="both", expand=True, padx=14)
     lb = tk.Listbox(lista_frame, activestyle="dotbox", font=("Arial", 10),
@@ -342,14 +416,12 @@ def mostra_selettore_profilo(self):
     scrollbar = ttk.Scrollbar(lista_frame, orient="vertical", command=lb.yview)
     scrollbar.pack(side="right", fill="y")
     lb.config(yscrollcommand=scrollbar.set)
-
     profili = elenco_profili(self)
     etichette = [_etichetta_profilo(self, nome) for nome in profili]
     for etichetta in etichette:
         lb.insert("end", etichetta)
     if _app.PROFILO_ATTIVO in profili:
         lb.selection_set(profili.index(_app.PROFILO_ATTIVO))
-
     info_frame = tk.Frame(win, bg=self.COLOR_BACKGROUND)
     info_frame.pack(fill="x", padx=14, pady=(6, 0))
     lbl_info_utente = tk.Label(info_frame, text="", bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
@@ -358,7 +430,6 @@ def mostra_selettore_profilo(self):
     lbl_info_cartella = tk.Label(info_frame, text="", bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
                                   font=("Arial", 8), anchor="w", justify="left", wraplength=600)
     lbl_info_cartella.pack(fill="x")
-
     def _aggiorna_info(event=None):
         sel = lb.curselection()
         if not sel:
@@ -368,16 +439,13 @@ def mostra_selettore_profilo(self):
         nome = profili[sel[0]]
         lbl_info_utente.config(text=f"Utente: {_etichetta_profilo(self, nome)}")
         lbl_info_cartella.config(text=f"Cartella: {_percorso_db_profilo(nome)}")
-
     lb.bind("<<ListboxSelect>>", _aggiorna_info)
     _aggiorna_info()
-
     def _switch():
         sel = lb.curselection()
         if not sel:
             return
         cambia_profilo(self, profili[sel[0]])
-
     def _nuovo():
         popup = tk.Toplevel(win)
         popup.title("Nuovo Profilo")
@@ -389,7 +457,6 @@ def mostra_selettore_profilo(self):
         y = win.winfo_rooty() + (win.winfo_height() // 2) - (h // 2)
         popup.geometry(f"{w}x{h}+{max(0, x)}+{max(0, y)}")
         popup.bind("<Escape>", lambda e: popup.destroy())
-        
         tk.Label(popup, text="Nome del nuovo profilo:", bg=self.COLOR_BACKGROUND,
                  fg=self.TEXT_COLOR, font=("Arial", 9)).pack(padx=14, pady=(14, 4))
         vcmd_nome_profilo = (popup.register(lambda P: len(P) <= 30), '%P')
@@ -397,7 +464,6 @@ def mostra_selettore_profilo(self):
                            validate="key", validatecommand=vcmd_nome_profilo)
         entry.pack(padx=14, pady=(0, 10), fill="x")
         entry.focus_set()
-
         def _conferma():
             nome = _nome_profilo_valido(entry.get())
             if not nome:
@@ -412,13 +478,11 @@ def mostra_selettore_profilo(self):
             popup.destroy()
             win.destroy()
             cambia_profilo(self, nome, nuovo=True)
-
         entry.bind("<Return>", lambda e: _conferma())
         btnf = tk.Frame(popup, bg=self.COLOR_BACKGROUND)
         btnf.pack(pady=(0, 14))
         _crea_bottone_icona(self, btnf, "check", "Crea", _conferma).pack(side="left", padx=6)
         _crea_bottone_icona(self, btnf, "chiudi", "Annulla", popup.destroy).pack(side="left", padx=6)
-
     def _rinomina():
         sel = lb.curselection()
         if not sel:
@@ -428,7 +492,6 @@ def mostra_selettore_profilo(self):
         if vecchio_nome == "Principale":
             self.show_toast("Il profilo Principale non può essere rinominato")
             return
-
         popup = tk.Toplevel(win)
         popup.title("Rinomina Profilo")
         popup.configure(bg=self.COLOR_BACKGROUND)
@@ -447,20 +510,17 @@ def mostra_selettore_profilo(self):
         entry.pack(padx=14, pady=(0, 10), fill="x")
         entry.focus_set()
         entry.selection_range(0, "end")
-
         def _conferma_rinomina():
             nuovo_nome = entry.get()
             if rinomina_profilo(self, vecchio_nome, nuovo_nome):
                 popup.destroy()
                 win.destroy()
                 mostra_selettore_profilo(self)
-
         entry.bind("<Return>", lambda e: _conferma_rinomina())
         btnf = tk.Frame(popup, bg=self.COLOR_BACKGROUND)
         btnf.pack(pady=(0, 14))
         _crea_bottone_icona(self, btnf, "check", "Rinomina", _conferma_rinomina).pack(side="left", padx=6)
         _crea_bottone_icona(self, btnf, "chiudi", "Annulla", popup.destroy).pack(side="left", padx=6)
-
     def _elimina():
         sel = lb.curselection()
         if not sel:
@@ -473,23 +533,19 @@ def mostra_selettore_profilo(self):
             if profili:
                 lb.selection_set(min(idx, len(profili) - 1))
             _aggiorna_info()
-
     def _esporta():
         sel = lb.curselection()
         if not sel:
             return
         esporta_profilo(self, profili[sel[0]])
-
     def _importa():
         win.destroy()
         importa_profilo(self)
-
     btn_frame = tk.Frame(win, bg=self.COLOR_BACKGROUND)
     btn_frame.pack(fill="x", padx=14, pady=(14, 6))
     btn_frame.columnconfigure((0, 1), weight=1)
     _crea_bottone_icona(self, btn_frame, "documenti", "Esporta", _esporta).grid(row=0, column=0, padx=(0, 3), sticky="ew")
     _crea_bottone_icona(self, btn_frame, "carica",    "Importa", _importa).grid(row=0, column=1, padx=(3, 0), sticky="ew")
-
     btn_frame1 = tk.Frame(win, bg=self.COLOR_BACKGROUND)
     btn_frame1.pack(fill="x", padx=14, pady=(0, 14))
     btn_frame1.columnconfigure((0, 1, 2, 3, 4), weight=1)

@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
 
-from __main__ import NAME, VERSION, DB_DIR
+from __main__ import NAME, VERSION, DB_DIR, NOME_PROFILO_DEMO
 
 def _avvia_tutorial(self):
     num_mov = sum(len(v) for v in self.spese.values()) if hasattr(self, 'spese') else 0
@@ -138,6 +138,21 @@ def _avvia_tutorial(self):
                 "Sincronizzazione multi-postazione in rete locale",
             ],
             "btn_azione": None,
+        },
+        {
+            "screenshot": None,
+            "titolo": "Vuoi provarla con dati di esempio?",
+            "intro": "La Modalità Demo apre OrbitaCasa con movimenti, categorie e conti già compilati, così puoi esplorare tutto senza inserire nulla.\n\nI tuoi dati non vengono toccati: la Demo usa un profilo separato e temporaneo.\n\nSe preferisci iniziare subito con i tuoi dati, vai avanti: potrai attivarla in qualsiasi momento.",
+            "punti": [
+                "COME SI ATTIVA:  pulsante qui sotto → conferma → l'app scarica i dati di esempio (serve internet) e si riavvia",
+                f"Si apre nel profilo «{NOME_PROFILO_DEMO}»: puoi inserire, modificare e cancellare quello che vuoi",
+                "I tuoi dati veri non vengono modificati",
+                "COME SI DISATTIVA:  menu «Sistema» nella barra laterale → «Esci da Modalità Demo»",
+                "Scorciatoia:  scrivi «demo» nella ricerca della barra laterale e scegli «Modalità Demo»",
+                "L'app si riavvia sul tuo profilo e i dati di esempio vengono cancellati al riavvio successivo",
+                "Attenzione: se chiudi l'app mentre sei in Demo, alla riapertura sei ancora in Demo finché non esci",
+            ],
+            "btn_azione": ("Avvia in Modalità Demo", lambda: [win.destroy(), self.attiva_modalita_demo()]),
         },
         {
             "screenshot": "saldo.png",
