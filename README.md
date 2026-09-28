@@ -181,7 +181,7 @@ Per bug, suggerimenti o supporto: helporbitacasa@gmail.com
 ## La storia di OrbitaCasa
 
 <details>
-<summary><b>Dietro le quinte — Da una scrivania tappezzata di post-it a più di 80.000 righe di codice</b> (clicca per espandere)</summary>
+<summary><b>Dietro le quinte — Da una scrivania tappezzata di post-it a più di 80.000 righe di codice</b></summary>
 
 ### Chi c'è dietro
 Mi chiamo Renato e programmo da 40 anni, e in tutto questo tempo ho scritto tante di quelle cose che i pivelli leoni da tastiera di oggi nemmeno se le immaginano.
