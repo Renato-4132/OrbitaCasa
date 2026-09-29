@@ -45,18 +45,66 @@ def _imposta_permessi_file(nome_file, nome_tmp):
     except Exception as perm_err:
         print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Impossibile impostare i permessi su {nome_file}: {perm_err}")
 
-def _backup_moduli_atomico(moduli_dir, moduli_bak_dir):
+def _log_errore_aggiornamento(titolo, err):
+    try:
+        import __main__ as _app
+        import traceback
+        percorso_log = os.path.join(_app.DB_DIR, "error_log.txt")
+        if os.path.exists(percorso_log) and os.path.getsize(percorso_log) > 50 * 1024:
+            with open(percorso_log, "w", encoding="utf-8") as f_clear:
+                f_clear.write(f"--- LOG RESETTATO PER DIMENSIONI ECCESSIVE ({datetime.datetime.now()}) ---\n")
+        with open(percorso_log, "a", encoding="utf-8") as f:
+            ora = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+            f.write(f"⚠️ {titolo} ({ora})\n")
+            f.write("".join(traceback.format_exception(type(err), err, err.__traceback__)) + "\n")
+            f.write("-" * 50 + "\n\n")
+    except Exception:
+        pass
+
+def _rimuovi_dir_robusto(percorso):
+    if not os.path.exists(percorso):
+        return True
+    def _sblocca_e_riprova(func, path, *_):
+        try:
+            os.chmod(path, 0o700)
+            func(path)
+        except Exception:
+            pass
+    for _ in range(3):
+        if sys.version_info >= (3, 12):
+            shutil.rmtree(percorso, onexc=_sblocca_e_riprova)
+        else:
+            shutil.rmtree(percorso, onerror=_sblocca_e_riprova)
+        if not os.path.exists(percorso):
+            return True
+        time.sleep(0.4)
+    return not os.path.exists(percorso)
+
+def _crea_backup_moduli(moduli_dir, moduli_bak_dir):
+    import tempfile
     if not os.path.isdir(moduli_dir):
         return
-    bak_new = moduli_bak_dir + "_new"
-    bak_old = moduli_bak_dir + "_old"
-    shutil.rmtree(bak_new, ignore_errors=True)
-    shutil.copytree(moduli_dir, bak_new)
-    if os.path.isdir(moduli_bak_dir):
-        shutil.rmtree(bak_old, ignore_errors=True)
-        os.replace(moduli_bak_dir, bak_old)
-    os.replace(bak_new, moduli_bak_dir)
-    shutil.rmtree(bak_old, ignore_errors=True)
+    for vecchio in (moduli_bak_dir + "_new", moduli_bak_dir + "_old"):
+        _rimuovi_dir_robusto(vecchio)
+    staging = tempfile.mkdtemp(prefix="orbitacasa_bak_")
+    try:
+        copia = os.path.join(staging, "moduli")
+        try:
+            shutil.copytree(moduli_dir, copia,
+                            ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+        except shutil.Error as e:
+            if any(str(x[0]).endswith(".py") for x in e.args[0]):
+                raise
+        if not _rimuovi_dir_robusto(moduli_bak_dir):
+            raise OSError(
+                f"Il vecchio backup '{moduli_bak_dir}' e' bloccato e non si riesce a eliminare "
+                f"(OneDrive/antivirus?). Eliminalo a mano e riprova.")
+        try:
+            os.replace(copia, moduli_bak_dir)   # stesso disco: istantaneo
+        except OSError:
+            shutil.copytree(copia, moduli_bak_dir)  # disco diverso (temp su altro volume)
+    finally:
+        _rimuovi_dir_robusto(staging)
 
 # Controllo Manuale Forzato dell'Aggiornamento Software (conferma utente + riavvio)
 def forza_aggiorna(self):
@@ -121,10 +169,11 @@ def aggiorna(self, url, nome_file):
             self.show_custom_warning("Attenzione", "❌ Aggiornamento NON completato! \n\n Problema di rete/download o file scaricato non valido. 😕")
             return
         try:
-            _backup_moduli_atomico(MODULI_DIR, MODULI_BAK_DIR)
+            _crea_backup_moduli(MODULI_DIR, MODULI_BAK_DIR)
         except Exception as moduli_backup_err:
+            _log_errore_aggiornamento("ERRORE BACKUP MODULI (aggiornamento)", moduli_backup_err)
             print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] ERRORE backup moduli: {moduli_backup_err}")
-            self.show_custom_warning("Attenzione", "Impossibile creare il backup dei moduli. Aggiornamento annullato.")
+            self.show_custom_warning("Attenzione", f"Impossibile creare il backup dei moduli. Aggiornamento annullato.\n\nMotivo: {moduli_backup_err}")
             os.remove(nome_tmp)
             return
         if os.path.exists(nome_file):
@@ -507,12 +556,13 @@ def _mostra_popup_aggiornamento(self, remote_time, local_time, changelog_text):
             urllib.request.urlretrieve(url, nome_tmp)
             py_compile.compile(nome_tmp, doraise=True)
             try:
-                _backup_moduli_atomico(MODULI_DIR, MODULI_BAK_DIR)
+                _crea_backup_moduli(MODULI_DIR, MODULI_BAK_DIR)
             except Exception as moduli_backup_err:
+                _log_errore_aggiornamento("ERRORE BACKUP MODULI (aggiornamento)", moduli_backup_err)
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] ERRORE backup moduli: {moduli_backup_err}")
                 if os.path.exists(nome_tmp):
                     os.remove(nome_tmp)
-                self.show_custom_warning("Attenzione", "Impossibile creare il backup dei moduli. Aggiornamento annullato.")
+                self.show_custom_warning("Attenzione", f"Impossibile creare il backup dei moduli. Aggiornamento annullato.\n\nMotivo: {moduli_backup_err}")
                 return
             if os.path.exists(NOME_FILE):
                 shutil.copy2(NOME_FILE, nome_backup)
