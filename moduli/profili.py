@@ -551,6 +551,7 @@ def mostra_selettore_profilo(self):
     btn_frame1.columnconfigure((0, 1, 2, 3, 4), weight=1)
     _crea_bottone_icona(self, btn_frame1, "sync",      "Attiva",    _switch).grid(row=0, column=0, padx=(0, 3), sticky="ew")
     _crea_bottone_icona(self, btn_frame1, "salva",     "Nuovo",     _nuovo).grid(row=0, column=1, padx=3, sticky="ew")
+    _crea_bottone_icona(self, btn_frame1, "modifica",  "Rinomina", _rinomina).grid(row=0, column=2, padx=3, sticky="ew")
     _crea_bottone_icona(self, btn_frame1, "delete",    "Elimina",   _elimina).grid(row=0, column=3, padx=(3, 0), sticky="ew")
     _crea_bottone_icona(self, btn_frame1, "chiudi",    "Chiudi",    win.destroy).grid(row=0, column=4, padx=(3, 0), sticky="ew")
 
