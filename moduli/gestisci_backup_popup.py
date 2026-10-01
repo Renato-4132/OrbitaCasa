@@ -46,6 +46,7 @@ def gestisci_backup_popup(self):
     CREDENTIALS_FILE = _app.CREDENTIALS_FILE
     PENSIONE_FILE = _app.PENSIONE_FILE
     ANIMALI_FILE = _app.ANIMALI_FILE
+    MAGAZZINO_FILE = _app.MAGAZZINO_FILE
     PIANIFICA_FILE = _app.PIANIFICA_FILE
     MANUTENZIONE_CASA_FILE = _app.MANUTENZIONE_CASA_FILE
     MESSAGGI_VISTI_FILE = _app.MESSAGGI_VISTI_FILE
@@ -86,8 +87,9 @@ def gestisci_backup_popup(self):
         "studio_emittente.json":          "MyBusiness Emittente",
         "studio_cassa.json":              "MyBusiness Cassa",
         "studio_magazzino.json":          "MyBusiness Magazzino",
-        "immobil.json":                   "Immobili",
-        "veicoli.json":                   "Veicoli",
+        "immobil.json":                   "Immobil",
+        "veicoli.json":                   "AutoPark",
+        "magazzino.json":                 "StockBox",
         "fondo_risparmio.json":           "Fondo Risparmio",
         "fondo_pensione.json":            "Fondo Pensione",
         "spese_pianificate.json":         "Spese Pianificate",
@@ -225,16 +227,8 @@ def gestisci_backup_popup(self):
         filtro_data = var_data.get()
         count = 0
         for idx, nome in enumerate(files):
-            if filtro and filtro.lower() not in nome.lower():
-                continue
             if var_solo_snapshot.get() and "snapshot_db" not in nome:
                 continue
-            percorso = os.path.join(cartella_backup, nome)
-            try:
-                sz = os.path.getsize(percorso)
-                sz_str = f"{sz/1024:.1f} KB" if sz < 1024*1024 else f"{sz/1024/1024:.2f} MB"
-            except Exception:
-                sz_str = "?"
             parts = nome.split("-", 3)
             try:
                 datetime.datetime.strptime(f"{parts[0]}-{parts[1]}-{parts[2]}", "%d-%m-%Y")
@@ -254,6 +248,16 @@ def gestisci_backup_popup(self):
                     tipo_str = "Docs Contabili (ZIP)"
             else:
                 tipo_str = TIPI.get(nome_originale, "File dati")
+            if filtro:
+                f_lower = filtro.lower()
+                if f_lower not in nome.lower() and f_lower not in tipo_str.lower():
+                    continue
+            percorso = os.path.join(cartella_backup, nome)
+            try:
+                sz = os.path.getsize(percorso)
+                sz_str = f"{sz/1024:.1f} KB" if sz < 1024*1024 else f"{sz/1024/1024:.2f} MB"
+            except Exception:
+                sz_str = "?"
             tag = "pari" if idx % 2 == 0 else "dispari"
             tree.insert("", "end", values=(data_str, tipo_str, nome, sz_str), tags=(tag,))
             count += 1
@@ -318,7 +322,8 @@ def gestisci_backup_popup(self):
                 STUDIO_APPUNTAMENTI, STUDIO_PRESTAZIONI, STUDIO_FATTURE, STUDIO_EMITTENTE,
                 STUDIO_CASSA, STUDIO_MAGAZZINO, IMMOBIL_FILE, FR_FILE, PORTAFOGLIO_BANCARIO,
                 SCHEDULE_FILE, VEICOLI_FILE, GAMIFICATION_FILE, CREDENTIALS_FILE, PENSIONE_FILE,
-                ANIMALI_FILE, PIANIFICA_FILE, MANUTENZIONE_CASA_FILE, MESSAGGI_VISTI_FILE
+                ANIMALI_FILE, PIANIFICA_FILE, MANUTENZIONE_CASA_FILE, MESSAGGI_VISTI_FILE,
+                MAGAZZINO_FILE
             ]
             for s in selezione:
                 nome_bak = tree.set(s, "File")

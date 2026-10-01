@@ -423,6 +423,7 @@ def pagina_fondo_risparmio_web(self):
         <div class="nav-group-items">
             <a href="/utenze?anno={nav_anno}">💧 Utenze</a>
             <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+            <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
         </div>
     </div>
     <div class="nav-group">

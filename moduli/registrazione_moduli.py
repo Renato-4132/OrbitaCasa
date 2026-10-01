@@ -185,6 +185,9 @@ def registra_tutti_i_moduli(GestioneSpese):
     from moduli.rubrica import rubrica_app
     _registra(rubrica_app)
 
+    from moduli.magazzino import magazzino_app
+    _registra(magazzino_app)
+
     from moduli.studio import apri_studio
     _registra(apri_studio)
 
@@ -427,6 +430,11 @@ def registra_tutti_i_moduli(GestioneSpese):
         documenti_pdf_web, documenti_personali_web, genera_html_utenze, genera_html_consultazione,)
     from moduli.web_profili_menu import (
         pagina_menu_esplora, esegui_switch_profilo_web, pagina_cambia_profilo_web, pagina_switch_in_corso_web,)
+    from moduli.web_magazzino import (
+        pagina_magazzino_web, magazzino_web_cerca, magazzino_web_movimento, magazzino_web_nuovo,
+        magazzino_web_scorte, magazzino_web_riordino,)
+    _registra(pagina_magazzino_web, magazzino_web_cerca, magazzino_web_movimento, magazzino_web_nuovo,
+              magazzino_web_scorte, magazzino_web_riordino)
     _registra(apri_webserver, _crea_flask_app, start_web_server, html_login, 
     html_cambia_pw_web, html_log_web, pagina_risultati_avanzati, html_info_sys, 
     html_form, html_saluto, html_fairshare_web, documenti_pdf_web, documenti_personali_web, 

@@ -199,6 +199,7 @@ def pagina_menu_esplora(self):
             <div class="nav-group-items">
                 <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
                 <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+                <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
             </div>
         </div>
         <div class="nav-group">
@@ -611,6 +612,7 @@ def pagina_cambia_profilo_web(self):
             <div class="nav-group-items">
                 <a href="/utenze">💧 Utenze</a>
                 <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+                <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
             </div>
         </div>
         <div class="nav-group">

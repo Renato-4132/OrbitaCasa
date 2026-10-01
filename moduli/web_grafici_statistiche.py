@@ -233,6 +233,7 @@ def pagina_grafici_web(self, conto_filtro=""):
             <div class="nav-group-items">
                 <a href="/utenze?anno={anno_corrente_format}">💧 Utenze</a>
                 <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+                <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
             </div>
         </div>
         <div class="nav-group">
@@ -718,6 +719,7 @@ def html_scadenze_mese(self):
             <div class="nav-group-items">
                 <a href="/utenze?anno={oggi.year}">💧 Utenze</a>
                 <a href="/consultazione_supermercati">🛒 Supermercati</a>
+                <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
             </div>
         </div>
         <div class="nav-group">
@@ -1028,6 +1030,7 @@ def html_lista_spese_mensili(self, conto_filtro=""):
             <div class="nav-group-items">
                 <a href="/utenze?anno={oggi.year}">💧 Utenze</a>
                 <a href="/consultazione_supermercati">🛒 Supermercati</a>
+                <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
             </div>
         </div>
         <div class="nav-group">
@@ -1413,6 +1416,7 @@ def stats_mensili_html(self, conto_filtro=""):
             <div class="nav-group-items">
                 <a href="/utenze?anno={datetime.date.today().year}">💧 Utenze</a>
                 <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+                <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
             </div>
         </div>
         <div class="nav-group">

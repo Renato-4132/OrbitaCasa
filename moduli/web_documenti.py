@@ -275,6 +275,7 @@ def documenti_pdf_web(self):
             <div class="nav-group-items">
                 <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
                 <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+                <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
             </div>
         </div>
         <div class="nav-group">
@@ -766,6 +767,7 @@ def documenti_personali_web(self):
             <div class="nav-group-items">
                 <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
                 <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+                <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
             </div>
         </div>
         <div class="nav-group">
@@ -1232,6 +1234,7 @@ def genera_html_utenze(self, percorso_db, anno):
             <div class="nav-group-items">
                 <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
                 <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+                <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
             </div>
         </div>
         <div class="nav-group">
@@ -1567,6 +1570,7 @@ def genera_html_consultazione(self, file_selezionato=None):
             <div class="nav-group-items">
                 <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
                 <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+                <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
             </div>
         </div>
         <div class="nav-group">

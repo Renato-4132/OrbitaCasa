@@ -895,6 +895,7 @@ def pagina_portafoglio_web(self):
             <div class="nav-group-items">
                 <a href="/utenze?anno={anno_corrente_format}">💧 Utenze</a>
                 <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+                <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
             </div>
         </div>
         <div class="nav-group">

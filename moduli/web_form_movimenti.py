@@ -417,6 +417,7 @@ def html_form(self):
             <div class="nav-group-items">
                 <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
                 <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+                <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
             </div>
         </div>
         <div class="nav-group">
@@ -1195,6 +1196,7 @@ def pagina_risultati_avanzati(self, params):
             <div class="nav-group-items">
                 <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
                 <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+                <a href="/magazzino_web">📦 StockBox (magazzino)</a>
             </div>
         </div>
         <div class="nav-group">

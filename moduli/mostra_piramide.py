@@ -56,6 +56,7 @@ def mostra_piramide(self):
                     ("FairShare",        "Spese condivise e debiti",  _g("mostra_riepilogo_fairshare_periodo")),
                     ("Dieta",            "Pasti, BMI, export PDF",    _g("apri_dieta")),
                     ("Rubrica",          "Contatti, vCard, CRUD",     _g("rubrica_app")),
+                    ("StockBox",        "Inventario e scorte",       _g("magazzino_app")),
                 ],
             },
             {

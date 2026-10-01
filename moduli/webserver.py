@@ -365,6 +365,41 @@ def _crea_flask_app(self):
     def documenti_pdf_web():
         return html_resp(tk_app.documenti_pdf_web())
 
+    @flask_app.route("/magazzino_web")
+    @richiede_login
+    def magazzino_web():
+        return html_resp(tk_app.pagina_magazzino_web())
+
+    @flask_app.route("/api/magazzino/cerca")
+    @richiede_login
+    def api_magazzino_cerca():
+        r = tk_app.magazzino_web_cerca(request.args.get("q", ""))
+        return Response(json.dumps(r, ensure_ascii=False), mimetype="application/json")
+
+    @flask_app.route("/api/magazzino/movimento", methods=["POST"])
+    @richiede_login
+    def api_magazzino_movimento():
+        r, code = tk_app.magazzino_web_movimento(request.get_json(silent=True) or {})
+        return Response(json.dumps(r, ensure_ascii=False), status=code, mimetype="application/json")
+
+    @flask_app.route("/api/magazzino/nuovo", methods=["POST"])
+    @richiede_login
+    def api_magazzino_nuovo():
+        r, code = tk_app.magazzino_web_nuovo(request.get_json(silent=True) or {})
+        return Response(json.dumps(r, ensure_ascii=False), status=code, mimetype="application/json")
+
+    @flask_app.route("/api/magazzino/riordino")
+    @richiede_login
+    def api_magazzino_riordino():
+        r = tk_app.magazzino_web_riordino()
+        return Response(json.dumps(r, ensure_ascii=False), mimetype="application/json")
+
+    @flask_app.route("/api/magazzino/scorte", methods=["POST"])
+    @richiede_login
+    def api_magazzino_scorte():
+        r, code = tk_app.magazzino_web_scorte(request.get_json(silent=True) or {})
+        return Response(json.dumps(r, ensure_ascii=False), status=code, mimetype="application/json")
+
     @flask_app.route("/menu_esplora")
     @richiede_login
     def menu_esplora():
@@ -1837,6 +1872,7 @@ def html_info_sys(self):
             <div class="nav-group-items">
                 <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
                 <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+                <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
             </div>
         </div>
         <div class="nav-group">

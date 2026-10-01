@@ -250,6 +250,7 @@ def pop_gestione(self):
     self._add_m_item(m, "CasaCare — Manutenzione e Risparmio Casa", "auto_manutenzione", self.manutenzione_casa)
     self._add_m_item(m, "AutoPark — Gestione Veicoli", "veicoli", self.veicoli)
     self._add_m_item(m, "PetCare — Gestione Animali", "animali", self.animali)
+    self._add_m_item(m, "StockBox — Magazzino e Scorte", "documenti", self.magazzino_app)
     m.add_separator() 
     self._add_m_item(m, "Sincronizza Acquisti Email (Gmail)", "sync", self.avvia_sincronizzazione) 
     self._add_m_item(m, "Importa Documento AI (Gemini)", "documenti", self.apri_finestra_importa)
@@ -498,6 +499,7 @@ def _filtra_sidebar(self, *_):
         ("ImmoBil — Gestione Immobili",           self.immobil),
         ("AutoPark",                              self.veicoli),
         ("Pet Care",                              self.animali),
+        ("StockBox",                              self.magazzino_app),
         ("Sincronizza Acquisti Email",            self.avvia_sincronizzazione),
         ("Importa Documento AI",                  self.apri_finestra_importa),
         ("Log Importazioni",                      self.mostra_log_importazioni),
