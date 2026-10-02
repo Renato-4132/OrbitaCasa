@@ -178,7 +178,7 @@ Script `.command` che installa Python da solo (se manca) e scarica OrbitaCasa da
 
 Esegui OrbitaCasa sul tuo server o NAS tramite Docker e gestisci le tue finanze domestiche direttamente dal browser di qualsiasi PC o tablet remoto, senza installazioni locali.
 
-**📺 [Guarda il Video](https://github.com/Renato-4132/OrbitaCasa/blob/main/screenshots/OrbitaCasa.mp4)**
+**📺 [Guarda il Video](https://github.com/Renato-4132/OrbitaCasa/raw/main/screenshots/OrbitaCasa.mp4)**
 
 📩 ASSISTENZA TECNICA
 
