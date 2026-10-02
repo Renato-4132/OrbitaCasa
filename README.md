@@ -117,27 +117,28 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 43. **Portafoglio Bancario Multi-Conto** — Riepilogo di tutti i conti con distribuzione per categoria.
 44. **Trasferimenti tra Conti** — Pianifica trasferimenti singoli o in serie ricorrenti tra conti.
 45. **Notifiche Email Pianificate** — Report multipli programmabili con frequenza personalizzata.
+46. **StockBox (Magazzino)** — Carica e scarica articoli da barcode anche dal telefono, scorte min/max e lista della spesa automatica.
 
 ---
 
 ## ⚫ Specialistiche e comfort
 
-46. **Archivio Documenti Personali** — Documenti sempre a portata di mano
-47. **Modulo Dieta** — Pasti, macronutrienti, peso e grafico BMI
-48. **Modulo Petcare** — Anagrafica animali, vaccinazioni e scadenze veterinarie, promemoria cura e peso sotto controllo
-49. **Rubrica Vcard/Android** — Esporta/importa contatti dallo smartphone
-50. **Retention Automatica** — Rimuove automaticamente i dati più vecchi
-51. **Tasti Shortcut Personali** — Funzioni rapide con combinazioni di tasti
-52. **Temi Personalizzabili** — Interfaccia adattata al proprio stile
-53. **Smart Info Point** — Popup rapido sui movimenti al passaggio del mouse
-54. **Carosello Grafici** — Tour automatico degli andamenti all'avvio
-55. **Auto-Iconizza** — Riduzione a icona per inattività
-56. **Notifiche Auto-chiudenti** — Avvisi che scompaiono dopo tempo prestabilito
-57. **Aggiornamento Librerie Python** — Manutenzione automatica delle dipendenze
-58. **Licenza a Punti (Gamification)** — Usa l'app, sali di livello, allunghi la licenza gratuita
-59. **Streak & Livelli** — Da Novizio a Leggenda (e oltre): mantieni la costanza giorno dopo giorno e scala i livelli a vita
-60. **Badge Mese & Anno** — Oltre al livello a vita, guadagni riconoscimenti dedicati al mese e all'anno in corso
-61. **Gestione Multi-Profilo** — Ogni utente ha il proprio database, movimenti, categorie e credenziali.
+47. **Archivio Documenti Personali** — Documenti sempre a portata di mano
+48. **Modulo Dieta** — Pasti, macronutrienti, peso e grafico BMI
+49. **Modulo Petcare** — Anagrafica animali, vaccinazioni e scadenze veterinarie, promemoria cura e peso sotto controllo
+50. **Rubrica Vcard/Android** — Esporta/importa contatti dallo smartphone
+51. **Retention Automatica** — Rimuove automaticamente i dati più vecchi
+52. **Tasti Shortcut Personali** — Funzioni rapide con combinazioni di tasti
+53. **Temi Personalizzabili** — Interfaccia adattata al proprio stile
+54. **Smart Info Point** — Popup rapido sui movimenti al passaggio del mouse
+55. **Carosello Grafici** — Tour automatico degli andamenti all'avvio
+56. **Auto-Iconizza** — Riduzione a icona per inattività
+57. **Notifiche Auto-chiudenti** — Avvisi che scompaiono dopo tempo prestabilito
+58. **Aggiornamento Librerie Python** — Manutenzione automatica delle dipendenze
+59. **Licenza a Punti (Gamification)** — Usa l'app, sali di livello, allunghi la licenza gratuita
+60. **Streak & Livelli** — Da Novizio a Leggenda (e oltre): mantieni la costanza giorno dopo giorno e scala i livelli a vita
+61. **Badge Mese & Anno** — Oltre al livello a vita, guadagni riconoscimenti dedicati al mese e all'anno in corso
+62. **Gestione Multi-Profilo** — Ogni utente ha il proprio database, movimenti, categorie e credenziali.
 
 </details>
 
