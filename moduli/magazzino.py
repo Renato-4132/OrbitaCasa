@@ -921,7 +921,7 @@ def magazzino_app(self):
         fr.grid(row=1, column=0, sticky="nsew", padx=12)
         fr.columnconfigure(0, weight=1)
         fr.rowconfigure(0, weight=1)
-        tv = ttk.Treeview(fr, columns=("Categoria", "Articoli"), show="headings", selectmode="browse")
+        tv = ttk.Treeview(fr, columns=("Categoria", "Articoli"), show="headings", selectmode="extended")
         tv.heading("Categoria", text="Categoria", command=lambda: self.treeview_sort_column(tv, "Categoria", False))
         tv.heading("Articoli", text="Articoli", command=lambda: self.treeview_sort_column(tv, "Articoli", False))
         tv.column("Categoria", width=300, anchor="w")
@@ -970,6 +970,9 @@ def magazzino_app(self):
             if not sel:
                 self.show_toast("Seleziona la categoria da rinominare.")
                 return
+            if len(sel) > 1:
+                self.show_toast("Seleziona una sola categoria da rinominare.")
+                return
             if not nome:
                 self.show_toast("Scrivi il nuovo nome.")
                 return
@@ -995,23 +998,25 @@ def magazzino_app(self):
         def elimina():
             sel = tv.selection()
             if not sel:
-                self.show_toast("Seleziona la categoria da eliminare.")
+                self.show_toast("Seleziona le categorie da eliminare.")
                 return
-            c = sel[0]
-            n = sum(1 for a in art if a["categoria"] == c)
-            msg = f"Eliminare la categoria «{c}»?"
+            n = sum(1 for a in art if a["categoria"] in sel)
+            if len(sel) == 1:
+                msg = f"Eliminare la categoria «{sel[0]}»?"
+            else:
+                msg = f"Eliminare {len(sel)} categorie?"
             if n:
                 msg += f"\n{n} articoli resteranno senza categoria."
             if not self.show_custom_askyesno("Elimina categoria", msg):
                 return
-            stato_dati["categorie"] = [x for x in stato_dati["categorie"] if x != c]
+            stato_dati["categorie"] = [x for x in stato_dati["categorie"] if x not in sel]
             for a in art:
-                if a["categoria"] == c:
+                if a["categoria"] in sel:
                     a["categoria"] = ""
-            if var_cat.get() == c:
+            if var_cat.get() in sel:
                 var_cat.set(TUTTE_CAT)
             dopo_modifica()
-            self.show_toast("Categoria eliminata.")
+            self.show_toast("Categoria eliminata." if len(sel) == 1 else "Categorie eliminate.")
 
         def suggerite():
             if getattr(d, "_sugg_win", None) and d._sugg_win.winfo_exists():

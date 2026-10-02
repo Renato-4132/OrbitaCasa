@@ -794,7 +794,7 @@ _PAGINA = """<!DOCTYPE html>
     <div id="hintHttps" class="hint" style="display:none">Su questo indirizzo (HTTP) la fotocamera live è bloccata dal browser: usa 🖼️ Foto, un lettore barcode o digita il codice. Con HTTPS la scansione live funziona.</div>
     <div id="camWrap"><video id="video" playsinline muted></video><div id="mirino"></div></div>
     <form id="formCerca" class="cerca">
-        <input id="codice" type="text" autocomplete="off" autocapitalize="off" placeholder="Codice a barre o nome articolo">
+        <input id="codice" type="text" autocomplete="off" autocapitalize="off" placeholder="Codice a barre o articolo">
         <button class="btn verde" id="bCerca" type="submit">➕ Carica</button>
     </form>
     <button class="btn" style="margin-bottom:12px" onclick="pulisci(); apriNuovo('')">➕ Nuovo articolo</button>
