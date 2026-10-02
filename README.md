@@ -119,8 +119,7 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 43. **Portafoglio Bancario Multi-Conto** — Riepilogo di tutti i conti con distribuzione per categoria.
 44. **Trasferimenti tra Conti** — Pianifica trasferimenti singoli o in serie ricorrenti tra conti.
 45. **Notifiche Email Pianificate** — Report multipli programmabili con frequenza personalizzata.
-46. **StockBox (Magazzino)** — Carica e scarica articoli da barcode anche dal telefono, scorte min/max e lista della spesa automatica.
-
+46. **StockBox (Magazzino)** — Magazzino generico per tutto ciò che vuoi tenere in scorta.
 ---
 
 **⚫ Specialistiche e comfort**
