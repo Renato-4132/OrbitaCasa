@@ -215,6 +215,9 @@ def _boot_carica_moduli_iniziali():
         _boot_scarica_file_singolo("costanti.py", _COSTANTI_PATH)
     if not os.path.isfile(_MODELLO_SPESA_PATH):
         _boot_scarica_file_singolo("modello_spesa.py", _MODELLO_SPESA_PATH)
+    _LICENZA_PATH = os.path.join(MODULI_DIR, "licenza_persistente.py")
+    if not os.path.isfile(_LICENZA_PATH):
+        _boot_scarica_file_singolo("licenza_persistente.py", _LICENZA_PATH)
     from moduli.costanti import carica_costanti
     from moduli.modello_spesa import (
         SpesaEntry, campo, METODI_PAGAMENTO_EMOJI, METODI_PAGAMENTO_FILTRO,
@@ -5677,7 +5680,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "c656db74449ceacf677806c7c22706d6fc1125b3ae7956f0bddab9165a2457f4"
+        E_H_B = "f75cea2f7b7aa7eb93c050c92feee5fae668003f2b08b262e1447c39565fe02e"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
@@ -6816,14 +6819,14 @@ if __name__ == "__main__":
 
     except Exception as e:
         error_info = traceback.format_exc()
-        print(f"\nERRORE CRITICO (v{VERSION})\n{error_info}")
+        print(f"\nERRORE CRITICO (v{globals().get('VERSION', '?')})\n{error_info}")
         try:
             if os.path.exists(log_file) and os.path.getsize(log_file) > 50 * 1024:
                 open(log_file, "w").close()
             with open(log_file, "a", encoding="utf-8") as f:
                 timestamp = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                 f.write(f"CRASH RILEVATO IL: {timestamp}\n")
-                f.write(f"VERSIONE APP: {VERSION}\n")
+                f.write(f"VERSIONE APP: {globals().get('VERSION', '?')}\n")
                 f.write(f"CONFIGURAZIONE ATTIVA:\n")
                 if 'app_config_globale' in locals():
                     for chiave, valore in app_config_globale.items():
