@@ -5680,7 +5680,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "f75cea2f7b7aa7eb93c050c92feee5fae668003f2b08b262e1447c39565fe02e"
+        E_H_B = "1a0b6a6f952bb77127e5f4bc3b541d0b6d74f8bcab3074dc69ee4f30186c1ec2"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
@@ -6583,6 +6583,10 @@ def _boot_pyw_allineato():
     except Exception as e:
         print(f"[{time.strftime('%H:%M:%S')}] Verifica allineamento .pyw non riuscita: {e}")
         return True
+def _boot_msg_errore_download(e):
+    if isinstance(e, urllib.error.HTTPError) and e.code in (403, 429):
+        return "Limite di richieste di GitHub raggiunto.\nRiprova tra circa un'ora."
+    return "Non è presente una connessione internet.\nImpossibile installare le risorse necessarie."
 _BOOT_MODULI_AGGIORNATI_NOMI = []
 
 def _boot_sincronizza_moduli():
@@ -6610,6 +6614,7 @@ def _boot_sincronizza_moduli():
                 continue
             tentativi_falliti = 0
             scaricato_ok = False
+            ultimo_errore = None
             while tentativi_falliti < 3 and not scaricato_ok:
                 try:
                     req = urllib.request.Request(url_raw, headers={"User-Agent": "OrbitaCasa-Bootstrap"})
@@ -6619,6 +6624,7 @@ def _boot_sincronizza_moduli():
                     _BOOT_MODULI_AGGIORNATI_NOMI.append(nome)
                     scaricato_ok = True
                 except Exception as e:
+                    ultimo_errore = e
                     tentativi_falliti += 1
                     if isinstance(e, urllib.error.HTTPError) and e.code in (403, 429):
                         motivo = "limite richieste GitHub raggiunto"
@@ -6643,9 +6649,9 @@ def _boot_sincronizza_moduli():
                         pass
                 show_warning_popup(
                     titolo="ATTENZIONE", titolo_fg="red",
-                    corpo="Non è presente una connessione internet.\nImpossibile installare le risorse necessarie.\nIl programma verrà chiuso.",
+                    corpo=_boot_msg_errore_download(ultimo_errore) + "\nIl programma verrà chiuso.",
                     corpo_fg="#61AFEF", corpo_font_size=11, corpo_expand=True,
-                    bg="#000000", accent="#61AFEF", width=380, height=120
+                    bg="#000000", accent="#61AFEF", width=380, height=140
                 )
                 return False
         if aggiorna_bar:
@@ -6670,15 +6676,15 @@ def _boot_sincronizza_moduli():
             except Exception:
                 pass
         print(f"[{time.strftime('%H:%M:%S')}] Verifica aggiornamento moduli non riuscita: {e}")
-        if os.path.isdir(MODULI_DIR) and os.listdir(MODULI_DIR):
+        if os.path.isfile(os.path.join(MODULI_DIR, "registrazione_moduli.py")):
             print(f"[{time.strftime('%H:%M:%S')}] Si prosegue con la copia locale dei moduli gia' presente.")
             return True
         try:
             show_warning_popup(
                     titolo="ATTENZIONE", titolo_fg="red",
-                    corpo="Non è presente una connessione internet.\nImpossibile installare le risorse necessarie.\nIl programma verrà chiuso.",
+                    corpo=_boot_msg_errore_download(e) + "\nIl programma verrà chiuso.",
                     corpo_fg="#61AFEF", corpo_font_size=11, corpo_expand=True,
-                    bg="#000000", accent="#61AFEF", width=380, height=120
+                    bg="#000000", accent="#61AFEF", width=380, height=140
                 )
         except Exception:
             pass
