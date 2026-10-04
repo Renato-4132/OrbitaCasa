@@ -214,6 +214,180 @@ def gestisci_documenti_personali(self):
         def _nascondi_progress_dp():
             progress_dp.stop()
             frame_progress_dp.pack_forget()
+        _PV_W, _PV_H = 54, 74
+        _pv = {"path": None, "origine": None, "thumb": None, "big": None, "big_path": None, "popup": None, "job": None}
+        _pv_box = tk.Frame(frm_top, width=_PV_W, height=_PV_H, bg=self.COLOR_WIDGET_BG,
+                           highlightthickness=1, highlightbackground="#555555", cursor="hand2")
+        _pv_box.grid(row=1, column=8, rowspan=2, padx=4, pady=2, sticky="w")
+        _pv_box.grid_propagate(False)
+        _pv_box.pack_propagate(False)
+        _pv_lbl = tk.Label(_pv_box, text="Anteprima\nPDF", bg=self.COLOR_WIDGET_BG, fg="gray",
+                           font=("Arial", 7, "italic"), cursor="hand2", bd=0)
+        _pv_lbl.pack(expand=True, fill="both")
+        def _pv_render(path, altezza):
+            try:
+                import pymupdf as _fz
+                from PIL import Image as _Im, ImageTk as _ImTk
+                _fz.TOOLS.mupdf_display_errors(False)
+                with _fz.open(path) as d:
+                    if len(d) == 0:
+                        return None
+                    pg = d.load_page(0)
+                    z = altezza / pg.rect.height
+                    pix = pg.get_pixmap(matrix=_fz.Matrix(z, z), alpha=False, annots=False)
+                    img = _Im.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                return _ImTk.PhotoImage(img)
+            except Exception:
+                return None
+        def _pv_chiudi_big(event=None):
+            if _pv["job"]:
+                try: win.after_cancel(_pv["job"])
+                except Exception: pass
+                _pv["job"] = None
+            if _pv["popup"]:
+                try: _pv["popup"].destroy()
+                except Exception: pass
+                _pv["popup"] = None
+        def _pv_mostra_big():
+            _pv["job"] = None
+            path = _pv["path"]
+            if not path or _pv["popup"]:
+                return
+            h = max(300, min(600, win.winfo_screenheight() - 160))
+            if _pv["big_path"] != path or _pv["big"] is None:
+                _pv["big"] = _pv_render(path, h)
+                _pv["big_path"] = path
+            img = _pv["big"]
+            if img is None:
+                return
+            top = tk.Toplevel(win)
+            top.withdraw()
+            top.overrideredirect(True)
+            try: top.attributes("-topmost", True)
+            except Exception: pass
+            lbl = tk.Label(top, image=img, bd=0, bg="#222222", highlightthickness=2, highlightbackground="#888888")
+            lbl.image = img
+            lbl.pack()
+            top.update_idletasks()
+            sw, sh = top.winfo_screenwidth(), top.winfo_screenheight()
+            pw, ph = top.winfo_reqwidth(), top.winfo_reqheight()
+            x = max(0, min(_pv_box.winfo_rootx() + _pv_box.winfo_width() - pw, sw - pw))
+            y = _pv_box.winfo_rooty() + _pv_box.winfo_height() + 6
+            if y + ph > sh - 40:
+                x = max(0, _pv_box.winfo_rootx() - pw - 8)
+                y = max(0, min(_pv_box.winfo_rooty(), sh - ph - 40))
+            top.geometry(f"+{x}+{y}")
+            top.deiconify()
+            top.lift()
+            _pv["popup"] = top
+        def _pv_entra(event=None):
+            if _pv["path"] and not _pv["popup"] and not _pv["job"]:
+                _pv["job"] = win.after(300, _pv_mostra_big)
+        def _pv_apri(event=None):
+            _pv_chiudi_big()
+            if _pv["path"] and os.path.exists(_pv["path"]):
+                apri_pdf(_percorso=_pv["path"])
+        def _pv_imposta(path, origine):
+            _pv_chiudi_big()
+            if path and os.path.exists(path):
+                if path != _pv["path"] or _pv["thumb"] is None:
+                    _pv["thumb"] = _pv_render(path, _PV_H - 4)
+                _pv["path"], _pv["origine"] = path, origine
+                if _pv["thumb"] is not None:
+                    _pv_lbl.config(image=_pv["thumb"], text="")
+                    _pv_lbl.image = _pv["thumb"]
+                else:
+                    _pv_lbl.config(image="", text="PDF\nnon leggibile")
+            else:
+                _pv["path"], _pv["origine"], _pv["thumb"], _pv["big"], _pv["big_path"] = None, None, None, None, None
+                _pv_lbl.config(image="", text="Anteprima\nPDF")
+                _pv_lbl.image = None
+        def _pv_da_selezione():
+            sel = tree.selection()
+            if not sel:
+                if _pv["origine"] == "tree":
+                    _pv_imposta(None, None)
+                return
+            try:
+                fname = tree.item(sel[0], "values")[4]
+            except Exception:
+                return
+            fp = os.path.join(profilo_docs(nome_profilo), fname) if fname else ""
+            if fp and os.path.exists(fp):
+                if fp != _pv["path"]:
+                    _pv_imposta(fp, "tree")
+            else:
+                _pv_imposta(None, None)
+        _pv_sel_job = [None]
+        def _pv_da_selezione_deb(event=None):
+            if _pv_sel_job[0]:
+                try: win.after_cancel(_pv_sel_job[0])
+                except Exception: pass
+            _pv_sel_job[0] = win.after(120, _pv_da_selezione)
+        _pvt = {"item": None, "job": None, "popup": None, "img": None, "img_path": None}
+        def _pvt_chiudi(event=None):
+            if _pvt["job"]:
+                try: win.after_cancel(_pvt["job"])
+                except Exception: pass
+                _pvt["job"] = None
+            if _pvt["popup"]:
+                try: _pvt["popup"].destroy()
+                except Exception: pass
+                _pvt["popup"] = None
+            _pvt["item"] = None
+        def _pvt_mostra(item):
+            _pvt["job"] = None
+            if _pvt["popup"] or _pvt["item"] != item:
+                return
+            try:
+                fname = tree.item(item, "values")[4]
+            except Exception:
+                return
+            path = os.path.join(profilo_docs(nome_profilo), fname) if fname else ""
+            if not path or not os.path.exists(path):
+                return
+            h = max(300, min(600, win.winfo_screenheight() - 160))
+            if _pvt["img_path"] != path or _pvt["img"] is None:
+                _pvt["img"] = _pv_render(path, h)
+                _pvt["img_path"] = path
+            img = _pvt["img"]
+            if img is None:
+                return
+            top = tk.Toplevel(win)
+            top.withdraw()
+            top.overrideredirect(True)
+            try: top.attributes("-topmost", True)
+            except Exception: pass
+            lbl = tk.Label(top, image=img, bd=0, bg="#222222", highlightthickness=2, highlightbackground="#888888")
+            lbl.image = img
+            lbl.pack()
+            top.update_idletasks()
+            sw, sh = top.winfo_screenwidth(), top.winfo_screenheight()
+            pw, ph = top.winfo_reqwidth(), top.winfo_reqheight()
+            px, py = win.winfo_pointerx(), win.winfo_pointery()
+            x = px + 24
+            if x + pw > sw:
+                x = max(0, px - pw - 24)
+            y = max(0, min(py - 20, sh - ph - 40))
+            top.geometry(f"+{x}+{y}")
+            top.deiconify()
+            top.lift()
+            _pvt["popup"] = top
+        def _pvt_motion(event):
+            item = tree.identify_row(event.y)
+            if not item or tree.identify_column(event.x) != "#3":
+                if _pvt["item"] is not None or _pvt["popup"]:
+                    _pvt_chiudi()
+                return
+            if item == _pvt["item"]:
+                return
+            _pvt_chiudi()
+            _pvt["item"] = item
+            _pvt["job"] = win.after(450, lambda it=item: _pvt_mostra(it))
+        for _w in (_pv_box, _pv_lbl):
+            _w.bind("<Enter>", _pv_entra)
+            _w.bind("<Leave>", _pv_chiudi_big)
+            _w.bind("<Button-1>", _pv_apri)
         frm_srch = ttk.Frame(frm, padding="8 0 8 4")
         frm_srch.pack(fill="x")
         ttk.Label(frm_srch, text="Cerca:").pack(side="left", padx=(0, 4))
@@ -406,11 +580,15 @@ def gestisci_documenti_personali(self):
                 self.show_custom_info("Stampa avviata", f"Comando inviato per:\n{fname}")
             except Exception as e:
                 self.show_custom_warning("Errore stampa", f"Impossibile stampare '{fname}':\n{e}")
-        def apri_pdf(event=None):
-            sel = tree.selection()
-            if not sel: return
-            fname = tree.item(sel[0], "values")[4]
-            fpath = os.path.join(profilo_docs(nome_profilo), fname)
+        def apri_pdf(event=None, _percorso=None):
+            if _percorso:
+                fpath = _percorso
+                fname = os.path.basename(_percorso)
+            else:
+                sel = tree.selection()
+                if not sel: return
+                fname = tree.item(sel[0], "values")[4]
+                fpath = os.path.join(profilo_docs(nome_profilo), fname)
             if not os.path.exists(fpath):
                 return self.show_custom_warning("Errore", f"File non trovato:\n{fname}")
             try:
@@ -527,6 +705,7 @@ def gestisci_documenti_personali(self):
             save_registry(nome_profilo, reg)
             load_tree(campo_cerca.get())
             _drop_path_ref[0] = None
+            _pv_imposta(None, None)
             entry_desc.delete(0, tk.END)
             entry_note.delete(0, tk.END)
             scad_var.set("")
@@ -770,6 +949,7 @@ def gestisci_documenti_personali(self):
                     self.show_toast("Trascina solo file PDF.")
                     return
                 _drop_path_ref[0] = pdf_path
+                _pv_imposta(pdf_path, "drop")
                 if not API_KEY:
                     self.show_toast(f"ALL· {os.path.basename(pdf_path)} — imposta API Key Gemini per l'analisi automatica")
                     return
@@ -871,6 +1051,13 @@ def gestisci_documenti_personali(self):
         btn_ch.bind("<Button-1>", lambda e: chiudi_win())
 
         tree.bind("<Double-1>", apri_pdf)
+        tree.bind("<<TreeviewSelect>>", _pv_da_selezione_deb, add="+")
+        tree.bind("<Motion>", _pvt_motion, add="+")
+        tree.bind("<Leave>", _pvt_chiudi, add="+")
+        tree.bind("<ButtonPress>", _pvt_chiudi, add="+")
+        tree.bind("<MouseWheel>", _pvt_chiudi, add="+")
+        tree.bind("<Button-4>", _pvt_chiudi, add="+")
+        tree.bind("<Button-5>", _pvt_chiudi, add="+")
         tree.bind("<Delete>",   lambda e: cancella())
         load_tree()
         return load_tree, esegui_backup_manuale
