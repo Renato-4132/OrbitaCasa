@@ -205,11 +205,17 @@ def draw_bar_chart(self, event=None):
             for i, item in enumerate(data_out):
                 budget_cat = budget_annuale_cat.get(item['label']) if mostra_budget else None
                 draw_item(sep_x + 40 + (i * BAR_SPACE), item['value'], item['label'], COLORS[i % len(COLORS)], "Uscita", budget=budget_cat)
+        _dx_combo_bar = combo_x_bar - (c_width - 10)
+        _dx_reset_bar = icon_x_bar - (c_width - 10)
         def update_sticky(event=None):
             if not canvas.winfo_exists(): return
             ox = canvas.canvasx(0)
             canvas.coords(self.win_titolo, ox + 10, 10)
+            canvas.coords(self.win_hint, ox + 220, 10)
             canvas.coords(self.win_btn, ox + canvas.winfo_width() - 10, 10)
+            _bx = ox + canvas.winfo_width() - 10
+            canvas.coords(self.win_combo_conto_bar, _bx + _dx_combo_bar, 10)
+            canvas.coords(self.win_reset_conto_bar, _bx + _dx_reset_bar, 10)
             vw = canvas.winfo_width()
             y_tot = canvas.winfo_height() - 10
             if len(self.win_totale) == 1:
