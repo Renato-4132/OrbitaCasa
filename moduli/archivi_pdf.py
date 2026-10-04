@@ -140,6 +140,104 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
          s = importo_str_visibile.replace(' €', '').replace('.', '').replace(',', '.')
          try: return float(s.strip())
          except ValueError: return None
+    def _mostra_viewer_documento(file_path, file_name):
+            try:
+                preview_win = tk.Toplevel(self)
+                preview_win.title(f"Visualizzatore Documento - {file_name}")
+                preview_win.transient(self)
+                preview_win.withdraw()
+                W, H = 950, 630
+                preview_win.geometry(f'{W}x{H}')
+                preview_win.bind("<Escape>", lambda e: preview_win.destroy())
+                preview_win.update_idletasks()
+                sw, sh = preview_win.winfo_screenwidth(), preview_win.winfo_screenheight()
+                x, y = (sw // 2) - (W // 2), (sh // 2) - (H // 2)
+                preview_win.geometry(f'{W}x{H}+{x}+{y}')
+                preview_win.minsize(W, H)
+                preview_win.configure(bg=self.COLOR_WIDGET_BG)
+                main_container = tk.Frame(preview_win, bg=self.COLOR_WIDGET_BG)
+                main_container.pack(fill=tk.BOTH, expand=True)
+                canvas = tk.Canvas(main_container, bg=self.COLOR_WIDGET_BG, highlightthickness=0)
+                v_scroll = ttk.Scrollbar(main_container, orient="vertical", command=canvas.yview, style="Vertical.TScrollbar")
+                h_scroll = ttk.Scrollbar(main_container, orient="horizontal", command=canvas.xview, style="Horizontal.TScrollbar")
+                canvas.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
+                v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+                h_scroll.pack(side=tk.BOTTOM, fill=tk.X)
+                canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+                fitz.TOOLS.mupdf_display_errors(False)
+                doc = fitz.open(file_path)
+                self.pdf_images = [] 
+                y_offset, max_w, zoom = 20, 0, 1.4
+                mat = fitz.Matrix(zoom, zoom)
+                for page_num in range(len(doc)):
+                        page = doc.load_page(page_num)
+                        pix = page.get_pixmap(matrix=mat, annots=False)
+                        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                        photo = ImageTk.PhotoImage(img)
+                        self.pdf_images.append(photo)                                
+                        pos_x = max(20, (W - pix.width) // 2)
+                        canvas.create_image(pos_x, y_offset, anchor="nw", image=photo)
+                        y_offset += pix.height + 25
+                        if pix.width > max_w: max_w = pix.width
+                canvas.config(scrollregion=(0, 0, max(W, max_w + 40), y_offset + 50))
+                doc.close()
+                def _on_mousewheel(event):
+                    try:
+                        if canvas.winfo_exists():
+                            if event.num == 4 or event.delta > 0: canvas.yview_scroll(-1, "units")
+                            elif event.num == 5 or event.delta < 0: canvas.yview_scroll(1, "units")
+                    except (tk.TclError, NameError, AttributeError):
+                        pass
+                canvas.bind_all("<MouseWheel>", _on_mousewheel)
+                canvas.bind_all("<Button-4>", _on_mousewheel)
+                canvas.bind_all("<Button-5>", _on_mousewheel)
+                frame_btns = tk.Frame(preview_win, bg=self.COLOR_WIDGET_BG)
+                frame_btns.pack(side=tk.BOTTOM, fill=tk.X, padx=20, pady=10)
+                img_stampa = self.icone_gui.get("stampa")
+                img_salva = self.icone_gui.get("salva")
+                img_chiudi = self.icone_gui.get("chiudi")
+                btn_stampa = ttk.Label(
+                        frame_btns, compound="left", image=img_stampa,
+                        text=" Stampa" if img_stampa else "Stampa",
+                        background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
+                        cursor="hand2"
+                )
+                btn_stampa.image = img_stampa
+                btn_stampa.pack(side='left', padx=10)
+                btn_stampa.bind("<Button-1>", lambda e: self.stampa_pdf(file_path, self.show_custom_warning))
+                def salva_documento():
+                        dest = filedialog.asksaveasfilename(
+                               defaultextension=".pdf",
+                               filetypes=[("File di testo", "*.pdf"), ("Tutti i file", "*.*")],
+                               initialdir=EXPORT_FILES,
+                               initialfile=file_name,
+                               title="Esporta PDF",
+                               confirmoverwrite=False)
+                        if dest:
+                                shutil.copy2(file_path, dest)
+                                self.show_toast("Documento salvato!")
+                btn_salva = ttk.Label(
+                        frame_btns, compound="left", image=img_salva,
+                        text=" Salva" if img_salva else "Salva",
+                        background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
+                        cursor="hand2"
+                )
+                btn_salva.image = img_salva
+                btn_salva.pack(side='left', padx=10)
+                btn_salva.bind("<Button-1>", lambda e: salva_documento())
+                btn_chiudi = ttk.Label(
+                        frame_btns, compound="left", image=img_chiudi,
+                        text=" Chiudi" if img_chiudi else "Chiudi",
+                        background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
+                        cursor="hand2"
+                )
+                btn_chiudi.image = img_chiudi
+                btn_chiudi.pack(side='right', padx=10)
+                btn_chiudi.bind("<Button-1>", lambda e: preview_win.destroy())
+                preview_win.deiconify()
+                preview_win.wait_window()
+            except Exception as e:
+                    self.show_custom_warning("Errore", f"Errore: {e}")
     def open_pdf(event, treeview):
             selected = treeview.selection()
             if not selected:
@@ -157,100 +255,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                     
                     if not os.path.exists(file_path):
                             return self.show_custom_warning("Errore", f"File non trovato: {file_name}")
-                    preview_win = tk.Toplevel(self)
-                    preview_win.title(f"Visualizzatore Documento - {file_name}")
-                    preview_win.transient(self)
-                    preview_win.withdraw()
-                    W, H = 950, 630
-                    preview_win.geometry(f'{W}x{H}')
-                    preview_win.bind("<Escape>", lambda e: preview_win.destroy())
-                    preview_win.update_idletasks()
-                    sw, sh = preview_win.winfo_screenwidth(), preview_win.winfo_screenheight()
-                    x, y = (sw // 2) - (W // 2), (sh // 2) - (H // 2)
-                    preview_win.geometry(f'{W}x{H}+{x}+{y}')
-                    preview_win.minsize(W, H)
-                    preview_win.configure(bg=self.COLOR_WIDGET_BG)
-                    main_container = tk.Frame(preview_win, bg=self.COLOR_WIDGET_BG)
-                    main_container.pack(fill=tk.BOTH, expand=True)
-                    canvas = tk.Canvas(main_container, bg=self.COLOR_WIDGET_BG, highlightthickness=0)
-                    v_scroll = ttk.Scrollbar(main_container, orient="vertical", command=canvas.yview, style="Vertical.TScrollbar")
-                    h_scroll = ttk.Scrollbar(main_container, orient="horizontal", command=canvas.xview, style="Horizontal.TScrollbar")
-                    canvas.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
-                    v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
-                    h_scroll.pack(side=tk.BOTTOM, fill=tk.X)
-                    canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-                    fitz.TOOLS.mupdf_display_errors(False)
-                    doc = fitz.open(file_path)
-                    self.pdf_images = [] 
-                    y_offset, max_w, zoom = 20, 0, 1.4
-                    mat = fitz.Matrix(zoom, zoom)
-                    for page_num in range(len(doc)):
-                            page = doc.load_page(page_num)
-                            pix = page.get_pixmap(matrix=mat, annots=False)
-                            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-                            photo = ImageTk.PhotoImage(img)
-                            self.pdf_images.append(photo)                                
-                            pos_x = max(20, (W - pix.width) // 2)
-                            canvas.create_image(pos_x, y_offset, anchor="nw", image=photo)
-                            y_offset += pix.height + 25
-                            if pix.width > max_w: max_w = pix.width
-                    canvas.config(scrollregion=(0, 0, max(W, max_w + 40), y_offset + 50))
-                    doc.close()
-                    def _on_mousewheel(event):
-                        try:
-                            if canvas.winfo_exists():
-                                if event.num == 4 or event.delta > 0: canvas.yview_scroll(-1, "units")
-                                elif event.num == 5 or event.delta < 0: canvas.yview_scroll(1, "units")
-                        except (tk.TclError, NameError, AttributeError):
-                            pass
-                    canvas.bind_all("<MouseWheel>", _on_mousewheel)
-                    canvas.bind_all("<Button-4>", _on_mousewheel)
-                    canvas.bind_all("<Button-5>", _on_mousewheel)
-                    frame_btns = tk.Frame(preview_win, bg=self.COLOR_WIDGET_BG)
-                    frame_btns.pack(side=tk.BOTTOM, fill=tk.X, padx=20, pady=10)
-                    img_stampa = self.icone_gui.get("stampa")
-                    img_salva = self.icone_gui.get("salva")
-                    img_chiudi = self.icone_gui.get("chiudi")
-                    btn_stampa = ttk.Label(
-                            frame_btns, compound="left", image=img_stampa,
-                            text=" Stampa" if img_stampa else "Stampa",
-                            background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
-                            cursor="hand2"
-                    )
-                    btn_stampa.image = img_stampa
-                    btn_stampa.pack(side='left', padx=10)
-                    btn_stampa.bind("<Button-1>", lambda e: self.stampa_pdf(file_path, self.show_custom_warning))
-                    def salva_documento():
-                            dest = filedialog.asksaveasfilename(
-                                   defaultextension=".pdf",
-                                   filetypes=[("File di testo", "*.pdf"), ("Tutti i file", "*.*")],
-                                   initialdir=EXPORT_FILES,
-                                   initialfile=file_name,
-                                   title="Esporta PDF",
-                                   confirmoverwrite=False)
-                            if dest:
-                                    shutil.copy2(file_path, dest)
-                                    self.show_toast("Documento salvato!")
-                    btn_salva = ttk.Label(
-                            frame_btns, compound="left", image=img_salva,
-                            text=" Salva" if img_salva else "Salva",
-                            background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
-                            cursor="hand2"
-                    )
-                    btn_salva.image = img_salva
-                    btn_salva.pack(side='left', padx=10)
-                    btn_salva.bind("<Button-1>", lambda e: salva_documento())
-                    btn_chiudi = ttk.Label(
-                            frame_btns, compound="left", image=img_chiudi,
-                            text=" Chiudi" if img_chiudi else "Chiudi",
-                            background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
-                            cursor="hand2"
-                    )
-                    btn_chiudi.image = img_chiudi
-                    btn_chiudi.pack(side='right', padx=10)
-                    btn_chiudi.bind("<Button-1>", lambda e: preview_win.destroy())
-                    preview_win.deiconify()
-                    preview_win.wait_window()
+                    _mostra_viewer_documento(file_path, file_name)
             except Exception as e:
                     self.show_custom_warning("Errore", f"Errore: {e}")
     def get_document_components(filename, registry):
@@ -470,6 +475,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
           if hasattr(self, 'filtri_avanzati'):
               self.filtri_avanzati['categoria'] = categoria_esatta
           _drop_path_ref[0] = None
+          _pv_imposta(None, None)
           data_var.set(datetime.now().strftime("%d-%m-%Y"))
           importo_var.set("")
           desc_var.set("")
@@ -1047,6 +1053,125 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
         progress_ai.stop()
         frame_progress_ai.grid_remove()
         lbl_hint2.grid()
+    _PV_W, _PV_H = 54, 74
+    _pv = {"path": None, "origine": None, "thumb": None, "big": None, "big_path": None, "popup": None, "job": None}
+    _pv_box = tk.Frame(frame_input, width=_PV_W, height=_PV_H, bg=self.COLOR_WIDGET_BG,
+                       highlightthickness=1, highlightbackground="#555555", cursor="hand2")
+    _pv_box.grid(row=1, column=8, rowspan=2, padx=5, pady=2, sticky="w")
+    _pv_box.grid_propagate(False)
+    _pv_box.pack_propagate(False)
+    _pv_lbl = tk.Label(_pv_box, text="Anteprima\nPDF", bg=self.COLOR_WIDGET_BG, fg="gray",
+                       font=("Arial", 7, "italic"), cursor="hand2", bd=0)
+    _pv_lbl.pack(expand=True, fill="both")
+    def _pv_render(path, altezza):
+        try:
+            fitz.TOOLS.mupdf_display_errors(False)
+            with fitz.open(path) as d:
+                if len(d) == 0:
+                    return None
+                pg = d.load_page(0)
+                z = altezza / pg.rect.height
+                pix = pg.get_pixmap(matrix=fitz.Matrix(z, z), alpha=False, annots=False)
+                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            return ImageTk.PhotoImage(img)
+        except Exception:
+            return None
+    def _pv_chiudi_big(event=None):
+        if _pv["job"]:
+            try: pdf_window.after_cancel(_pv["job"])
+            except Exception: pass
+            _pv["job"] = None
+        if _pv["popup"]:
+            try: _pv["popup"].destroy()
+            except Exception: pass
+            _pv["popup"] = None
+    def _pv_mostra_big():
+        _pv["job"] = None
+        path = _pv["path"]
+        if not path or _pv["popup"]:
+            return
+        h = max(300, min(600, pdf_window.winfo_screenheight() - 160))
+        if _pv["big_path"] != path or _pv["big"] is None:
+            _pv["big"] = _pv_render(path, h)
+            _pv["big_path"] = path
+        img = _pv["big"]
+        if img is None:
+            return
+        top = tk.Toplevel(pdf_window)
+        top.withdraw()
+        top.overrideredirect(True)
+        try: top.attributes("-topmost", True)
+        except Exception: pass
+        lbl = tk.Label(top, image=img, bd=0, bg="#222222", highlightthickness=2, highlightbackground="#888888")
+        lbl.image = img
+        lbl.pack()
+        top.update_idletasks()
+        sw, sh = top.winfo_screenwidth(), top.winfo_screenheight()
+        x = _pv_box.winfo_rootx() + _pv_box.winfo_width() - top.winfo_reqwidth()
+        y = _pv_box.winfo_rooty() + _pv_box.winfo_height() + 6
+        pw, ph = top.winfo_reqwidth(), top.winfo_reqheight()
+        x = max(0, min(x, sw - pw))
+        if y + ph > sh - 40:
+            # non entra sotto: lo metto a sinistra della miniatura, senza coprirla (evita il lampeggio)
+            x = max(0, _pv_box.winfo_rootx() - pw - 8)
+            y = max(0, min(_pv_box.winfo_rooty(), sh - ph - 40))
+        top.geometry(f"+{x}+{y}")
+        top.deiconify()
+        top.lift()
+        _pv["popup"] = top
+    def _pv_entra(event=None):
+        if _pv["path"] and not _pv["popup"] and not _pv["job"]:
+            _pv["job"] = pdf_window.after(300, _pv_mostra_big)
+    def _pv_apri(event=None):
+        _pv_chiudi_big()
+        path = _pv["path"]
+        if path and os.path.exists(path):
+            _mostra_viewer_documento(path, os.path.basename(path))
+    def _pv_imposta(path, origine):
+        _pv_chiudi_big()
+        if path and os.path.exists(path):
+            if path != _pv["path"] or _pv["thumb"] is None:
+                _pv["thumb"] = _pv_render(path, _PV_H - 4)
+            _pv["path"], _pv["origine"] = path, origine
+            _pv_box.config(cursor="hand2")
+            if _pv["thumb"] is not None:
+                _pv_lbl.config(image=_pv["thumb"], text="")
+                _pv_lbl.image = _pv["thumb"]
+            else:
+                _pv_lbl.config(image="", text="PDF\nnon leggibile")
+        else:
+            _pv["path"], _pv["origine"], _pv["thumb"], _pv["big"], _pv["big_path"] = None, None, None, None, None
+            _pv_lbl.config(image="", text="Anteprima\nPDF")
+            _pv_lbl.image = None
+    def _pv_da_selezione(event=None):
+        sel = tree.selection()
+        if not sel:
+            if _pv["origine"] == "tree":
+                _pv_imposta(None, None)
+            return
+        try:
+            nome = tree.item(sel[0], 'values')[5]
+        except Exception:
+            return
+        if not nome or nome == "N/D":
+            return
+        for base in (DOC_DIR, os.path.join(os.getcwd(), "Fatture_GMail")):
+            fp = os.path.join(base, nome)
+            if os.path.exists(fp):
+                if fp != _pv["path"]:
+                    _pv_imposta(fp, "tree")
+                return
+        _pv_imposta(None, None)
+    _pv_sel_job = [None]
+    def _pv_da_selezione_deb(event=None):
+        if _pv_sel_job[0]:
+            try: pdf_window.after_cancel(_pv_sel_job[0])
+            except Exception: pass
+        _pv_sel_job[0] = pdf_window.after(120, _pv_da_selezione)
+    for _w in (_pv_box, _pv_lbl):
+        _w.bind("<Enter>", _pv_entra)
+        _w.bind("<Leave>", _pv_chiudi_big)
+        _w.bind("<Button-1>", _pv_apri)
     def esegui_auto_tipo(event=None, forza_tipo=None):
             if forza_tipo:
                     combo_tipo.set(forza_tipo)
@@ -1371,6 +1496,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                 self.show_toast("Trascina solo file PDF.")
                 return
             _drop_path_ref[0] = pdf_path
+            _pv_imposta(pdf_path, "drop")
             if not API_KEY:
                 self.show_toast(f"ALL· {os.path.basename(pdf_path)} — imposta API Key Gemini per l'analisi automatica")
                 return
@@ -1382,7 +1508,30 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                     import json as _json
                     with open(pdf_path, "rb") as _pf:
                         pdf_bytes = _pf.read()
-                    client_drop = genai_client.Client(api_key=API_KEY)
+                    import time as _time
+                    try:
+                        client_drop = genai_client.Client(
+                            api_key=API_KEY, http_options=types.HttpOptions(timeout=120000))
+                    except Exception:
+                        client_drop = genai_client.Client(api_key=API_KEY)
+                    _mime_d = "application/json"
+                    _cfgs_d = []
+                    try:
+                        _mv = re.search(r"gemini-(\d+)(?:\.(\d+))?", str(GEMINI).lower())
+                        _maj = int(_mv.group(1)) if _mv else 0
+                        _min = int(_mv.group(2) or 0) if _mv else 0
+                        if _maj >= 3:
+                            for _lv in ("minimal", "low"):
+                                _cfgs_d.append(types.GenerateContentConfig(
+                                    response_mime_type=_mime_d,
+                                    thinking_config=types.ThinkingConfig(thinking_level=_lv)))
+                        elif _maj == 2 and _min >= 5:
+                            _cfgs_d.append(types.GenerateContentConfig(
+                                response_mime_type=_mime_d,
+                                thinking_config=types.ThinkingConfig(thinking_budget=0)))
+                    except Exception:
+                        _cfgs_d = []
+                    _cfgs_d.append(types.GenerateContentConfig(response_mime_type=_mime_d))
                     lista_cat = ", ".join(f'"{c}"' for c in self.categorie)
                     prompt_drop = (
                         f"Analizza questo documento PDF (fattura, ricevuta, cedolino, scontrino o simile).\n"
@@ -1404,13 +1553,30 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                         f"bolletta, ignorando le altre. "
                         f"azienda solo nome senza emoji; SOLO JSON."
                     )
-                    r_drop = client_drop.models.generate_content(
-                        model=GEMINI,
-                        contents=[
-                            types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"),
-                            prompt_drop
-                        ]
-                    )
+                    _i_cfg = 0
+                    _tent = 0
+                    while True:
+                        try:
+                            r_drop = client_drop.models.generate_content(
+                                model=GEMINI,
+                                contents=[
+                                    types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"),
+                                    prompt_drop
+                                ],
+                                config=_cfgs_d[_i_cfg]
+                            )
+                            break
+                        except Exception as _e_g:
+                            _m_g = str(_e_g)
+                            _e400 = "400" in _m_g or "INVALID_ARGUMENT" in _m_g
+                            if _e400 and _i_cfg < len(_cfgs_d) - 1:
+                                _i_cfg += 1
+                                continue
+                            _tent += 1
+                            if (_tent >= 3 or _e400
+                                    or ("429" in _m_g and re.search(r"retry in \d+h", _m_g))):
+                                raise
+                            _time.sleep(3 * _tent)
                     raw_json = r_drop.text.strip().replace("```json", "").replace("```", "").strip()
                     dati_drop = _json.loads(raw_json)
                     importo_ia   = float(dati_drop.get("importo") or 0.01)
@@ -1472,6 +1638,9 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                         msg_ia = "Quota API Gemini esaurita. Riprova domani."
                     elif "503" in err_ia or "UNAVAILABLE" in err_ia:
                         msg_ia = "Gemini non disponibile. Riprova tra poco."
+                    elif ("504" in err_ia or "DEADLINE" in err_ia
+                          or "timed out" in err_ia.lower() or "timeout" in err_ia.lower()):
+                        msg_ia = "Gemini ha impiegato troppo tempo. Riprova."
                     else:
                         msg_ia = f"Analisi AI fallita: {err_ia[:80]}"
                     def _on_errore_ia(m=msg_ia):
@@ -1550,6 +1719,9 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
     tree.bind('<Double-1>', lambda e: open_pdf(e, tree))
     tree.bind('<Delete>', lambda e: cancella_documento())
     tree.bind('<Button-3>', lambda event: esporta_documenti_selezionati())
+    tree.bind('<<TreeviewSelect>>', _pv_da_selezione_deb, add='+')
+    if _drop_path_ref[0]:
+        pdf_window.after(200, lambda: _pv_imposta(_drop_path_ref[0], "drop"))
     self._bind_tooltip_metodo(tree, col_desc=2)
     frame_bottom_buttons = ttk.Frame(pdf_window, padding="10") 
     frame_bottom_buttons.pack(fill='x', padx=10, pady=(5, 10))

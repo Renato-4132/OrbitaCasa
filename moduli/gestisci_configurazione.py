@@ -257,6 +257,17 @@ def gestisci_configurazione(self):
             parole_chiave_raw = self.var_parole_chiave.get()
             gemini_api_key_attuale = self.var_gemini_api_key.get().strip()
             gemini_model_attuale = self.var_gemini_model.get().strip()
+            nota_modello = ""
+            if gemini_api_key_attuale and gemini_model_attuale and (
+                    gemini_api_key_attuale != gemini_api_key_iniziale
+                    or gemini_model_attuale != gemini_model_iniziale):
+                _esito_g, _val_g = _controlla_gemini(gemini_api_key_attuale, gemini_model_attuale)
+                if _esito_g == "chiave":
+                    raise ValueError("API Key Gemini non valida. Controllala e riprova.")
+                if _esito_g == "cambiato":
+                    gemini_model_attuale = _val_g
+                    self.var_gemini_model.set(_val_g)
+                    nota_modello = f"Modello Gemini non compatibile con questa chiave:\nimpostato {_val_g}.\n\n"
             beep_enabled = self.var_beep_enabled.get()
             if sync_enabled:
                 if not email_user or "@gmail.com" not in email_user.lower():
@@ -341,7 +352,7 @@ def gestisci_configurazione(self):
                 config_window.destroy()
             riavvia_subito = self.show_custom_askyesno(
                 title="Riavvio Necessario",
-                message="Per applicare completamente alcune modifiche\n(es. porta WebServer, timeout, pulizia database, tema)\nè necessario riavviare l'applicazione.\n\nRiavviare ora?"
+                message=nota_modello + "Per applicare completamente alcune modifiche\n(es. porta WebServer, timeout, pulizia database, tema)\nè necessario riavviare l'applicazione.\n\nRiavviare ora?"
             )
             if riavvia_subito:
                 riavvia_app_definitivo()
@@ -1005,3 +1016,38 @@ def fetch_gemini_models(self):
     top.update_idletasks()
     top.attributes("-topmost", False)
     
+
+def _controlla_gemini(api_key, modello):
+    import __main__ as _app
+    import re
+    try:
+        try:
+            client = _app.genai.Client(api_key=api_key, http_options=_app.types.HttpOptions(timeout=10000))
+        except Exception:
+            client = _app.genai.Client(api_key=api_key)
+        try:
+            client.models.count_tokens(model=modello, contents="ok")
+            return "ok", modello
+        except Exception as e_probe:
+            msg = str(e_probe)
+        if "404" in msg or "NOT_FOUND" in msg:
+            suggerito = re.search(r"use models/(gemini-[\w.\-]+)", msg)
+            if suggerito and suggerito.group(1) != modello:
+                return "cambiato", suggerito.group(1)
+            candidati = []
+            for m in client.models.list():
+                if "generateContent" not in (getattr(m, "supported_actions", []) or []):
+                    continue
+                nome = m.name.replace("models/", "")
+                mm = re.fullmatch(r"gemini-(\d+)(?:\.(\d+))?-flash", nome)
+                if mm:
+                    candidati.append(((int(mm.group(1)), int(mm.group(2) or 0)), nome))
+            if candidati:
+                return "cambiato", max(candidati)[1]
+            return "ok", modello
+        if ("UNAUTHENTICATED" in msg or "API_KEY_INVALID" in msg or "API key not valid" in msg
+                or "API Key not found" in msg):
+            return "chiave", msg
+        return "ok", modello
+    except Exception:
+        return "ok", modello

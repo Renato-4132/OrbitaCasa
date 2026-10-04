@@ -5,10 +5,32 @@ import json
 import os
 import re
 import threading
+import time
 import tkinter as tk
 from tkinter import filedialog
 
 from moduli.spinner_animato import crea_spinner_animato
+
+class _QuotaGiornaliera(Exception):
+    pass
+
+def _attesa_quota(msg):
+    m = re.search(r"riprova tra ([0-9hms]+)", msg)
+    return f"Riprova tra {m.group(1)}." if m else "Riprova domani o abilita la fatturazione su ai.google.dev."
+
+def _estrai_json(raw):
+    raw = (raw or "").strip()
+    if "```json" in raw:
+        raw = raw.split("```json")[1].split("```")[0].strip()
+    elif "```" in raw:
+        raw = raw.split("```")[1].split("```")[0].strip()
+    try:
+        return json.loads(raw)
+    except Exception:
+        i, j = raw.find("["), raw.rfind("]")
+        if i != -1 and j > i:
+            return json.loads(raw[i:j + 1])
+        raise
 
 # Importazione universale IA: invia CSV o PDF a Gemini che estrae i movimenti e apre la finestra di revisione
 def apri_finestra_importa(self, path=None):
@@ -21,6 +43,19 @@ def apri_finestra_importa(self, path=None):
         self.show_toast("Funzione disponibile solo con licenza attiva.", duration=3000)
         return
     from datetime import datetime
+    if getattr(self, "_importa_in_corso", False):
+        self.show_toast("Importazione già in corso.", duration=3000)
+        return
+    for _w in self.winfo_children():
+        try:
+            if isinstance(_w, tk.Toplevel) and _w.title() == "Revisione Movimenti IA Gemini":
+                _w.deiconify()
+                _w.lift()
+                _w.focus_force()
+                self.show_toast("Chiudi prima la finestra di revisione aperta.", duration=3000)
+                return
+        except Exception:
+            pass
     if not API_KEY:
         self.show_custom_warning("Configurazione AI Necessaria",
             "L'Analisi Smart richiede una chiave API Gemini (gratuita).\n\n"
@@ -37,7 +72,12 @@ def apri_finestra_importa(self, path=None):
             ]
         )
     if not path: return
+    self._importa_in_corso = True
     attesa = tk.Toplevel(self)
+    def _fine_attesa(e):
+        if e.widget is attesa:
+            self._importa_in_corso = False
+    attesa.bind("<Destroy>", _fine_attesa)
     attesa.withdraw()
     attesa.overrideredirect(True)
     attesa.configure(background=self.COLOR_WIDGET_BG)
@@ -57,9 +97,67 @@ def apri_finestra_importa(self, path=None):
              font=("Segoe UI", 9, "bold"),
              bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HIGHLIGHT).pack(side="left")
     attesa.deiconify()
+    def _chiudi_attesa():
+        try:
+            if attesa.winfo_exists():
+                attesa.destroy()
+        except Exception:
+            pass
+    def _apri_revisione(movimenti):
+        try:
+            self.apri_finestra_revisione_universale(movimenti)
+        except Exception as e_rev:
+            self.show_custom_warning("Errore", f"Impossibile aprire la revisione:\n{str(e_rev)[:200]}")
     def elabora_ia():
         try:
-            client = genai.Client(api_key=API_KEY)
+            try:
+                client = genai.Client(api_key=API_KEY,
+                                      http_options=types.HttpOptions(timeout=120000))
+            except Exception:
+                client = genai.Client(api_key=API_KEY)
+            _mime = "application/json"
+            _cfgs = []
+            try:
+                _m_ver = re.search(r"gemini-(\d+)(?:\.(\d+))?", str(GEMINI).lower())
+                _maj = int(_m_ver.group(1)) if _m_ver else 0
+                _min = int(_m_ver.group(2) or 0) if _m_ver else 0
+                if _maj >= 3:
+                    for _lv in ("minimal", "low"):
+                        _cfgs.append(types.GenerateContentConfig(
+                            response_mime_type=_mime,
+                            thinking_config=types.ThinkingConfig(thinking_level=_lv)))
+                elif _maj == 2 and _min >= 5:
+                    _cfgs.append(types.GenerateContentConfig(
+                        response_mime_type=_mime,
+                        thinking_config=types.ThinkingConfig(thinking_budget=0)))
+            except Exception:
+                _cfgs = []
+            _cfgs.append(types.GenerateContentConfig(response_mime_type=_mime))
+            _cfg = {"i": 0}
+            def _chiedi(contents, etichetta):
+                ultimo = None
+                tentativi = 0
+                while tentativi < 3:
+                    try:
+                        risposta = client.models.generate_content(
+                            model=GEMINI, contents=contents, config=_cfgs[_cfg["i"]])
+                        return _estrai_json(risposta.text)
+                    except Exception as e_ia:
+                        ultimo = e_ia
+                        _m_att = re.search(r"retry in (\d+h[0-9hms.]*)", str(e_ia))
+                        if "429" in str(e_ia) and (_m_att or "PerDay" in str(e_ia)):
+                            raise _QuotaGiornaliera(
+                                "429 quota giornaliera Gemini esaurita" +
+                                (f" (riprova tra {_m_att.group(1).split('.')[0]}s)" if _m_att else ""))
+                        if "400" in str(e_ia) or "INVALID_ARGUMENT" in str(e_ia):
+                            if _cfg["i"] < len(_cfgs) - 1:
+                                _cfg["i"] += 1
+                                continue
+                            break
+                        tentativi += 1
+                        if tentativi < 3:
+                            time.sleep(3 * tentativi)
+                raise ultimo
             estensione = os.path.splitext(path)[1].lower()
 
             lista_cat = ", ".join(f'"{c}"' for c in self.categorie) if self.categorie else "Generica"
@@ -70,12 +168,14 @@ def apri_finestra_importa(self, path=None):
             prompt_testo = (
                 f"Analizza questo documento e convertilo in JSON.\n"
                 f"REGOLE:\n"
-                f"1. Determina se il documento è una FATTURA/RICEVUTA SINGOLA "
-                f"(un solo fornitore, un solo importo totale) oppure un ESTRATTO "
-                f"(lista di movimenti bancari o più transazioni).\n"
+                f"1. Determina se il documento è un DOCUMENTO SINGOLO (fattura, ricevuta, "
+                f"bolletta, cedolino, pensione, busta paga: un solo importo da pagare o "
+                f"ricevere, anche se mostra voci di dettaglio, trattenute o imposte) oppure "
+                f"un ESTRATTO (lista di movimenti bancari o più transazioni distinte).\n"
                 f"2. Se ESTRATTO o LISTA MOVIMENTI: ogni movimento separato, "
                 f"importo negativo per uscite e positivo per entrate.\n"
-                f"3. Se FATTURA/RICEVUTA SINGOLA: una sola voce con il totale, "
+                f"3. Se DOCUMENTO SINGOLO: una sola voce con il totale o l'importo netto finale "
+                f"(non elencare le singole voci di dettaglio), "
                 f"descrizione = nome fornitore, importo sempre negativo (uscita), "
                 f"estrai anche numero fattura (campo fattura) e scadenza fattura(GG-MM-AAAA o null). "
                 f"Se nel documento compaiono più date etichettate 'scadenza' (es. scadenza del "
@@ -116,13 +216,33 @@ def apri_finestra_importa(self, path=None):
                     raise ValueError("Il file CSV è vuoto o illeggibile.")
                 intestazione_csv = righe[0]
                 righe_dati = righe[1:]
-                DIMENSIONE_BLOCCO_CSV = 20
+                RECENTI_PRIMA = True
+                def _data_riga(riga):
+                    m = re.search(r"(\d{4})-(\d{2})-(\d{2})", riga)
+                    if m:
+                        return (int(m.group(1)), int(m.group(2)), int(m.group(3)))
+                    m = re.search(r"(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})", riga)
+                    if m:
+                        return (int(m.group(3)), int(m.group(2)), int(m.group(1)))
+                    return None
+                _chiavi = [_data_riga(_r) for _r in righe_dati]
+                righe_future = 0
+                if righe_dati and all(_k is not None for _k in _chiavi):
+                    _oggi = datetime.now().date()
+                    _coppie = [(_k, _r) for _k, _r in zip(_chiavi, righe_dati)
+                               if _k <= (_oggi.year, _oggi.month, _oggi.day)]
+                    righe_future = len(righe_dati) - len(_coppie)
+                    righe_dati = [_r for _, _r in sorted(
+                        _coppie, key=lambda t: t[0], reverse=RECENTI_PRIMA)]
+                DIMENSIONE_BLOCCO_CSV = 100
                 blocchi_csv = [
                     righe_dati[i:i + DIMENSIONE_BLOCCO_CSV]
                     for i in range(0, len(righe_dati), DIMENSIONE_BLOCCO_CSV)
                 ] or [[]]
                 dati_csv = []
                 blocchi_falliti = []
+                quota_msg = None
+                righe_elaborate = 0
                 for indice_blocco, blocco in enumerate(blocchi_csv, start=1):
                     if not blocco:
                         continue
@@ -137,27 +257,19 @@ def apri_finestra_importa(self, path=None):
                         f'[{{"data": "YYYY-MM-DD", "desc": "stringa", "importo": float, "categoria": "stringa"}}].\n'
                         f"CAMPIONE:\n{campione_blocco}"
                     )
-                    dati_blocco = None
-                    for tentativo in range(2):
-                        try:
-                            risposta_blocco = client.models.generate_content(
-                                model=GEMINI, contents=prompt_blocco)
-                            raw_blocco = (risposta_blocco.text or "").strip()
-                            if "```json" in raw_blocco:
-                                raw_blocco = raw_blocco.split("```json")[1].split("```")[0].strip()
-                            elif "```" in raw_blocco:
-                                raw_blocco = raw_blocco.split("```")[1].split("```")[0].strip()
-                            if not raw_blocco:
-                                raise ValueError("Risposta vuota da Gemini")
-                            dati_blocco = json.loads(raw_blocco)
-                            break
-                        except Exception:
-                            dati_blocco = None
-                            continue
+                    try:
+                        dati_blocco = _chiedi(prompt_blocco, f"CSV blocco {indice_blocco}")
+                    except _QuotaGiornaliera as e_q:
+                        quota_msg = str(e_q)
+                        blocchi_falliti.extend(range(indice_blocco, len(blocchi_csv) + 1))
+                        break
+                    except Exception:
+                        dati_blocco = None
                     if dati_blocco is None:
                         blocchi_falliti.append(indice_blocco)
                         continue
                     dati_csv.extend(dati_blocco)
+                    righe_elaborate += len(blocco)
                 movimenti = []
                 righe_scartate = 0
                 for d in dati_csv:
@@ -172,19 +284,34 @@ def apri_finestra_importa(self, path=None):
                         movimenti.append({
                             "data":        datetime.strptime(d["data"], "%Y-%m-%d").date(),
                             "descrizione": desc,
-                            "importo":     float(d["importo"]),
+                            "importo":     float(str(d["importo"]).replace(",", ".")),
                             "categoria":   d.get("categoria", "Generica")
                         })
-                    except Exception:
+                    except Exception as _e_r:
                         righe_scartate += 1
                         continue
+                _n_tot = len(movimenti)
+                movimenti = [m for m in movimenti if m["data"] <= datetime.now().date()]
+                righe_future += _n_tot - len(movimenti)
                 self.after(0, lambda: attesa.destroy() if attesa.winfo_exists() else None)
+                if quota_msg and not movimenti:
+                    _att = _attesa_quota(quota_msg)
+                    self.after(0, lambda a=_att: self.show_custom_warning(
+                        "Errore IA", "Quota giornaliera Gemini esaurita.\n" + a))
+                    return
                 if blocchi_falliti and not movimenti:
                     self.after(0, lambda: self.show_custom_warning(
                         "Errore IA",
                         "Gemini non ha risposto correttamente per nessun blocco del CSV.\nRiprova tra qualche minuto."))
                     return
-                self.after(0, lambda: self.apri_finestra_revisione_universale(movimenti))
+                if not movimenti:
+                    self.after(0, lambda: self.show_custom_warning(
+                        "Importazione", "Nessun movimento con data fino a oggi nel file."))
+                    return
+                self.after(0, lambda m=movimenti: _apri_revisione(m))
+                if righe_future and not (blocchi_falliti or righe_scartate):
+                    self.after(300, lambda n=righe_future: self.show_toast(
+                        f"{n} movimenti con data futura ignorati.", duration=4000))
                 if blocchi_falliti or righe_scartate:
                     _n_falliti = len(blocchi_falliti)
                     _n_scartate = righe_scartate
@@ -193,17 +320,37 @@ def apri_finestra_importa(self, path=None):
                         _parti.append(f"{_n_falliti} blocco/i")
                     if _n_scartate:
                         _parti.append(f"{_n_scartate} riga/e")
-                    _msg = " e ".join(_parti) + " del CSV non importate (errore Gemini o dati incompleti). Controlla il file."
-                    self.after(300, lambda m=_msg: self.show_toast(m, duration=5000))
+                    _msg = " e ".join(_parti) + " del CSV non importate (errore Gemini o dati incompleti)."
+                    if quota_msg:
+                        _msg = (f"Quota giornaliera Gemini esaurita: importate solo le prime "
+                                f"{righe_elaborate} righe del CSV. " + _attesa_quota(quota_msg))
+                    self.after(300, lambda m=_msg: self.show_toast(m, duration=8000))
                 return
-            response = client.models.generate_content(
-                model=GEMINI, contents=prompt)
-            raw_json = response.text.strip()
-            if "```json" in raw_json:
-                raw_json = raw_json.split("```json")[1].split("```")[0].strip()
-            elif "```" in raw_json:
-                raw_json = raw_json.split("```")[1].split("```")[0].strip()
-            dati = json.loads(raw_json)
+            dati = _chiedi(prompt, "documento")
+            _cedolino = False
+            if estensione == ".pdf":
+                try:
+                    import pymupdf as _fz
+                    _dz = _fz.open(path)
+                    _tz = "".join(p.get_text() for p in _dz)
+                    _dz.close()
+                    _e_pens = re.search(r"prestazione\s+rata\s+\d{1,2}[/\-]\d{2,4}", _tz, re.I)
+                    if _e_pens or (re.search(r"trattenut[ae]", _tz, re.I) and re.search(r"\bnetto\b", _tz, re.I)):
+                        _cedolino = True
+                        _d0 = dict(dati[0]) if dati else {}
+                        _m_net = (
+                            re.search(r"importo\s+netto\s+del\s+pagamento\s*=?\s*([\d.]+,\d{2})", _tz, re.I)
+                            or re.search(r"netto\s+(?:in\s+busta|a\s+pagare|da\s+pagare|del\s+mese|pagato)\D{0,15}([\d.]+,\d{2})", _tz, re.I)
+                        )
+                        _m_dv = re.search(r"data\s+valuta\D{0,5}(\d{2})/(\d{2})/(\d{4})", _tz, re.I)
+                        if _m_net:
+                            _d0["importo"] = float(_m_net.group(1).replace(".", "").replace(",", "."))
+                        if _m_dv:
+                            _d0["data"] = f"{_m_dv.group(3)}-{_m_dv.group(2)}-{_m_dv.group(1)}"
+                        _d0["tipo_documento"] = "fattura"
+                        dati = [_d0]
+                except Exception:
+                    pass
             movimenti = []
             tipo_doc = dati[0].get("tipo_documento", "estratto") if dati else "estratto"
             e_fattura_singola = (tipo_doc == "fattura" and len(dati) == 1)
@@ -214,7 +361,7 @@ def apri_finestra_importa(self, path=None):
                 fattura  = d0.get("fattura")
                 scadenza = d0.get("scadenza")
                 data_str = d0.get("data", datetime.now().strftime("%Y-%m-%d"))
-                direzione = "Uscita"
+                direzione = "Entrata" if _cedolino else "Uscita"
                 _testo_self = ""
                 try:
                     import pymupdf as _fitz_self
@@ -267,19 +414,29 @@ def apri_finestra_importa(self, path=None):
                         movimenti.append({
                             "data":        datetime.strptime(d["data"], "%Y-%m-%d").date(),
                             "descrizione": desc,
-                            "importo":     float(d["importo"]),
+                            "importo":     float(str(d["importo"]).replace(",", ".")),
                             "categoria":   d.get("categoria", "Generica")
                         })
-                    except Exception:
+                    except Exception as _e_r:
                         righe_scartate_estratto += 1
                         continue
-                if attesa.winfo_exists(): attesa.destroy()
+                _n_tot_e = len(movimenti)
+                movimenti = [m for m in movimenti if m["data"] <= datetime.now().date()]
+                _future_e = _n_tot_e - len(movimenti)
+                self.after(0, _chiudi_attesa)
                 if righe_scartate_estratto and not movimenti:
                     self.after(0, lambda: self.show_custom_warning(
                         "Errore IA",
                         "Gemini non ha restituito dati utilizzabili per questo documento.\nRiprova o controlla il file."))
                     return
-                self.after(0, lambda: self.apri_finestra_revisione_universale(movimenti))
+                if not movimenti:
+                    self.after(0, lambda: self.show_custom_warning(
+                        "Importazione", "Nessun movimento con data fino a oggi nel documento."))
+                    return
+                self.after(0, lambda m=movimenti: _apri_revisione(m))
+                if _future_e and not righe_scartate_estratto:
+                    self.after(300, lambda n=_future_e: self.show_toast(
+                        f"{n} movimenti con data futura ignorati.", duration=4000))
                 if righe_scartate_estratto:
                     _n_scartate_e = righe_scartate_estratto
                     self.after(300, lambda n=_n_scartate_e: self.show_toast(
@@ -294,7 +451,7 @@ def apri_finestra_importa(self, path=None):
                 msg_m = "File non supportato o danneggiato."
             else:
                 msg_m = err_m[:200]
-            if attesa.winfo_exists(): attesa.destroy()
+            self.after(0, _chiudi_attesa)
             self.after(0, lambda er=msg_m: self.show_custom_warning(
                 "Errore IA", er))
     threading.Thread(target=elabora_ia, daemon=True).start()

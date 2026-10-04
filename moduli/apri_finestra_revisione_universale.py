@@ -30,7 +30,7 @@ def apri_finestra_revisione_universale(self, movimenti):
     bar_cat.pack(fill="x", padx=10, pady=(8, 2))
     ttk.Label(bar_cat, text="Nuova categoria:").pack(side="left", padx=(0, 4))
     var_nuova_cat = tk.StringVar()
-    entry_nuova_cat = ttk.Entry(bar_cat, textvariable=var_nuova_cat, width=25)
+    entry_nuova_cat = ttk.Entry(bar_cat, textvariable=var_nuova_cat, width=16)
     entry_nuova_cat.pack(side="left")
     righe = []
     try:
@@ -60,14 +60,14 @@ def apri_finestra_revisione_universale(self, movimenti):
                        text=" Aggiungi" if img_add else "Aggiungi",
                        background=self.COLOR_WIDGET_BG, foreground=self.COLOR_RED,
                        cursor="hand2", font=("Arial", 9, "bold"))
-    btn_add.pack(side="left", padx=8)
+    btn_add.pack(side="left", padx=4)
     btn_add.bind("<Button-1>", lambda e: aggiungi_categoria())
     entry_nuova_cat.bind("<Return>", lambda e: aggiungi_categoria())
-    ttk.Label(bar_cat, text="Conto per tutti:").pack(side="left", padx=(20, 4))
+    ttk.Label(bar_cat, text="Conto per tutti:").pack(side="left", padx=(10, 4))
     var_conto_bulk = tk.StringVar(value=_conto_principale)
     combo_conto_bulk = ttk.Combobox(bar_cat, textvariable=var_conto_bulk,
                                     values=["(nessuno)"] + _conti_rev,
-                                    state="readonly", width=14, style="Border.TCombobox")
+                                    state="readonly", width=12, style="Border.TCombobox")
     combo_conto_bulk.pack(side="left")
     def applica_conto_a_tutti():
         valore = var_conto_bulk.get()
@@ -79,11 +79,11 @@ def apri_finestra_revisione_universale(self, movimenti):
                                  text=" Applica" if img_applica else "Applica",
                                  background=self.COLOR_WIDGET_BG, foreground=self.COLOR_RED,
                                  cursor="hand2", font=("Arial", 9, "bold"))
-    btn_applica_conto.pack(side="left", padx=8)
+    btn_applica_conto.pack(side="left", padx=4)
     btn_applica_conto.bind("<Button-1>", lambda e: applica_conto_a_tutti())
-    ttk.Label(bar_cat, text="Tag per tutti:").pack(side="left", padx=(20, 4))
+    ttk.Label(bar_cat, text="Tag per tutti:").pack(side="left", padx=(10, 4))
     var_tag_bulk = tk.StringVar()
-    entry_tag_bulk = ttk.Entry(bar_cat, textvariable=var_tag_bulk, width=18)
+    entry_tag_bulk = ttk.Entry(bar_cat, textvariable=var_tag_bulk, width=12)
     entry_tag_bulk.pack(side="left")
     def applica_tag_a_tutti():
         valore = var_tag_bulk.get()
@@ -95,13 +95,13 @@ def apri_finestra_revisione_universale(self, movimenti):
                                text=" Applica" if img_applica_tag else "Applica",
                                background=self.COLOR_WIDGET_BG, foreground=self.COLOR_RED,
                                cursor="hand2", font=("Arial", 9, "bold"))
-    btn_applica_tag.pack(side="left", padx=8)
+    btn_applica_tag.pack(side="left", padx=4)
     btn_applica_tag.bind("<Button-1>", lambda e: applica_tag_a_tutti())
-    ttk.Label(bar_cat, text="Metodo per tutti:").pack(side="left", padx=(20, 4))
+    ttk.Label(bar_cat, text="Metodo per tutti:").pack(side="left", padx=(10, 4))
     var_metodo_bulk = tk.StringVar()
     combo_metodo_bulk = ttk.Combobox(bar_cat, textvariable=var_metodo_bulk,
                                      values=[""] + METODI_PAGAMENTO,
-                                     state="readonly", width=16, style="Border.TCombobox")
+                                     state="readonly", width=14, style="Border.TCombobox")
     combo_metodo_bulk.pack(side="left")
     def applica_metodo_a_tutti():
         valore = var_metodo_bulk.get()
@@ -113,13 +113,14 @@ def apri_finestra_revisione_universale(self, movimenti):
                                   text=" Applica" if img_applica_metodo else "Applica",
                                   background=self.COLOR_WIDGET_BG, foreground=self.COLOR_RED,
                                   cursor="hand2", font=("Arial", 9, "bold"))
-    btn_applica_metodo.pack(side="left", padx=8)
+    btn_applica_metodo.pack(side="left", padx=4)
     btn_applica_metodo.bind("<Button-1>", lambda e: applica_metodo_a_tutti())
     ttk.Separator(win, orient="horizontal").pack(fill="x", padx=10, pady=2)
-    COL_MINSIZE = [30, 115, 580, 90, 150, 110, 110, 130]
+    COL_MINSIZE = [30, 115, 360, 90, 200, 110, 110, 130]
+    COL_WEIGHT = [0, 0, 4, 0, 2, 1, 1, 1]
     def _allinea_colonne(frame):
-        for _i, _larg in enumerate(COL_MINSIZE):
-            frame.grid_columnconfigure(_i, minsize=_larg, weight=0)
+        for _i, (_larg, _peso) in enumerate(zip(COL_MINSIZE, COL_WEIGHT)):
+            frame.grid_columnconfigure(_i, minsize=_larg, weight=_peso)
     header = tk.Frame(win, background=self.COLOR_WIDGET_BG)
     header.pack(fill="x", padx=10)
     _allinea_colonne(header)
@@ -129,27 +130,15 @@ def apri_finestra_revisione_universale(self, movimenti):
             var_check.set(seleziona_tutti_var.get())
     chk_header = ttk.Checkbutton(header, variable=seleziona_tutti_var, command=toggle_tutti)
     chk_header.grid(row=0, column=0, padx=4, sticky="w")
-    tk.Label(header, text="Data", anchor="w",
-             background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
-             font=("Arial", 9, "bold")).grid(row=0, column=1, padx=4, sticky="w")
-    tk.Label(header, text="Descrizione", anchor="w",
-             background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
-             font=("Arial", 9, "bold")).grid(row=0, column=2, padx=4, sticky="w")
-    tk.Label(header, text="Importo €", anchor="w",
-             background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
-             font=("Arial", 9, "bold")).grid(row=0, column=3, padx=4, sticky="w")
-    tk.Label(header, text="Categoria", anchor="w",
-             background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
-             font=("Arial", 9, "bold")).grid(row=0, column=4, padx=4, sticky="w")
-    tk.Label(header, text="Conto", anchor="w",
-             background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
-             font=("Arial", 9, "bold")).grid(row=0, column=5, padx=4, sticky="w")
-    tk.Label(header, text="Tag", anchor="w",
-             background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
-             font=("Arial", 9, "bold")).grid(row=0, column=6, padx=4, sticky="w")
-    tk.Label(header, text="Metodo", anchor="w",
-             background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
-             font=("Arial", 9, "bold")).grid(row=0, column=7, padx=4, sticky="w")
+    lbl_header = {}
+    for _col, _nome in ((1, "Data"), (2, "Descrizione"), (3, "Importo €"), (4, "Categoria"),
+                        (5, "Conto"), (6, "Tag"), (7, "Metodo")):
+        _lbl = tk.Label(header, text=_nome, anchor="w", cursor="hand2",
+                        background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
+                        font=("Arial", 9, "bold"))
+        _lbl.grid(row=0, column=_col, padx=4, sticky="w")
+        _lbl.bind("<Button-1>", lambda e, c=_col: ordina_per_colonna(c))
+        lbl_header[_col] = (_lbl, _nome)
     ttk.Separator(win, orient="horizontal").pack(fill="x", padx=10, pady=2)
     frame_scroll = tk.Frame(win, background=self.COLOR_WIDGET_BG)
     frame_scroll.pack(fill="both", expand=True, padx=10)
@@ -160,18 +149,29 @@ def apri_finestra_revisione_universale(self, movimenti):
     canvas.pack(side="left", fill="both", expand=True)
     sb_scroll.pack(side="right", fill="y")
     area = tk.Frame(canvas, background=self.COLOR_WIDGET_BG)
-    canvas.create_window((0, 0), window=area, anchor="nw")
+    win_area = canvas.create_window((0, 0), window=area, anchor="nw")
+    canvas.bind("<Configure>", lambda e: canvas.itemconfigure(win_area, width=e.width))
+    win.update_idletasks()
+    header.grid_columnconfigure(8, minsize=sb_scroll.winfo_reqwidth(), weight=0)
     def on_mousewheel(event):
-            try:
-                    canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-            except:
-                    pass
-    canvas.bind("<Enter>", lambda e: canvas.bind_all("<MouseWheel>", on_mousewheel))
-    canvas.bind("<Leave>", lambda e: canvas.unbind_all("<MouseWheel>"))
+        try:
+            if event.num == 4:
+                passo = -1
+            elif event.num == 5:
+                passo = 1
+            else:
+                passo = -1 if event.delta > 0 else 1
+            canvas.yview_scroll(passo, "units")
+        except Exception:
+            pass
+    win.bind("<MouseWheel>", on_mousewheel)
+    win.bind("<Button-4>", on_mousewheel)
+    win.bind("<Button-5>", on_mousewheel)
     area.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
     img_cal = (self.icone_gui.get("calendario")
                or self.icone_gui.get("scadenze_B")
                or self.icone_gui.get("timer_B"))
+    riga_frames = []
     for mov in movimenti:
         riga = tk.Frame(area, background=self.COLOR_WIDGET_BG)
         riga.pack(fill="x", pady=1)
@@ -191,30 +191,69 @@ def apri_finestra_revisione_universale(self, movimenti):
         btn_cal.bind("<Button-1>", lambda e, w=entry_data, v=var_data:
                      self.mostra_calendario_popup(w, v))
         var_desc = tk.StringVar(value=mov["descrizione"])
-        entry_desc = ttk.Entry(riga, textvariable=var_desc, width=48)
+        entry_desc = ttk.Entry(riga, textvariable=var_desc, width=20)
         entry_desc.grid(row=0, column=2, padx=4, sticky="ew")
         var_imp = tk.StringVar(value=f"{mov['importo']:.2f}")
         entry_imp = ttk.Entry(riga, textvariable=var_imp, width=9)
-        entry_imp.grid(row=0, column=3, padx=4, sticky="w")
+        entry_imp.grid(row=0, column=3, padx=4, sticky="ew")
         combo = ttk.Combobox(riga, values=self.categorie, state="readonly",
-                             width=15, style="Border.TCombobox")
+                             width=10, style="Border.TCombobox")
         cat_ia = mov.get("categoria", "")
         cat_finale = (memoria.get(mov["descrizione"].strip().upper())
                       or (cat_ia if cat_ia in self.categorie else "")
                       or "Generica")
         combo.set(cat_finale)
-        combo.grid(row=0, column=4, padx=4, sticky="w")
+        combo.grid(row=0, column=4, padx=4, sticky="ew")
         combo_conto = ttk.Combobox(riga, values=["(nessuno)"] + _conti_rev,
-                                   state="readonly", width=11, style="Border.TCombobox")
+                                   state="readonly", width=8, style="Border.TCombobox")
         combo_conto.set(_conto_principale)
-        combo_conto.grid(row=0, column=5, padx=4, sticky="w")
+        combo_conto.grid(row=0, column=5, padx=4, sticky="ew")
         var_tag = tk.StringVar()
-        entry_tag = ttk.Entry(riga, textvariable=var_tag, width=11)
-        entry_tag.grid(row=0, column=6, padx=4, sticky="w")
+        entry_tag = ttk.Entry(riga, textvariable=var_tag, width=8)
+        entry_tag.grid(row=0, column=6, padx=4, sticky="ew")
         combo_metodo = ttk.Combobox(riga, values=[""] + METODI_PAGAMENTO,
-                                    state="readonly", width=16, style="Border.TCombobox")
-        combo_metodo.grid(row=0, column=7, padx=4, sticky="w")
+                                    state="readonly", width=10, style="Border.TCombobox")
+        combo_metodo.grid(row=0, column=7, padx=4, sticky="ew")
         righe.append((mov, var_check, var_data, var_desc, var_imp, entry_data, combo, combo_conto, var_tag, combo_metodo))
+        riga_frames.append(riga)
+    ordine_corrente = {"col": 1, "desc": False}
+    def _chiave_ordinamento(i, col):
+        _mov, _vc, _vd, _vdesc, _vimp, _ed, _cb, _cc, _vtag, _cm = righe[i]
+        if col == 1:
+            try:
+                return datetime.strptime(_vd.get().strip(), "%d-%m-%Y")
+            except Exception:
+                return datetime.min
+        if col == 2:
+            return _vdesc.get().strip().lower()
+        if col == 3:
+            try:
+                return float(_vimp.get().strip().replace(",", "."))
+            except Exception:
+                return 0.0
+        if col == 4:
+            return _cb.get().lower()
+        if col == 5:
+            return _cc.get().lower()
+        if col == 6:
+            return _vtag.get().strip().lower()
+        return _cm.get().lower()
+    def ordina_per_colonna(col):
+        if ordine_corrente["col"] == col:
+            ordine_corrente["desc"] = not ordine_corrente["desc"]
+        else:
+            ordine_corrente["col"] = col
+            ordine_corrente["desc"] = False
+        ordine = sorted(range(len(righe)), key=lambda i: _chiave_ordinamento(i, col),
+                        reverse=ordine_corrente["desc"])
+        for _f in riga_frames:
+            _f.pack_forget()
+        for _i in ordine:
+            riga_frames[_i].pack(fill="x", pady=1)
+        for _c, (_l, _n) in lbl_header.items():
+            _l.configure(text=_n + ((" ▼" if ordine_corrente["desc"] else " ▲") if _c == col else ""))
+        canvas.yview_moveto(0)
+    lbl_header[1][0].configure(text="Data ▲")
     ttk.Separator(win, orient="horizontal").pack(fill="x", padx=10, pady=4)
     bar_btn = tk.Frame(win, background=self.COLOR_WIDGET_BG)
     bar_btn.pack(fill="x", padx=10, pady=(0, 10))
