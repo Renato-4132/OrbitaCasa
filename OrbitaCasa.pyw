@@ -2286,6 +2286,95 @@ class GestioneSpese(tk.Tk):
                 )
                 self.btn_ciclico_carosello.image = img_reset
 
+    def _trova_pdf_allegato(self, tree, item, info, col_desc=2):
+        try:
+            valori = tree.item(item, "values")
+            if not valori or len(valori) <= col_desc or "ALL·" not in str(valori[col_desc]):
+                return None
+            data_s = str((info or {}).get("data", "")).replace("-", "")
+            imp = (info or {}).get("importo", None)
+            tipo = str(valori[4]) if len(valori) > 4 else ""
+            if not data_s or imp in (None, ""):
+                return None
+            cent = str(int(round(float(str(imp).replace(",", ".")) * 100)))
+            nomi = []
+            try:
+                if os.path.exists(REGISTRY_FILE):
+                    with open(REGISTRY_FILE, "r", encoding="utf-8") as _rf:
+                        nomi.extend(json.load(_rf).keys())
+            except Exception:
+                pass
+            try:
+                if os.path.isdir(DOC_DIR):
+                    nomi.extend(n for n in os.listdir(DOC_DIR) if n not in nomi)
+            except Exception:
+                pass
+            cand = [n for n in nomi
+                    if n.startswith(data_s) and n.lower().endswith(f"_{cent}.pdf")
+                    and (not tipo or f"_{tipo}_" in n)]
+            if not cand:
+                return None
+            d_p = str(valori[col_desc]).replace("ALL·", "").strip().replace(" ", "_")
+            d_p = re.sub(r"[^\w\.-]", "", d_p).upper()[:30]
+            if d_p and len(cand) > 1:
+                _pref = [n for n in cand if f"_{d_p}_" in n.upper()]
+                if _pref:
+                    cand = _pref
+            path = os.path.join(DOC_DIR, cand[0])
+            return path if os.path.exists(path) else None
+        except Exception:
+            return None
+
+    def _apri_allegato_al_volo(self, tree, event, col_desc=2):
+        item = tree.identify_row(event.y)
+        if not item or tree.identify_column(event.x) != f"#{col_desc + 1}":
+            return
+        _info = (getattr(tree, '_metodo_lookup', None) or {}).get(item, {})
+        if isinstance(_info, str):
+            _info = {}
+        path = self._trova_pdf_allegato(tree, item, _info, col_desc)
+        if not path:
+            return
+        try:
+            if platform.system() == "Windows":
+                os.startfile(path)
+            elif platform.system() == "Darwin":
+                subprocess.Popen(["open", path])
+            else:
+                subprocess.Popen(["xdg-open", path])
+        except Exception as e:
+            self.show_toast(f"Impossibile aprire il documento: {e}")
+            return False
+        return True
+
+    def _anteprima_allegato_tooltip(self, tree, item, info, col_desc=2, altezza=360):
+        try:
+            path = self._trova_pdf_allegato(tree, item, info, col_desc)
+            if not path:
+                return None
+            cache = getattr(self, "_cache_anteprime_pdf", None)
+            if cache is None:
+                cache = self._cache_anteprime_pdf = {}
+            chiave = (path, altezza)
+            if chiave in cache:
+                return cache[chiave]
+            from PIL import Image, ImageTk
+            pymupdf.TOOLS.mupdf_display_errors(False)
+            with pymupdf.open(path) as d:
+                if len(d) == 0:
+                    return None
+                pg = d.load_page(0)
+                z = altezza / pg.rect.height
+                pix = pg.get_pixmap(matrix=pymupdf.Matrix(z, z), alpha=False, annots=False)
+                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            foto = ImageTk.PhotoImage(img)
+            if len(cache) >= 20:
+                cache.pop(next(iter(cache)))
+            cache[chiave] = foto
+            return foto
+        except Exception:
+            return None
+
     def _bind_tooltip_metodo(self, tree, col_desc=2):
         _simboli_tooltip = NOME_DA_EMOJI
         _simbolo_di_nome = SIMBOLI_METODO
@@ -2308,10 +2397,12 @@ class GestioneSpese(tk.Tk):
             if not item:
                 _distruggi()
                 return
-            if item == _item_cur[0]:
+            _su_desc = (tree.identify_column(event.x) == f"#{col_desc + 1}")
+            _chiave = (item, _su_desc)
+            if _chiave == _item_cur[0]:
                 return
             _distruggi()
-            _item_cur[0] = item
+            _item_cur[0] = _chiave
             _promemoria_lookup = getattr(tree, '_promemoria_lookup', None)
             _piano = _promemoria_lookup.get(item) if _promemoria_lookup else None
             righe = []
@@ -2347,6 +2438,7 @@ class GestioneSpese(tk.Tk):
                 )
                 def _crea():
                     _tt[0] = tk.Toplevel(self)
+                    _tt[0].withdraw()
                     _tt[0].wm_overrideredirect(True)
                     _tt[0].attributes("-topmost", True)
                     _tt[0].config(
@@ -2371,6 +2463,7 @@ class GestioneSpese(tk.Tk):
                         y = sh - th - 5
                     _tt[0].wm_geometry(f"+{int(x)}+{int(y)}")
                     _tt[0].deiconify()
+                    _tt[0].lift()
                 _after[0] = self.after(800, _crea)
                 return
             metodo = None
@@ -2466,6 +2559,7 @@ class GestioneSpese(tk.Tk):
             )
             def _crea():
                 _tt[0] = tk.Toplevel(self)
+                _tt[0].withdraw()
                 _tt[0].wm_overrideredirect(True)
                 _tt[0].attributes("-topmost", True)
                 _tt[0].config(
@@ -2475,6 +2569,13 @@ class GestioneSpese(tk.Tk):
                 )
                 ttk.Label(_tt[0], text=testo_tooltip, style="Tooltip.TLabel", justify="left",
                           font=("Courier New", 9, "bold")).pack()
+                _pdf_prev = self._anteprima_allegato_tooltip(tree, item, _info, col_desc) if _su_desc else None
+                if _pdf_prev is not None:
+                    _lbl_pv = tk.Label(_tt[0], image=_pdf_prev, bg=self.COLOR_TOOLTIP, bd=0)
+                    _lbl_pv.image = _pdf_prev
+                    _lbl_pv.pack(padx=4, pady=(0, 2))
+                    tk.Label(_tt[0], text="F2 o Ctrl+Shift+O: apri il documento", bg=self.COLOR_TOOLTIP,
+                             fg="gray", font=("Arial", 8, "italic"), bd=0).pack(pady=(0, 4))
                 _tt[0].update_idletasks()
                 tw = _tt[0].winfo_reqwidth()
                 th = _tt[0].winfo_reqheight()
@@ -2490,9 +2591,28 @@ class GestioneSpese(tk.Tk):
                     y = sh - th - 5
                 _tt[0].wm_geometry(f"+{int(x)}+{int(y)}")
                 _tt[0].deiconify()
+                _tt[0].lift()
             _after[0] = self.after(800, _crea)
         tree.bind("<Motion>", _mostra)
         tree.bind("<Leave>", _distruggi)
+        def _tasto_apri_allegato(e):
+            # F2 / Ctrl+Shift+O con il mouse sopra la Descrizione di una riga ALL·: apre il PDF (qualsiasi focus, tutte le piattaforme)
+            try:
+                px, py = tree.winfo_pointerxy()
+                if self.winfo_containing(px, py) is not tree:
+                    return
+            except Exception:
+                return
+            class _Ev: pass
+            _ev = _Ev()
+            _ev.x, _ev.y = px - tree.winfo_rootx(), py - tree.winfo_rooty()
+            if self._apri_allegato_al_volo(tree, _ev, col_desc):
+                _distruggi()
+                return "break"
+        if not getattr(tree, "_tasto_apri_allegato_bound", False):
+            tree._tasto_apri_allegato_bound = True
+            for _seq in ("<F2>", "<Control-Shift-O>", "<Control-Shift-o>"):
+                tree.winfo_toplevel().bind(_seq, _tasto_apri_allegato, add="+")
         tree.winfo_toplevel().bind("<Escape>", _distruggi, add="+")
         tree.winfo_toplevel().bind("<Destroy>", _distruggi, add="+")                
         
@@ -5680,7 +5800,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "1a0b6a6f952bb77127e5f4bc3b541d0b6d74f8bcab3074dc69ee4f30186c1ec2"
+        E_H_B = "d81d96bf91b678d0bd6bcf5335bf612a27a9f03be40198c0205966c55e584b0a"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
