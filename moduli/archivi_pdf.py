@@ -1172,6 +1172,74 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
         _w.bind("<Enter>", _pv_entra)
         _w.bind("<Leave>", _pv_chiudi_big)
         _w.bind("<Button-1>", _pv_apri)
+    _pvt = {"item": None, "job": None, "popup": None, "img": None, "img_path": None}
+    def _pvt_chiudi(event=None):
+        if _pvt["job"]:
+            try: pdf_window.after_cancel(_pvt["job"])
+            except Exception: pass
+            _pvt["job"] = None
+        if _pvt["popup"]:
+            try: _pvt["popup"].destroy()
+            except Exception: pass
+            _pvt["popup"] = None
+        _pvt["item"] = None
+    def _pvt_percorso(item):
+        try:
+            nome = tree.item(item, 'values')[5]
+        except Exception:
+            return None
+        if not nome or nome == "N/D":
+            return None
+        for base in (DOC_DIR, os.path.join(os.getcwd(), "Fatture_GMail")):
+            fp = os.path.join(base, nome)
+            if os.path.exists(fp):
+                return fp
+        return None
+    def _pvt_mostra(item):
+        _pvt["job"] = None
+        if _pvt["popup"] or _pvt["item"] != item:
+            return
+        path = _pvt_percorso(item)
+        if not path:
+            return
+        h = max(300, min(600, pdf_window.winfo_screenheight() - 160))
+        if _pvt["img_path"] != path or _pvt["img"] is None:
+            _pvt["img"] = _pv_render(path, h)
+            _pvt["img_path"] = path
+        img = _pvt["img"]
+        if img is None:
+            return
+        top = tk.Toplevel(pdf_window)
+        top.withdraw()
+        top.overrideredirect(True)
+        try: top.attributes("-topmost", True)
+        except Exception: pass
+        lbl = tk.Label(top, image=img, bd=0, bg="#222222", highlightthickness=2, highlightbackground="#888888")
+        lbl.image = img
+        lbl.pack()
+        top.update_idletasks()
+        sw, sh = top.winfo_screenwidth(), top.winfo_screenheight()
+        pw, ph = top.winfo_reqwidth(), top.winfo_reqheight()
+        px, py = pdf_window.winfo_pointerx(), pdf_window.winfo_pointery()
+        x = px + 24
+        if x + pw > sw:
+            x = max(0, px - pw - 24)
+        y = max(0, min(py - 20, sh - ph - 40))
+        top.geometry(f"+{x}+{y}")
+        top.deiconify()
+        top.lift()
+        _pvt["popup"] = top
+    def _pvt_motion(event):
+        item = tree.identify_row(event.y)
+        if not item or tree.identify_column(event.x) != "#3":
+            if _pvt["item"] is not None or _pvt["popup"]:
+                _pvt_chiudi()
+            return
+        if item == _pvt["item"]:
+            return
+        _pvt_chiudi()
+        _pvt["item"] = item
+        _pvt["job"] = pdf_window.after(450, lambda it=item: _pvt_mostra(it))
     def esegui_auto_tipo(event=None, forza_tipo=None):
             if forza_tipo:
                     combo_tipo.set(forza_tipo)
@@ -1720,9 +1788,15 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
     tree.bind('<Delete>', lambda e: cancella_documento())
     tree.bind('<Button-3>', lambda event: esporta_documenti_selezionati())
     tree.bind('<<TreeviewSelect>>', _pv_da_selezione_deb, add='+')
+    tree.bind('<ButtonPress>', _pvt_chiudi, add='+')
+    tree.bind('<MouseWheel>', _pvt_chiudi, add='+')
+    tree.bind('<Button-4>', _pvt_chiudi, add='+')
+    tree.bind('<Button-5>', _pvt_chiudi, add='+')
     if _drop_path_ref[0]:
         pdf_window.after(200, lambda: _pv_imposta(_drop_path_ref[0], "drop"))
     self._bind_tooltip_metodo(tree, col_desc=2)
+    tree.bind('<Motion>', _pvt_motion, add='+')
+    tree.bind('<Leave>', _pvt_chiudi, add='+')
     frame_bottom_buttons = ttk.Frame(pdf_window, padding="10") 
     frame_bottom_buttons.pack(fill='x', padx=10, pady=(5, 10))
     btn_archivia = ttk.Label(
