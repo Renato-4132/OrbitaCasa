@@ -14,6 +14,13 @@ def _fmt_it(v, spec=",.2f"):
 
 
 def calcolo_mutuo_prestito(self):
+    _w = getattr(self, '_win_finanziamenti', None)
+    try:
+        if _w is not None and _w.winfo_exists():
+            _w.deiconify(); _w.lift(); _w.focus_force()
+            return
+    except Exception:
+        pass
     import __main__ as _app
     EXPORT_FILES = _app.EXPORT_FILES
     def popola_piano(tree_widget, capitale_iniziale, anni, mesi, rata_base, spese_mensili, tasso_mensile, title_label, ammortamento_extra=0):
@@ -838,6 +845,7 @@ def calcolo_mutuo_prestito(self):
         btn_vidi_sforzo.unbind("<Button-1>")
     self.killer_stats = []
     root = tk.Toplevel(bg=self.COLOR_TOPLEVEL)
+    self._win_finanziamenti = root
     root.withdraw()
     root.title("Gestore Finanziario - Calcolo Finanziamento e Simulazioni - Ammortamento Francese")
     root.geometry("1366x660")
@@ -852,9 +860,9 @@ def calcolo_mutuo_prestito(self):
     root.grid_rowconfigure(0, weight=1)
     root.grid_rowconfigure(1, weight=0)
     root.grid_columnconfigure(0, weight=1)
-    root.protocol("WM_DELETE_WINDOW", lambda: (self.deiconify(), self.after(0, self.imp_entry.focus_set), root.destroy()))
-    root.bind("<Escape>", lambda e: (self.deiconify(), self.after(0, self.imp_entry.focus_set), root.destroy()))
-    self.withdraw()
+    root.protocol("WM_DELETE_WINDOW", lambda: (self.after(0, self.imp_entry.focus_set), root.destroy()))
+    root.bind("<Escape>", lambda e: (self.after(0, self.imp_entry.focus_set), root.destroy()))
+    pass
     self.tutti_i_risultati = [None] * 6
     self.rata_sostenibile_risultato = None
     notebook = ttk.Notebook(root)
@@ -1592,7 +1600,7 @@ def calcolo_mutuo_prestito(self):
     img_chiudi_riep = self.icone_gui.get("chiudi")
     btn_chiudi_riep = ttk.Label(common_button_frame, compound="left", image=img_chiudi_riep, text=" Chiudi" if img_chiudi_riep else "Chiudi", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
     btn_chiudi_riep.pack(side=tk.LEFT, padx=5)
-    btn_chiudi_riep.bind("<Button-1>", lambda e: (self.deiconify(), self.after(0, self.imp_entry.focus_set), common_button_frame.winfo_toplevel().destroy()))
+    btn_chiudi_riep.bind("<Button-1>", lambda e: (self.after(0, self.imp_entry.focus_set), common_button_frame.winfo_toplevel().destroy()))
 
     root.deiconify()
 

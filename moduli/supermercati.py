@@ -1048,7 +1048,7 @@ def spesa_supermercato(self):
                 self.after(200, _controlla_scadenza_promo)
                 if popup.winfo_exists():
                     popup.destroy()
-                    self.deiconify()
+                    pass
                     self.after(0, self.imp_entry.focus_set)
                     self.spesa_supermercato()
                 self.show_custom_warning("Importazione completata", f"\nDatabase Supermercati ripristinato da:\n\n {file}\n")
@@ -1153,7 +1153,7 @@ def spesa_supermercato(self):
     menu_db.add_command(label="⬇️ Forza Aggiornamento Editor Scontrini", command=self._scarica_editor_esterno)
     menu_db.add_command(label="⬇️ Rimuovi Completamente Editor Scontrini", command=self._rimuovi_editor_esterno)
     menu_db.add_separator()
-    menu_db.add_command(label="❌ Chiudi (ESC)", command=lambda: (self.deiconify(), self.after(0, self.imp_entry.focus_set), popup.destroy()))
+    menu_db.add_command(label="❌ Chiudi (ESC)", command=lambda: (self.after(0, self.imp_entry.focus_set), popup.destroy()))
 
     def apri_menu_popup(widget):
         try:
@@ -1205,7 +1205,7 @@ def spesa_supermercato(self):
     popup.geometry(f"1300x630+{x}+{y}")
     popup.deiconify()
     popup.after(10, lambda: popup.focus_force())
-    self.withdraw()
+    pass
     threading.Thread(target=self.check_supermarket_update, daemon=True).start()
     def on_popup_close():
         _salva_dati_interno(dati_supermercati)
@@ -1215,7 +1215,7 @@ def spesa_supermercato(self):
             pass
         self.popup_calendario = None
         popup.destroy()
-        self.deiconify()
+        pass  # switch rimosso
         self.after(0, self.imp_entry.focus_set)
     popup.bind("<Escape>", lambda e: on_popup_close())
     popup.protocol("WM_DELETE_WINDOW", on_popup_close)

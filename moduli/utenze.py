@@ -3,14 +3,53 @@
 
 import os
 import json
-import tempfile
 import datetime
 import threading
 import tkinter as tk
 from tkinter import ttk, filedialog
 import pymupdf as fitz
 
+_USI_GAS = ["Cottura + acqua calda + riscaldamento", "Cottura + acqua calda", "Solo cottura", "Non ho il gas (bombole / altro)"]
+_COMUNI_CACHE = None
+
+def _carica_comuni():
+    global _COMUNI_CACHE
+    if _COMUNI_CACHE is None:
+        try:
+            from moduli.comuni_it import COMUNI
+            _COMUNI_CACHE = list(COMUNI)
+        except Exception:
+            _COMUNI_CACHE = []
+    return _COMUNI_CACHE
+
+def _risolvi_comune(testo):
+    import difflib
+    elenco = _carica_comuni()
+    t = " ".join(testo.split()).casefold()
+    if not t:
+        return "", "Indica il comune."
+    if not elenco:
+        return testo.strip(), ""
+    esatto = [c for c in elenco if c.casefold() == t]
+    if esatto:
+        return esatto[0], ""
+    stesso_nome = [c for c in elenco if c.rsplit(" (", 1)[0].casefold() == t]
+    if len(stesso_nome) == 1:
+        return stesso_nome[0], ""
+    if len(stesso_nome) > 1:
+        return "", "Più comuni con questo nome: scegli dall'elenco (es. " + stesso_nome[0] + ")."
+    nomi = {c.rsplit(" (", 1)[0].casefold(): c for c in elenco}
+    simili = [nomi[n] for n in difflib.get_close_matches(t, list(nomi), n=3, cutoff=0.7)]
+    return "", "Comune non trovato." + (" Intendevi: " + ", ".join(simili) + "?" if simili else "")
+
 def utenze(self):
+    _w = getattr(self, '_win_utenze', None)
+    try:
+        if _w is not None and _w.winfo_exists():
+            _w.deiconify(); _w.lift(); _w.focus_force()
+            return
+    except Exception:
+        pass
     import __main__ as _app
     UTENZE_DB     = _app.UTENZE_DB
     EXPORT_FILES  = _app.EXPORT_FILES
@@ -66,7 +105,7 @@ def utenze(self):
                             if campo not in anagrafiche[utenza]:
                                 anagrafiche[utenza][campo] = ""
                 return letture, anagrafiche
-            except Exception as e:
+            except Exception:
                 return {u: {} for u in utenze}, {u: anagrafica_vuota() for u in utenze}
         else:
             return {u: {} for u in utenze}, {u: anagrafica_vuota() for u in utenze}
@@ -82,7 +121,7 @@ def utenze(self):
             }
             with open(UTENZE_DB, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=1, ensure_ascii=False)
-        except Exception as e:
+        except Exception:
              self.show_custom_warning("Errore", "Errore scrittura dati")
     letture_salvate, anagrafiche = carica_db()
     self.letture_salvate_utenze = letture_salvate
@@ -112,7 +151,16 @@ def utenze(self):
                 out.append((mese, 0.0, 0.0, 0.0))
         return out
 
+    def _boll_mese(utenza, mese):
+        rec = _bollette_cache().get(utenza, {}).get(mese)
+        return rec[0] if rec else None
+
+    def _media_consumo(righe):
+        validi = [r[3] for r in righe if r[3] > 0]
+        return (sum(validi) / len(validi), len(validi)) if validi else (0.0, 0)
+
     win = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
+    self._win_utenze = win
     win.withdraw()
     larghezza = 1350
     altezza = 630
@@ -125,12 +173,11 @@ def utenze(self):
     y = self_y + (self_height // 2) - (altezza // 2)
     win.geometry(f"{larghezza}x{altezza}+{x}+{y}")
     win.title("Gestione Consumi Utenze")
-    win.protocol("WM_DELETE_WINDOW", lambda: (chiudi_viewer_tabella(), self.deiconify(), self.after(0, self.imp_entry.focus_set), win.destroy()))
+    win.protocol("WM_DELETE_WINDOW", lambda: (chiudi_viewer_tabella(), self.after(0, self.imp_entry.focus_set), win.destroy()))
     win.deiconify()
     win.update_idletasks()
     win.minsize(larghezza, altezza)
-    win.grab_set()
-    self.withdraw()
+    pass
 
     def mostra_guida_utenze():
         testo_consumi = (
@@ -138,7 +185,8 @@ def utenze(self):
             "# SELEZIONE ANNO E TABELLE\n"
             "• Combo Anno: Scegli l'anno da consultare, oppure 'Tutti' per lo storico completo.\n"
             "• 🔄 (accanto alla combo): Torna rapidamente all'anno corrente.\n"
-            "• Ogni utenza (Acqua/Luce/Gas) ha la propria tabella con Mese, Lettura Prec., Lettura Att., Consumo e Stima €.\n"
+            "• Ogni utenza (Acqua/Luce/Gas) ha la propria tabella con Mese, Lettura Prec., Lettura Att., Consumo, Stima € e Bolletta €.\n"
+            "• Sotto la tabella: totale, media mensile (sui mesi con consumo), stima spesa e bollette registrate.\n"
             "• Clic sull'intestazione di colonna: ordina la tabella.\n"
             "• Clic su un mese in tabella: carica i valori nel pannello 'Modifica Lettura Mensile' sottostante.\n"
             "\n# MODIFICA DI UNA LETTURA\n"
@@ -152,7 +200,7 @@ def utenze(self):
             "• Vista Totali: totale complessivo storico affiancato dall'andamento annuale.\n"
             "• Hover (passa il mouse) su una barra: mostra un tooltip con i dettagli (letture, consumo, totali).\n"
             "\n# ESPORTAZIONE E STAMPA\n"
-            "• Pulsante Esporta (in alto): apre l'anteprima del riepilogo consumi (anno selezionato o 'Tutti').\n"
+            "• Pulsante Esporta (in alto): apre l'anteprima del riepilogo consumi (anno selezionato o 'Tutti'), con totali, media mensile e bollette.\n"
             "• Dall'anteprima puoi: Esporta TXT, Esporta PDF oppure Stampa direttamente.\n"
         )
         testo_anagrafica = (
@@ -160,6 +208,7 @@ def utenze(self):
             "# DATI ANAGRAFICI\n"
             "• Ogni utenza ha una propria scheda: Ragione sociale, Telefono, Email, Numero contratto, Codice Cliente, Codice Utenza/Fornitura, POD/PDR, Note.\n"
             "• Premi Salva nella scheda per confermare le modifiche.\n"
+            "• Azzera: svuota tutta l'anagrafica dell'utenza (contatti, offerta, costi, storico fatture). Le letture dei consumi NON vengono toccate.\n"
             "\n# OFFERTA & COSTO UNITARIO\n"
             "• Costo Unitario tutto incluso (€/Unità): se compilato, abilita la colonna 'Stima €' nelle tabelle consumi.\n"
             "• Quota Fissa: campo puramente informativo, NON entra nel calcolo della stima.\n"
@@ -169,17 +218,36 @@ def utenze(self):
             "• Richiede una chiave API Gemini configurata in Impostazioni (gratuita).\n"
             "• L'IA legge la fattura ed estrae automaticamente: consumo del periodo, costo unitario stimato, dati del fornitore, codici contratto, POD/PDR, scadenze, modalità di pagamento, ecc.\n"
             "• I campi individuati vengono precompilati nella scheda: verifica i valori e premi Salva per confermarli.\n"
+            "• Il Costo Unitario è la media sulle ultime 3 fatture analizzate (storico mostrato nella casella).\n"
+            "• Importa auto: SÌ/NO: se attivo, l'app analizza da sola le ultime 3 fatture nuove dell'Archivio (serve la categoria bollette).\n"
         )
         testo_database = (
             "🗄️ Menu Database - Guida Rapida\n\n"
             "# 📤 Esporta Consumi\n"
             "• Salva un file JSON con tutte le letture e le anagrafiche, utile per backup o trasferimento su un altro PC.\n"
             "\n# 📥 Importa Consumi\n"
-            "• Carica un file JSON esportato in precedenza, unendo/sostituendo letture e anagrafiche esistenti.\n"
+            "• Carica un file JSON esportato in precedenza, sostituendo letture e anagrafiche delle utenze presenti nel file.\n"
             "\n# 🗑️ Azzera Consumi\n"
             "• ATTENZIONE: elimina TUTTO lo storico delle letture di tutte le utenze. Viene sempre richiesta conferma.\n"
             "\n# 📊 Scarica Tabella Consumi\n"
             "• Genera un file scaricabile con la tabella dei consumi, pronta per essere condivisa o archiviata.\n"
+        )
+        testo_bollette = (
+            "🧾 Bollette e Analisi - Guida Rapida\n\n"
+            "# CATEGORIE BOLLETTE\n"
+            "• Pulsante Categorie Bollette: scegli in quale categoria di spesa registri le bollette di Acqua, Luce e Gas.\n"
+            "• Se usi la stessa categoria per tutte, l'app distingue le utenze dalla descrizione (acqua, luce/energia/kWh, gas/metano/GPL).\n"
+            "• Senza categoria la colonna Bolletta € resta vuota e Importa auto non funziona.\n"
+            "\n# COLONNA BOLLETTA E DOCUMENTI\n"
+            "• Bolletta €: somma delle uscite registrate in quel mese nella categoria associata; tra parentesi il numero di spese se più di una.\n"
+            "• Passa il mouse su una cella Bolletta: dopo un istante compare l'anteprima del documento archiviato.\n"
+            "• Doppio clic sulla cella Bolletta: apre il documento completo, con Stampa e Salva.\n"
+            "\n# ANALISI DI MERCATO (AI)\n"
+            "• Chiede pochi dati sulla casa (persone, comune, mq, uso del gas, riscaldamento), che restano salvati.\n"
+            "• L'IA confronta i tuoi consumi con le medie, segnala andamento e anomalie e propone azioni di risparmio sui consumi.\n"
+            "• Richiede la chiave API Gemini. Il risultato si può salvare in TXT/PDF o stampare.\n"
+            "\n# CONFRONTA DOCUMENTI\n"
+            "• Apre il modulo di confronto bollette con l'AI.\n"
         )
         guida_win = tk.Toplevel(win, bg=self.COLOR_TOPLEVEL)
         guida_win.transient(win)
@@ -195,7 +263,7 @@ def utenze(self):
         btn_stampa.image = img_stampa
         btn_stampa.pack(side=tk.LEFT)
         btn_stampa.bind("<Button-1>", lambda e: self._stampa_lista_diretta(
-            testo_consumi + "\n" + testo_anagrafica + "\n" + testo_database, self.show_custom_warning))
+            testo_consumi + "\n" + testo_anagrafica + "\n" + testo_bollette + "\n" + testo_database, self.show_custom_warning))
         img_chiudi = self.icone_gui.get("chiudi")
         btn_chiudi = tk.Label(bottom_frame, compound="left", image=img_chiudi, text=" Chiudi (ESC)",
                               background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
@@ -222,13 +290,14 @@ def utenze(self):
 
         _crea_tab("Consumi e Grafico", testo_consumi, "grafico_linea")
         _crea_tab("Anagrafica e Fattura AI", testo_anagrafica, "fattura_ai")
+        _crea_tab("Bollette e Analisi", testo_bollette, "fattura_ai")
         _crea_tab("Database", testo_database, "salva")
 
         guida_win.update_idletasks()
         w, h = guida_win.winfo_reqwidth(), guida_win.winfo_reqheight()
         x = win.winfo_rootx() + (win.winfo_width() // 2) - (w // 2)
         y = win.winfo_rooty() + (win.winfo_height() // 2) - (h // 2)
-        guida_win.geometry(f"1000x660+{x}+{y}")
+        guida_win.geometry(f"1000x560+{x}+{y}")
         guida_win.deiconify()
         guida_win.grab_set()
         guida_win.bind("<Escape>", lambda e: guida_win.destroy())
@@ -279,13 +348,13 @@ def utenze(self):
     def chiudi():
         chiudi_viewer_tabella()
         win.destroy()
-        self.deiconify()
+        pass
         self.after(0, self.imp_entry.focus_set)
     def chiudi_viewer_tabella():
         v = getattr(self, '_viewer_tabella_win', None)
         if v and v.winfo_exists():
            v.destroy()
-    win.bind("<Escape>", lambda e: (chiudi_viewer_tabella(), self.deiconify(), self.after(0, self.imp_entry.focus_set), win.destroy()))
+    win.bind("<Escape>", lambda e: (chiudi_viewer_tabella(), self.after(0, self.imp_entry.focus_set), win.destroy()))
 
     def reset_utenze_letture():
         conferma = self.show_custom_askyesno(
@@ -300,7 +369,7 @@ def utenze(self):
                 if not os.path.exists(UTENZE_DB):
                     with open(UTENZE_DB, "w") as file:
                         file.write("{\n}\n")
-                self.deiconify()
+                pass
                 win.destroy()
                 self.utenze()
                 self.show_custom_warning("Letture", "Letture utenze azzerate con successo.")
@@ -373,8 +442,12 @@ def utenze(self):
             val = _stima_costo(u, cons)
             return f"{val:12.2f}" if val is not None else f"{'—':>12}"
 
+        _bollette_cache(forza=True)
         grand_tot = {u: 0.0 for u in utenze}
         grand_tot_stima = {u: 0.0 for u in utenze}
+        grand_boll = {u: 0.0 for u in utenze}
+        grand_cons_validi = {u: [] for u in utenze}
+        cat_ok = {u: bool(_categoria_bollette(u)) for u in utenze}
         for idx_anno, anno_x in enumerate(anni_x):
             if idx_anno > 0:
                 txt.insert(tk.END, "\n")
@@ -401,6 +474,30 @@ def utenze(self):
                 stima_riga_txt = f"{somma_stima:12.2f}" if cu_disp[utenza] else f"{'—':>12}"
                 tot_riga += f"{'':8}{'':10}{somma:10.2f}{stima_riga_txt}  "
             txt.insert(tk.END, tot_riga + "\n")
+            media_riga = f"{'Media mens':<10}"
+            boll_riga = f"{'Bollette':<10}"
+            for utenza in utenze:
+                righe_u = righe_per_utenza[utenza]
+                media_u, n_u = _media_consumo(righe_u)
+                grand_cons_validi[utenza].extend(r[3] for r in righe_u if r[3] > 0)
+                tot_b = sum((_boll_mese(utenza, r[0]) or 0.0) for r in righe_u)
+                grand_boll[utenza] += tot_b
+                media_riga += f"{'':8}{'':10}{media_u:10.2f}{('(' + str(n_u) + ' mesi)'):>12}  "
+                boll_riga += f"{'':8}{'':10}{'':10}{(f'{tot_b:12.2f}' if cat_ok[utenza] else f'{chr(8212):>12}')}  "
+            txt.insert(tk.END, media_riga + "\n")
+            txt.insert(tk.END, boll_riga + "\n")
+            if any(cat_ok.values()):
+                txt.insert(tk.END, "\nBollette registrate per mese (€)\n")
+                txt.insert(tk.END, f"{'':<10}" + "".join(f"{u:>14}" for u in utenze) + "\n")
+                for i in range(12):
+                    mese = righe_per_utenza[utenze[0]][i][0]
+                    valori = [_boll_mese(u, mese) for u in utenze]
+                    if not any(v is not None for v in valori):
+                        continue
+                    riga_b = f"{mese:<10}"
+                    for v in valori:
+                        riga_b += f"{(f'{v:.2f}' if v is not None else chr(8212)):>14}"
+                    txt.insert(tk.END, riga_b + "\n")
         if tutti_anni and len(anni_x) > 1:
             txt.insert(tk.END, "\n" + "═" * len(header) + "\n")
             gtot_riga = f"{'Tot.Compl.':<10}"
@@ -408,6 +505,15 @@ def utenze(self):
                 stima_g_txt = f"{grand_tot_stima[utenza]:12.2f}" if cu_disp[utenza] else f"{'—':>12}"
                 gtot_riga += f"{'':8}{'':10}{grand_tot[utenza]:10.2f}{stima_g_txt}  "
             txt.insert(tk.END, gtot_riga + "\n")
+            gmedia_riga = f"{'Media mens':<10}"
+            gboll_riga = f"{'Bollette':<10}"
+            for utenza in utenze:
+                v = grand_cons_validi[utenza]
+                gm = (sum(v) / len(v)) if v else 0.0
+                gmedia_riga += f"{'':8}{'':10}{gm:10.2f}{('(' + str(len(v)) + ' mesi)'):>12}  "
+                gboll_riga += f"{'':8}{'':10}{'':10}{(f'{grand_boll[utenza]:12.2f}' if cat_ok[utenza] else f'{chr(8212):>12}')}  "
+            txt.insert(tk.END, gmedia_riga + "\n")
+            txt.insert(tk.END, gboll_riga + "\n")
         txt.config(state="disabled")
         btn_frame = tk.Frame(preview_win, bg=self.COLOR_TOPLEVEL)
         btn_frame.pack(fill=tk.X, pady=12)
@@ -462,8 +568,10 @@ def utenze(self):
             pg.insert_text((MARG + 210, y[0] + 11), "Att.", fontsize=7.5, fontname="Helvetica-Bold")
             pg.insert_text((MARG + 300, y[0] + 11), "Consumo", fontsize=7.5, fontname="Helvetica-Bold")
             pg.insert_text((MARG + 390, y[0] + 11), "Stima €", fontsize=7.5, fontname="Helvetica-Bold")
+            pg.insert_text((MARG + 450, y[0] + 11), "Bolletta €", fontsize=7.5, fontname="Helvetica-Bold")
             y[0] += 16
 
+        _bollette_cache(forza=True)
         pg = doc.new_page(width=W, height=H)
         intestazione_pagina(pg, f"Anno {anni_x[0]}" if tutti_anni else None)
 
@@ -478,9 +586,16 @@ def utenze(self):
                 intestazione_tabella(pg, utenza)
                 totale = 0.0
                 totale_stima = 0.0
+                totale_boll = 0.0
+                cat_pdf = bool(_categoria_bollette(utenza))
                 cu_ok = _get_costo_unitario(utenza) is not None
-                for mese, prec, att, cons in righe_anno_export(utenza, anno_x):
+                righe_pdf = righe_anno_export(utenza, anno_x)
+                media_pdf, n_mesi_pdf = _media_consumo(righe_pdf)
+                for mese, prec, att, cons in righe_pdf:
                     totale += cons
+                    b_val = _boll_mese(utenza, mese)
+                    if b_val is not None:
+                        totale_boll += b_val
                     stima_riga = _stima_costo(utenza, cons)
                     if stima_riga is not None:
                         totale_stima += stima_riga
@@ -493,14 +608,20 @@ def utenze(self):
                     pg.insert_text((MARG + 210, y[0] + 11), f"{att:.2f}", fontsize=7.5, fontname="Helvetica")
                     pg.insert_text((MARG + 300, y[0] + 11), f"{cons:.2f}", fontsize=7.5, fontname="Helvetica")
                     pg.insert_text((MARG + 390, y[0] + 11), f"{stima_riga:.2f}" if stima_riga is not None else "—", fontsize=7.5, fontname="Helvetica")
+                    pg.insert_text((MARG + 450, y[0] + 11), (f"{b_val:.2f}" if b_val is not None else ("—" if cat_pdf else "")), fontsize=7.5, fontname="Helvetica")
                     y[0] += 14
-                if y[0] > H - 40:
+                if y[0] > H - 65:
                     pg = doc.new_page(width=W, height=H)
                     intestazione_pagina(pg, f"Anno {anno_x} (segue)" if tutti_anni else None)
                 totale_txt = f"Totale {utenza}: {totale:.2f}"
                 if cu_ok:
                     totale_txt += f"   —   Stima spesa: {totale_stima:.2f} €"
                 pg.insert_text((MARG + 4, y[0] + 11), totale_txt, fontsize=8, fontname="Helvetica-Bold", color=colori_pdf[utenza])
+                y[0] += 13
+                riga2 = f"Media mensile consumo: {media_pdf:.2f} ({n_mesi_pdf} mesi)"
+                if cat_pdf:
+                    riga2 += f"   —   Bollette registrate: {totale_boll:.2f} €"
+                pg.insert_text((MARG + 4, y[0] + 11), riga2, fontsize=8, fontname="Helvetica-Bold", color=colori_pdf[utenza])
                 y[0] += 26
         n_tot = doc.page_count
         for i, p in enumerate(doc):
@@ -612,6 +733,17 @@ def utenze(self):
         except Exception:
             pass
 
+    def _bottone_label(parent, chiave, testo, emoji, cmd, side=tk.LEFT, padx=4, padding=(10, 5), width=None):
+        img = self.icone_gui.get(chiave)
+        b = ttk.Label(parent, compound="left", image=img, text=f" {testo}" if img else f"{emoji} {testo}",
+                      background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=padding)
+        if width:
+            b.config(width=width, anchor="w")
+        b.image = img
+        b.pack(side=side, padx=padx)
+        b.bind("<Button-1>", lambda e: cmd())
+        return b
+
     top_controls = tk.Frame(win, bg=self.COLOR_TOPLEVEL)
     top_controls.pack(fill="x", pady=(0, 6))
     img_menu_top = self.icone_gui.get("tools")
@@ -640,6 +772,9 @@ def utenze(self):
     btn_esporta_top = ttk.Label(contenuto_controls, compound="left", image=img_esporta_top, text=" Esporta" if img_esporta_top else "💾 Esporta", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
     btn_esporta_top.pack(side=tk.LEFT, padx=4)
     btn_esporta_top.bind("<Button-1>", lambda e: esporta_preview())
+    _bottone_label(contenuto_controls, "fattura_ai", "Analisi di Mercato", "🔎", lambda: _apri_analisi_mercato())
+    _bottone_label(contenuto_controls, "fattura_ai", "Confronta Documenti", "📑", lambda: _apri_confronta_bollette())
+    _bottone_label(contenuto_controls, "anagrafica", "Categorie Bollette", "🏷️", lambda: _apri_dialogo_categorie_bollette())
     img_chiudi_top = self.icone_gui.get("chiudi")
     btn_chiudi_top = ttk.Label(contenuto_controls, compound="left", image=img_chiudi_top, text=" Chiudi" if img_chiudi_top else "Chiudi", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
     btn_chiudi_top.pack(side=tk.LEFT, padx=7)
@@ -654,6 +789,19 @@ def utenze(self):
     anag_entries = {}
     form_vars = {}
     ai_status_labels = {}
+    toggle_labels = {}
+
+    def _import_auto_attivo(utenza):
+        return bool(anagrafiche.get(utenza, {}).get("_import_auto"))
+
+    def _aggiorna_toggle(utenza):
+        lbl = toggle_labels.get(utenza)
+        if lbl is None or not lbl.winfo_exists():
+            return
+        on = _import_auto_attivo(utenza)
+        t = f"Importa auto: {'SÌ' if on else 'NO'}"
+        lbl.config(text=f" {t}" if getattr(lbl, "image", None) else f"⚡ {t}",
+                   foreground="#1b7a2b" if on else self.TEXT_COLOR)
 
     def _get_costo_unitario(utenza):
         raw = anagrafiche.get(utenza, {}).get("Costo Unitario", "")
@@ -719,7 +867,7 @@ def utenze(self):
             righe.append("→ Dati insufficienti per calcolare il costo unitario, verifica a mano.")
         return "\n".join(righe)
 
-    def _applica_estrazione_fattura(utenza, dati):
+    def _applica_estrazione_fattura(utenza, dati, silenzioso=False):
         consumo   = dati.get("consumo_periodo")
         spesa     = dati.get("spesa_totale_periodo")
         unita     = dati.get("unita_misura") or ""
@@ -780,10 +928,78 @@ def utenze(self):
 
         if utenza in ai_status_labels and ai_status_labels[utenza].winfo_exists():
             ai_status_labels[utenza].config(text=_testo_storico(utenza))
-        self.show_toast(
-            f"Fattura {utenza} analizzata ({len(storico)}/3 in storico). "
-            f"Premi Salva per confermare il costo unitario."
+        if not silenzioso:
+            self.show_toast(
+                f"Fattura {utenza} analizzata ({len(storico)}/3 in storico). "
+                f"Premi Salva per confermare il costo unitario."
+            )
+
+    def _msg_errore_gemini(e):
+        err = str(e)
+        if "429" in err or "RESOURCE_EXHAUSTED" in err:
+            return "Quota API Gemini esaurita. Riprova più tardi."
+        if "503" in err or "UNAVAILABLE" in err:
+            return "Gemini non disponibile al momento. Riprova tra poco."
+        return f"Analisi fattura fallita: {err[:120]}"
+
+    def _chiama_gemini_fattura(path):
+        mime = {".pdf": "application/pdf", ".png": "image/png", ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg", ".webp": "image/webp"}[os.path.splitext(path)[1].lower()]
+        with open(path, "rb") as f:
+            doc_bytes = f.read()
+        client = genai_client.Client(api_key=API_KEY)
+        prompt = (
+            "Analizza questa bolletta/fattura di utenza domestica (acqua, luce o gas). "
+            "Restituisci SOLO un oggetto JSON, senza testo o backtick attorno, con questi campi:\n"
+            '{"consumo_periodo": numero — il consumo nel periodo fatturato SEMPRE '
+            'nell\'unità di misura del CONTATORE fisico (mc per acqua e gas, kWh per luce), '
+            'MAI in un\'altra unità di fatturazione. Esempio: se la bolletta è di GPL fatturato '
+            'in litri ma la lettura del contatore dice "Totale Consumo mc. 20,00 pari a LT. 80,00", '
+            'usa 20 (i mc), NON 80 (i litri). Se la fattura non riporta i mc ma solo i litri/kg '
+            'e non è possibile ricavare i mc, restituisci null per questo campo. '
+            'Se il documento non è una bolletta con contatore (es. gas in bombole, nessuna lettura), '
+            'usa null, '
+            '"unita_misura": "m3" oppure "kWh", '
+            '"giorni_periodo": numero di giorni coperti dalla fattura oppure null, '
+            '"spesa_totale_periodo": numero — l\'importo TOTALE dovuto per questo periodo '
+            'fatturato, IVA inclusa: energia/materia prima, quota fissa/nolo contatore, '
+            'trasporto e gestione contatore, oneri di sistema, depurazione/fognatura se acqua, '
+            'imposte. In pratica il "Totale fattura"/"Totale a pagare" del documento. '
+            'ESCLUDI sempre da questo totale il canone RAI ed eventuali importi di '
+            'conguaglio/arretrato di periodi precedenti, che vanno indicati separatamente sotto, '
+            '"quota_fissa": numero — SOLO a titolo informativo, la quota fissa/nolo contatore '
+            'del periodo fatturato se indicata separatamente nel documento, altrimenti null '
+            '(NON sottrarla da spesa_totale_periodo: deve restare inclusa lì), '
+            '"canone_rai": numero o null, '
+            '"conguaglio": numero o null, '
+            '"data_fattura": "GG-MM-AAAA" o null, '
+            '"ragione_sociale": nome del fornitore/gestore (es. "Acque SpA", "Octopus Energy") o null, '
+            '"numero_contratto": numero contratto o codice contratto (es. "CODICE CONTRATTO") o null, '
+            '"codice_cliente": codice cliente (es. "CODICE CLIENTE") o null, '
+            '"codice_utenza_fornitura": codice utenza per acqua/gas oppure codice fornitura/POD per luce '
+            '(es. "CODICE UTENZA", "Codice Fornitura") o null, '
+            '"pod_pdr": codice POD (luce) o PDR (gas) o matricola contatore (acqua) o null, '
+            '"telefono_assistenza": numero verde/telefono del servizio clienti generale o null, '
+            '"email_assistenza": email di contatto/reclami del fornitore o null, '
+            '"nome_offerta": nome commerciale dell\'offerta/tariffa sottoscritta o null, '
+            '"tipo_tariffa": "Fissa" o "Variabile" se indicato, altrimenti null, '
+            '"scadenza_contratto": data o dicitura di scadenza del contratto/offerta '
+            '(es. "Tempo indeterminato", una data, o null), '
+            '"numero_guasti": numero telefonico specifico per segnalare guasti/interruzioni '
+            '(se diverso dal telefono di assistenza generale) o null, '
+            '"modalita_pagamento": metodo di pagamento indicato in fattura '
+            '(es. "Addebito diretto SDD", "PagoPA", "Bollettino postale") o null}\n'
+            "Se un valore non è presente nel documento usa null. Rispondi SOLO con il JSON."
         )
+        parts = [types.Part.from_bytes(data=doc_bytes, mime_type=mime), prompt]
+        response = client.models.generate_content(model=GEMINI, contents=parts)
+        raw = (response.text or "").strip()
+        if "```json" in raw:
+            raw = raw.split("```json")[1].split("```")[0].strip()
+        elif "```" in raw:
+            raw = raw.split("```")[1].split("```")[0].strip()
+        dati = json.loads(raw)
+        return dati
 
     def avvia_estrazione_fattura(utenza, path):
         if not API_KEY:
@@ -799,74 +1015,15 @@ def utenze(self):
             self.show_toast("Formato non supportato. Usa PDF o immagine (PNG/JPG/WEBP).")
             return
         if utenza in ai_status_labels and ai_status_labels[utenza].winfo_exists():
-            ai_status_labels[utenza].config(text=f"⏳ Gemini sta analizzando …")
+            ai_status_labels[utenza].config(text="⏳ Gemini sta analizzando …")
 
         def _run():
             dati = None
             msg_errore = None
             try:
-                with open(path, "rb") as f:
-                    doc_bytes = f.read()
-                client = genai_client.Client(api_key=API_KEY)
-                prompt = (
-                    "Analizza questa bolletta/fattura di utenza domestica (acqua, luce o gas). "
-                    "Restituisci SOLO un oggetto JSON, senza testo o backtick attorno, con questi campi:\n"
-                    '{"consumo_periodo": numero — il consumo nel periodo fatturato SEMPRE '
-                    'nell\'unità di misura del CONTATORE fisico (mc per acqua e gas, kWh per luce), '
-                    'MAI in un\'altra unità di fatturazione. Esempio: se la bolletta è di GPL fatturato '
-                    'in litri ma la lettura del contatore dice "Totale Consumo mc. 20,00 pari a LT. 80,00", '
-                    'usa 20 (i mc), NON 80 (i litri). Se la fattura non riporta i mc ma solo i litri/kg '
-                    'e non è possibile ricavare i mc, restituisci null per questo campo. '
-                    'Se il documento non è una bolletta con contatore (es. gas in bombole, nessuna lettura), '
-                    'usa null, '
-                    '"unita_misura": "m3" oppure "kWh", '
-                    '"giorni_periodo": numero di giorni coperti dalla fattura oppure null, '
-                    '"spesa_totale_periodo": numero — l\'importo TOTALE dovuto per questo periodo '
-                    'fatturato, IVA inclusa: energia/materia prima, quota fissa/nolo contatore, '
-                    'trasporto e gestione contatore, oneri di sistema, depurazione/fognatura se acqua, '
-                    'imposte. In pratica il "Totale fattura"/"Totale a pagare" del documento. '
-                    'ESCLUDI sempre da questo totale il canone RAI ed eventuali importi di '
-                    'conguaglio/arretrato di periodi precedenti, che vanno indicati separatamente sotto, '
-                    '"quota_fissa": numero — SOLO a titolo informativo, la quota fissa/nolo contatore '
-                    'del periodo fatturato se indicata separatamente nel documento, altrimenti null '
-                    '(NON sottrarla da spesa_totale_periodo: deve restare inclusa lì), '
-                    '"canone_rai": numero o null, '
-                    '"conguaglio": numero o null, '
-                    '"data_fattura": "GG-MM-AAAA" o null, '
-                    '"ragione_sociale": nome del fornitore/gestore (es. "Acque SpA", "Octopus Energy") o null, '
-                    '"numero_contratto": numero contratto o codice contratto (es. "CODICE CONTRATTO") o null, '
-                    '"codice_cliente": codice cliente (es. "CODICE CLIENTE") o null, '
-                    '"codice_utenza_fornitura": codice utenza per acqua/gas oppure codice fornitura/POD per luce '
-                    '(es. "CODICE UTENZA", "Codice Fornitura") o null, '
-                    '"pod_pdr": codice POD (luce) o PDR (gas) o matricola contatore (acqua) o null, '
-                    '"telefono_assistenza": numero verde/telefono del servizio clienti generale o null, '
-                    '"email_assistenza": email di contatto/reclami del fornitore o null, '
-                    '"nome_offerta": nome commerciale dell\'offerta/tariffa sottoscritta o null, '
-                    '"tipo_tariffa": "Fissa" o "Variabile" se indicato, altrimenti null, '
-                    '"scadenza_contratto": data o dicitura di scadenza del contratto/offerta '
-                    '(es. "Tempo indeterminato", una data, o null), '
-                    '"numero_guasti": numero telefonico specifico per segnalare guasti/interruzioni '
-                    '(se diverso dal telefono di assistenza generale) o null, '
-                    '"modalita_pagamento": metodo di pagamento indicato in fattura '
-                    '(es. "Addebito diretto SDD", "PagoPA", "Bollettino postale") o null}\n'
-                    "Se un valore non è presente nel documento usa null. Rispondi SOLO con il JSON."
-                )
-                parts = [types.Part.from_bytes(data=doc_bytes, mime_type=mime), prompt]
-                response = client.models.generate_content(model=GEMINI, contents=parts)
-                raw = (response.text or "").strip()
-                if "```json" in raw:
-                    raw = raw.split("```json")[1].split("```")[0].strip()
-                elif "```" in raw:
-                    raw = raw.split("```")[1].split("```")[0].strip()
-                dati = json.loads(raw)
+                dati = _chiama_gemini_fattura(path)
             except Exception as e:
-                err = str(e)
-                if "429" in err or "RESOURCE_EXHAUSTED" in err:
-                    msg_errore = "Quota API Gemini esaurita. Riprova più tardi."
-                elif "503" in err or "UNAVAILABLE" in err:
-                    msg_errore = "Gemini non disponibile al momento. Riprova tra poco."
-                else:
-                    msg_errore = f"Analisi fattura fallita: {err[:120]}"
+                msg_errore = _msg_errore_gemini(e)
 
             def _fine():
                 if msg_errore:
@@ -898,7 +1055,7 @@ def utenze(self):
                 self.letture_salvate_utenze.update(letture)
                 self.anagrafiche_salvate_utenze.update(anagrafiche)
                 scrivi_db()
-                self.deiconify()
+                pass
                 win.destroy()
                 self.utenze()
                 self.show_custom_warning("Importazione riuscita", "Utenze importate correttamente!")
@@ -909,6 +1066,7 @@ def utenze(self):
         now = datetime.date.today()
         default_dir = EXP_DB
         default_filename = f"{now.day:02d}-{now.month:02d}-{now.year}-utenze_db.json"
+        win.wm_attributes('-topmost', 1)
         file = filedialog.asksaveasfilename(
             defaultextension=".json",
             filetypes=[("File JSON", "*utenze_db.json"), ("Tutti i file", "*.*")],
@@ -916,8 +1074,17 @@ def utenze(self):
             initialfile=default_filename,
             confirmoverwrite=False,
             title="Esporta utenze",
+            parent=win,
         )
+        win.wm_attributes('-topmost', 0)
         if file:
+            if os.path.exists(file):
+                conferma = self.show_custom_askyesno(
+                    "Sovrascrivere file?",
+                    f"Il file '{os.path.basename(file)}' \nesiste già. Vuoi sovrascriverlo?"
+                )
+                if not conferma:
+                    return
             try:
                 data = {
                     "letture_salvate": self.letture_salvate_utenze,
@@ -1031,7 +1198,7 @@ def utenze(self):
     notebook = ttk.Notebook(main_frame)
     notebook.pack(fill="both", expand=True)
 
-    def salva_dati(u):
+    def salva_dati(u, silenzioso=False):
         for field, ent in anag_entries[u].items():
             if field == "Note":
                 anagrafiche[u][field] = ent.get("1.0", "end-1c")
@@ -1039,7 +1206,8 @@ def utenze(self):
                 anagrafiche[u][field] = ent.get()
         scrivi_db()
         aggiorna_colonna_stima(u)
-        self.show_toast(f"Dati anagrafici {u} salvati.")
+        if not silenzioso:
+            self.show_toast(f"Dati anagrafici {u} salvati.")
 
     tab_anagrafica = ttk.Frame(notebook)
     img_tab_anagrafica = self.icone_gui.get("anagrafica")
@@ -1059,7 +1227,6 @@ def utenze(self):
             anagrafica_notebook.add(tab, image=img_tab_utenza, text=f" {utenza}", compound="left")
         else:
             anagrafica_notebook.add(tab, text=f"{emoji_utenza} {utenza}")
-        colore_bg = colori[utenza]
         frame = ttk.Frame(tab, relief="flat", borderwidth=0)
         frame.pack(fill="both", expand=True, padx=8, pady=8)
         anag_frame = ttk.LabelFrame(frame, text="Dati Anagrafici & Contatti Direct", style="RedBold.TLabelframe")
@@ -1176,14 +1343,19 @@ def utenze(self):
         ai_frame = ttk.LabelFrame(bottom_container, text="Carica Fattura (AI)", style="RedBold.TLabelframe")
         ai_frame.grid(row=0, column=2, sticky="nsew", padx=(4, 0), pady=0)
         ai_frame.grid_columnconfigure(0, weight=1)
+        ai_frame.grid_rowconfigure(2, weight=1)
 
-        drop_txt = ("📎 Trascina qui il PDF/foto\ndella fattura, oppure clicca\nper selezionarla."
+        img_drop = self.icone_gui.get("report")
+        pref_drop = "" if img_drop else "📎 "
+        drop_txt = (pref_drop + "Trascina qui il PDF/foto\ndella fattura, oppure clicca\nper selezionarla."
                     if _HAS_DND else
-                    "📎 Clicca per selezionare\nil PDF/foto della fattura.")
-        drop_zone = tk.Label(ai_frame, text=drop_txt, bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HEADER,
+                    pref_drop + "Clicca per selezionare\nil PDF/foto della fattura.")
+        drop_zone = tk.Label(ai_frame, text=drop_txt, image=img_drop, compound="top",
+                              bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HEADER,
                               font=("Arial", 9), justify="center", cursor="hand2",
-                              relief="groove", borderwidth=2, padx=8, pady=16, width=30)
-        drop_zone.grid(row=0, column=0, sticky="ew", padx=8, pady=(10, 6))
+                              relief="groove", borderwidth=2, padx=8, pady=8, width=230 if img_drop else 30)
+        drop_zone.image = img_drop
+        drop_zone.grid(row=0, column=0, sticky="ew", padx=8, pady=(8, 4))
 
         def _scegli_file_fattura(u=utenza):
             path = filedialog.askopenfilename(
@@ -1217,8 +1389,15 @@ def utenze(self):
         status_lbl = tk.Label(ai_frame, text=_testo_storico(utenza),
                                bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR, font=("Arial", 8),
                                justify="left", wraplength=280, anchor="nw", width=34)
-        status_lbl.grid(row=1, column=0, sticky="new", padx=8, pady=(0, 10))
+        status_lbl.grid(row=2, column=0, sticky="new", padx=8, pady=(0, 6))
         ai_status_labels[utenza] = status_lbl
+
+        riga_btn_ai = tk.Frame(ai_frame, bg=self.COLOR_WIDGET_BG)
+        riga_btn_ai.grid(row=1, column=0, sticky="w", padx=8, pady=(0, 4))
+        toggle_labels[utenza] = _bottone_label(riga_btn_ai, "fattura_ai", "Importa auto: NO", "⚡",
+                                               lambda u=utenza: _toggle_import_auto(u),
+                                               side=tk.LEFT, padx=(0, 6), padding=(8, 4), width=17)
+        _aggiorna_toggle(utenza)
 
         def _azzera_anagrafica(u=utenza):
             if not self.show_custom_askyesno(
@@ -1238,15 +1417,14 @@ def utenze(self):
                 if campo not in anagrafiche[u]:
                     anagrafiche[u][campo] = ""
             scrivi_db()
+            _aggiorna_toggle(u)
             if u in ai_status_labels and ai_status_labels[u].winfo_exists():
                 ai_status_labels[u].config(text=_testo_storico(u))
             aggiorna_colonna_stima(u)
             self.show_toast(f"Anagrafica {u} azzerata.")
 
-        btn_azzera_anagrafica = tk.Label(ai_frame, text="🗑️ Azzera anagrafica", bg=self.COLOR_WIDGET_BG,
-                                          fg=self.COLOR_HEADER, font=("Arial", 8, "underline"), cursor="hand2")
-        btn_azzera_anagrafica.grid(row=2, column=0, sticky="w", padx=8, pady=(0, 8))
-        btn_azzera_anagrafica.bind("<Button-1>", lambda e, u=utenza: _azzera_anagrafica(u))
+        _bottone_label(riga_btn_ai, "reset", "Azzera", "🗑️", lambda u=utenza: _azzera_anagrafica(u),
+                       side=tk.LEFT, padx=0, padding=(8, 4))
 
     tab_consumi = ttk.Frame(notebook)
     img_tab_consumi = self.icone_gui.get("report")
@@ -1258,6 +1436,7 @@ def utenze(self):
     consumi_notebook = ttk.Notebook(tab_consumi)
     consumi_notebook.pack(fill="both", expand=True, padx=4, pady=4)
 
+    totali_lbl = {}
     for utenza in utenze:
         sub_tab = ttk.Frame(consumi_notebook)
         icon_key_utenza = {"Acqua": "acqua", "Luce": "luce", "Gas": "gas"}.get(utenza)
@@ -1267,14 +1446,13 @@ def utenze(self):
             consumi_notebook.add(sub_tab, image=img_tab_utenza, text=f" {utenza}", compound="left")
         else:
             consumi_notebook.add(sub_tab, text=f"{emoji_utenza} {utenza}")
-        colore_bg = colori[utenza]
         frame = ttk.Frame(sub_tab, relief="flat", borderwidth=0)
         frame.pack(fill="both", expand=True, padx=8, pady=8)
         tree_container = tk.Frame(frame, bg=self.COLOR_WIDGET_BG)
         tree_container.pack(padx=8, pady=(8, 4), fill="both", expand=True)
-        tree = ttk.Treeview(tree_container, columns=("Mese", "Prec", "Att", "Consumo", "Stima"), show="headings", height=10, selectmode='browse')
-        for col in ("Mese", "Prec", "Att", "Consumo", "Stima"):
-                tree.column(col, anchor="center", width=90 if col == "Stima" else 80)
+        tree = ttk.Treeview(tree_container, columns=("Mese", "Prec", "Att", "Consumo", "Stima", "Bolletta"), show="headings", height=10, selectmode='browse')
+        for col in ("Mese", "Prec", "Att", "Consumo", "Stima", "Bolletta"):
+                tree.column(col, anchor="center", width=110 if col == "Bolletta" else (90 if col == "Stima" else 80))
         vsb_tree = ttk.Scrollbar(tree_container, orient="vertical", style="Vertical.TScrollbar", command=tree.yview)
         tree.configure(yscrollcommand=vsb_tree.set)
         vsb_tree.pack(side="right", fill="y")
@@ -1295,10 +1473,13 @@ def utenze(self):
         for mese, prec, att, consumo in righe_norm:
                 tree.insert("", "end", values=(mese, float(prec), float(att), float(consumo), _fmt_stima(utenza, consumo)))
         self.trees[utenza] = tree
-        intestazioni = {"Stima": "Stima €"}
-        for col in ("Mese", "Prec", "Att", "Consumo", "Stima"):
+        intestazioni = {"Stima": "Stima €", "Bolletta": "Bolletta €"}
+        for col in ("Mese", "Prec", "Att", "Consumo", "Stima", "Bolletta"):
             tree.heading(col, text=intestazioni.get(col, col), command=lambda c=col, t=tree: self.treeview_sort_column(t, c, False))
         tree.bind("<<TreeviewSelect>>", lambda event, utenza=utenza: on_tree_select(utenza))
+        totali_lbl[utenza] = tk.Label(frame, text="", bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR,
+                                      font=("Arial", 10, "bold"), anchor="w", padx=8, pady=4)
+        totali_lbl[utenza].pack(fill="x", padx=8, pady=(0, 6))
         modifica_lf = ttk.LabelFrame(frame, text="Modifica Lettura Mensile", style="RedBold.TLabelframe")
         modifica_lf.pack(fill="x", padx=8, pady=(0, 8))
         riga_mod = tk.Frame(modifica_lf, bg=self.COLOR_WIDGET_BG)
@@ -1333,6 +1514,1035 @@ def utenze(self):
         tk.Label(modifica_lf, text="👆 Seleziona un mese dalla tabella per caricarlo qui, poi modifica e salva.",
                  bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR,
                  font=("Arial", 8, "italic")).pack(anchor="w", padx=6, pady=(0, 6))
+    _UNITA_TOT = {"Acqua": "m³", "Luce": "kWh", "Gas": "Smc"}
+    _KEYWORDS_UTENZA = {
+        "Acqua": ("acqua", "idric", "acquedott"),
+        "Luce":  ("luce", "elettric", "energia", "kwh"),
+        "Gas":   ("gas", "metano", "gpl"),
+    }
+    _cache_bollette = {"ts": 0.0, "dati": {}}
+
+    def _categoria_bollette(utenza):
+        return (anagrafiche.get(utenza, {}).get("_categoria_bollette") or "").strip()
+
+    def _calcola_bollette():
+        out = {u: {} for u in utenze}
+        for utenza in utenze:
+            cat = _categoria_bollette(utenza)
+            if not cat:
+                continue
+            condivisa = sum(1 for u in utenze if _categoria_bollette(u) == cat) > 1
+            for d, voci in list(getattr(self, "spese", {}).items()):
+                try:
+                    chiave = f"{d.month:02d}/{d.year}"
+                except AttributeError:
+                    continue
+                for v in voci:
+                    try:
+                        if v[0] != cat or v[3] != "Uscita":
+                            continue
+                        if condivisa:
+                            descr = str(v[1]).lower()
+                            match = [u for u, kws in _KEYWORDS_UTENZA.items() if any(k in descr for k in kws)]
+                            if match != [utenza]:
+                                continue
+                        rec = out[utenza].setdefault(chiave, [0.0, 0, set()])
+                        rec[0] += float(v[2])
+                        rec[1] += 1
+                        rec[2].add(str(v[1]).lower())
+                    except (ValueError, TypeError, IndexError):
+                        continue
+        return out
+
+    def _bollette_cache(forza=False):
+        import time as _t
+        if forza or _t.time() - _cache_bollette["ts"] > 3:
+            _cache_bollette["dati"] = _calcola_bollette()
+            _cache_bollette["ts"] = _t.time()
+        return _cache_bollette["dati"]
+
+    def _fmt_num_it(v):
+        return f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+    def aggiorna_totali_consumi():
+        try:
+            if not win.winfo_exists():
+                return
+            anno_txt = anno_var.get()
+            etichetta = "generale" if anno_txt == "Tutti" else anno_txt
+            bollette = _bollette_cache()
+            for utenza in utenze:
+                tr = self.trees.get(utenza)
+                lbl = totali_lbl.get(utenza)
+                if tr is None or lbl is None:
+                    continue
+                cat = _categoria_bollette(utenza)
+                per_mese = bollette.get(utenza, {})
+                tot = 0.0
+                tot_stima = 0.0
+                tot_boll = 0.0
+                n_mesi = 0
+                boll_anno = {}
+                for iid in tr.get_children():
+                    if any(t.startswith("totale") for t in tr.item(iid, "tags")):
+                        continue
+                    vals = tr.item(iid)["values"]
+                    try:
+                        cons = float(vals[3])
+                    except (ValueError, IndexError, TypeError):
+                        continue
+                    tot += cons
+                    if cons > 0:
+                        n_mesi += 1
+                    tot_stima += (_stima_costo(utenza, cons) or 0.0)
+                    mese_k = str(vals[0]).strip()
+                    rec = per_mese.get(mese_k)
+                    if rec:
+                        tot_boll += rec[0]
+                        boll_anno[mese_k[-4:]] = boll_anno.get(mese_k[-4:], 0.0) + rec[0]
+                        testo_b = f"{_fmt_num_it(rec[0])} €" + (f" ({rec[1]})" if rec[1] > 1 else "")
+                    else:
+                        testo_b = "—" if cat else ""
+                    if tr.set(iid, "Bolletta") != testo_b:
+                        tr.set(iid, "Bolletta", testo_b)
+                for iid in tr.get_children():
+                    if not any(t.startswith("totale") for t in tr.item(iid, "tags")):
+                        continue
+                    etic = str(tr.item(iid)["values"][0])
+                    if not cat:
+                        testo_b = ""
+                    elif etic.startswith("Tot. Generale"):
+                        testo_b = f"{_fmt_num_it(tot_boll)} €"
+                    else:
+                        testo_b = f"{_fmt_num_it(boll_anno.get(etic[-4:], 0.0))} €"
+                    if tr.set(iid, "Bolletta") != testo_b:
+                        tr.set(iid, "Bolletta", testo_b)
+                testo = f"Σ Totale {etichetta}:  {_fmt_num_it(tot)} {_UNITA_TOT.get(utenza, '')}"
+                if n_mesi:
+                    testo += f"   —   Media mensile: {_fmt_num_it(tot / n_mesi)} {_UNITA_TOT.get(utenza, '')} ({n_mesi} mesi)"
+                if _get_costo_unitario(utenza) is not None:
+                    testo += f"   —   Stima spesa: {_fmt_euro(tot_stima)}"
+                if cat:
+                    testo += f"   —   Bollette registrate: {_fmt_num_it(tot_boll)} €"
+                if lbl.cget("text") != testo:
+                    lbl.config(text=testo)
+            win.after(400, aggiorna_totali_consumi)
+        except tk.TclError:
+            pass
+
+    def _apri_dialogo_categorie_bollette(primo_avvio=False):
+        cats = sorted(getattr(self, "categorie", []), key=lambda c: c.lower())
+        if not cats:
+            return
+        NESSUNA = "(nessuna)"
+        dlg = tk.Toplevel(win, bg=self.COLOR_TOPLEVEL)
+        dlg.title("Categorie delle bollette")
+        dlg.transient(win)
+        dlg.resizable(False, False)
+        tk.Label(dlg, bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR, justify="left", font=("Arial", 10),
+                 text="In quale categoria registri le bollette?\n"
+                      "Serve per mostrare accanto a ogni lettura la bolletta arrivata in quel mese.\n"
+                      "Puoi usare la stessa categoria per tutte (es. «Bollette»): in quel caso\n"
+                      "riconosco acqua/luce/gas dalla descrizione della spesa."
+                 ).pack(padx=16, pady=(14, 8), anchor="w")
+        righe_dlg = tk.Frame(dlg, bg=self.COLOR_TOPLEVEL)
+        righe_dlg.pack(padx=16, pady=4, fill="x")
+        vars_cat = {}
+        for riga, utenza in enumerate(utenze):
+            img_u = self.icone_gui.get({"Acqua": "acqua", "Luce": "luce", "Gas": "gas"}.get(utenza))
+            emoji = '💧' if utenza == 'Acqua' else '💡' if utenza == 'Luce' else '🔥'
+            lbl_u = tk.Label(righe_dlg, image=img_u, text=f" {utenza}:" if img_u else f"{emoji} {utenza}:",
+                             compound="left", bg=self.COLOR_TOPLEVEL, fg=self.COLOR_HEADER,
+                             font=("Arial", 10, "bold"), width=90 if img_u else 10, anchor="w")
+            lbl_u.image = img_u
+            lbl_u.grid(row=riga, column=0, pady=4)
+            attuale = _categoria_bollette(utenza)
+            if not attuale:
+                kws = _KEYWORDS_UTENZA[utenza]
+                attuale = next((c for c in cats if any(k in c.lower() for k in kws)), "")
+                if not attuale:
+                    attuale = next((c for c in cats if "bollett" in c.lower() or "utenz" in c.lower()), "")
+            v = tk.StringVar(value=attuale if attuale in cats else NESSUNA)
+            ttk.Combobox(righe_dlg, textvariable=v, values=[NESSUNA] + cats, state="readonly", width=32,
+                         style="Border.TCombobox").grid(row=riga, column=1, pady=4, padx=(6, 0))
+            vars_cat[utenza] = v
+        def salva(evt=None):
+            for u, v in vars_cat.items():
+                sel = v.get()
+                anagrafiche.setdefault(u, {})["_categoria_bollette"] = "" if sel == NESSUNA else sel
+            scrivi_db()
+            _bollette_cache(forza=True)
+            dlg.destroy()
+        def annulla(evt=None):
+            if primo_avvio:
+                for u in utenze:
+                    anagrafiche.setdefault(u, {}).setdefault("_categoria_bollette", "")
+                scrivi_db()
+            dlg.destroy()
+        bt = tk.Frame(dlg, bg=self.COLOR_TOPLEVEL)
+        bt.pack(pady=(8, 14))
+        _bottone_label(bt, "salva", "Salva", "💾", salva, padx=6)
+        _bottone_label(bt, "chiudi", "Più tardi" if primo_avvio else "Annulla", "❌", annulla, padx=6)
+        dlg.protocol("WM_DELETE_WINDOW", annulla)
+        dlg.bind("<Escape>", annulla)
+        dlg.update_idletasks()
+        x = win.winfo_rootx() + (win.winfo_width() - dlg.winfo_width()) // 2
+        y = win.winfo_rooty() + (win.winfo_height() - dlg.winfo_height()) // 2
+        dlg.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+        dlg.grab_set()
+        dlg.focus_force()
+
+    def _chiedi_categorie_se_servono():
+        try:
+            if not win.winfo_exists():
+                return
+        except tk.TclError:
+            return
+        if any("_categoria_bollette" not in anagrafiche.get(u, {}) for u in utenze):
+            _apri_dialogo_categorie_bollette(primo_avvio=True)
+
+    _cache_reg = {"ts": 0.0, "dati": {}}
+
+    def _registro_documenti():
+        import time as _t
+        if _t.time() - _cache_reg["ts"] > 3:
+            dati = {}
+            try:
+                rf = getattr(_app, "REGISTRY_FILE", None)
+                if rf and os.path.exists(rf):
+                    with open(rf, "r", encoding="utf-8") as f:
+                        dati = json.load(f) or {}
+            except Exception:
+                dati = {}
+            _cache_reg["dati"] = dati
+            _cache_reg["ts"] = _t.time()
+        return _cache_reg["dati"]
+
+    def _documenti_bolletta(utenza, mese_k):
+        cat = _categoria_bollette(utenza)
+        if not cat or "/" not in mese_k:
+            return []
+        mm, aaaa = mese_k.split("/", 1)
+        condivisa = sum(1 for u in utenze if _categoria_bollette(u) == cat) > 1
+        trovati = []
+        doc_dir = getattr(_app, "DOC_DIR", "")
+        for nome, d in _registro_documenti().items():
+            try:
+                if d.get("categoria_esatta") != cat:
+                    continue
+                raw = str(d.get("data_raw", ""))
+                if len(raw) != 8 or raw[2:4] != mm or raw[4:8] != aaaa:
+                    continue
+                if condivisa:
+                    descr = str(d.get("descrizione_esatta", "")).lower()
+                    match = [u for u, kws in _KEYWORDS_UTENZA.items() if any(k in descr for k in kws)]
+                    if match != [utenza]:
+                        continue
+                for base in (doc_dir, os.path.join(os.getcwd(), "Fatture_GMail")):
+                    fp = os.path.join(base, nome)
+                    if os.path.exists(fp):
+                        trovati.append((raw[4:8] + raw[2:4] + raw[0:2], fp))
+                        break
+            except Exception:
+                continue
+        trovati.sort(reverse=True)
+        return [fp for _, fp in trovati]
+    _FORMATI_FATTURA = (".pdf", ".png", ".jpg", ".jpeg", ".webp")
+    MAX_IMPORT_AUTO = 3
+    _import_in_corso = set()
+
+    def _fatture_da_importare(utenza):
+        cat = _categoria_bollette(utenza)
+        if not cat:
+            return []
+        gia = set(anagrafiche.get(utenza, {}).get("_fatture_importate", []) or [])
+        condivisa = sum(1 for u in utenze if _categoria_bollette(u) == cat) > 1
+        doc_dir = getattr(_app, "DOC_DIR", "")
+        trovati = []
+        for nome, d in _registro_documenti().items():
+            try:
+                if nome in gia or d.get("categoria_esatta") != cat:
+                    continue
+                if os.path.splitext(nome)[1].lower() not in _FORMATI_FATTURA:
+                    continue
+                raw = str(d.get("data_raw", ""))
+                if len(raw) != 8:
+                    continue
+                if condivisa:
+                    descr = str(d.get("descrizione_esatta", "")).lower()
+                    match = [u for u, kws in _KEYWORDS_UTENZA.items() if any(k in descr for k in kws)]
+                    if match != [utenza]:
+                        continue
+                for base in (doc_dir, os.path.join(os.getcwd(), "Fatture_GMail")):
+                    fp = os.path.join(base, nome)
+                    if os.path.exists(fp):
+                        trovati.append((raw[4:8] + raw[2:4] + raw[0:2], nome, fp))
+                        break
+            except Exception:
+                continue
+        trovati.sort()
+        return trovati
+
+    def _diagnosi_import(utenza):
+        cat = _categoria_bollette(utenza)
+        gia = set(anagrafiche.get(utenza, {}).get("_fatture_importate", []) or [])
+        condivisa = sum(1 for u in utenze if _categoria_bollette(u) == cat) > 1
+        doc_dir = getattr(_app, "DOC_DIR", "")
+        n_cat = n_gia = n_fmt = n_kw = n_file = 0
+        for nome, d in _registro_documenti().items():
+            try:
+                if d.get("categoria_esatta") != cat:
+                    continue
+                n_cat += 1
+                if nome in gia:
+                    n_gia += 1
+                    continue
+                if os.path.splitext(nome)[1].lower() not in _FORMATI_FATTURA:
+                    n_fmt += 1
+                    continue
+                if condivisa:
+                    descr = str(d.get("descrizione_esatta", "")).lower()
+                    match = [u for u, kws in _KEYWORDS_UTENZA.items() if any(k in descr for k in kws)]
+                    if match != [utenza]:
+                        n_kw += 1
+                        continue
+                if not any(os.path.exists(os.path.join(b, nome)) for b in (doc_dir, os.path.join(os.getcwd(), "Fatture_GMail"))):
+                    n_file += 1
+            except Exception:
+                continue
+        if n_cat == 0:
+            return f"{utenza}: nessun documento in Archivio nella categoria '{cat}'."
+        parti = []
+        if n_gia:
+            parti.append(f"{n_gia} già importati")
+        if n_fmt:
+            parti.append(f"{n_fmt} non PDF/immagine")
+        if n_kw:
+            parti.append(f"{n_kw} scartati perché la descrizione non indica solo '{utenza}'")
+        if n_file:
+            parti.append(f"{n_file} con file non trovato")
+        return f"{utenza}: {n_cat} documenti nella categoria, nessuno da importare (" + ", ".join(parti) + ")."
+
+    def _importa_automatico(utenza, manuale=False):
+        if utenza in _import_in_corso:
+            return
+        if not _categoria_bollette(utenza):
+            if manuale:
+                self.show_toast("Imposta prima la categoria delle bollette.")
+            return
+        if not API_KEY:
+            if manuale:
+                self.show_toast("Serve la chiave API Gemini (Impostazioni).")
+            return
+        _cache_reg["ts"] = 0.0
+        tutti = _fatture_da_importare(utenza)
+        ultimi = tutti[-MAX_IMPORT_AUTO:]
+        if not ultimi:
+            if manuale:
+                self.show_toast(_diagnosi_import(utenza))
+            return
+        _import_in_corso.add(utenza)
+        st = ai_status_labels.get(utenza)
+        if st is not None and st.winfo_exists():
+            st.config(text=f"⏳ Importazione automatica: {len(ultimi)} fatture in analisi …")
+
+        def _run():
+            risultati, errore = [], None
+            for _, nome, fp in ultimi:
+                try:
+                    risultati.append((nome, _chiama_gemini_fattura(fp)))
+                except Exception as e:
+                    errore = _msg_errore_gemini(e)
+                    break
+
+            def _fine():
+                _import_in_corso.discard(utenza)
+                try:
+                    if not win.winfo_exists():
+                        return
+                except tk.TclError:
+                    return
+                applicate = 0
+                for nome, dati in risultati:
+                    if isinstance(dati, dict) and not (dati.get("consumo_periodo") in (None, "") and dati.get("spesa_totale_periodo") in (None, "")):
+                        _applica_estrazione_fattura(utenza, dati, silenzioso=True)
+                        applicate += 1
+                imp = anagrafiche.setdefault(utenza, {}).setdefault("_fatture_importate", [])
+                for nome, _ in risultati:
+                    if nome not in imp:
+                        imp.append(nome)
+                if not errore:
+                    for _, nome, _fp in tutti:
+                        if nome not in imp:
+                            imp.append(nome)
+                if applicate:
+                    salva_dati(utenza, silenzioso=True)
+                else:
+                    scrivi_db()
+                st2 = ai_status_labels.get(utenza)
+                if st2 is not None and st2.winfo_exists():
+                    st2.config(text=(f"⚠ {errore}" if errore and not applicate else _testo_storico(utenza)))
+                if errore:
+                    self.show_toast(errore)
+                else:
+                    self.show_toast(f"Importazione automatica {utenza}: {applicate} fattur{'a' if applicate == 1 else 'e'} analizzat{'a' if applicate == 1 else 'e'}.")
+            self.after(0, _fine)
+        threading.Thread(target=_run, daemon=True).start()
+
+    def _toggle_import_auto(utenza):
+        anagrafiche.setdefault(utenza, {})["_import_auto"] = not _import_auto_attivo(utenza)
+        scrivi_db()
+        _aggiorna_toggle(utenza)
+        if _import_auto_attivo(utenza):
+            _importa_automatico(utenza, manuale=True)
+
+    def _ultimo_documento(utenza):
+        cat = _categoria_bollette(utenza)
+        if not cat:
+            return None
+        condivisa = sum(1 for u in utenze if _categoria_bollette(u) == cat) > 1
+        doc_dir = getattr(_app, "DOC_DIR", "")
+        trovati = []
+        for nome, d in _registro_documenti().items():
+            try:
+                if d.get("categoria_esatta") != cat or os.path.splitext(nome)[1].lower() != ".pdf":
+                    continue
+                raw = str(d.get("data_raw", ""))
+                if len(raw) != 8:
+                    continue
+                if condivisa:
+                    descr = str(d.get("descrizione_esatta", "")).lower()
+                    match = [u for u, kws in _KEYWORDS_UTENZA.items() if any(k in descr for k in kws)]
+                    if match != [utenza]:
+                        continue
+                for base in (doc_dir, os.path.join(os.getcwd(), "Fatture_GMail")):
+                    fp = os.path.join(base, nome)
+                    if os.path.exists(fp):
+                        trovati.append((raw[4:8] + raw[2:4] + raw[0:2], fp))
+                        break
+            except Exception:
+                continue
+        return max(trovati)[1] if trovati else None
+
+    def _confronta_documenti_tutte():
+        # nessuna verifica/analisi: apre l'ultimo documento di ogni utenza
+        _cache_reg["ts"] = 0.0
+        aperti = 0
+        for u in utenze:
+            fp = _ultimo_documento(u)
+            if fp:
+                _mostra_viewer_bolletta(fp, os.path.basename(fp))
+                aperti += 1
+        if not aperti:
+            self.show_toast("Nessun documento in Archivio.")
+
+    def _importa_automatico_tutte():
+        try:
+            if not win.winfo_exists():
+                return
+        except tk.TclError:
+            return
+        for u in utenze:
+            if _import_auto_attivo(u):
+                _importa_automatico(u)
+
+    def _riga_mese(tr, iid):
+        vals = tr.item(iid)["values"]
+        if not vals or any(t.startswith("totale") for t in tr.item(iid, "tags")):
+            return None
+        m = str(vals[0]).strip()
+        return m if len(m) == 7 and m[2] == "/" else None
+
+    def _mostra_viewer_bolletta(file_path, file_name):
+        try:
+            Image_ = _app.Image
+            ImageTk_ = _app.ImageTk
+            vw = tk.Toplevel(win)
+            vw.title(f"Bolletta - {file_name}")
+            vw.transient(win)
+            vw.withdraw()
+            W, H = 950, 630
+            vw.bind("<Escape>", lambda e: vw.destroy())
+            sw, sh = vw.winfo_screenwidth(), vw.winfo_screenheight()
+            vw.geometry(f"{W}x{H}+{(sw // 2) - (W // 2)}+{(sh // 2) - (H // 2)}")
+            vw.minsize(W, H)
+            vw.configure(bg=self.COLOR_WIDGET_BG)
+            cont = tk.Frame(vw, bg=self.COLOR_WIDGET_BG)
+            cont.pack(fill=tk.BOTH, expand=True)
+            cv = tk.Canvas(cont, bg=self.COLOR_WIDGET_BG, highlightthickness=0)
+            vs = ttk.Scrollbar(cont, orient="vertical", command=cv.yview, style="Vertical.TScrollbar")
+            hs = ttk.Scrollbar(cont, orient="horizontal", command=cv.xview, style="Horizontal.TScrollbar")
+            cv.configure(yscrollcommand=vs.set, xscrollcommand=hs.set)
+            vs.pack(side=tk.RIGHT, fill=tk.Y)
+            hs.pack(side=tk.BOTTOM, fill=tk.X)
+            cv.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            fitz.TOOLS.mupdf_display_errors(False)
+            immagini = []
+            y_off, max_w = 20, 0
+            with fitz.open(file_path) as d:
+                mat = fitz.Matrix(1.4, 1.4)
+                for n in range(len(d)):
+                    pix = d.load_page(n).get_pixmap(matrix=mat, annots=False)
+                    foto = ImageTk_.PhotoImage(Image_.frombytes("RGB", [pix.width, pix.height], pix.samples))
+                    immagini.append(foto)
+                    cv.create_image(max(20, (W - pix.width) // 2), y_off, anchor="nw", image=foto)
+                    y_off += pix.height + 25
+                    max_w = max(max_w, pix.width)
+            cv.image_refs = immagini
+            cv.config(scrollregion=(0, 0, max(W, max_w + 40), y_off + 50))
+            def _rotella(event):
+                if event.num == 4 or event.delta > 0:
+                    cv.yview_scroll(-1, "units")
+                elif event.num == 5 or event.delta < 0:
+                    cv.yview_scroll(1, "units")
+            for ev in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+                cv.bind(ev, _rotella)
+            btns = tk.Frame(vw, bg=self.COLOR_WIDGET_BG)
+            btns.pack(side=tk.BOTTOM, fill=tk.X, padx=20, pady=10)
+            def _bottone(chiave, testo, comando, lato):
+                img = self.icone_gui.get(chiave)
+                b = ttk.Label(btns, compound="left", image=img, text=f" {testo}" if img else testo,
+                              background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2")
+                b.image = img
+                b.pack(side=lato, padx=10)
+                b.bind("<Button-1>", lambda e: comando())
+            def _salva():
+                import shutil
+                vw.wm_attributes('-topmost', 1)
+                dest = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("PDF", "*.pdf"), ("Tutti i file", "*.*")],
+                                                    initialdir=EXPORT_FILES, initialfile=file_name, title="Esporta PDF",
+                                                    confirmoverwrite=False, parent=vw)
+                vw.wm_attributes('-topmost', 0)
+                if dest:
+                    if os.path.exists(dest):
+                        conferma = self.show_custom_askyesno(
+                            "Sovrascrivere file?",
+                            f"Il file '{os.path.basename(dest)}' \nesiste già. Vuoi sovrascriverlo?"
+                        )
+                        if not conferma:
+                            return
+                    shutil.copy2(file_path, dest)
+                    self.show_toast("Documento salvato!")
+            _bottone("stampa", "Stampa", lambda: self.stampa_pdf(file_path, self.show_custom_warning), "left")
+            _bottone("salva", "Salva", _salva, "left")
+            _bottone("chiudi", "Chiudi", vw.destroy, "right")
+            vw.deiconify()
+            vw.lift()
+            vw.focus_force()
+        except Exception as e:
+            self.show_custom_warning("Errore", f"Impossibile aprire la bolletta:\n{e}")
+
+    def _apri_bolletta(utenza, event):
+        tr = self.trees[utenza]
+        if tr.identify_region(event.x, event.y) != "cell":
+            return
+        iid = tr.identify_row(event.y)
+        mese_k = _riga_mese(tr, iid) if iid else None
+        if not mese_k:
+            return
+        if not _categoria_bollette(utenza):
+            _apri_dialogo_categorie_bollette()
+            return "break"
+        docs = _documenti_bolletta(utenza, mese_k)
+        if not docs:
+            self.show_toast(f"Nessuna bolletta {utenza} archiviata per {mese_k}.")
+            return "break"
+        if len(docs) > 1:
+            self.show_toast(f"{len(docs)} documenti per {mese_k}: apro il più recente.")
+        _anteprima_chiudi()
+        _mostra_viewer_bolletta(docs[0], os.path.basename(docs[0]))
+        return "break"
+
+    _anteprima = {"popup": None, "job": None, "key": None, "img": None, "img_key": None}
+
+    def _anteprima_chiudi(event=None):
+        if _anteprima["job"]:
+            try:
+                win.after_cancel(_anteprima["job"])
+            except Exception:
+                pass
+            _anteprima["job"] = None
+        if _anteprima["popup"]:
+            try:
+                _anteprima["popup"].destroy()
+            except Exception:
+                pass
+            _anteprima["popup"] = None
+        _anteprima["key"] = None
+
+    def _anteprima_render(path, altezza):
+        try:
+            import pymupdf as fitz
+            Image_ = getattr(_app, "Image", None)
+            ImageTk_ = getattr(_app, "ImageTk", None)
+            if Image_ is None or ImageTk_ is None:
+                return None
+            fitz.TOOLS.mupdf_display_errors(False)
+            with fitz.open(path) as d:
+                if len(d) == 0:
+                    return None
+                pg = d.load_page(0)
+                z = altezza / pg.rect.height
+                pix = pg.get_pixmap(matrix=fitz.Matrix(z, z), alpha=False, annots=False)
+                img = Image_.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            return ImageTk_.PhotoImage(img)
+        except Exception:
+            return None
+
+    def _anteprima_mostra(key, utenza, mese_k):
+        _anteprima["job"] = None
+        if _anteprima["popup"] or _anteprima["key"] != key:
+            return
+        docs = _documenti_bolletta(utenza, mese_k)
+        if not docs:
+            return
+        path = docs[0]
+        h = max(300, min(600, win.winfo_screenheight() - 160))
+        if _anteprima["img_key"] != path or _anteprima["img"] is None:
+            _anteprima["img"] = _anteprima_render(path, h)
+            _anteprima["img_key"] = path
+        img = _anteprima["img"]
+        if img is None:
+            return
+        top = tk.Toplevel(win)
+        top.withdraw()
+        top.overrideredirect(True)
+        try:
+            top.attributes("-topmost", True)
+        except Exception:
+            pass
+        lbl = tk.Label(top, image=img, bd=0, bg="#222222", highlightthickness=2, highlightbackground="#888888")
+        lbl.image = img
+        lbl.pack()
+        top.update_idletasks()
+        sw, sh = top.winfo_screenwidth(), top.winfo_screenheight()
+        pw, ph = top.winfo_reqwidth(), top.winfo_reqheight()
+        px, py = win.winfo_pointerx(), win.winfo_pointery()
+        x = px + 24
+        if x + pw > sw:
+            x = max(0, px - pw - 24)
+        y = max(0, min(py - 20, sh - ph - 40))
+        top.geometry(f"+{x}+{y}")
+        top.deiconify()
+        top.lift()
+        _anteprima["popup"] = top
+
+    def _anteprima_motion(event, utenza):
+        tr = self.trees[utenza]
+        iid = tr.identify_row(event.y)
+        col = tr.identify_column(event.x)
+        colonne = list(tr["columns"])
+        if not iid or col != f"#{colonne.index('Bolletta') + 1}":
+            if _anteprima["key"] is not None or _anteprima["popup"]:
+                _anteprima_chiudi()
+            return
+        mese_k = _riga_mese(tr, iid)
+        if not mese_k:
+            _anteprima_chiudi()
+            return
+        key = (utenza, iid, mese_k)
+        if key == _anteprima["key"]:
+            return
+        _anteprima_chiudi()
+        _anteprima["key"] = key
+        _anteprima["job"] = win.after(450, lambda: _anteprima_mostra(key, utenza, mese_k))
+
+    for _u in utenze:
+        _tr = self.trees[_u]
+        _tr.bind("<Double-1>", lambda e, u=_u: _apri_bolletta(u, e), add="+")
+        _tr.bind("<Motion>", lambda e, u=_u: _anteprima_motion(e, u), add="+")
+        _tr.bind("<Leave>", _anteprima_chiudi, add="+")
+        _tr.bind("<ButtonPress>", _anteprima_chiudi, add="+")
+        _tr.bind("<MouseWheel>", _anteprima_chiudi, add="+")
+    win.bind("<Destroy>", lambda e: _anteprima_chiudi() if e.widget is win else None, add="+")
+
+    def _profilo_casa():
+        return anagrafiche.get(utenze[0], {}).get("_profilo_casa", {}) or {}
+
+    def _raccogli_dati_analisi():
+        if not modalita_corrente["tutti"]:
+            anno_v = modalita_corrente["anno"]
+            for u in utenze:
+                tr = self.trees.get(u)
+                if tr is not None and tr.get_children():
+                    letture_salvate[u][anno_v] = [tuple(tr.item(i)["values"])[:4] for i in tr.get_children()]
+        blocchi = []
+        for u in utenze:
+            unita = _UNITA_TOT.get(u, "")
+            serie = []
+            per_anno = {}
+            for anno_k, righe in letture_salvate.get(u, {}).items():
+                for r in righe:
+                    try:
+                        mese_k = str(r[0]).strip()
+                        cons = float(r[3])
+                    except (ValueError, IndexError, TypeError):
+                        continue
+                    if cons > 0 and len(mese_k) == 7:
+                        serie.append((mese_k[3:] + "-" + mese_k[:2], cons))
+                        per_anno.setdefault(mese_k[3:], []).append(cons)
+            serie.sort()
+            righe_txt = [f"{u.upper()} (unità: {unita})"]
+            if per_anno:
+                for a in sorted(per_anno):
+                    v = per_anno[a]
+                    righe_txt.append(f"  anno {a}: totale {sum(v):.1f}, media mensile {sum(v)/len(v):.1f} su {len(v)} mesi con lettura")
+                righe_txt.append("  ultimi 24 mesi (aaaa-mm: consumo): " + ", ".join(f"{m}: {c:.1f}" for m, c in serie[-24:]))
+            else:
+                righe_txt.append("  nessuna lettura di consumo registrata")
+            blocchi.append("\n".join(righe_txt))
+        return "\n\n".join(blocchi), any(letture_salvate.get(u) for u in utenze)
+
+    def _avvia_analisi_ia(profilo):
+        import datetime as _dt
+        if not API_KEY:
+            self.show_custom_warning("Configurazione AI Necessaria",
+                "L'analisi di mercato richiede una chiave API Gemini (gratuita).\n\n"
+                "Vai nella sezione Impostazioni e clicca sul pulsante 'Ottieni'.\n")
+            return
+        dati_txt, _ = _raccogli_dati_analisi()
+        if "nessuna lettura" in dati_txt and dati_txt.count("nessuna lettura") == len(utenze):
+            self.show_custom_warning("Nessun Dato", "Registra almeno qualche lettura di consumo prima di avviare l'analisi.")
+            return
+        oggi = _dt.date.today()
+        pers = profilo.get("persone", 1)
+        prompt = f"""Sei un consulente indipendente sui consumi domestici di acqua, luce e gas per famiglie italiane. Oggi è il {oggi.strftime('%d/%m/%Y')}.
+Analizza SOLO i consumi di acqua, luce e gas di questa famiglia. Non interessano costi, tariffe, fornitori o contratti: non parlarne.
+
+PROFILO ABITAZIONE:
+- persone in famiglia: {pers}
+- località (comune/provincia): {profilo.get('localita') or 'non indicata'}
+- superficie abitazione: {profilo.get('mq') or 'non indicata'} mq
+- uso del gas in casa: {profilo.get('uso_gas') or 'non indicato'}
+- riscaldamento principale: {profilo.get('riscaldamento') or 'non indicato'}
+
+COME USARE IL PROFILO (importante):
+- usa la località per zona climatica e clima.
+- confronta il consumo di gas SOLO con l'uso dichiarato: se il gas serve solo per cottura e/o acqua calda NON confrontarlo con le medie del gas da riscaldamento; cerca i consumi tipici per quell'uso e per {pers} persone.
+- se il riscaldamento è a pellet, legna, elettrico o teleriscaldamento, il combustibile (sacchi di pellet, legna) non compare nei consumi registrati: dillo esplicitamente; se è elettrico o a pompa di calore tienine conto nei consumi di luce invernali.
+- se l'uso del gas è "Non ho il gas", non giudicare il gas.
+- se il profilo contraddice i consumi registrati (es. gas "solo cottura" ma consumi invernali alti) segnalalo in ANDAMENTO E ANOMALIE e in AVVERTENZE invece di ignorarlo.
+
+REGOLE (importante):
+- parla esclusivamente di consumi (quantità), mai di euro, prezzi, tariffe, offerte, fornitori, contratti o scadenze.
+- le bombole di GPL e il combustibile di pellet e legna non compaiono nei consumi registrati: non valutarli senza dati.
+- se i consumi sono molto bassi, di' chiaramente che il margine di miglioramento è piccolo.
+- tono sempre pacato: niente allarmi, niente "urgente".
+
+DATI REGISTRATI DALLA FAMIGLIA:
+{dati_txt}
+
+USA LA RICERCA WEB per dati aggiornati sui consumi medi (ARERA, ISTAT, ENEA, ISPRA, fonti ufficiali). Non inventare numeri: se un dato non è reperibile dichiaralo e indica che è una stima.
+
+STRUTTURA DELLA RISPOSTA (titoli in MAIUSCOLO, uno per ciascuna sezione):
+1. SINTESI: tre o quattro righe con il giudizio complessivo sui consumi.
+2. CONSUMI RISPETTO ALLA MEDIA: per acqua, luce e gas confronta i consumi annui e per persona con le medie italiane (nazionali e, se disponibile, della zona) per un nucleo di {pers} persone. Dì chiaramente se siamo sopra, in linea o sotto la media e di quanto in percentuale.
+3. ANDAMENTO E ANOMALIE: stagionalità, picchi, mesi anomali, trend rispetto agli anni precedenti, possibili perdite o sprechi (per esempio consumi d'acqua o gas fuori stagione).
+4. AZIONI CONCRETE DI RISPARMIO SUI CONSUMI: elenco di azioni pratiche in ordine di rendimento, ognuna con effetto atteso a parole (alto, medio, basso).
+5. PIANO IN TRE PASSI: cosa fare adesso, entro tre mesi, entro un anno.
+6. AVVERTENZE: limiti dell'analisi e dati che ti mancano e che migliorerebbero la stima.
+
+REGOLE DI FORMATO:
+- NON usare simboli Markdown (asterischi, cancelletti, trattini doppi per il grassetto, tabelle con barre).
+- Usa il minuscolo per il corpo del testo e le MAIUSCOLE solo per i titoli delle sezioni.
+- Numeri in formato italiano (virgola decimale, punto per le migliaia).
+- Se ricavi un dato dal web scrivi tra parentesi la fonte e la data. Sii concreto e sintetico.
+"""
+        from moduli.spinner_animato import crea_spinner_animato
+        if getattr(self, "_win_analisi_utenze", None) is not None:
+            try:
+                if self._win_analisi_utenze.winfo_exists():
+                    self._win_analisi_utenze.destroy()
+            except Exception:
+                pass
+        aw = tk.Toplevel(win, bg=self.COLOR_TOPLEVEL)
+        self._win_analisi_utenze = aw
+        aw.title("Analisi Consumi Utenze — IA")
+        aw.withdraw()
+        W2, H2 = 1100, 660
+        x2 = win.winfo_rootx() + (win.winfo_width() - W2) // 2
+        y2 = win.winfo_rooty() + (win.winfo_height() - H2) // 2
+        aw.geometry(f"{W2}x{H2}+{max(x2, 0)}+{max(y2, 0)}")
+        aw.minsize(900, 560)
+        aw.bind("<Escape>", lambda e: aw.destroy())
+        ttk.Label(aw, text="Analisi di Mercato: consumi e costi di Acqua, Luce e Gas",
+                  style="Header.TLabel", font=("Consolas", 12, "bold")).pack(side="top", pady=(14, 6))
+        barra = tk.Frame(aw, bg=self.COLOR_TOPLEVEL)
+        barra.pack(side="bottom", fill="x", pady=10)
+        stato = tk.Frame(aw, bg=self.COLOR_TOPLEVEL)
+        stato.pack(side="top", pady=(0, 4))
+        cvs, _ = crea_spinner_animato(stato, self.COLOR_TOPLEVEL, size=24, tick_ms=30)
+        cvs.pack(side="left", padx=(0, 8))
+        lbl_stato = tk.Label(stato, text="Ricerca dei prezzi di mercato e analisi in corso…",
+                             bg=self.COLOR_TOPLEVEL, fg=self.COLOR_HIGHLIGHT, font=("Segoe UI", 9, "bold"))
+        lbl_stato.pack(side="left")
+        cont = tk.Frame(aw, bg=self.COLOR_TOPLEVEL)
+        cont.pack(side="top", expand=True, fill="both", padx=20, pady=5)
+        sb = ttk.Scrollbar(cont, orient="vertical", style="Vertical.TScrollbar")
+        sb.pack(side="right", fill="y")
+        area = tk.Text(cont, bg=self.COLOR_WHITE, fg=self.COLOR_BLACK, font=("Consolas", 11), wrap="word",
+                       padx=25, pady=25, borderwidth=0, yscrollcommand=sb.set, spacing1=6)
+        area.pack(side="left", expand=True, fill="both")
+        sb.config(command=area.yview)
+        area.config(state="disabled")
+
+        def _chiedi_percorso(titolo, estensione, tipo_file):
+            now = datetime.date.today()
+            aw.wm_attributes('-topmost', 1)
+            dest = filedialog.asksaveasfilename(
+                defaultextension=estensione, filetypes=[(tipo_file, f"*{estensione}")], initialdir=EXPORT_FILES,
+                initialfile=f"Analisi_Utenze_{now.day:02d}-{now.month:02d}-{now.year}{estensione}",
+                title=titolo, confirmoverwrite=False, parent=aw)
+            aw.wm_attributes('-topmost', 0)
+            if not dest:
+                return None
+            if os.path.exists(dest):
+                conferma = self.show_custom_askyesno(
+                    "Sovrascrivere file?",
+                    f"Il file '{os.path.basename(dest)}' \nesiste già. Vuoi sovrascriverlo?"
+                )
+                if not conferma:
+                    return None
+            return dest
+
+        def _salva_txt():
+            dest = _chiedi_percorso("Salva analisi", ".txt", "File txt")
+            if dest:
+                with open(dest, "w", encoding="utf-8") as f:
+                    f.write(area.get("1.0", tk.END))
+                self.show_custom_warning("Esportazione completata", f"Analisi salvata in\n{dest}")
+        def _salva_pdf():
+            testo_a = area.get("1.0", tk.END).strip()
+            if not testo_a:
+                self.show_toast("Analisi non ancora pronta.")
+                return
+            now = datetime.date.today()
+            dest = _chiedi_percorso("Salva PDF", ".pdf", "File PDF")
+            if not dest:
+                return
+            W, H, MARG, FS = 595, 842, 40, 9.5
+            sost = {"\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"', "\u2013": "-", "\u2014": "-",
+                    "\u2022": "-", "\u2192": "->", "\u2248": "~", "\u2026": "...", "\u00a0": " ", "\t": "    "}
+            for k_, v_ in sost.items():
+                testo_a = testo_a.replace(k_, v_)
+            testo_a = "".join(c if ord(c) < 256 else "?" for c in testo_a)
+            doc = fitz.open()
+            try:
+                font = fitz.Font("helv")
+                now_txt = f"{now.day:02d}/{now.month:02d}/{now.year}"
+                def nuova_pagina():
+                    pg = doc.new_page(width=W, height=H)
+                    pg.draw_rect(fitz.Rect(0, 0, W, 56), color=None, fill=(0.12, 0.30, 0.45))
+                    pg.insert_text((MARG, 34), "Analisi di Mercato Utenze", fontsize=15, color=(1, 1, 1), fontname="Helvetica-Bold")
+                    pg.insert_text((W - MARG - 55, 34), now_txt, fontsize=9, color=(1, 1, 1), fontname="Helvetica")
+                    return pg
+                rimasto = testo_a
+                while rimasto:
+                    pg = nuova_pagina()
+                    tw = fitz.TextWriter(pg.rect)
+                    rect = fitz.Rect(MARG, 72, W - MARG, H - 36)
+                    ovf = tw.fill_textbox(rect, rimasto, font=font, fontsize=FS, align=fitz.TEXT_ALIGN_LEFT, warn=None)
+                    tw.write_text(pg)
+                    if not ovf:
+                        break
+                    rimasto = "\n".join(t_[0] if isinstance(t_, (tuple, list)) else str(t_) for t_ in ovf)
+                n_tot = doc.page_count
+                for i, pp in enumerate(doc):
+                    pp.insert_text((W - MARG - 60, H - 14), f"Pagina {i+1} / {n_tot}", fontsize=6.5, color=(0.5, 0.5, 0.5), fontname="Helvetica")
+                doc.set_metadata({"title": "Analisi di Mercato Utenze", "author": "Gestione Utenze"})
+                doc.save(dest)
+            finally:
+                doc.close()
+            self.show_custom_warning("Esportazione completata", f"PDF esportato in\n{dest}")
+
+        def _stampa_analisi():
+            testo_a = area.get("1.0", tk.END).strip()
+            if not testo_a:
+                self.show_toast("Analisi non ancora pronta.")
+                return
+            self._stampa_lista_diretta(testo_a, self.show_custom_warning)
+        for chiave, testo, cmd, lato in (("salva", "Salva TXT", _salva_txt, "left"), ("report", "Salva PDF", _salva_pdf, "left"),
+                                         ("stampa", "Stampa", _stampa_analisi, "left"), ("chiudi", "Chiudi", aw.destroy, "right")):
+            img = self.icone_gui.get(chiave)
+            b = ttk.Label(barra, compound="left", image=img, text=f" {testo}" if img else testo, cursor="hand2",
+                          background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, padding=(10, 5))
+            b.image = img
+            b.pack(side=lato, padx=12)
+            b.bind("<Button-1>", lambda e, c=cmd: c())
+        aw.deiconify()
+        aw.lift()
+
+        def _mostra(testo):
+            try:
+                if not aw.winfo_exists():
+                    return
+                cvs.destroy()
+                lbl_stato.config(text="Analisi completata.", fg=self.TEXT_COLOR)
+                area.config(state="normal")
+                area.delete("1.0", tk.END)
+                area.insert("1.0", testo)
+                area.config(state="disabled")
+            except tk.TclError:
+                pass
+
+        def _run():
+            testo = ""
+            fonti = []
+            try:
+                client = genai_client.Client(api_key=API_KEY)
+                try:
+                    cfg = types.GenerateContentConfig(
+                        tools=[types.Tool(google_search=types.GoogleSearch())], temperature=0.3)
+                    resp = client.models.generate_content(model=GEMINI, contents=prompt, config=cfg)
+                    ricerca_web = True
+                except Exception as e_ws:
+                    err_ws = str(e_ws)
+                    if "429" in err_ws or "RESOURCE_EXHAUSTED" in err_ws or "503" in err_ws or "UNAVAILABLE" in err_ws:
+                        raise
+                    resp = client.models.generate_content(model=GEMINI, contents=prompt)
+                    ricerca_web = False
+                testo = (resp.text or "").strip() or "Nessun testo generato."
+                if ricerca_web:
+                    try:
+                        visti = set()
+                        for ch in resp.candidates[0].grounding_metadata.grounding_chunks or []:
+                            w = getattr(ch, "web", None)
+                            if w and w.uri not in visti:
+                                visti.add(w.uri)
+                                fonti.append(f"- {w.title or 'fonte'}: {w.uri}")
+                    except Exception:
+                        pass
+                else:
+                    testo = ("ATTENZIONE: la ricerca web non è disponibile con il modello configurato, "
+                             "i prezzi di mercato sono stime basate sulle conoscenze del modello e possono non essere aggiornati.\n\n") + testo
+            except Exception as err:
+                e_s = str(err)
+                if "429" in e_s or "RESOURCE_EXHAUSTED" in e_s:
+                    testo = "Quota API Gemini esaurita. Riprova più tardi."
+                elif "503" in e_s or "UNAVAILABLE" in e_s:
+                    testo = "Gemini non disponibile al momento. Riprova tra poco."
+                else:
+                    testo = f"ERRORE API:\n{e_s[:300]}"
+            if fonti:
+                testo += "\n\nFONTI WEB CONSULTATE\n" + "\n".join(fonti)
+            self.after(0, lambda: _mostra(testo))
+        threading.Thread(target=_run, daemon=True).start()
+
+    def _apri_confronta_bollette():
+        import inspect
+        try:
+            from moduli import confronta_bollette_ia as _cb
+            f = getattr(_cb, "confronta_bollette_ia")
+            n = len(inspect.signature(f).parameters)
+            f(self, win) if n >= 2 else f(self)
+        except Exception as e:
+            self.show_custom_warning("Errore", f"Impossibile aprire Confronta Bollette:\n{e}")
+
+    def _apri_analisi_mercato():
+        prof = _profilo_casa()
+        dlg = tk.Toplevel(win, bg=self.COLOR_TOPLEVEL)
+        dlg.title("Analisi di mercato — profilo casa")
+        dlg.transient(win)
+        dlg.resizable(False, False)
+        tk.Label(dlg, bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR, justify="left", font=("Arial", 10),
+                 text="Per confrontare i tuoi consumi con la media per persona e con i prezzi di mercato\n"
+                      "servono pochi dati sulla casa. Restano salvati per le prossime analisi."
+                 ).pack(padx=16, pady=(14, 8), anchor="w")
+        form = tk.Frame(dlg, bg=self.COLOR_TOPLEVEL)
+        form.pack(padx=16, pady=4, fill="x")
+        v_pers = tk.StringVar(value=str(prof.get("persone", 2)))
+        v_loc = tk.StringVar(value=prof.get("localita", ""))
+        v_mq = tk.StringVar(value=str(prof.get("mq", "") or ""))
+        v_risc = tk.StringVar(value=prof.get("riscaldamento", "Gas metano"))
+        v_uso = tk.StringVar(value=prof.get("uso_gas", _USI_GAS[0]))
+        ent_loc = ttk.Entry(form, textvariable=v_loc, width=34, style="Border.TEntry")
+        fr_lb = tk.Frame(dlg, bg=self.COLOR_TOPLEVEL)
+        lb_loc = tk.Listbox(fr_lb, height=5, exportselection=False, bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR, font=("Arial", 10))
+        sb_loc = ttk.Scrollbar(fr_lb, orient="vertical", command=lb_loc.yview)
+        lb_loc.configure(yscrollcommand=sb_loc.set)
+        sb_loc.pack(side="right", fill="y")
+        lb_loc.pack(side="left", fill="both", expand=True)
+        def _scegli_comune(evt=None):
+            sel = lb_loc.curselection()
+            if sel:
+                v_loc.set(lb_loc.get(sel[0]))
+                fr_lb.pack_forget()
+                ent_loc.focus_set()
+                ent_loc.icursor("end")
+        def _filtra_comuni(evt=None):
+            if evt is not None and evt.keysym in ("Up", "Left", "Right", "Return", "Escape", "Tab"):
+                return
+            if evt is not None and evt.keysym == "Down" and fr_lb.winfo_ismapped():
+                lb_loc.focus_set()
+                lb_loc.selection_set(0)
+                lb_loc.activate(0)
+                return
+            t = v_loc.get().strip().casefold()
+            trovati = [c for c in _carica_comuni() if c.casefold().startswith(t)][:50] if len(t) >= 2 else []
+            if trovati and not (len(trovati) == 1 and trovati[0].casefold() == t):
+                lb_loc.delete(0, "end")
+                for c in trovati:
+                    lb_loc.insert("end", c)
+                lb_loc.yview_moveto(0)
+                if not fr_lb.winfo_ismapped():
+                    fr_lb.pack(padx=16, pady=(0, 4), fill="x", after=form)
+            else:
+                fr_lb.pack_forget()
+        ent_loc.bind("<KeyRelease>", _filtra_comuni)
+        lb_loc.bind("<ButtonRelease-1>", _scegli_comune)
+        lb_loc.bind("<Return>", _scegli_comune)
+        campi_f = [
+            ("Persone in famiglia:", ttk.Combobox(form, textvariable=v_pers, values=[str(n) for n in range(1, 13)], state="readonly", width=6, style="Border.TCombobox")),
+            ("Comune:", ent_loc),
+            ("Superficie (mq):", ttk.Entry(form, textvariable=v_mq, width=10, style="Border.TEntry")),
+            ("Uso del gas:", ttk.Combobox(form, textvariable=v_uso, state="readonly", width=36, style="Border.TCombobox", values=_USI_GAS)),
+            ("Riscaldamento:", ttk.Combobox(form, textvariable=v_risc, state="readonly", width=36, style="Border.TCombobox",
+                                            values=["Gas metano", "Elettrico / pompa di calore", "GPL", "Teleriscaldamento", "Pellet / legna", "Non so"])),
+        ]
+        for r, (etich, w_) in enumerate(campi_f):
+            tk.Label(form, text=etich, bg=self.COLOR_TOPLEVEL, fg=self.COLOR_HEADER, font=("Arial", 10, "bold"),
+                     anchor="e", width=20).grid(row=r, column=0, pady=4)
+            w_.grid(row=r, column=1, pady=4, padx=(6, 0), sticky="w")
+        def _avvia(evt=None):
+            try:
+                persone = max(1, min(12, int(str(v_pers.get()).strip())))
+            except ValueError:
+                self.show_toast("Inserisci un numero di persone valido.")
+                return
+            comune, errore = _risolvi_comune(v_loc.get())
+            if errore:
+                self.show_toast(errore)
+                return
+            v_loc.set(comune)
+            mq = v_mq.get().strip().replace(",", ".")
+            if mq:
+                try:
+                    if not 10 <= float(mq) <= 2000:
+                        raise ValueError
+                except ValueError:
+                    self.show_toast("Superficie non valida (tra 10 e 2000 mq).")
+                    return
+            profilo = {"persone": persone, "localita": comune, "mq": mq,
+                       "uso_gas": v_uso.get(), "riscaldamento": v_risc.get()}
+            anagrafiche.setdefault(utenze[0], {})["_profilo_casa"] = profilo
+            scrivi_db()
+            dlg.destroy()
+            _avvia_analisi_ia(profilo)
+        bt = tk.Frame(dlg, bg=self.COLOR_TOPLEVEL)
+        bt.pack(pady=(8, 14))
+        _bottone_label(bt, "fattura_ai", "Avvia analisi", "🔎", _avvia, padx=6)
+        _bottone_label(bt, "chiudi", "Annulla", "❌", dlg.destroy, padx=6)
+        dlg.bind("<Escape>", lambda e: dlg.destroy())
+        dlg.update_idletasks()
+        x = win.winfo_rootx() + (win.winfo_width() - dlg.winfo_width()) // 2
+        y = win.winfo_rooty() + (win.winfo_height() - dlg.winfo_height()) // 2
+        dlg.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+        dlg.grab_set()
+        dlg.focus_force()
+
+    aggiorna_totali_consumi()
+    win.after(500, _chiedi_categorie_se_servono)
+    win.after(1500, _importa_automatico_tutte)
     tab_grafico = ttk.Frame(consumi_notebook)
     img_tab_grafico = self.icone_gui.get("grafico_linea")
     if img_tab_grafico:
@@ -1388,13 +2598,55 @@ def utenze(self):
     def _totale_anno(utenza, anno_i):
         return sum(float(r[3]) for r in letture_salvate.get(utenza, {}).get(anno_i, []))
 
+    def _fmt_var(corr, prec):
+        if corr is None or prec is None or prec <= 0:
+            return "n/d"
+        v = (corr - prec) / prec * 100
+        freccia = "▲" if v > 0.05 else "▼" if v < -0.05 else "="
+        return f"{freccia} {v:+.1f}%"
+
+    def _consumo_mese(utenza, mese_num, anno):
+        mese_str = f"{mese_num:02d}/{anno}"
+        riga = next((r for r in letture_salvate.get(utenza, {}).get(str(anno), []) if r[0] == mese_str), None)
+        if not riga:
+            return None
+        try:
+            return float(riga[3])
+        except (ValueError, TypeError, IndexError):
+            return None
+
+    def _tot_bollette_anno(utenza, anno_i):
+        dati = _bollette_cache().get(utenza, {})
+        return sum(rec[0] for k, rec in dati.items() if k.endswith(f"/{anno_i}"))
+
     def _tt_mensile(utenza, mese_num, anno_sel):
         mese_str = f"{mese_num:02d}/{anno_sel}"
         prec, att, cons = _valori_mese(utenza, anno_sel, mese_str)
-        return (f"{utenza} — {mesi_lbl_full[mese_num-1]} {anno_sel}\n"
-                f"Lettura prec.: {prec:.2f}\n"
-                f"Lettura att.:  {att:.2f}\n"
-                f"Consumo:       {cons:.2f}")
+        un = _UNITA_TOT.get(utenza, "")
+        righe = [f"{utenza} — {mesi_lbl_full[mese_num-1]} {anno_sel}",
+                 f"Lettura prec.: {prec:.2f}",
+                 f"Lettura att.:  {att:.2f}",
+                 f"Consumo:       {cons:.2f} {un}"]
+        stima = _stima_costo(utenza, cons) if cons > 0 else None
+        if stima is not None:
+            righe.append(f"Stima costo:   {_fmt_euro(stima)}")
+        if _categoria_bollette(utenza):
+            rec = _bollette_cache().get(utenza, {}).get(mese_str)
+            if rec:
+                riga_b = f"Bolletta:      {_fmt_euro(rec[0])}"
+                if stima is not None:
+                    riga_b += f" ({rec[0] - stima:+.2f} €)"
+                righe.append(riga_b)
+            else:
+                righe.append("Bolletta:      —")
+        try:
+            anno_n = int(anno_sel)
+            prev_m, prev_a = (12, anno_n - 1) if mese_num == 1 else (mese_num - 1, anno_n)
+            righe.append(f"vs {mesi_lbl_full[prev_m-1]} {prev_a}: {_fmt_var(cons, _consumo_mese(utenza, prev_m, prev_a))}")
+            righe.append(f"vs {mesi_lbl_full[mese_num-1]} {anno_n - 1}: {_fmt_var(cons, _consumo_mese(utenza, mese_num, anno_n - 1))}")
+        except (ValueError, TypeError):
+            pass
+        return "\n".join(righe)
 
     def _tt_annuale(utenza, anno_i):
         righe = letture_salvate.get(utenza, {}).get(anno_i, [])
@@ -1405,14 +2657,50 @@ def utenze(self):
                 by_mese[mm] = by_mese.get(mm, 0.0) + float(r[3])
             except Exception:
                 pass
+        un = _UNITA_TOT.get(utenza, "")
         corpo = "\n".join(f"  {mesi_lbl_full[m-1]}: {by_mese.get(f'{m:02d}', 0.0):.2f}" for m in range(1, 13))
         tot = sum(by_mese.get(f"{m:02d}", 0.0) for m in range(1, 13))
-        return f"{utenza} — Anno {anno_i}\n{corpo}\nTotale anno:    {tot:.2f}"
+        out = [f"{utenza} — Anno {anno_i}", corpo, f"Totale anno:    {tot:.2f} {un}"]
+        attivi = {m: by_mese[f"{m:02d}"] for m in range(1, 13) if by_mese.get(f"{m:02d}", 0.0) > 0}
+        if attivi:
+            m_max = max(attivi, key=attivi.get)
+            m_min = min(attivi, key=attivi.get)
+            out.append(f"Media mensile:  {tot / len(attivi):.2f} {un}")
+            out.append(f"Mese più alto:  {mesi_lbl_full[m_max-1]} ({attivi[m_max]:.2f})")
+            out.append(f"Mese più basso: {mesi_lbl_full[m_min-1]} ({attivi[m_min]:.2f})")
+        stima = _stima_costo(utenza, tot) if tot > 0 else None
+        if stima is not None:
+            out.append(f"Stima costo:    {_fmt_euro(stima)}")
+        if _categoria_bollette(utenza):
+            tb = _tot_bollette_anno(utenza, anno_i)
+            out.append(f"Bollette anno:  {_fmt_euro(tb) if tb > 0 else '—'}")
+        try:
+            anno_prec = str(int(anno_i) - 1)
+            if anno_prec in letture_salvate.get(utenza, {}):
+                out.append(f"vs {anno_prec}:       {_fmt_var(tot, _totale_anno(utenza, anno_prec))}")
+        except (ValueError, TypeError):
+            pass
+        return "\n".join(out)
 
     def _tt_totale(utenza, anni_presenti):
+        un = _UNITA_TOT.get(utenza, "")
         corpo = "\n".join(f"  {a}: {_totale_anno(utenza, a):.2f}" for a in anni_presenti) or "  (nessun dato)"
         grand = sum(_totale_anno(utenza, a) for a in anni_presenti)
-        return f"{utenza} — Totale complessivo\n{corpo}\nTotale completo: {grand:.2f}"
+        out = [f"{utenza} — Totale complessivo", corpo, f"Totale completo: {grand:.2f} {un}"]
+        anni_validi = [a for a in anni_presenti if _totale_anno(utenza, a) > 0]
+        if anni_validi:
+            out.append(f"Media annua:     {grand / len(anni_validi):.2f} {un}")
+            a_max = max(anni_validi, key=lambda a: _totale_anno(utenza, a))
+            a_min = min(anni_validi, key=lambda a: _totale_anno(utenza, a))
+            out.append(f"Anno più alto:   {a_max} ({_totale_anno(utenza, a_max):.2f})")
+            out.append(f"Anno più basso:  {a_min} ({_totale_anno(utenza, a_min):.2f})")
+        stima = _stima_costo(utenza, grand) if grand > 0 else None
+        if stima is not None:
+            out.append(f"Stima costo:     {_fmt_euro(stima)}")
+        if _categoria_bollette(utenza):
+            tb = sum(_tot_bollette_anno(utenza, a) for a in anni_presenti)
+            out.append(f"Bollette:        {_fmt_euro(tb) if tb > 0 else '—'}")
+        return "\n".join(out)
 
     def disegna_grafico(*args):
         if not chart_canvas.winfo_exists():
@@ -1449,8 +2737,7 @@ def utenze(self):
                     tag = f"bar_{ns}_{i}_{j}"
                     chart_canvas.create_rectangle(x0, CHART_BOTTOM - h, x0 + bar_w, CHART_BOTTOM,
                                                    fill=colori_grafico[utenza], outline="#333333", tags=tag)
-                    tip = tooltip_for(utenza, label)
-                    chart_canvas.tag_bind(tag, "<Enter>", lambda e, t=tip: _tt_show(e, t))
+                    chart_canvas.tag_bind(tag, "<Enter>", lambda e, u=utenza, l=label: _tt_show(e, tooltip_for(u, l)))
                     chart_canvas.tag_bind(tag, "<Leave>", _tt_hide)
                 chart_canvas.create_text(gx + (group_w - inner_pad * 2) / 2, CHART_BOTTOM + 14,
                                           text=str(label), font=("Arial", 7, "bold"), fill=self.TEXT_COLOR)
