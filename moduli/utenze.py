@@ -3,8 +3,12 @@
 
 import os
 import json
+import re
+import queue
+import shutil
 import datetime
 import threading
+import traceback
 import tkinter as tk
 from tkinter import ttk, filedialog
 import pymupdf as fitz
@@ -73,29 +77,43 @@ def utenze(self):
                         "Codice Cliente", "Codice Utenza / Fornitura", "POD / PDR", "Note"]
     def anagrafica_vuota():
         return {campo: "" for campo in campi_anagrafica}
+    _ultimo_ok = {"v": None}
+    def _norm_righe(righe):
+        out = []
+        for r in righe:
+            if len(r) != 4:
+                continue
+            mese, prec, att, _ = r
+            try:
+                prec_f, att_f = float(prec), float(att)
+            except (ValueError, TypeError):
+                prec_f = att_f = 0.0
+            out.append((mese, prec_f, att_f, round(max(0.0, att_f - prec_f), 2)))
+        return out
+    def _ha_valori(righe):
+        for r in righe:
+            try:
+                if float(r[1]) or float(r[2]) or float(r[3]):
+                    return True
+            except (ValueError, TypeError, IndexError):
+                continue
+        return False
     def carica_db():
         if os.path.exists(UTENZE_DB):
             try:
                 with open(UTENZE_DB, "r", encoding="utf-8") as f:
-                    data = json.load(f)
+                    raw_db = f.read()
+                data = json.loads(raw_db)
+                _ultimo_ok["v"] = raw_db
                 letture = data.get("letture_salvate", {u: {} for u in utenze})
                 for utenza in utenze:
                     if utenza not in letture:
                         letture[utenza] = {}
                 for utenza, per_anno in letture.items():
                     for anno, righe in per_anno.items():
-                        letture_norm = []
-                        for r in righe:
-                            if len(r) == 4:
-                               mese, prec, att, _ = r
-                               try:
-                                   consumo = max(0.0, float(att) - float(prec))
-                               except:
-                                   prec, att, consumo = 0.0, 0.0, 0.0
-                               letture_norm.append((mese, prec, att, consumo))
-                            else:
-                               letture_norm.append(tuple(r))
-                        letture[utenza][anno] = letture_norm
+                        letture[utenza][anno] = _norm_righe(righe)
+                for utenza in list(letture):
+                    letture[utenza] = {a: r for a, r in letture[utenza].items() if _ha_valori(r)}
                 anagrafiche = data.get("anagrafiche", {u: anagrafica_vuota() for u in utenze})
                 for utenza in utenze:
                     if utenza not in anagrafiche:
@@ -106,6 +124,10 @@ def utenze(self):
                                 anagrafiche[utenza][campo] = ""
                 return letture, anagrafiche
             except Exception:
+                try:
+                    shutil.copy2(UTENZE_DB, UTENZE_DB + ".corrotto")
+                except Exception:
+                    pass
                 return {u: {} for u in utenze}, {u: anagrafica_vuota() for u in utenze}
         else:
             return {u: {} for u in utenze}, {u: anagrafica_vuota() for u in utenze}
@@ -114,15 +136,33 @@ def utenze(self):
         try:
             data = {
                 "letture_salvate": {
-                    u: {a: [list(r) for r in anni] for a, anni in letture_salvate[u].items()}
+                    u: {a: [list(r) for r in anni] for a, anni in letture_salvate[u].items() if _ha_valori(anni)}
                     for u in utenze
                 },
                 "anagrafiche": anagrafiche
             }
-            with open(UTENZE_DB, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=1, ensure_ascii=False)
+            testo = json.dumps(data, indent=1, ensure_ascii=False)
+            try:
+                with open(UTENZE_DB, "w", encoding="utf-8") as f:
+                    f.write(testo)
+                    f.flush()
+                    os.fsync(f.fileno())
+            except Exception:
+                if _ultimo_ok["v"]:
+                    with open(UTENZE_DB, "w", encoding="utf-8") as f:
+                        f.write(_ultimo_ok["v"])
+                raise
+            _ultimo_ok["v"] = testo
         except Exception:
              self.show_custom_warning("Errore", "Errore scrittura dati")
+    def _righe_tree(tree):
+        righe = _norm_righe([tuple(tree.item(iid)['values'])[:4] for iid in tree.get_children()])
+        def _k(r):
+            try:
+                return int(str(r[0])[:2])
+            except (ValueError, IndexError):
+                return 99
+        return sorted(righe, key=_k)
     letture_salvate, anagrafiche = carica_db()
     self.letture_salvate_utenze = letture_salvate
     self.anagrafiche_salvate_utenze = anagrafiche
@@ -133,7 +173,7 @@ def utenze(self):
     modalita_corrente = {"tutti": False, "anno": anno_corrente}
 
     def anni_presenti_tutti():
-        anni_presenti = sorted({a for u in utenze for a in letture_salvate.get(u, {}).keys()})
+        anni_presenti = sorted({a for u in utenze for a, r in letture_salvate.get(u, {}).items() if _ha_valori(r)})
         if anno_corrente not in anni_presenti:
             anni_presenti = sorted(anni_presenti + [anno_corrente])
         return anni_presenti
@@ -156,7 +196,7 @@ def utenze(self):
         return rec[0] if rec else None
 
     def _media_consumo(righe):
-        validi = [r[3] for r in righe if r[3] > 0]
+        validi = [r[3] for r in righe if r[2] > 0 or r[3] > 0]
         return (sum(validi) / len(validi), len(validi)) if validi else (0.0, 0)
 
     win = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
@@ -173,11 +213,30 @@ def utenze(self):
     y = self_y + (self_height // 2) - (altezza // 2)
     win.geometry(f"{larghezza}x{altezza}+{x}+{y}")
     win.title("Gestione Consumi Utenze")
-    win.protocol("WM_DELETE_WINDOW", lambda: (chiudi_viewer_tabella(), self.after(0, self.imp_entry.focus_set), win.destroy()))
+    win.protocol("WM_DELETE_WINDOW", lambda: chiudi())
     win.deiconify()
     win.update_idletasks()
     win.minsize(larghezza, altezza)
-    pass
+    _coda_ui = queue.Queue()
+    def _post_ui(fn):
+        _coda_ui.put(fn)
+    def _svuota_coda_ui():
+        try:
+            if not win.winfo_exists():
+                return
+            while True:
+                try:
+                    fn = _coda_ui.get_nowait()
+                except queue.Empty:
+                    break
+                try:
+                    fn()
+                except Exception:
+                    traceback.print_exc()
+            win.after(100, _svuota_coda_ui)
+        except tk.TclError:
+            return
+    win.after(100, _svuota_coda_ui)
 
     def mostra_guida_utenze():
         testo_consumi = (
@@ -348,13 +407,21 @@ def utenze(self):
     def chiudi():
         chiudi_viewer_tabella()
         win.destroy()
-        pass
         self.after(0, self.imp_entry.focus_set)
     def chiudi_viewer_tabella():
         v = getattr(self, '_viewer_tabella_win', None)
         if v and v.winfo_exists():
            v.destroy()
-    win.bind("<Escape>", lambda e: (chiudi_viewer_tabella(), self.after(0, self.imp_entry.focus_set), win.destroy()))
+    def _esc_win(e=None):
+        try:
+            w = win.focus_get()
+        except (KeyError, tk.TclError):
+            w = None
+        if isinstance(w, (tk.Entry, ttk.Entry, tk.Text, ttk.Combobox)):
+            win.focus_set()
+            return "break"
+        chiudi()
+    win.bind("<Escape>", _esc_win)
 
     def reset_utenze_letture():
         conferma = self.show_custom_askyesno(
@@ -364,12 +431,9 @@ def utenze(self):
         )
         if conferma:
             try:
-                if os.path.exists(UTENZE_DB):
-                    os.remove(UTENZE_DB)
-                if not os.path.exists(UTENZE_DB):
-                    with open(UTENZE_DB, "w") as file:
-                        file.write("{\n}\n")
-                pass
+                for u in utenze:
+                    letture_salvate[u] = {}
+                scrivi_db()
                 win.destroy()
                 self.utenze()
                 self.show_custom_warning("Letture", "Letture utenze azzerate con successo.")
@@ -551,7 +615,7 @@ def utenze(self):
 
         def intestazione_pagina(pg, sotto_titolo=None):
             pg.draw_rect(fitz.Rect(0, 0, W, 56), color=None, fill=(0.12, 0.30, 0.45))
-            pg.insert_text((MARG, 34), f"Consumi Utenze — {titolo_pdf}", fontsize=15, color=(1, 1, 1), fontname="Helvetica-Bold")
+            pg.insert_text((MARG, 34), f"Consumi Utenze - {titolo_pdf}", fontsize=15, color=(1, 1, 1), fontname="Helvetica-Bold")
             pg.insert_text((W - MARG - 130, 34), f"Generato il {oggi.strftime('%d/%m/%Y')}", fontsize=7.5, color=(1, 1, 1), fontname="Helvetica")
             y[0] = 72
             if sotto_titolo:
@@ -567,8 +631,8 @@ def utenze(self):
             pg.insert_text((MARG + 120, y[0] + 11), "Prec.", fontsize=7.5, fontname="Helvetica-Bold")
             pg.insert_text((MARG + 210, y[0] + 11), "Att.", fontsize=7.5, fontname="Helvetica-Bold")
             pg.insert_text((MARG + 300, y[0] + 11), "Consumo", fontsize=7.5, fontname="Helvetica-Bold")
-            pg.insert_text((MARG + 390, y[0] + 11), "Stima €", fontsize=7.5, fontname="Helvetica-Bold")
-            pg.insert_text((MARG + 450, y[0] + 11), "Bolletta €", fontsize=7.5, fontname="Helvetica-Bold")
+            pg.insert_text((MARG + 390, y[0] + 11), "Stima EUR", fontsize=7.5, fontname="Helvetica-Bold")
+            pg.insert_text((MARG + 450, y[0] + 11), "Bolletta EUR", fontsize=7.5, fontname="Helvetica-Bold")
             y[0] += 16
 
         _bollette_cache(forza=True)
@@ -607,20 +671,20 @@ def utenze(self):
                     pg.insert_text((MARG + 120, y[0] + 11), f"{prec:.2f}", fontsize=7.5, fontname="Helvetica")
                     pg.insert_text((MARG + 210, y[0] + 11), f"{att:.2f}", fontsize=7.5, fontname="Helvetica")
                     pg.insert_text((MARG + 300, y[0] + 11), f"{cons:.2f}", fontsize=7.5, fontname="Helvetica")
-                    pg.insert_text((MARG + 390, y[0] + 11), f"{stima_riga:.2f}" if stima_riga is not None else "—", fontsize=7.5, fontname="Helvetica")
-                    pg.insert_text((MARG + 450, y[0] + 11), (f"{b_val:.2f}" if b_val is not None else ("—" if cat_pdf else "")), fontsize=7.5, fontname="Helvetica")
+                    pg.insert_text((MARG + 390, y[0] + 11), f"{stima_riga:.2f}" if stima_riga is not None else "-", fontsize=7.5, fontname="Helvetica")
+                    pg.insert_text((MARG + 450, y[0] + 11), (f"{b_val:.2f}" if b_val is not None else ("-" if cat_pdf else "")), fontsize=7.5, fontname="Helvetica")
                     y[0] += 14
                 if y[0] > H - 65:
                     pg = doc.new_page(width=W, height=H)
                     intestazione_pagina(pg, f"Anno {anno_x} (segue)" if tutti_anni else None)
                 totale_txt = f"Totale {utenza}: {totale:.2f}"
                 if cu_ok:
-                    totale_txt += f"   —   Stima spesa: {totale_stima:.2f} €"
+                    totale_txt += f"   -   Stima spesa: {totale_stima:.2f} EUR"
                 pg.insert_text((MARG + 4, y[0] + 11), totale_txt, fontsize=8, fontname="Helvetica-Bold", color=colori_pdf[utenza])
                 y[0] += 13
                 riga2 = f"Media mensile consumo: {media_pdf:.2f} ({n_mesi_pdf} mesi)"
                 if cat_pdf:
-                    riga2 += f"   —   Bollette registrate: {totale_boll:.2f} €"
+                    riga2 += f"   -   Bollette registrate: {totale_boll:.2f} EUR"
                 pg.insert_text((MARG + 4, y[0] + 11), riga2, fontsize=8, fontname="Helvetica-Bold", color=colori_pdf[utenza])
                 y[0] += 26
         n_tot = doc.page_count
@@ -662,9 +726,7 @@ def utenze(self):
             anno_prec = modalita_corrente["anno"]
             for utenza in utenze:
                 if self.trees[utenza].get_children():
-                    letture_salvate[utenza][anno_prec] = [
-                        tuple(self.trees[utenza].item(iid)['values'])[:4] for iid in self.trees[utenza].get_children()
-                    ]
+                    letture_salvate[utenza][anno_prec] = _righe_tree(self.trees[utenza])
             scrivi_db()
         for utenza in utenze:
             self.trees[utenza].delete(*self.trees[utenza].get_children())
@@ -709,14 +771,7 @@ def utenze(self):
                         (f"{m:02d}/{anno_sel}", 0.0, 0.0, 0.0) for m in range(1, 13)
                     ]
                 righe = letture_salvate[utenza][anno_sel]
-                righe_norm = []
-                for r in righe:
-                    if len(r) == 4:
-                        mese, prec, att, consumo = r
-                        consumo = max(0.0, float(att) - float(prec))
-                        righe_norm.append((mese, float(prec), float(att), float(consumo)))
-                    else:
-                        righe_norm.append(tuple(r))
+                righe_norm = _norm_righe(righe)
                 letture_salvate[utenza][anno_sel] = righe_norm
                 for mese, prec, att, consumo in righe_norm:
                     self.trees[utenza].insert("", "end", values=(mese, float(prec), float(att), float(consumo), _fmt_stima(utenza, consumo)))
@@ -882,11 +937,16 @@ def utenze(self):
             costo_unitario_singolo = None
         anagrafiche.setdefault(utenza, {})
         storico = anagrafiche[utenza].setdefault("_storico_fatture", [])
-        storico.append({
+        nuovo_rec = {
             "data": data_fatt, "consumo": consumo, "unita": unita,
             "spesa": spesa, "quota": quota, "giorni": giorni,
             "costo_unitario": costo_unitario_singolo,
-        })
+        }
+        if any(all(r.get(k) == nuovo_rec[k] for k in ("data", "consumo", "spesa")) for r in storico):
+            if not silenzioso:
+                self.show_toast(f"Fattura {utenza} già presente nello storico.")
+            return False
+        storico.append(nuovo_rec)
         del storico[:-3]
         scrivi_db()
 
@@ -933,6 +993,7 @@ def utenze(self):
                 f"Fattura {utenza} analizzata ({len(storico)}/3 in storico). "
                 f"Premi Salva per confermare il costo unitario."
             )
+        return True
 
     def _msg_errore_gemini(e):
         err = str(e)
@@ -1026,14 +1087,69 @@ def utenze(self):
                 msg_errore = _msg_errore_gemini(e)
 
             def _fine():
+                try:
+                    if not win.winfo_exists():
+                        return
+                except tk.TclError:
+                    return
                 if msg_errore:
                     if utenza in ai_status_labels and ai_status_labels[utenza].winfo_exists():
                         ai_status_labels[utenza].config(text=f"⚠ {msg_errore}")
                     self.show_toast(msg_errore)
                 else:
                     _applica_estrazione_fattura(utenza, dati)
-            self.after(0, _fine)
+                    imp_m = anagrafiche.setdefault(utenza, {}).setdefault("_fatture_importate", [])
+                    nome_m = os.path.basename(path)
+                    if nome_m not in imp_m:
+                        imp_m.append(nome_m)
+                        scrivi_db()
+            _post_ui(_fine)
         threading.Thread(target=_run, daemon=True).start()
+
+    def _valida_import(data):
+        if not isinstance(data, dict):
+            return None, None, "il file non contiene un database utenze."
+        lett_in = data.get("letture_salvate")
+        anag_in = data.get("anagrafiche")
+        if not isinstance(lett_in, dict) or not isinstance(anag_in, dict):
+            return None, None, "mancano le sezioni 'letture_salvate' e 'anagrafiche'."
+        letture = {}
+        for u in utenze:
+            if u not in lett_in:
+                continue
+            per_anno = lett_in[u]
+            if not isinstance(per_anno, dict):
+                return None, None, f"letture di {u} in formato errato."
+            letture[u] = {}
+            for anno, righe in per_anno.items():
+                if not isinstance(righe, list):
+                    return None, None, f"letture di {u} {anno} in formato errato."
+                norm = []
+                for r in righe:
+                    try:
+                        if len(r) != 4:
+                            raise ValueError
+                        mese, prec, att, _ = r
+                        mese = str(mese)
+                        m_n, a_n = mese.split("/")
+                        if not (1 <= int(m_n) <= 12) or len(a_n) != 4 or not a_n.isdigit():
+                            raise ValueError
+                        prec = float(prec)
+                        att = float(att)
+                    except (ValueError, TypeError):
+                        return None, None, f"riga non valida in {u} {anno}: {r}"
+                    norm.append((mese, prec, att, round(max(0.0, att - prec), 2)))
+                letture[u][str(anno)] = norm
+        anagrafiche = {}
+        for u in utenze:
+            if u not in anag_in:
+                continue
+            if not isinstance(anag_in[u], dict):
+                return None, None, f"anagrafica di {u} in formato errato."
+            anagrafiche[u] = anag_in[u]
+        if not letture and not anagrafiche:
+            return None, None, "nessuna utenza (Acqua, Luce, Gas) trovata."
+        return letture, anagrafiche, None
 
     def importa_letture_data(letture_salvate, anagrafiche):
         now = datetime.date.today()
@@ -1050,12 +1166,13 @@ def utenze(self):
             try:
                 with open(file, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                letture = data.get("letture_salvate", {})
-                anagrafiche = data.get("anagrafiche", {})
+                letture, anagrafiche, errore = _valida_import(data)
+                if errore:
+                    self.show_custom_warning("Errore", f"File non valido:\n{errore}")
+                    return
                 self.letture_salvate_utenze.update(letture)
                 self.anagrafiche_salvate_utenze.update(anagrafiche)
                 scrivi_db()
-                pass
                 win.destroy()
                 self.utenze()
                 self.show_custom_warning("Importazione riuscita", "Utenze importate correttamente!")
@@ -1100,9 +1217,7 @@ def utenze(self):
         anno_sel = anno_var.get()
         if anno_sel == "Tutti":
             return
-        letture_salvate[utenza][anno_sel] = [
-            tuple(self.trees[utenza].item(iid)['values'])[:4] for iid in self.trees[utenza].get_children()
-        ]
+        letture_salvate[utenza][anno_sel] = _righe_tree(self.trees[utenza])
         scrivi_db()
 
     def only_numeric_8char(val):
@@ -1110,9 +1225,9 @@ def utenze(self):
             return False
         if val == "":
             return True
-        if val.count(".") > 1:
+        if val.count(".") + val.count(",") > 1:
             return False
-        return all(c.isdigit() or c == "." for c in val)
+        return all(c.isdigit() or c in ".," for c in val)
     vcmd_num = (win.register(only_numeric_8char), "%P")
 
     def aggiorna_stato_campi(utenza):
@@ -1140,6 +1255,18 @@ def utenze(self):
         fv['solo_consumo_var'].set(False)
         aggiorna_stato_campi(utenza)
 
+    def _propaga_a_gennaio(utenza, anno_succ, att):
+        righe = letture_salvate[utenza].get(anno_succ)
+        if not righe:
+            righe = [(f"{m:02d}/{anno_succ}", 0.0, 0.0, 0.0) for m in range(1, 13)]
+        nuove = []
+        for r in righe:
+            if str(r[0]) == f"01/{anno_succ}":
+                att_g = float(r[2])
+                r = (r[0], att, att_g, round(max(0.0, att_g - att), 2))
+            nuove.append(tuple(r))
+        letture_salvate[utenza][anno_succ] = nuove
+
     def applica_modifica(utenza):
         if modalita_corrente["tutti"]:
             self.show_toast("Seleziona un anno specifico per modificare le letture.")
@@ -1151,24 +1278,23 @@ def utenze(self):
             return
         selected = sel[0]
         items = tree.get_children()
-        idx = items.index(selected)
         fv = form_vars[utenza]
         mese = fv['mese_var'].get()
         try:
-            prec = float(fv['prec_var'].get().strip() or 0)
+            prec = float(fv['prec_var'].get().strip().replace(',', '.') or 0)
         except ValueError:
             self.show_custom_warning("Errore", "Valore lettura precedente non valido.")
             return
         if fv['solo_consumo_var'].get():
             try:
-                consumo = float(fv['consumo_var'].get().strip() or 0)
+                consumo = float(fv['consumo_var'].get().strip().replace(',', '.') or 0)
             except ValueError:
                 self.show_custom_warning("Errore", "Valore consumo non valido.")
                 return
             att = round(prec + consumo, 2)
         else:
             try:
-                att = float(fv['att_var'].get().strip() or 0)
+                att = float(fv['att_var'].get().strip().replace(',', '.') or 0)
             except ValueError:
                 self.show_custom_warning("Errore", "Valore lettura attuale non valido.")
                 return
@@ -1180,11 +1306,25 @@ def utenze(self):
                     return
             consumo = round(max(0.0, att - prec), 2)
         tree.item(selected, values=(mese, prec, att, consumo, _fmt_stima(utenza, consumo)))
-        if idx + 1 < len(items) and not fv['solo_consumo_var'].get():
-            next_mese, _, next_att = tree.item(items[idx + 1])['values'][:3]
+        iid_succ = None
+        try:
+            m_num, a_num = str(mese).split("/")
+            m_num = int(m_num)
+            chiave_succ = f"{m_num + 1:02d}/{a_num}" if m_num < 12 else None
+        except ValueError:
+            m_num, a_num, chiave_succ = 0, "", None
+        if chiave_succ:
+            for iid in items:
+                if str(tree.item(iid)['values'][0]) == chiave_succ:
+                    iid_succ = iid
+                    break
+        if iid_succ is not None:
+            next_mese, _, next_att = tree.item(iid_succ)['values'][:3]
             next_att_f = float(next_att)
             next_cons = round(max(0.0, next_att_f - att), 2)
-            tree.item(items[idx + 1], values=(next_mese, att, next_att_f, next_cons, _fmt_stima(utenza, next_cons)))
+            tree.item(iid_succ, values=(next_mese, att, next_att_f, next_cons, _fmt_stima(utenza, next_cons)))
+        elif m_num == 12 and a_num.isdigit():
+            _propaga_a_gennaio(utenza, str(int(a_num) + 1), att)
         salva_letture_utenza(utenza)
         fv['prec_var'].set(f"{prec:.2f}")
         fv['att_var'].set(f"{att:.2f}")
@@ -1412,7 +1552,10 @@ def utenze(self):
                     ent.delete("1.0", tk.END)
                 else:
                     ent.delete(0, tk.END)
+            _tieni = ("_categoria_bollette", "_import_auto", "_fatture_importate", "_profilo_casa")
+            _interni = {k: anagrafiche[u][k] for k in _tieni if k in anagrafiche.get(u, {})}
             anagrafiche[u] = anagrafica_vuota()
+            anagrafiche[u].update(_interni)
             for campo in anag_entries[u]:
                 if campo not in anagrafiche[u]:
                     anagrafiche[u][campo] = ""
@@ -1461,14 +1604,7 @@ def utenze(self):
         if (anno_sel not in letture_salvate[utenza]) or (not letture_salvate[utenza][anno_sel]):
                 letture_salvate[utenza][anno_sel] = [(f"{m:02d}/{anno_sel}", 0.0, 0.0, 0.0) for m in range(1, 13)]
         righe = letture_salvate[utenza][anno_sel]
-        righe_norm = []
-        for r in righe:
-                if len(r) == 4:
-                        mese, prec, att, consumo = r
-                        consumo = max(0.0, float(att) - float(prec))
-                        righe_norm.append((mese, float(prec), float(att), float(consumo)))
-                else:
-                        righe_norm.append(tuple(r))
+        righe_norm = _norm_righe(righe)
         letture_salvate[utenza][anno_sel] = righe_norm
         for mese, prec, att, consumo in righe_norm:
                 tree.insert("", "end", values=(mese, float(prec), float(att), float(consumo), _fmt_stima(utenza, consumo)))
@@ -1516,10 +1652,13 @@ def utenze(self):
                  font=("Arial", 8, "italic")).pack(anchor="w", padx=6, pady=(0, 6))
     _UNITA_TOT = {"Acqua": "m³", "Luce": "kWh", "Gas": "Smc"}
     _KEYWORDS_UTENZA = {
-        "Acqua": ("acqua", "idric", "acquedott"),
-        "Luce":  ("luce", "elettric", "energia", "kwh"),
-        "Gas":   ("gas", "metano", "gpl"),
+        "Acqua": (r"(?<![a-zà-ú])acqua(?![a-zà-ú])", r"(?<![a-zà-ú])idric", r"(?<![a-zà-ú])acquedott"),
+        "Luce":  (r"(?<![a-zà-ú])luce(?![a-zà-ú])", r"(?<![a-zà-ú])elettric", r"(?<![a-zà-ú])energia(?![a-zà-ú])", r"(?<![a-zà-ú])kwh(?![a-zà-ú])"),
+        "Gas":   (r"(?<![a-zà-ú])gas(?![a-zà-ú])", r"(?<![a-zà-ú])metano(?![a-zà-ú])", r"(?<![a-zà-ú])gpl(?![a-zà-ú])"),
     }
+    def _match_utenze(descr):
+        descr = str(descr).lower()
+        return [u for u, kws in _KEYWORDS_UTENZA.items() if any(re.search(k, descr) for k in kws)]
     _cache_bollette = {"ts": 0.0, "dati": {}}
 
     def _categoria_bollette(utenza):
@@ -1543,7 +1682,7 @@ def utenze(self):
                             continue
                         if condivisa:
                             descr = str(v[1]).lower()
-                            match = [u for u, kws in _KEYWORDS_UTENZA.items() if any(k in descr for k in kws)]
+                            match = _match_utenze(descr)
                             if match != [utenza]:
                                 continue
                         rec = out[utenza].setdefault(chiave, [0.0, 0, set()])
@@ -1564,6 +1703,7 @@ def utenze(self):
     def _fmt_num_it(v):
         return f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
+    _err_totali = {"v": False}
     def aggiorna_totali_consumi():
         try:
             if not win.winfo_exists():
@@ -1589,10 +1729,11 @@ def utenze(self):
                     vals = tr.item(iid)["values"]
                     try:
                         cons = float(vals[3])
+                        inserito = cons > 0 or float(vals[2]) > 0
                     except (ValueError, IndexError, TypeError):
                         continue
                     tot += cons
-                    if cons > 0:
+                    if inserito:
                         n_mesi += 1
                     tot_stima += (_stima_costo(utenza, cons) or 0.0)
                     mese_k = str(vals[0]).strip()
@@ -1626,6 +1767,13 @@ def utenze(self):
                     testo += f"   —   Bollette registrate: {_fmt_num_it(tot_boll)} €"
                 if lbl.cget("text") != testo:
                     lbl.config(text=testo)
+        except tk.TclError:
+            return
+        except Exception:
+            if not _err_totali["v"]:
+                _err_totali["v"] = True
+                traceback.print_exc()
+        try:
             win.after(400, aggiorna_totali_consumi)
         except tk.TclError:
             pass
@@ -1633,6 +1781,8 @@ def utenze(self):
     def _apri_dialogo_categorie_bollette(primo_avvio=False):
         cats = sorted(getattr(self, "categorie", []), key=lambda c: c.lower())
         if not cats:
+            if not primo_avvio:
+                self.show_toast("Nessuna categoria di spesa disponibile.")
             return
         NESSUNA = "(nessuna)"
         dlg = tk.Toplevel(win, bg=self.COLOR_TOPLEVEL)
@@ -1657,9 +1807,8 @@ def utenze(self):
             lbl_u.image = img_u
             lbl_u.grid(row=riga, column=0, pady=4)
             attuale = _categoria_bollette(utenza)
-            if not attuale:
-                kws = _KEYWORDS_UTENZA[utenza]
-                attuale = next((c for c in cats if any(k in c.lower() for k in kws)), "")
+            if not attuale and "_categoria_bollette" not in anagrafiche.get(utenza, {}):
+                attuale = next((c for c in cats if utenza in _match_utenze(c)), "")
                 if not attuale:
                     attuale = next((c for c in cats if "bollett" in c.lower() or "utenz" in c.lower()), "")
             v = tk.StringVar(value=attuale if attuale in cats else NESSUNA)
@@ -1725,7 +1874,6 @@ def utenze(self):
         mm, aaaa = mese_k.split("/", 1)
         condivisa = sum(1 for u in utenze if _categoria_bollette(u) == cat) > 1
         trovati = []
-        doc_dir = getattr(_app, "DOC_DIR", "")
         for nome, d in _registro_documenti().items():
             try:
                 if d.get("categoria_esatta") != cat:
@@ -1735,10 +1883,10 @@ def utenze(self):
                     continue
                 if condivisa:
                     descr = str(d.get("descrizione_esatta", "")).lower()
-                    match = [u for u, kws in _KEYWORDS_UTENZA.items() if any(k in descr for k in kws)]
+                    match = _match_utenze(descr)
                     if match != [utenza]:
                         continue
-                for base in (doc_dir, os.path.join(os.getcwd(), "Fatture_GMail")):
+                for base in _basi_documenti():
                     fp = os.path.join(base, nome)
                     if os.path.exists(fp):
                         trovati.append((raw[4:8] + raw[2:4] + raw[0:2], fp))
@@ -1747,6 +1895,16 @@ def utenze(self):
                 continue
         trovati.sort(reverse=True)
         return [fp for _, fp in trovati]
+    def _basi_documenti():
+        basi = []
+        d = getattr(_app, "DOC_DIR", "")
+        if d:
+            basi.append(d)
+        try:
+            basi.append(os.path.join(os.path.dirname(os.path.abspath(_app.__file__)), "Fatture_GMail"))
+        except Exception:
+            pass
+        return basi
     _FORMATI_FATTURA = (".pdf", ".png", ".jpg", ".jpeg", ".webp")
     MAX_IMPORT_AUTO = 3
     _import_in_corso = set()
@@ -1757,7 +1915,6 @@ def utenze(self):
             return []
         gia = set(anagrafiche.get(utenza, {}).get("_fatture_importate", []) or [])
         condivisa = sum(1 for u in utenze if _categoria_bollette(u) == cat) > 1
-        doc_dir = getattr(_app, "DOC_DIR", "")
         trovati = []
         for nome, d in _registro_documenti().items():
             try:
@@ -1770,10 +1927,10 @@ def utenze(self):
                     continue
                 if condivisa:
                     descr = str(d.get("descrizione_esatta", "")).lower()
-                    match = [u for u, kws in _KEYWORDS_UTENZA.items() if any(k in descr for k in kws)]
+                    match = _match_utenze(descr)
                     if match != [utenza]:
                         continue
-                for base in (doc_dir, os.path.join(os.getcwd(), "Fatture_GMail")):
+                for base in _basi_documenti():
                     fp = os.path.join(base, nome)
                     if os.path.exists(fp):
                         trovati.append((raw[4:8] + raw[2:4] + raw[0:2], nome, fp))
@@ -1787,7 +1944,6 @@ def utenze(self):
         cat = _categoria_bollette(utenza)
         gia = set(anagrafiche.get(utenza, {}).get("_fatture_importate", []) or [])
         condivisa = sum(1 for u in utenze if _categoria_bollette(u) == cat) > 1
-        doc_dir = getattr(_app, "DOC_DIR", "")
         n_cat = n_gia = n_fmt = n_kw = n_file = 0
         for nome, d in _registro_documenti().items():
             try:
@@ -1802,11 +1958,11 @@ def utenze(self):
                     continue
                 if condivisa:
                     descr = str(d.get("descrizione_esatta", "")).lower()
-                    match = [u for u, kws in _KEYWORDS_UTENZA.items() if any(k in descr for k in kws)]
+                    match = _match_utenze(descr)
                     if match != [utenza]:
                         n_kw += 1
                         continue
-                if not any(os.path.exists(os.path.join(b, nome)) for b in (doc_dir, os.path.join(os.getcwd(), "Fatture_GMail"))):
+                if not any(os.path.exists(os.path.join(b, nome)) for b in _basi_documenti()):
                     n_file += 1
             except Exception:
                 continue
@@ -1865,8 +2021,8 @@ def utenze(self):
                 applicate = 0
                 for nome, dati in risultati:
                     if isinstance(dati, dict) and not (dati.get("consumo_periodo") in (None, "") and dati.get("spesa_totale_periodo") in (None, "")):
-                        _applica_estrazione_fattura(utenza, dati, silenzioso=True)
-                        applicate += 1
+                        if _applica_estrazione_fattura(utenza, dati, silenzioso=True):
+                            applicate += 1
                 imp = anagrafiche.setdefault(utenza, {}).setdefault("_fatture_importate", [])
                 for nome, _ in risultati:
                     if nome not in imp:
@@ -1886,7 +2042,7 @@ def utenze(self):
                     self.show_toast(errore)
                 else:
                     self.show_toast(f"Importazione automatica {utenza}: {applicate} fattur{'a' if applicate == 1 else 'e'} analizzat{'a' if applicate == 1 else 'e'}.")
-            self.after(0, _fine)
+            _post_ui(_fine)
         threading.Thread(target=_run, daemon=True).start()
 
     def _toggle_import_auto(utenza):
@@ -1901,7 +2057,6 @@ def utenze(self):
         if not cat:
             return None
         condivisa = sum(1 for u in utenze if _categoria_bollette(u) == cat) > 1
-        doc_dir = getattr(_app, "DOC_DIR", "")
         trovati = []
         for nome, d in _registro_documenti().items():
             try:
@@ -1912,10 +2067,10 @@ def utenze(self):
                     continue
                 if condivisa:
                     descr = str(d.get("descrizione_esatta", "")).lower()
-                    match = [u for u, kws in _KEYWORDS_UTENZA.items() if any(k in descr for k in kws)]
+                    match = _match_utenze(descr)
                     if match != [utenza]:
                         continue
-                for base in (doc_dir, os.path.join(os.getcwd(), "Fatture_GMail")):
+                for base in _basi_documenti():
                     fp = os.path.join(base, nome)
                     if os.path.exists(fp):
                         trovati.append((raw[4:8] + raw[2:4] + raw[0:2], fp))
@@ -2035,6 +2190,8 @@ def utenze(self):
     def _apri_bolletta(utenza, event):
         tr = self.trees[utenza]
         if tr.identify_region(event.x, event.y) != "cell":
+            return
+        if tr.identify_column(event.x) != f"#{list(tr['columns']).index('Bolletta') + 1}":
             return
         iid = tr.identify_row(event.y)
         mese_k = _riga_mese(tr, iid) if iid else None
@@ -2165,7 +2322,7 @@ def utenze(self):
             for u in utenze:
                 tr = self.trees.get(u)
                 if tr is not None and tr.get_children():
-                    letture_salvate[u][anno_v] = [tuple(tr.item(i)["values"])[:4] for i in tr.get_children()]
+                    letture_salvate[u][anno_v] = _righe_tree(tr)
         blocchi = []
         for u in utenze:
             unita = _UNITA_TOT.get(u, "")
@@ -2265,7 +2422,7 @@ REGOLE DI FORMATO:
         aw.geometry(f"{W2}x{H2}+{max(x2, 0)}+{max(y2, 0)}")
         aw.minsize(900, 560)
         aw.bind("<Escape>", lambda e: aw.destroy())
-        ttk.Label(aw, text="Analisi di Mercato: consumi e costi di Acqua, Luce e Gas",
+        ttk.Label(aw, text="Analisi dei consumi di Acqua, Luce e Gas",
                   style="Header.TLabel", font=("Consolas", 12, "bold")).pack(side="top", pady=(14, 6))
         barra = tk.Frame(aw, bg=self.COLOR_TOPLEVEL)
         barra.pack(side="bottom", fill="x", pady=10)
@@ -2273,7 +2430,7 @@ REGOLE DI FORMATO:
         stato.pack(side="top", pady=(0, 4))
         cvs, _ = crea_spinner_animato(stato, self.COLOR_TOPLEVEL, size=24, tick_ms=30)
         cvs.pack(side="left", padx=(0, 8))
-        lbl_stato = tk.Label(stato, text="Ricerca dei prezzi di mercato e analisi in corso…",
+        lbl_stato = tk.Label(stato, text="Ricerca dei consumi medi e analisi in corso…",
                              bg=self.COLOR_TOPLEVEL, fg=self.COLOR_HIGHLIGHT, font=("Segoe UI", 9, "bold"))
         lbl_stato.pack(side="left")
         cont = tk.Frame(aw, bg=self.COLOR_TOPLEVEL)
@@ -2414,7 +2571,7 @@ REGOLE DI FORMATO:
                         pass
                 else:
                     testo = ("ATTENZIONE: la ricerca web non è disponibile con il modello configurato, "
-                             "i prezzi di mercato sono stime basate sulle conoscenze del modello e possono non essere aggiornati.\n\n") + testo
+                             "i confronti con le medie sono stime basate sulle conoscenze del modello e possono non essere aggiornati.\n\n") + testo
             except Exception as err:
                 e_s = str(err)
                 if "429" in e_s or "RESOURCE_EXHAUSTED" in e_s:
@@ -2425,7 +2582,7 @@ REGOLE DI FORMATO:
                     testo = f"ERRORE API:\n{e_s[:300]}"
             if fonti:
                 testo += "\n\nFONTI WEB CONSULTATE\n" + "\n".join(fonti)
-            self.after(0, lambda: _mostra(testo))
+            _post_ui(lambda: _mostra(testo))
         threading.Thread(target=_run, daemon=True).start()
 
     def _apri_confronta_bollette():
@@ -2445,7 +2602,7 @@ REGOLE DI FORMATO:
         dlg.transient(win)
         dlg.resizable(False, False)
         tk.Label(dlg, bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR, justify="left", font=("Arial", 10),
-                 text="Per confrontare i tuoi consumi con la media per persona e con i prezzi di mercato\n"
+                 text="Per confrontare i tuoi consumi con la media per persona e con le medie di zona\n"
                       "servono pochi dati sulla casa. Restano salvati per le prossime analisi."
                  ).pack(padx=16, pady=(14, 8), anchor="w")
         form = tk.Frame(dlg, bg=self.COLOR_TOPLEVEL)
@@ -2758,7 +2915,7 @@ REGOLE DI FORMATO:
             total_w = fine_x + 30
 
         elif modo == "Annuale":
-            anni_presenti = sorted({a for u in utenze for a in letture_salvate.get(u, {}).keys()}) or [anno_var.get()]
+            anni_presenti = sorted({a for u in utenze for a, r in letture_salvate.get(u, {}).items() if _ha_valori(r)}) or [anno_var.get()]
             dati = [(a, {u: _totale_anno(u, a) for u in utenze}) for a in anni_presenti]
             max_v = max_per_utenza(dati)
             avail_w = max(c_w - CHART_LEFT - 40, MIN_GROUP_W * len(dati))
@@ -2766,7 +2923,7 @@ REGOLE DI FORMATO:
             total_w = fine_x + 30
 
         else:
-            anni_presenti = sorted({a for u in utenze for a in letture_salvate.get(u, {}).keys()})
+            anni_presenti = sorted({a for u in utenze for a, r in letture_salvate.get(u, {}).items() if _ha_valori(r)})
             dati_tot = [("Totale", {u: sum(_totale_anno(u, a) for a in anni_presenti) for u in utenze})]
             dati_anni = [(a, {u: _totale_anno(u, a) for u in utenze}) for a in anni_presenti] or [(anno_var.get(), {u: 0.0 for u in utenze})]
             max_tot_scalare = max(list(dati_tot[0][1].values()) + [1.0])
