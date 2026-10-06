@@ -456,9 +456,10 @@ def gestione_login(self):
         except Exception:
             pass
 
-    if AUTO_ICONIZE_STARTUP or _da_switch_web:
+    _is_demo = PROFILO_ATTIVO == getattr(_app, "NOME_PROFILO_DEMO", None)
+    if AUTO_ICONIZE_STARTUP or _da_switch_web or _is_demo:
         login_riuscito[0] = True
-        motivo = "AUTO_ICONIZE_STARTUP" if AUTO_ICONIZE_STARTUP else "switch profilo da web"
+        motivo = "AUTO_ICONIZE_STARTUP" if AUTO_ICONIZE_STARTUP else ("profilo Demo" if _is_demo else "switch profilo da web")
         print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Login bypassato ({motivo}).")
     if not login_riuscito[0]:
         mostra_finestra_login()
