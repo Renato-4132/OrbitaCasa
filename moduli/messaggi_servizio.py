@@ -151,6 +151,20 @@ def mostra_messaggi_servizio(self):
     if not pendenti:
         self.show_toast("Nessun nuovo messaggio di servizio.", duration=2500)
         return
+    toast_id = getattr(self, "_toast_after_id", None)
+    if toast_id:
+        try:
+            self.after_cancel(toast_id)
+        except Exception:
+            pass
+        self._toast_after_id = None
+    toast_win = getattr(self, "_toast_win", None)
+    if toast_win:
+        try:
+            toast_win.destroy()
+        except Exception:
+            pass
+        self._toast_win = None
     popup = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
     self._messaggi_servizio_popup = popup
     popup.bind("<Destroy>", lambda e: setattr(self, '_messaggi_servizio_popup', None) if e.widget is popup else None)
