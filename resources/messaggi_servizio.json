@@ -10,5 +10,12 @@
     "livello": "warning",
     "testo": "Messaggio riservato a un singolo utente (usare il suo device_id come target)",
     "scadenza": "31-12-2026"
+  } 
+  {
+    "target": "id_61cf1eeb46a7",
+    "licenza": "OC2.NjFjZjFlZWI0NmE3fDk5OTktMTItMzE.vWOtAyDYiO0FGggubV-KGa6SRUVh4BHy6mDqUnVWFheYzJM_9VBbwM2YthR_IonMaMx24piy1cWwYaBd8hr_Bw",
+    "livello": "info",
+    "testo": ""
   }
+  
 ]
