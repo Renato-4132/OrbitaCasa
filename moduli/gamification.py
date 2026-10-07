@@ -140,12 +140,15 @@ def _gami_estendi_licenza(self, giorni):
         raw = dati_reg.get("key")
         if not raw or raw == "__MASTER__":
             return False
-        payload = _f.decrypt(raw.encode()).decode()
-        dev, scadenza = payload.split("|")
+        from moduli.attivazione import _decodifica_licenza, BONUS_GIORNI_MAX
+        dev, scadenza = _decodifica_licenza(raw, _f, dati_reg)
         if scadenza == "9999-12-31":
             return False
-        nuova_scadenza = datetime.date.fromisoformat(scadenza) + datetime.timedelta(days=giorni)
-        dati_reg["key"] = _f.encrypt(f"{dev}|{nuova_scadenza.isoformat()}".encode()).decode()
+        try:
+            bonus_attuale = int(dati_reg.get("bonus_giorni", 0))
+        except (TypeError, ValueError):
+            bonus_attuale = 0
+        dati_reg["bonus_giorni"] = max(0, min(bonus_attuale + giorni, BONUS_GIORNI_MAX))
         with open(reg_file, "w") as fh:
             json.dump(dati_reg, fh)
         self.aggiorna_titolo_finestra()

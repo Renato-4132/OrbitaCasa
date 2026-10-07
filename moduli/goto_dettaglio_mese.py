@@ -8,7 +8,7 @@ from moduli.modello_spesa import campo
 from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa
 
 # Mostra tutti i movimenti del mese selezionato, raggruppati per giorno, nella treeview di destra.
-def goto_dettaglio_mese(self):
+def goto_dettaglio_mese(self, salva=False):
     from __main__ import PORTAFOGLIO_BANCARIO
     self.mostra_treeview_statistiche()
     try:
@@ -22,6 +22,12 @@ def goto_dettaglio_mese(self):
     self._view_month = mese
     if hasattr(self, 'stats_mode'):
         self.stats_mode.set("giorno")
+        if salva:
+            from __main__ import _salva_chiave_config
+            self._stats_mode_utente = "giorno"
+            self._stats_dettaglio_utente = True
+            _salva_chiave_config("stats_mode_avanzato", "giorno")
+            _salva_chiave_config("stats_dettaglio_mese", True)
     if hasattr(self, 'stats_hint_label'):
         self.stats_hint_label.config(text="Doppio clic → Documenti  |  Tasto destro → Promemoria")
     self.stats_table["displaycolumns"] = ("A", "B", "C", "D", "E", "F")

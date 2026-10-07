@@ -11,6 +11,8 @@ import requests
 
 def _calcola_id_messaggio(msg):
     chiave = f"{msg.get('target', '')}|{msg.get('livello', '')}|{msg.get('testo', '')}|{msg.get('scadenza', '')}"
+    if msg.get("enc"):
+        chiave = f"{msg.get('to', '')}|{msg['enc']}"
     return hashlib.sha1(chiave.encode("utf-8")).hexdigest()[:16]
 
 def _leggi_messaggi_visti(path_file):
@@ -22,13 +24,22 @@ def _leggi_messaggi_visti(path_file):
         pass
     return set()
 
+_LOCK_VISTI = threading.RLock()
+
 def _scrivi_messaggi_visti(path_file, visti):
     try:
-        os.makedirs(os.path.dirname(path_file), exist_ok=True)
-        with open(path_file, "w", encoding="utf-8") as f:
-            json.dump(sorted(visti), f, ensure_ascii=False, indent=2)
+        with _LOCK_VISTI:
+            os.makedirs(os.path.dirname(path_file), exist_ok=True)
+            with open(path_file, "w", encoding="utf-8") as f:
+                json.dump(sorted(visti), f, ensure_ascii=False, indent=2)
     except Exception as e:
         print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Errore scrittura messaggi visti: {e}")
+
+def _aggiungi_messaggi_visti(path_file, ids):
+    with _LOCK_VISTI:
+        v = _leggi_messaggi_visti(path_file)
+        v.update(ids)
+        _scrivi_messaggi_visti(path_file, v)
 
 def _scadenza_valida(msg):
     scad = msg.get("scadenza")
@@ -51,6 +62,66 @@ def _messaggio_per_me(msg, device_id):
     if str(target).strip().lower() == "all":
         return True
     return bool(device_id) and _norm_id(target) == _norm_id(device_id)
+
+def _registra_licenza_da_messaggio(self, msg):
+    import __main__ as _app
+    try:
+        key = str(msg.get("licenza", "")).strip()
+        if not key.startswith("OC2."):
+            return "formato key non valido"
+        try:
+            if os.path.exists(_app.SYNC_CHK_FILE):
+                with open(_app.SYNC_CHK_FILE) as fh:
+                    _cont = fh.read()
+                if "|" in _cont and key == _cont.split("|", 1)[1]:
+                    return "licenza bloccata per inattivita', ne serve una nuova"
+        except Exception:
+            pass
+        from moduli.attivazione import _decodifica_licenza
+        try:
+            dev, scadenza = _decodifica_licenza(key, _app.get_fernet_licenza())
+        except Exception as e:
+            return str(e) if isinstance(e, ValueError) else "firma non valida"
+        if dev != _app._get_device_id():
+            return "key per un altro dispositivo"
+        if datetime.date.today() > datetime.date.fromisoformat(scadenza):
+            return "licenza scaduta"
+        if os.path.exists(_app.REG_FILE):
+            try:
+                with open(_app.REG_FILE) as fh:
+                    _attuale = json.load(fh)
+                if _attuale.get("key") == key:
+                    return "gia"
+                if _attuale.get("key") == "__MASTER__":
+                    import hmac
+                    from moduli.attivazione import _token_master
+                    if hmac.compare_digest(str(_attuale.get("master_token", "")), _token_master(_app._get_device_id())):
+                        return "gia"
+            except Exception:
+                pass
+        with open(_app.REG_FILE, "w") as fh:
+            json.dump({"key": key, "data_registrazione": datetime.date.today().isoformat()}, fh)
+        if os.path.exists(_app.SYNC_CHK_FILE):
+            os.remove(_app.SYNC_CHK_FILE)
+        threading.Thread(
+            target=lambda sc=scadenza: self.verify_environment_update(
+                f"LICENSED_{datetime.date.fromisoformat(sc).strftime('%d/%m/%Y')}"
+            ),
+            daemon=True
+        ).start()
+        self._lic_ok = True
+        self.aggiorna_titolo_finestra()
+        win_reg = getattr(self, "_win_reg", None)
+        if win_reg is not None and win_reg.winfo_exists():
+            from moduli.attivazione import _ripristina_binding_registrazione
+            _ripristina_binding_registrazione(self)
+            win_reg.destroy()
+        if hasattr(self, "_attiva_timer_inattivita"):
+            self._attiva_timer_inattivita()
+        self.show_toast("Registrazione completata.", duration=3000)
+        return "ok"
+    except Exception as e:
+        return f"errore: {e}"
 
 def _lampeggia_badge_messaggi_servizio(self):
     badge = getattr(self, "badge_messaggi_servizio", None)
@@ -113,7 +184,36 @@ def _check_messaggi_servizio_in_background(self):
         prima_esecuzione = installazione_vuota and not os.path.exists(MESSAGGI_VISTI_FILE)
         visti = _leggi_messaggi_visti(MESSAGGI_VISTI_FILE)
         nuovi = []
+        da_registrare = []
+        try:
+            from moduli.attivazione import _identita_dispositivo, _decifra_per_dispositivo
+            tag_mio = _identita_dispositivo()[2]
+        except Exception:
+            tag_mio = None
         for msg in elenco:
+            if msg.get("enc") or msg.get("licenza"):
+                if not msg.get("enc") or not tag_mio or msg.get("to") != tag_mio:
+                    continue
+                id_msg = _calcola_id_messaggio(msg)
+                gia_visto = id_msg in visti
+                if gia_visto and os.path.exists(_app.REG_FILE):
+                    continue
+                try:
+                    interno = json.loads(_decifra_per_dispositivo(msg["enc"]).decode("utf-8"))
+                except Exception:
+                    if not gia_visto:
+                        visti.add(id_msg)
+                        _aggiungi_messaggi_visti(MESSAGGI_VISTI_FILE, [id_msg])
+                        self.after(0, lambda: self.show_toast(
+                            "Messaggio riservato ricevuto ma non decifrabile (blob alterato o chiave diversa).", duration=6000))
+                    continue
+                interno["_id"] = id_msg
+                if interno.get("licenza"):
+                    interno["_silenzioso"] = gia_visto
+                    da_registrare.append(interno)
+                elif not gia_visto and _scadenza_valida(interno):
+                    nuovi.append(interno)
+                continue
             if not _messaggio_per_me(msg, device_id) or not _scadenza_valida(msg):
                 continue
             id_msg = _calcola_id_messaggio(msg)
@@ -125,7 +225,20 @@ def _check_messaggi_servizio_in_background(self):
                 msg["_id"] = id_msg
                 nuovi.append(msg)
         if prima_esecuzione:
-            _scrivi_messaggi_visti(MESSAGGI_VISTI_FILE, visti)
+            _aggiungi_messaggi_visti(MESSAGGI_VISTI_FILE, visti)
+        if da_registrare:
+            def _registra():
+                ids_ok = None
+                for m in reversed(da_registrare):
+                    esito = _registra_licenza_da_messaggio(self, m)
+                    if esito in ("ok", "gia"):
+                        ids_ok = [x["_id"] for x in da_registrare]
+                        break
+                    elif not m.get("_silenzioso"):
+                        self.show_toast(f"Licenza ricevuta ma non registrata: {esito}", duration=6000)
+                if ids_ok:
+                    _aggiungi_messaggi_visti(MESSAGGI_VISTI_FILE, ids_ok)
+            self.after(0, _registra)
         if nuovi:
             def _applica():
                 notificati = getattr(self, "_messaggi_servizio_notificati", set())
@@ -138,7 +251,6 @@ def _check_messaggi_servizio_in_background(self):
             self.after(0, _applica)
     threading.Thread(target=_check, daemon=True).start()
 
-# Popup che elenca i messaggi di servizio pendenti; alla chiusura li marca come visti
 def mostra_messaggi_servizio(self):
     import __main__ as _app
     from tkinter import ttk
@@ -174,10 +286,7 @@ def mostra_messaggi_servizio(self):
     popup.resizable(False, False)
     width = 520
     def _chiudi(event=None):
-        visti = _leggi_messaggi_visti(MESSAGGI_VISTI_FILE)
-        for msg in pendenti:
-            visti.add(msg["_id"])
-        _scrivi_messaggi_visti(MESSAGGI_VISTI_FILE, visti)
+        _aggiungi_messaggi_visti(MESSAGGI_VISTI_FILE, [msg["_id"] for msg in pendenti])
         mostrati = {msg["_id"] for msg in pendenti}
         self._messaggi_servizio_pendenti = [
             m for m in getattr(self, "_messaggi_servizio_pendenti", []) if m["_id"] not in mostrati

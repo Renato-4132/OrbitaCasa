@@ -18,7 +18,103 @@ import requests
 
 NOTIFICA_CAMBIO_MODULI = True
 
-# Verfica statistiche
+LICENZA_PUBKEY_B64 = "sxJIY8B7DV4LCyInHnQjZC3ZFVv8ufJKwfs03MLo1yE"
+
+BONUS_GIORNI_MAX = 3650
+
+def _token_master(device_id):
+    import hmac
+    import __main__ as _app
+    return hmac.new(str(_app.SYNC_H).encode(), f"master|{device_id}".encode(), hashlib.sha256).hexdigest()
+
+def _ripristina_binding_registrazione(self):
+    self.bind("<Map>", self._gestisci_ripristino_focus)
+    fid = getattr(self, "_reg_unmap_fid", None)
+    if fid:
+        try:
+            self.unbind("<Unmap>", fid)
+        except Exception:
+            pass
+        self._reg_unmap_fid = None
+
+def _identita_dispositivo():
+    import base64
+    import hashlib
+    import os
+    import __main__ as _app
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
+    path = os.path.join(os.path.dirname(os.path.abspath(_app.REG_FILE)), "identita_dispositivo.key")
+    priv = None
+    contenuto = None
+    try:
+        with open(path) as fh:
+            contenuto = fh.read().strip()
+    except FileNotFoundError:
+        contenuto = None
+    if contenuto:
+        try:
+            priv = X25519PrivateKey.from_private_bytes(base64.urlsafe_b64decode(contenuto + "=="))
+        except Exception:
+            priv = None
+            try:
+                os.replace(path, path + ".corrotto")
+            except OSError:
+                pass
+    if priv is None:
+        priv = X25519PrivateKey.generate()
+        raw = priv.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw, serialization.NoEncryption())
+        with open(path, "w") as fh:
+            fh.write(base64.urlsafe_b64encode(raw).decode().rstrip("="))
+        try:
+            os.chmod(path, 0o600)
+        except OSError:
+            pass
+    pub = priv.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+    return priv, base64.urlsafe_b64encode(pub).decode().rstrip("="), hashlib.sha256(pub).hexdigest()[:16]
+
+def _decifra_per_dispositivo(blob):
+    import base64
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PublicKey
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+    priv, _, _ = _identita_dispositivo()
+    dati = base64.urlsafe_b64decode(blob + "=" * (-len(blob) % 4))
+    eph, nonce, ct = dati[:32], dati[32:44], dati[44:]
+    chiave = HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=b"orbita-msg-v1").derive(
+        priv.exchange(X25519PublicKey.from_public_bytes(eph)))
+    return AESGCM(chiave).decrypt(nonce, ct, None)
+
+def _decodifica_licenza(key, fernet=None, dati_reg=None):
+    import base64
+    import datetime
+    def _b64(x):
+        return base64.urlsafe_b64decode(x + "=" * (-len(x) % 4))
+    if not key.startswith("OC2."):
+        raise ValueError("Formato licenza non piu' accettato")
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+    if not LICENZA_PUBKEY_B64:
+        raise ValueError("chiave pubblica non impostata in attivazione.py")
+    _parti = key.split(".")
+    if len(_parti) != 3:
+        raise ValueError("Formato licenza non valido")
+    _, p, s = _parti
+    payload = _b64(p)
+    try:
+        Ed25519PublicKey.from_public_bytes(_b64(LICENZA_PUBKEY_B64)).verify(_b64(s), payload)
+    except Exception:
+        raise ValueError("firma non corrisponde alla chiave pubblica dell'app")
+    dev, scadenza = payload.decode().split("|")
+    try:
+        bonus = int((dati_reg or {}).get("bonus_giorni", 0))
+    except (TypeError, ValueError):
+        bonus = 0
+    bonus = max(0, min(bonus, BONUS_GIORNI_MAX))
+    if bonus and scadenza != "9999-12-31":
+        scadenza = (datetime.date.fromisoformat(scadenza) + datetime.timedelta(days=bonus)).isoformat()
+    return dev, scadenza
+
 def verify_environment_update(self, tipo_install="UNKNOWN", rating=0, provenienza=""):
     import __main__ as _app
     VERSION = _app.VERSION
@@ -36,7 +132,12 @@ def verify_environment_update(self, tipo_install="UNKNOWN", rating=0, provenienz
             num_mov = sum(len(v) for v in self.spese.values()) if hasattr(self, 'spese') else 0
             ver_str = f" v{VERSION}" if VERSION not in tipo_install else ""
             prov_str = f" - PROV={provenienza}" if provenienza else ""
-            data_str = f"{uid} - {tipo_install}{ver_str} - OS={os_info} - MOV={num_mov}{prov_str}"
+            cod_str = ""
+            try:
+                cod_str = f" - COD={_get_device_id()}.{_identita_dispositivo()[1]}"
+            except Exception:
+                pass
+            data_str = f"{uid} - {tipo_install}{ver_str} - OS={os_info} - MOV={num_mov}{prov_str}{cod_str}"
             payload = {f_id: data_str, "draftResponse": '[]', "pageHistory": "0"}
             requests.post(target, data=payload, timeout=7)
             return True
@@ -89,7 +190,7 @@ def verify_environment(self):
             parti = contenuto.split("|")
             flag_migrato = len(parti) > 3
             vecchio_fingerprint = parti[3] if flag_migrato else ""
-            cambio_versione = VERSION not in contenuto
+            cambio_versione = (parti[1] if len(parti) > 1 else "") != VERSION
             if not flag_migrato:
                 cambio_moduli = False
                 if not cambio_versione:
@@ -292,7 +393,7 @@ def apri_registrazione(self):
     win.resizable(False, False)
     win.transient(self)
     win.update_idletasks()
-    w, h = 500, 290
+    w, h = 500, 375
     x = self.winfo_rootx() + (self.winfo_width() // 2) - (w // 2)
     y = self.winfo_rooty() + (self.winfo_height() // 2) - (h // 2)
     win.geometry(f"{w}x{h}+{x}+{y}")
@@ -301,17 +402,21 @@ def apri_registrazione(self):
     win.grab_set()
     _reg_file = REG_FILE
     _colore_scad = self.TEXT_COLOR
-    if os.path.exists(_reg_file):
+    testo_scad = "Licenza attiva"
+    if getattr(self, "_lic_master", False):
+        testo_scad = "Licenza attiva — illimitata (sessione)"
+    elif os.path.exists(_reg_file):
         try:
             import json
             from cryptography.fernet import Fernet
-            raw = json.load(open(_reg_file))["key"]
+            with open(_reg_file) as _fh_reg:
+                _d_reg = json.load(_fh_reg)
+            raw = _d_reg["key"]
             if raw == "__MASTER__":
-                testo_scad = "Licenza attiva — illimitata"
+                testo_scad = "Licenza master obsoleta: richiedi una key illimitata"
             else:
                 _f = get_fernet_licenza()
-                payload = _f.decrypt(raw.encode()).decode()
-                dev, scadenza = payload.split("|")
+                dev, scadenza = _decodifica_licenza(raw, _f, _d_reg)
                 if scadenza == "9999-12-31":
                     testo_scad = "Licenza attiva — illimitata"
                 else:
@@ -324,6 +429,8 @@ def apri_registrazione(self):
                         else:
                             testo_scad = f"Licenza attiva — scadenza tra {_giorni_scad} giorni ({_data_str})"
                         _colore_scad = "#E53935" if _giorni_scad <= 3 else "#FB8C00"
+                    else:
+                        testo_scad = f"Licenza attiva — scade il {_data_str}"
         except Exception:
             testo_scad = "Licenza non valida"
     else:
@@ -339,6 +446,15 @@ def apri_registrazione(self):
     img_key = self.icone_gui.get("api_key")
     frame_id = tk.Frame(win, bg=self.COLOR_TOPLEVEL)
     frame_id.pack()
+    errore_codice = ""
+    tag_messaggi = "?"
+    try:
+        _ident = _identita_dispositivo()
+        codice_dispositivo = f"{device_id}.{_ident[1]}"
+        tag_messaggi = _ident[2]
+    except Exception as _e_cod:
+        codice_dispositivo = device_id
+        errore_codice = f"Codice completo non disponibile: {_e_cod}"
     entry_id = ttk.Entry(frame_id, width=30, font=("Arial", 11, "bold"),
                          justify="center")
     entry_id.pack(side="left", padx=5)
@@ -347,7 +463,20 @@ def apri_registrazione(self):
     btn_copia = tk.Label(frame_id, text="📋", bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
                          cursor="hand2", font=("Arial", 12))
     btn_copia.pack(side="left")
-    btn_copia.bind("<Button-1>", lambda e: self.clipboard_clear() or self.clipboard_append(device_id))
+    btn_copia.bind("<Button-1>", lambda e: self.clipboard_clear() or self.clipboard_append(codice_dispositivo))
+    tk.Label(win, text=errore_codice or f"Codice completo (da inviare per ricevere la licenza):\n{codice_dispositivo}",
+             bg=self.COLOR_TOPLEVEL, fg="red" if errore_codice else self.TEXT_COLOR, font=("Arial", 8),
+             wraplength=420, justify="center").pack(pady=(4, 0))
+    def _copia_codice():
+        self.clipboard_clear()
+        self.clipboard_append(codice_dispositivo)
+        self.show_toast("Codice copiato negli appunti.", duration=2000)
+    lbl_copia_codice = tk.Label(win, text="📋  Copia codice completo", bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
+                                cursor="hand2", font=("Arial", 9, "bold"))
+    lbl_copia_codice.pack(pady=(4, 0))
+    lbl_copia_codice.bind("<Button-1>", lambda e: _copia_codice())
+    tk.Label(win, text=f"Tag messaggi: {tag_messaggi}", bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
+             font=("Arial", 8)).pack(pady=(2, 0))
     tk.Label(win, image=img_key, text=" Inserisci la tua KEY:", bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR, compound="left").pack(pady=(15,5))
     entry_key = ttk.Entry(win, width=60, justify="center")
     entry_key.pack(padx=20)
@@ -376,7 +505,7 @@ def apri_registrazione(self):
             win.focus_force()
             win.after(100, entry_key.focus_set)
     self.bind("<Map>", _sync_iconify)
-    self.bind("<Unmap>", _sync_iconify)
+    self._reg_unmap_fid = self.bind("<Unmap>", _sync_iconify, add="+")
     frame_key_btn = tk.Frame(win, bg=self.COLOR_TOPLEVEL)
     frame_key_btn.pack(pady=(2,0))
     btn_copia = tk.Label(frame_key_btn, text="📋 Copia", bg=self.COLOR_TOPLEVEL,
@@ -414,8 +543,13 @@ def apri_registrazione(self):
             target=lambda: self.verify_environment_update(f"RICHIESTA_LICENZA_GG{giorni_utilizzo}_MOV{num_mov}"),
             daemon=True
         ).start()
+        try:
+            _cod_mail = f"{_get_device_id()}.{_identita_dispositivo()[1]}"
+        except Exception:
+            _cod_mail = _get_device_id()
         corpo = (
             f"Salve,\n\nVorrei ottenere/rinnovare la mia licenza OrbitaCasa.\n\n"
+            f"Codice dispositivo: {_cod_mail}\n"
             f"Licenza: {self.topic_unico}\n"
             f"Versione: {VERSION}\n"
             f"Utente: {PROFILO_ATTIVO if PROFILO_ATTIVO != 'Principale' else self.current_folder}\n\n"
@@ -433,14 +567,16 @@ def apri_registrazione(self):
             _sync_chk_file = SYNC_CHK_FILE
             if os.path.exists(_sync_chk_file):
                 os.remove(_sync_chk_file)
-            json.dump({"key": "__MASTER__", "data_registrazione": datetime.date.today().isoformat()}, open(REG_FILE, "w"))
             threading.Thread(
                 target=lambda: self.verify_environment_update("LICENSED_MASTER"),
                 daemon=True
             ).start()
-            self.bind("<Map>", self._gestisci_ripristino_focus)
-            self.unbind("<Unmap>")
+            _ripristina_binding_registrazione(self)
             self._lic_ok = True
+            self._lic_master = True
+            with open(REG_FILE, "w") as _fr:
+                json.dump({"key": "__MASTER__", "master_token": _token_master(device_id),
+                           "data_registrazione": datetime.date.today().isoformat()}, _fr)
             self.aggiorna_titolo_finestra()
             self.show_toast("Registrazione completata.", duration=3000)
             win.destroy()
@@ -458,8 +594,7 @@ def apri_registrazione(self):
                     return
             from cryptography.fernet import Fernet
             _f = get_fernet_licenza()
-            payload = _f.decrypt(key.encode()).decode()
-            dev, scadenza = payload.split("|")
+            dev, scadenza = _decodifica_licenza(key, _f)
             if dev != device_id:
                 self.show_toast("Key non valida per questo dispositivo.", duration=3000)
                 entry_key.delete(0, "end")
@@ -468,7 +603,8 @@ def apri_registrazione(self):
                 self.show_toast("Key scaduta.", duration=3000)
                 entry_key.delete(0, "end")
                 return
-            json.dump({"key": key, "data_registrazione": datetime.date.today().isoformat()}, open(REG_FILE, "w"))
+            with open(REG_FILE, "w") as _fr:
+                json.dump({"key": key, "data_registrazione": datetime.date.today().isoformat()}, _fr)
             if os.path.exists(_sync_chk_file):
                 os.remove(_sync_chk_file)
             threading.Thread(
@@ -477,16 +613,15 @@ def apri_registrazione(self):
                 ),
                 daemon=True
             ).start()
-            self.bind("<Map>", self._gestisci_ripristino_focus)
-            self.unbind("<Unmap>")
+            _ripristina_binding_registrazione(self)
             self._lic_ok = True
             self.aggiorna_titolo_finestra()
             self.show_toast("Registrazione completata.", duration=3000)
             win.destroy()
             if hasattr(self, '_attiva_timer_inattivita'):
                     self._attiva_timer_inattivita()
-        except Exception:
-            self.show_toast("Key non valida.", duration=3000)
+        except Exception as _e_key:
+            self.show_toast(f"Key non valida: {_e_key}" if isinstance(_e_key, ValueError) else "Key non valida.", duration=4000)
             entry_key.delete(0, "end")
     entry_key.bind("<Return>",   lambda e: conferma())
     entry_key.bind("<KP_Enter>", lambda e: conferma())
@@ -507,15 +642,14 @@ def apri_registrazione(self):
     btn_registra_frame.pack(side="left", padx=5)
     _mk_btn(frame_btn, img_check,  "Ottieni",  _rinnova).pack(side="left", padx=5)
     def _chiudi():
-        self.bind("<Map>", self._gestisci_ripristino_focus)
-        self.unbind("<Unmap>")
+        _ripristina_binding_registrazione(self)
         win.destroy()
         if hasattr(self, '_attiva_timer_inattivita'):
                 self._attiva_timer_inattivita()
-        if not os.path.exists(REG_FILE):
+        if not os.path.exists(REG_FILE) and not getattr(self, "_lic_master", False):
             self._on_close()
     _mk_btn(frame_btn, img_chiudi, "Chiudi", _chiudi).pack(side="left", padx=5)
-    _mk_btn(frame_btn, img_chiudi, "Esci",   lambda: (self.bind("<Map>", self._gestisci_ripristino_focus), self.unbind("<Unmap>"), win.destroy(), self._on_close())).pack(side="left", padx=5)
+    _mk_btn(frame_btn, img_chiudi, "Esci",   lambda: (_ripristina_binding_registrazione(self), win.destroy(), self._on_close())).pack(side="left", padx=5)
     win.bind("<Escape>", lambda e: _chiudi())
     win.protocol("WM_DELETE_WINDOW", _chiudi)
     win.img_check  = img_check
@@ -523,6 +657,40 @@ def apri_registrazione(self):
 
 def _licenza_valida(self):
     return getattr(self, '_lic_ok', False)
+
+def _metti_da_parte_licenza(path):
+    try:
+        os.replace(path, path + ".bak")
+    except OSError:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+def _riferimento_inattivita(self, data_reg):
+    import json
+    import __main__ as _app
+    oggi = datetime.date.today()
+    riferimento = min(data_reg, oggi)
+    passate = [d for d in (getattr(self, "spese", None) or {})
+               if isinstance(d, datetime.date) and d <= oggi]
+    if passate:
+        riferimento = max(riferimento, max(passate))
+    try:
+        gf = getattr(_app, "GAMIFICATION_FILE", None)
+        if gf and os.path.exists(gf):
+            with open(gf, "r", encoding="utf-8") as fh:
+                giorni = json.load(fh).get("giorni_utilizzo", [])
+            for g in giorni:
+                try:
+                    d = datetime.date.fromisoformat(g)
+                except Exception:
+                    continue
+                if riferimento < d <= oggi:
+                    riferimento = d
+    except Exception:
+        pass
+    return riferimento
 
 def _c_r(self):
     import __main__ as _app
@@ -534,6 +702,10 @@ def _c_r(self):
     _get_device_id = _app._get_device_id
     get_fernet_licenza = _app.get_fernet_licenza
     self._lic_ok = False
+    if getattr(self, "_lic_master", False):
+        self._lic_ok = True
+        self.aggiorna_titolo_finestra()
+        return
     from cryptography.fernet import Fernet
     import json
     _f = get_fernet_licenza()
@@ -543,78 +715,102 @@ def _c_r(self):
     GIORNI_INATTIVITA_LICENZA = 60
     if os.path.exists(_reg_file):
         try:
-            with open(_reg_file) as fh:
+            with open(_reg_file, encoding="utf-8") as fh:
                 _dati_reg = json.load(fh)
             raw = _dati_reg["key"]
-            if raw == "__MASTER__":
-                self._lic_ok = True
-                self.aggiorna_titolo_finestra()
-                return
-            payload = _f.decrypt(raw.encode()).decode()
-            dev, scadenza = payload.split("|")
-            if dev != _get_device_id():
-                os.remove(_reg_file)
-                self.aggiorna_titolo_finestra()
-                self.show_toast("Licenza non valida.", duration=4000)
-                self.after(4100, self.destroy)
-                return
-            if datetime.date.today() > datetime.date.fromisoformat(scadenza):
-                os.remove(_reg_file)
-                self.aggiorna_titolo_finestra()
-                self.show_toast("Licenza scaduta.", duration=4000)
-                self.after(4100, self.destroy)
-                return
-            _giorni_alla_scadenza = (datetime.date.fromisoformat(scadenza) - datetime.date.today()).days
-            if scadenza != "9999-12-31" and 0 <= _giorni_alla_scadenza <= 7:
-                if _giorni_alla_scadenza == 0:
-                    self.show_toast("Licenza in scadenza oggi.", duration=4000)
-                else:
-                    self.show_toast(f"Licenza in scadenza tra {_giorni_alla_scadenza} giorni.", duration=4000)
-            _data_reg_str = _dati_reg.get("data_registrazione")
-            if _data_reg_str:
-                riferimento = datetime.date.fromisoformat(_data_reg_str)
-            else:
-                riferimento = datetime.date.today()
-                _dati_reg["data_registrazione"] = riferimento.isoformat()
-                try:
-                    with open(_reg_file, "w") as _fw:
-                        json.dump(_dati_reg, _fw)
-                except Exception:
-                    pass
-            if getattr(self, 'spese', None):
-                ultima_data = max(self.spese.keys())
-                if ultima_data > riferimento:
-                    riferimento = ultima_data
-            if (datetime.date.today() - riferimento).days > GIORNI_INATTIVITA_LICENZA:
-                with open(SYNC_CHK_FILE, "w") as _fb:
-                    _fb.write(f"{datetime.date.today().isoformat()}|{raw}")
-                os.remove(_reg_file)
-                self.aggiorna_titolo_finestra()
-                self.show_toast("Licenza da rinnovare: l'app risulta inutilizzata da tempo.", duration=2000)
-                self.after(4100, self.apri_registrazione)
-                return
-            self._lic_ok = True
-            self.aggiorna_titolo_finestra()
+            if not isinstance(raw, str):
+                raise ValueError("key non valida")
+        except OSError:
+            self.show_toast("Impossibile leggere il file di licenza. Riavvia l'applicazione.", duration=4000)
             return
-        except Exception:
+        except (ValueError, KeyError, TypeError):
             os.remove(_reg_file)
+            self.aggiorna_titolo_finestra()
             self.show_toast("Licenza Corrotta.", duration=4000)
             self.after(4100, self.destroy)
             return
-    try:
-        if not os.path.exists(_trial_file):
+        if raw == "__MASTER__":
+            import hmac
+            try:
+                _tok_ok = hmac.compare_digest(str(_dati_reg.get("master_token", "")), _token_master(_get_device_id()))
+            except Exception:
+                _tok_ok = False
+            if _tok_ok:
+                self._lic_ok = True
+                self._lic_master = True
+                self.aggiorna_titolo_finestra()
+                return
+            _metti_da_parte_licenza(_reg_file)
+            self.aggiorna_titolo_finestra()
+            self.show_toast("Licenza master non valida: reinserisci la master.", duration=3000)
+            self.after(3100, self.apri_registrazione)
             return
-        with open(_trial_file) as fh:
-            primo = datetime.date.fromisoformat(_f.decrypt(json.load(fh)["primo"].encode()).decode())
-        giorni_rimasti = 10 - (datetime.date.today() - primo).days
-        if giorni_rimasti <= 0:
-            self.show_toast("Periodo di prova scaduto. Registrati.", duration=4000)
+        try:
+            dev, scadenza = _decodifica_licenza(raw, _f, _dati_reg)
+            _data_scad = datetime.date.fromisoformat(scadenza)
+        except Exception:
+            _vecchio_formato = not raw.startswith("OC2.")
+            os.remove(_reg_file)
+            self.aggiorna_titolo_finestra()
+            if _vecchio_formato:
+                self.show_toast("Licenza obsoleta: richiedine una nuova.", duration=3000)
+                self.after(3100, self.apri_registrazione)
+            else:
+                self.show_toast("Licenza Corrotta.", duration=4000)
+                self.after(4100, self.destroy)
+            return
+        if dev != _get_device_id():
+            _metti_da_parte_licenza(_reg_file)
+            self.aggiorna_titolo_finestra()
+            self.show_toast("Licenza non valida per questo dispositivo.", duration=4000)
+            self.after(4100, self.destroy)
+            return
+        oggi = datetime.date.today()
+        if oggi > _data_scad:
+            os.remove(_reg_file)
+            self.aggiorna_titolo_finestra()
+            self.show_toast("Licenza scaduta.", duration=4000)
+            self.after(4100, self.destroy)
+            return
+        _giorni_alla_scadenza = (_data_scad - oggi).days
+        if scadenza != "9999-12-31" and 0 <= _giorni_alla_scadenza <= 7:
+            if _giorni_alla_scadenza == 0:
+                self.show_toast("Licenza in scadenza oggi.", duration=4000)
+            else:
+                self.show_toast(f"Licenza in scadenza tra {_giorni_alla_scadenza} giorni.", duration=4000)
+        try:
+            riferimento = datetime.date.fromisoformat(str(_dati_reg.get("data_registrazione")))
+        except ValueError:
+            riferimento = oggi
+            _dati_reg["data_registrazione"] = riferimento.isoformat()
+            try:
+                with open(_reg_file, "w", encoding="utf-8") as _fw:
+                    json.dump(_dati_reg, _fw)
+            except OSError:
+                pass
+        riferimento = _riferimento_inattivita(self, riferimento)
+        if (oggi - riferimento).days > GIORNI_INATTIVITA_LICENZA:
+            try:
+                with open(SYNC_CHK_FILE, "w") as _fb:
+                    _fb.write(f"{oggi.isoformat()}|{raw}")
+            except OSError:
+                pass
+            os.remove(_reg_file)
+            self.aggiorna_titolo_finestra()
+            self.show_toast("Licenza da rinnovare: l'app risulta inutilizzata da tempo.", duration=2000)
             self.after(4100, self.apri_registrazione)
             return
         self._lic_ok = True
-        if giorni_rimasti <= 3:
-            self.show_toast(f"Periodo di prova: {giorni_rimasti} giorni rimasti.", duration=3000)
         self.aggiorna_titolo_finestra()
+        return
+    if not os.path.exists(_trial_file):
+        return
+    try:
+        with open(_trial_file) as fh:
+            primo = datetime.date.fromisoformat(_f.decrypt(json.load(fh)["primo"].encode()).decode())
+    except OSError:
+        self.show_toast("Impossibile leggere il periodo di prova. Riavvia l'applicazione.", duration=4000)
+        return
     except Exception:
         self._in_error_state = True
         if os.path.exists(_trial_file):
@@ -624,3 +820,12 @@ def _c_r(self):
         self.show_toast("Licenza Trial Corrotta.", duration=4000)
         self.after(4100, self.apri_registrazione)
         return
+    giorni_rimasti = 10 - (datetime.date.today() - primo).days
+    if giorni_rimasti <= 0:
+        self.show_toast("Periodo di prova scaduto. Registrati.", duration=4000)
+        self.after(4100, self.apri_registrazione)
+        return
+    self._lic_ok = True
+    if giorni_rimasti <= 3:
+        self.show_toast(f"Periodo di prova: {giorni_rimasti} giorni rimasti.", duration=3000)
+    self.aggiorna_titolo_finestra()

@@ -352,10 +352,12 @@ def toggle_stats_view(self, tipo="grafico"):
         self.stats_table.column("D", width=100, anchor="e")
         self.stats_table.column("E", width=70, anchor="center")
         self.stats_table.column("F", width=100, anchor="center")
+        _m_utente = getattr(self, "_stats_mode_utente", "giorno")
         if self.chiamato_da_carosello:
-            self.set_stats_mode("mese")
+            self.set_stats_mode(_m_utente if _m_utente != "giorno" else "mese")
         else:
-            self.set_stats_mode("giorno")
+            _m_attuale = self.stats_mode.get() if hasattr(self, "stats_mode") else _m_utente
+            self.set_stats_mode(_m_attuale if _m_attuale in ("giorno", "mese", "anno", "totali") else _m_utente)
         self.stats_table.tag_configure("uscita", foreground="red")
         self.stats_table.tag_configure("entrata", foreground="green")
         self.stats_table.tag_configure("futuro", foreground="#E5C07B", font=("Arial", 9, "italic"))
