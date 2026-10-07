@@ -444,6 +444,11 @@ def apri_registrazione(self):
     tk.Label(win, image=img_mobile, text=" Il tuo Device ID:", compound="left",
              bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR, font=("Arial", 10)).pack(pady=(20, 5))
     img_key = self.icone_gui.get("api_key")
+    def _lbl_ico(parent, nome, emoji, testo="", **kw):
+        img = self.icone_gui.get(nome)
+        if img:
+            return tk.Label(parent, image=img, text=(" " + testo) if testo else "", compound="left", **kw)
+        return tk.Label(parent, text=emoji + (" " + testo if testo else ""), **kw)
     frame_id = tk.Frame(win, bg=self.COLOR_TOPLEVEL)
     frame_id.pack()
     errore_codice = ""
@@ -460,7 +465,7 @@ def apri_registrazione(self):
     entry_id.pack(side="left", padx=5)
     entry_id.insert(0, device_id)
     entry_id.config(state="readonly")
-    btn_copia = tk.Label(frame_id, text="📋", bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
+    btn_copia = _lbl_ico(frame_id, "anagrafica", "📋", bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
                          cursor="hand2", font=("Arial", 12))
     btn_copia.pack(side="left")
     btn_copia.bind("<Button-1>", lambda e: self.clipboard_clear() or self.clipboard_append(codice_dispositivo))
@@ -471,7 +476,7 @@ def apri_registrazione(self):
         self.clipboard_clear()
         self.clipboard_append(codice_dispositivo)
         self.show_toast("Codice copiato negli appunti.", duration=2000)
-    lbl_copia_codice = tk.Label(win, text="📋  Copia codice completo", bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
+    lbl_copia_codice = _lbl_ico(win, "anagrafica", "📋", "Copia codice completo", bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
                                 cursor="hand2", font=("Arial", 9, "bold"))
     lbl_copia_codice.pack(pady=(4, 0))
     lbl_copia_codice.bind("<Button-1>", lambda e: _copia_codice())
@@ -508,11 +513,11 @@ def apri_registrazione(self):
     self._reg_unmap_fid = self.bind("<Unmap>", _sync_iconify, add="+")
     frame_key_btn = tk.Frame(win, bg=self.COLOR_TOPLEVEL)
     frame_key_btn.pack(pady=(2,0))
-    btn_copia = tk.Label(frame_key_btn, text="📋 Copia", bg=self.COLOR_TOPLEVEL,
+    btn_copia = _lbl_ico(frame_key_btn, "anagrafica", "📋", "Copia", bg=self.COLOR_TOPLEVEL,
                          fg=self.TEXT_COLOR, cursor="hand2", font=("Arial", 9))
     btn_copia.pack(side="left", padx=5)
     btn_copia.bind("<Button-1>", lambda e: self.clipboard_clear() or self.clipboard_append(entry_key.get()))
-    btn_incolla = tk.Label(frame_key_btn, text="📌 Incolla", bg=self.COLOR_TOPLEVEL,
+    btn_incolla = _lbl_ico(frame_key_btn, "promemoria", "📌", "Incolla", bg=self.COLOR_TOPLEVEL,
                            fg=self.TEXT_COLOR, cursor="hand2", font=("Arial", 9))
     btn_incolla.pack(side="left", padx=5)
     def _incolla_key(e=None):
