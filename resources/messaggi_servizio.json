@@ -11,11 +11,6 @@
     "testo": "Messaggio riservato a un singolo utente (usare il suo device_id come target)",
     "scadenza": "31-12-2026"
   },
-  {
-    "target": "ID_xxxxxxxxxxxxx",
-    "licenza": "OC2.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-    "livello": "info",
-    "testo": ""
-  }
+  {"to": "0a87e50ebeb283d6", "enc": "lt1op0ZNovhPNjtGKGk36bWNpVbSiMhrstZc6WSNuGzZg2hwPqvxqqKN5f7Z7vQXUBaiY0_3Xz6yJK5IiJkpAe1rM8xK1y7LW5-tpCloteCi3ia5CslxnY7dxfeMpCf7Xfg2GFS5u6XiAt-_sNT6TvNhYzFnBcYPX5fmB-JgXAdVObL-T03QgQBCavRMIYup6RaCTcLgaAfDyNleKztQhnKwEiMdo-61lOTS9KtQwfB7iPhRVKIiepvJZ4lwaPxzqzgDmY-CVOl5Dy9cIOozwGKPQJqjgZ__WLg0p8IxpGp_cbnS2Q"}
   
 ]
