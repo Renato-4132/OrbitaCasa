@@ -455,7 +455,7 @@ class GestioneSpese(tk.Tk):
         )
         self.btn_oggi.image = self.icone_gui.get("reset")
         self.btn_oggi.pack(side="left", padx=3)
-        self.btn_oggi.bind("<Button-1>", lambda e: self.after(10, self.goto_today))
+        self.btn_oggi.bind("<Button-1>", lambda e: self.after(10, lambda: self.goto_today(salva=True)))
         self.after(500, self._avvia_rotazione_oggi)
         _mostra_tooltip_legenda(self.btn_oggi, "Torna al giorno di oggi")
 
@@ -540,7 +540,7 @@ class GestioneSpese(tk.Tk):
         )
         self.lbl_titolo_mese.image = icona_sole
         self.lbl_titolo_mese.pack(side="left")
-        self.considera_pianificate_var = tk.BooleanVar(value=False)
+        self.considera_pianificate_var = tk.BooleanVar(value=bool(globals().get("app_config_globale", {}).get("pianificate_mese_attivo", False)))
         icona_pianificate = self.icone_gui.get("promemoria")
         wrap_pianificate_mese = tk.Frame(lbl_mese_container, bg=self.COLOR_WIDGET_BG)
         wrap_pianificate_mese.pack(side="right", padx=(0, 6))
@@ -563,6 +563,7 @@ class GestioneSpese(tk.Tk):
         )
         self.dot_pianificate_mese.pack(side="left", padx=(2, 0))
         self._dot_id_mese = self.dot_pianificate_mese.create_oval(1, 1, 7, 7, fill="gray", outline="")
+        self._aggiorna_icona_pianificate_mese()
         for _w in (wrap_pianificate_mese, self.btn_toggle_pianificate_mese, self.dot_pianificate_mese):
             _w.bind("<Button-1>", lambda e: self.toggle_considera_pianificate_mese())
         self.totalizzatore_mese_frame = ttk.LabelFrame(
@@ -593,7 +594,7 @@ class GestioneSpese(tk.Tk):
         )
         self.lbl_titolo_anno.image = icona_sole
         self.lbl_titolo_anno.pack(side="left")
-        self.considera_pianificate_anno_var = tk.BooleanVar(value=False)
+        self.considera_pianificate_anno_var = tk.BooleanVar(value=bool(globals().get("app_config_globale", {}).get("pianificate_anno_attivo", False)))
         icona_pianificate_a = self.icone_gui.get("promemoria")
         wrap_pianificate_anno = tk.Frame(lbl_anno_container, bg=self.COLOR_WIDGET_BG)
         wrap_pianificate_anno.pack(side="right", padx=(0, 6))
@@ -616,6 +617,7 @@ class GestioneSpese(tk.Tk):
         )
         self.dot_pianificate_anno.pack(side="left", padx=(2, 0))
         self._dot_id_anno = self.dot_pianificate_anno.create_oval(1, 1, 7, 7, fill="gray", outline="")
+        self._aggiorna_icona_pianificate_anno()
         for _w in (wrap_pianificate_anno, self.btn_toggle_pianificate_anno, self.dot_pianificate_anno):
             _w.bind("<Button-1>", lambda e: self.toggle_considera_pianificate_anno())
         self.totalizzatore_frame = ttk.LabelFrame(
@@ -1061,35 +1063,35 @@ class GestioneSpese(tk.Tk):
             background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR
         )
         self.btn_oggi_stats.pack(side=tk.LEFT, padx=(0, 0))
-        self.btn_oggi_stats.bind("<Button-1>", lambda e: self.after(10, self.goto_today))
+        self.btn_oggi_stats.bind("<Button-1>", lambda e: self.after(10, lambda: self.goto_today(salva=True)))
         self.btn_giorno = ttk.Label(
             mode_frame, text=" Giorno", image=self.icone_gui.get("timer_B"),
             compound="left", cursor="hand2", font=("Arial", 9, "bold"),
             background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR
         )
         self.btn_giorno.pack(side=tk.LEFT, padx=5)
-        self.btn_giorno.bind("<Button-1>", lambda e: self.goto_dettaglio_mese())
+        self.btn_giorno.bind("<Button-1>", lambda e: self.goto_dettaglio_mese(salva=True))
         self.btn_mese = ttk.Label(
             mode_frame, text=" Mese", image=self.icone_gui.get("scadenze_B"),
             compound="left", cursor="hand2", font=("Arial", 9, "bold"),
             background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR
         )
         self.btn_mese.pack(side=tk.LEFT, padx=5)
-        self.btn_mese.bind("<Button-1>", lambda e: self.set_stats_mode("mese"))
+        self.btn_mese.bind("<Button-1>", lambda e: self.set_stats_mode("mese", salva=True))
         self.btn_anno = ttk.Label(
             mode_frame, text=" Anno", image=self.icone_gui.get("report_B"),
             compound="left", cursor="hand2", font=("Arial", 9, "bold"),
             background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR
         )
         self.btn_anno.pack(side=tk.LEFT, padx=5)
-        self.btn_anno.bind("<Button-1>", lambda e: self.set_stats_mode("anno"))
+        self.btn_anno.bind("<Button-1>", lambda e: self.set_stats_mode("anno", salva=True))
         self.btn_totali = ttk.Label(
             mode_frame, text=" Totali", image=self.icone_gui.get("saldo_B"),
             compound="left", cursor="hand2", font=("Arial", 9, "bold"),
             background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR
         )
         self.btn_totali.pack(side=tk.LEFT, padx=5)
-        self.btn_totali.bind("<Button-1>", lambda e: self.set_stats_mode("totali"))
+        self.btn_totali.bind("<Button-1>", lambda e: self.set_stats_mode("totali", salva=True))
         def add_tt(w, txt):
             get_txt = txt if callable(txt) else (lambda: txt)
             def _show(e):
@@ -1209,8 +1211,11 @@ class GestioneSpese(tk.Tk):
         totali_row.grid(row=2, column=0, sticky="ew", padx=6, pady=(2, 0))
         self.totali_label = ttk.Label(totali_row, text="", font=("Arial", 11))
         self.totali_label.pack(side=tk.LEFT)
-        self.considera_ricorrenze_var = tk.BooleanVar(value=True)
-        self.considera_futuri_portafoglio_var = tk.BooleanVar(value=True)
+        _cfg_ui = globals().get("app_config_globale", {})
+        self.considera_ricorrenze_var = tk.BooleanVar(value=bool(_cfg_ui.get("includi_futuri_totali", True)))
+        self.considera_futuri_portafoglio_var = tk.BooleanVar(value=bool(_cfg_ui.get("includi_futuri_saldo", True)))
+        self.considera_ricorrenze_var.trace_add("write", lambda *a: _salva_chiave_config("includi_futuri_totali", bool(self.considera_ricorrenze_var.get())))
+        self.considera_futuri_portafoglio_var.trace_add("write", lambda *a: _salva_chiave_config("includi_futuri_saldo", bool(self.considera_futuri_portafoglio_var.get())))
         chk_container_frame = ttk.Frame(totali_row)
         chk_container_frame.pack(side=tk.RIGHT, padx=12)
         # Pulsante Carosello
@@ -1288,7 +1293,12 @@ class GestioneSpese(tk.Tk):
         self.stats_table.column("D", width=100, anchor="e")
         self.stats_table.column("E", width=70, anchor="center")
         self.stats_table.column("F", width=100, anchor="center")        
-        self.set_stats_mode("giorno")
+        _m_salvata = globals().get("app_config_globale", {}).get("stats_mode_avanzato", "giorno")
+        self._stats_mode_utente = _m_salvata if _m_salvata in ("giorno", "mese", "anno", "totali") else "giorno"
+        self._stats_dettaglio_utente = bool(globals().get("app_config_globale", {}).get("stats_dettaglio_mese", False)) and self._stats_mode_utente == "giorno"
+        self.set_stats_mode(self._stats_mode_utente)
+        if self._stats_dettaglio_utente:
+            self.after(600, self.goto_dettaglio_mese)
         self.stats_table.tag_configure("uscita", foreground="red")
         self.stats_table.tag_configure("entrata", foreground="green")        
         self.stats_table.tag_configure("sforato", foreground='#C08081', font=("Arial", 9, "bold"))
@@ -2175,6 +2185,8 @@ class GestioneSpese(tk.Tk):
         if img_next:
             self.btn_ciclico.config(image=img_next)
             self.btn_ciclico.image = img_next
+        if tipo_vista == "tabella" and getattr(self, "_stats_dettaglio_utente", False):
+            self.after_idle(self.goto_dettaglio_mese)
     def cicla_indietro(self, event=None):
         if hasattr(self, 'btn_modifica_sel'):
             self.reset_modifica_form()
@@ -2185,7 +2197,9 @@ class GestioneSpese(tk.Tk):
         img_next = self.icone_gui.get(self.ICONE_STATI[idx_icona_successiva])
         if img_next:
             self.btn_ciclico.config(image=img_next)
-            self.btn_ciclico.image = img_next   
+            self.btn_ciclico.image = img_next
+        if tipo_vista == "tabella" and getattr(self, "_stats_dettaglio_utente", False):
+            self.after_idle(self.goto_dettaglio_mese)
     def _cicla_se_nel_frame(self, func):
         fw = self.focus_get()
         if fw is not None and fw is not self:
@@ -2232,6 +2246,7 @@ class GestioneSpese(tk.Tk):
         except Exception as e:
             pass
     def ferma_scorrimento_automatico(self):
+        _dett_utente = getattr(self, "_stats_dettaglio_utente", False)
         self.chiamato_da_carosello = False
         img_reset = self.icone_gui.get("reset")
         if hasattr(self, 'btn_ciclico_carosello'):
@@ -2248,6 +2263,10 @@ class GestioneSpese(tk.Tk):
             if hasattr(self, 'mostra_treeview_statistiche'):
                 try:
                     self.mostra_treeview_statistiche()
+                    if _dett_utente:
+                        self.goto_dettaglio_mese()
+                    else:
+                        self.set_stats_mode(getattr(self, "_stats_mode_utente", "giorno"))
                 except Exception:
                     pass
             if hasattr(self, 'var_carosello_enabled'):
@@ -2721,14 +2740,17 @@ class GestioneSpese(tk.Tk):
             _f = get_fernet_licenza()
             _reg_file   = REG_FILE
             _trial_file = TRIAL_FILE
-            if os.path.exists(_reg_file):
+            if getattr(self, "_lic_master", False):
+                scad_str = " — Licenza: Illimitata"
+            elif os.path.exists(_reg_file):
                 with open(_reg_file) as fh:
-                    raw = json.load(fh)["key"]
+                    _dr = json.load(fh)
+                    raw = _dr["key"]
                 if raw == "__MASTER__":
-                    scad_str = " — Licenza: Illimitata"
+                    scad_str = " — Licenza master obsoleta"
                 else:
-                    payload = _f.decrypt(raw.encode()).decode()
-                    _, scadenza = payload.split("|")
+                    from moduli.attivazione import _decodifica_licenza
+                    _, scadenza = _decodifica_licenza(raw, _f, _dr)
                     scad_str = " — Licenza: Illimitata" if scadenza == "9999-12-31" else f" — Lic: {datetime.date.fromisoformat(scadenza).strftime('%d/%m/%Y')}"
             elif os.path.exists(_trial_file):
                 with open(_trial_file) as fh:
@@ -3101,12 +3123,10 @@ class GestioneSpese(tk.Tk):
                 }
                 if os.path.exists(DB_FILE):
                     shutil.copy2(DB_FILE, DB_FILE + ".bak")
-                temp_file = DB_FILE + ".tmp"
-                with open(temp_file, "w", encoding="utf-8") as f:
+                with open(DB_FILE, "w", encoding="utf-8") as f:
                     json.dump(data, f, indent=2, ensure_ascii=False)
                     f.flush()
                     os.fsync(f.fileno())
-                os.replace(temp_file, DB_FILE)
                 self.ricalcola_operazioni_web()
                 with open(MEM_CAT, "w", encoding="utf-8") as f:
                     json.dump(self.memoria_descrizioni_categoria, f, indent=2, ensure_ascii=False)
@@ -3933,7 +3953,7 @@ class GestioneSpese(tk.Tk):
             self.show_custom_warning("Errore", "Mese o anno non validi")
             
     # Reconfigurazione Dinamica della Tabella Statistiche per Modalità di Visualizzazione
-    def set_stats_mode(self, mode):
+    def set_stats_mode(self, mode, salva=False):
         if hasattr(self, 'btn_modifica_sel'):
             fw = self.focus_get()
             campo_attivo = fw is not None and fw.winfo_class() in ("Entry", "TEntry", "TCombobox", "Text", "TSpinbox", "Spinbox")
@@ -3943,6 +3963,11 @@ class GestioneSpese(tk.Tk):
             return 
         if hasattr(self, 'stats_mode'):
             self.stats_mode.set(mode)
+            if salva:
+                self._stats_mode_utente = mode
+                self._stats_dettaglio_utente = False
+                _salva_chiave_config("stats_mode_avanzato", mode)
+                _salva_chiave_config("stats_dettaglio_mese", False)
         if hasattr(self, 'stats_hint_label'):
             if mode == "giorno":
                  nuova_guida = "Doppio clic → Documenti  |  Tasto destro → Promemoria"
@@ -4363,6 +4388,7 @@ class GestioneSpese(tk.Tk):
 
     def toggle_considera_pianificate_mese(self):
         self.considera_pianificate_var.set(not self.considera_pianificate_var.get())
+        _salva_chiave_config("pianificate_mese_attivo", self.considera_pianificate_var.get())
         self._aggiorna_icona_pianificate_mese()
         self.hide_tooltip()
         self.update_totalizzatore_mese_corrente(
@@ -4372,6 +4398,7 @@ class GestioneSpese(tk.Tk):
 
     def toggle_considera_pianificate_anno(self):
         self.considera_pianificate_anno_var.set(not self.considera_pianificate_anno_var.get())
+        _salva_chiave_config("pianificate_anno_attivo", self.considera_pianificate_anno_var.get())
         self._aggiorna_icona_pianificate_anno()
         self.hide_tooltip()
         self.update_totalizzatore_anno_corrente(
@@ -4555,7 +4582,8 @@ class GestioneSpese(tk.Tk):
             print(f"Errore durante l'apertura del link: {e}")
 
     # Ripristino della Visualizzazione alla Data Attuale        
-    def goto_today(self):
+    def goto_today(self, mantieni_stato=False, salva=False):
+        _dett_utente = mantieni_stato and getattr(self, "_stats_dettaglio_utente", False)
         self.mostra_treeview_statistiche()
         today = datetime.date.today()
         if hasattr(self, "cal"):
@@ -4568,7 +4596,8 @@ class GestioneSpese(tk.Tk):
         ]
         self.estratto_month_var.set(mesi[today.month - 1])
         self.estratto_year_var.set(str(today.year))
-        self.set_stats_mode("giorno")
+        _modo_oggi = getattr(self, "_stats_mode_utente", "giorno") if mantieni_stato else "giorno"
+        self.set_stats_mode(_modo_oggi, salva=salva)
         self.after_idle(self.update_stats)
         self.update_totalizzatore_anno_corrente()
         self.update_totalizzatore_mese_corrente()
@@ -4576,13 +4605,16 @@ class GestioneSpese(tk.Tk):
         self._view_month = today.month
         self.update_spese_mese_corrente()
         self.aggiorna_monitoraggio_budget()
-        self.stats_label.config(
-            text=f"Riepilogo Giornaliero - {today.strftime('%d-%m-%Y')}",
-            foreground="purple", font=("Arial", 10, "bold"))
-        self.stop_blink_label_colors(self.stats_label, final_color="purple")
+        if _modo_oggi == "giorno" and not _dett_utente:
+            self.stats_label.config(
+                text=f"Riepilogo Giornaliero - {today.strftime('%d-%m-%Y')}",
+                foreground="purple", font=("Arial", 10, "bold"))
+            self.stop_blink_label_colors(self.stats_label, final_color="purple")
         self.lbl_titolo_analisi.config(text=" Analisi Mese Attuale")
         self.lbl_titolo_mese.config(text=" Riepilogo Mese Attuale")
         self.lbl_titolo_anno.config(text=" Riepilogo Anno Attuale")
+        if _dett_utente:
+            self.after_idle(self.goto_dettaglio_mese)
 
     # Cruscotto
     def _cicla_cruscotto(self):
@@ -5221,7 +5253,7 @@ class GestioneSpese(tk.Tk):
             if hasattr(self, 'ricorrenza_data_inizio'):
                 self.ricorrenza_data_inizio.set(today_date)
             if hasattr(self, 'cal'):
-                self.goto_today()
+                self.goto_today(mantieni_stato=True)
         self._reset_inattivita()
                      
     # Gestione Icona Applicazione con Fallback e Download Remoto
@@ -5800,7 +5832,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "d81d96bf91b678d0bd6bcf5335bf612a27a9f03be40198c0205966c55e584b0a"
+        E_H_B = "9638edc4e8e67d4b78ccacc8d8297dabfbefca4b72059c2e7c7e34d55c971abe"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
@@ -6354,6 +6386,24 @@ def aggiorna_configurazione_globale():
     except Exception as e:
         print(f"Errore lettura config.json: {e}")
     return final_config
+
+# Salva una singola chiave in config.json senza toccare le altre
+def _salva_chiave_config(chiave, valore):
+    try:
+        cfg = {}
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                contenuto = f.read().strip()
+                cfg = json.loads(contenuto) if contenuto else {}
+        cfg[chiave] = valore
+        with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+            json.dump(cfg, f, indent=4)
+        try:
+            app_config_globale[chiave] = valore
+        except NameError:
+            pass
+    except Exception as e:
+        print(f"Errore salvataggio config ({chiave}): {e}")
 
 # Gestione Dati Partecipanti
 def _leggi_gestore_partecipa():
