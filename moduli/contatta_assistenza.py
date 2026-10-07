@@ -148,9 +148,22 @@ def apri_pannello_topic(self, topic):
         if not testo:
             self.show_toast("Scrivi una descrizione prima di inviare.", duration=2000)
             return
+        try:
+            import __main__ as _app
+            device_id = _app._get_device_id()
+        except Exception:
+            device_id = None
+        cod_reg = device_id
+        try:
+            from moduli.attivazione import _identita_dispositivo
+            if device_id:
+                cod_reg = f"{device_id}.{_identita_dispositivo()[1]}"
+        except Exception:
+            pass
         corpo = (
             f"Numero di registrazione: {topic}\n"
-            f"Categoria: {categoria}\n\n"
+            + (f"Cod. Reg.: {cod_reg}\n" if cod_reg else "")
+            + f"Categoria: {categoria}\n\n"
             f"Descrizione:\n{testo}\n"
         )
         if includi_info_var.get():
