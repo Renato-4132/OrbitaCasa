@@ -165,7 +165,6 @@ def _calcola_fingerprint_moduli(path_locale):
 
 
 def _versione_inferiore(nuova, salvata):
-    """True se 'nuova' e' una versione piu' vecchia di 'salvata' (es. 2.5.0 < 2.5.1)."""
     def _t(v):
         try:
             return tuple(int(x) for x in str(v).strip().split("."))
@@ -212,8 +211,6 @@ def verify_environment(self):
                         pass
             else:
                 cambio_moduli = NOTIFICA_CAMBIO_MODULI and bool(fingerprint_attuale) and vecchio_fingerprint != fingerprint_attuale
-            # Due cartelle sullo stesso PC condividono .key_reg: se parte la copia piu'
-            # vecchia non e' un vero downgrade, quindi non notifico e non tocco il flag.
             if cambio_versione and _versione_inferiore(VERSION, parti[1] if len(parti) > 1 else ""):
                 cambio_versione = False
                 cambio_moduli = False
