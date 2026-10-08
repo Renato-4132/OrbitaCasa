@@ -129,7 +129,7 @@ def mostra_lista_ricorrenze(self):
         self.ricorrenza_tipo_voce.set("Uscita")
         self.btn_tipo_voce.configure(text="Uscita", style="RedOutline.TButton")
 
-    lista_window = tk.Toplevel(self)
+    lista_window = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
     self.lista_window_ref = lista_window
     lista_window.withdraw()
     self.update_idletasks()
@@ -145,8 +145,6 @@ def mostra_lista_ricorrenze(self):
     lista_window.minsize(lista_window_width, lista_window_height)
     lista_window.transient(self)
     lista_window.title("Lista delle Ricorrenze Programmate")
-    lista_window.deiconify()
-    lista_window.lift()
     lista_window.bind("<Escape>", lambda e: lista_window.after(50, destroy_window_and_cleanup))
     lista_window.protocol("WM_DELETE_WINDOW", lambda: lista_window.after(50, destroy_window_and_cleanup))
     main_frame = ttk.Frame(lista_window, padding=10)
@@ -236,6 +234,9 @@ def mostra_lista_ricorrenze(self):
     self.btn_chiudi_ric.image = self.icone_gui.get("chiudi")
     self.btn_chiudi_ric.pack(side="right", padx=5)
     self.btn_chiudi_ric.bind("<Button-1>", lambda e: lista_window.after(50, destroy_window_and_cleanup))
+    lista_window.update_idletasks()
+    lista_window.deiconify()
+    lista_window.lift()
 
 # Visualizzazione Dettagliata (Popup) delle Scadenze di una Ricorrenza
 def on_ricorrenza_double_click(self, event):

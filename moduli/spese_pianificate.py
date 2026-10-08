@@ -451,7 +451,7 @@ def apri_gestione_spese_pianificate(self):
     win.withdraw()
     win.title("Pianifica")
     win.configure(bg=self.COLOR_BACKGROUND)
-    w_win, h_win = 1500, 420
+    w_win, h_win = 1366, 420
     self.update_idletasks()
     root_x, root_y = self.winfo_rootx(), self.winfo_rooty()
     root_w, root_h = self.winfo_width(), self.winfo_height()
