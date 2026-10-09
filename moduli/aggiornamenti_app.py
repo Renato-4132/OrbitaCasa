@@ -248,9 +248,16 @@ def _check_librerie_in_background(self):
                 print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] "
                       f"Check librerie fallito (offline?)")
             else:
+                self.btn_aggiorna_lib.pack_forget()
                 print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] "
                       f"Librerie tutte aggiornate.")
-            self.after(21600000, self._check_librerie_in_background)
+            _t = getattr(self, "_timer_check_lib", None)
+            if _t is not None:
+                try:
+                    self.after_cancel(_t)
+                except Exception:
+                    pass
+            self._timer_check_lib = self.after(21600000, self._check_librerie_in_background)
         self.after(0, _aggiorna_ui)
     threading.Thread(target=_check, daemon=True).start()
 
@@ -984,7 +991,7 @@ def aggiorna_librerie_pip(self):
     popup.configure(bg=self.COLOR_BACKGROUND)
     popup.resizable(False, False)
     popup.transient(self)
-    popup.bind("<Escape>", lambda e: popup.destroy())
+    popup.bind("<Escape>", lambda e: (popup.destroy(), self._check_librerie_in_background()))
     w, h = 1200, 620
     sw, sh = popup.winfo_screenwidth(), popup.winfo_screenheight()
     popup.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
@@ -1203,7 +1210,10 @@ def aggiorna_librerie_pip(self):
     btn_avvia.pack(side=tk.LEFT, expand=True)
     btn_riavvia.pack(side=tk.LEFT, expand=True)
     btn_chiudi_l.pack(side=tk.LEFT, expand=True)
-    btn_chiudi_l.bind("<Button-1>", lambda e: popup.destroy())
+    def _chiudi_e_ricontrolla(e=None):
+        popup.destroy()
+        self._check_librerie_in_background()
+    btn_chiudi_l.bind("<Button-1>", _chiudi_e_ricontrolla)
     def _log(msg):
         txt.config(state=tk.NORMAL)
         testo = msg.lstrip()
