@@ -66,11 +66,12 @@ else:
 
 _NOME_SESSIONE = _os_id.path.basename(_os_id.path.dirname(_os_id.path.abspath(__file__)))[:20]
 
+_PALETTE = [(231,76,60),(46,204,113),(52,152,219),(241,196,15),
+            (155,89,182),(230,126,34),(26,188,156),(236,64,122)]
+
 def _colore_sessione():
-    import colorsys
-    h = int(_HASH_ISTANZA[:4], 16) / 0xFFFF
-    r, g, b = colorsys.hsv_to_rgb(h, 0.85, 1.0)
-    return (int(r * 255), int(g * 255), int(b * 255), 255)
+    i = int(_HASH_ISTANZA[:4], 16) % len(_PALETTE)
+    return (*_PALETTE[i], 255)
 
 def _badge_sessione(img):
     try:
@@ -6038,7 +6039,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "071d2ea1c6c3c7dc85138ec88068623235fbc6fae61175c071c32c1f3caaf052"
+        E_H_B = "cfc472e66acd229caa89c196c1b38f3bc0bdab10d6a6ec6318e1722d052eb7b0"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
