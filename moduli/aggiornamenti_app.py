@@ -100,9 +100,9 @@ def _crea_backup_moduli(moduli_dir, moduli_bak_dir):
                 f"Il vecchio backup '{moduli_bak_dir}' e' bloccato e non si riesce a eliminare "
                 f"(OneDrive/antivirus?). Eliminalo a mano e riprova.")
         try:
-            os.replace(copia, moduli_bak_dir)   # stesso disco: istantaneo
+            os.replace(copia, moduli_bak_dir)
         except OSError:
-            shutil.copytree(copia, moduli_bak_dir)  # disco diverso (temp su altro volume)
+            shutil.copytree(copia, moduli_bak_dir)
     finally:
         _rimuovi_dir_robusto(staging)
 
@@ -321,7 +321,6 @@ def check_aggiornamento_con_api(self):
     test_attivo = getattr(_app, "DISABILITA_SYNC_MODULI_TEST", False)
     if not splash_attivo and not test_attivo and self._licenza_valida():
         threading.Thread(target=self.check_aggiornamento_thread, daemon=True).start()
-    # Riprogramma sempre il prossimo controllo, anche se questo giro è stato saltato
     self._job_aggiornamento = self.after(43200000, self.check_aggiornamento_con_api)
 
 def check_aggiornamento_thread(self):
