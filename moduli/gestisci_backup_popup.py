@@ -340,18 +340,8 @@ def gestisci_backup_popup(self):
                     self.show_custom_warning("Errore Ripristino", f"Impossibile ripristinare:\n{e}")
                     return
         win.destroy()
-        w, h = 350, 80
-        parent = self
-        parent.update_idletasks()
-        xp = (parent.winfo_width() // 2) - (w // 2)
-        yp = (parent.winfo_height() // 2) - (h // 2)
-        pf = tk.Frame(parent, bg="orange", bd=3, relief="raised")
-        pf.place(x=xp, y=yp, width=w, height=h)
-        pf.lift()
-        tk.Label(pf, text="Ripristino completato. Riavvio in corso...",
-                 font=("Arial", 10, "bold"), justify="center", padx=10, pady=10,
-                 bg="orange", fg="black").pack(expand=True, fill="both")
-        parent.update()
+        self.show_toast("Ripristino completato. Riavvio in corso...", duration=2500)
+        self.update()
         time.sleep(2)
         args = [sys.executable, os.path.abspath(sys.argv[0])] + sys.argv[1:]
         if os.name == "nt":

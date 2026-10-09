@@ -247,7 +247,7 @@ def apri_spalma_spesa(self, entry, data_spesa):
             "Questa spesa scade nel mese corrente: non ci sono mesi precedenti disponibili in cui accantonarla."
         )
         return
-    mesi_max_tot = min(mesi_max, 36)   # con il mese corrente incluso
+    mesi_max_tot = min(mesi_max, 36)
     stato = {"max": mesi_max_tot}
     mesi_default = mesi_max_tot
 
@@ -378,11 +378,7 @@ def apri_spalma_spesa(self, entry, data_spesa):
         _salva_sp(dati)
         self.show_toast("Piano di accantonamento creato")
         win.destroy()
-        if hasattr(self, "update_spese_mese_corrente"):
-            self.update_spese_mese_corrente(
-                year=getattr(self, "_view_year", None),
-                month=getattr(self, "_view_month", None)
-            )
+        _refresh_dashboard_pianificazione(self)
 
     btn_conferma = ttk.Label(btn_frame, image=ico.get("check"), text=" Conferma",
                           compound="left", cursor="hand2", background=self.COLOR_BACKGROUND,
@@ -414,6 +410,9 @@ def on_piano_doppio_click(self, event):
         giorno = _parse_data(piano["data_scadenza"])
     except Exception:
         return
+    vai_a_giorno_piano(self, giorno)
+
+def vai_a_giorno_piano(self, giorno):
     self.set_stats_mode("giorno")
     if hasattr(self, "cal"):
         self.cal.selection_set(giorno)
@@ -479,11 +478,7 @@ def apri_gestione_spese_pianificate(self):
                 elimina_piano(self, id_piano)
             _ricarica()
             self.show_toast("Piano eliminato" if n == 1 else f"{n} piani eliminati")
-            if hasattr(self, "update_spese_mese_corrente"):
-                self.update_spese_mese_corrente(
-                    year=getattr(self, "_view_year", None),
-                    month=getattr(self, "_view_month", None)
-                )
+            _refresh_dashboard_pianificazione(self)
 
     ico = getattr(self, "icone_gui", {}) or {}
     btn_frame = ttk.Frame(frm)
@@ -661,3 +656,15 @@ def apri_gestione_spese_pianificate(self):
     _ricarica()
     win.deiconify()
     win.after(150, _verifica_importi_variati)
+
+
+def quote_piani_categoria(self, categoria, anno, mese=None):
+    cat_n = str(categoria or "").strip().lower()
+    risultato = []
+    for m in ([mese] if mese else range(1, 13)):
+        for p in ottieni_promemoria_mese(self, anno, m):
+            nome = str(p.get("categoria") or p.get("nome") or "Pianificata").strip().lower()
+            if nome == cat_n:
+                quota = float(p.get("quota_mese", p.get("quota", 0.0)) or 0.0)
+                risultato.append((p, anno, m, quota))
+    return risultato

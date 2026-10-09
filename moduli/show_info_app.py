@@ -11,6 +11,11 @@ from __main__ import NAME, VERSION, DB_DIR
 
 # Finestra Informativa e Dettagli dell'Applicazione (About Box)
 def show_info_app(self):
+    _esistente = getattr(self, "_info_win", None)
+    if _esistente is not None and _esistente.winfo_exists():
+        _esistente.lift()
+        _esistente.focus_force()
+        return
     def apri_email(event):
         webbrowser.open("mailto:helporbitacasa@gmail.com")
 
@@ -155,10 +160,15 @@ def show_info_app(self):
             "• Scroll: Usa la rotella del mouse.\n"
             "• Ordinamento: Clicca sull'intestazione di colonna.\n"
             "• Selezione: CTRL o SHIFT per selezioni multiple.\n"
+            "• Allegato: con il mouse sulla descrizione, F2 o Ctrl+Shift+O aprono il documento collegato (anteprima nel tooltip).\n"
+            "• Memoria all'avvio: la vista scelta con Giorno/Dettaglio mese/Mese/Anno/Totali e lo stato del pallino Pianificate (Mese e Anno) vengono riaperti come li hai lasciati.\n"
             "• Doppio Clic (Mese/Anno/Tot): Apre il pop-up Dettaglio.\n"
+            "• Righe 'Pianificata' (Mese/Anno): quote delle spese pianificate, sempre visibili; sommate al Totale Uscite solo con il pallino Pianificate giallo. Assenti nella modalità Totali (storico dei movimenti reali). Doppio Clic/Destro: popup dettaglio quote; nel popup Doppio Clic va alla scadenza, Destro apre la gestione pianificate.\n"
             "\n 📅 DETTAGLIO E CALENDARI SMART\n"
             "• Doppio Clic nel Dettaglio: Vai alla transazione principale.\n"
             "• Modalità Giorno: Doppio Clic apre PDF, Destro su Google Calendar.\n"
+            "• Dettaglio Mese, riga pianificata: Doppio Clic va alla scadenza, Destro la copia nel form (importo = quota del mese).\n"
+            "• Clic Calendario: Va al giorno selezionato.\n"
             "• Doppio Clic Calendario: Apre l'interfaccia di inserimento rapido.\n"
             "• Hover Calendario: Visualizza Smart Info-Point e riepiloghi.\n"
             "• Tasto Destro Calendario: Gestione avanzata Smart-HUD.\n"
@@ -170,7 +180,7 @@ def show_info_app(self):
     )
     testo_icone = (
             "💰 PULSANTI & ICONE \n\n"
-            "• 📅 OGGI: Ritorna immediatamente alla data odierna.\n"
+            "• 📅 OGGI (F5): Ritorna immediatamente alla data odierna.\n"
             "• 📅 GIORNO / MESE / ANNO: Filtra i movimenti in base al periodo.\n"
             "• 💰 TOTALI: Riepilogo complessivo Entrate/Uscite/Saldo.\n"
             "• 📈 GRAFICI: Pannello analisi visiva e statistiche.\n"
@@ -191,6 +201,9 @@ def show_info_app(self):
             "• ⌨️ SCORCIATOIE TASTIERA: Tasti rapidi per l'utilizzo senza mouse.\n"
             "• 💳 PORTAFOGLIO BANCARIO: Gestione e riepilogo dei conti e delle carte di credito.\n"
             "• 🔄 CAROSELLO: Rotazione automatica statistiche live.\n"
+            "• 🔁 CICLICO: Cicla la visualizzazione delle statistiche.\n"
+            "• PALLINO PIANIFICATE (Riepilogo Mese/Anno): Accanto all'icona, giallo = le rate degli accantonamenti pianificati sono nel Totale Uscite, grigio = escluse. Conta solo i mesi tra inizio e scadenza del piano; una spesa già coperta dal piano non è contata due volte. Clic per cambiare.\n"
+            "• 📚 LIBRERIE / 🧩 MODULI: Segnalano librerie Python e moduli da aggiornare, clic per aggiornare.\n"
             "• 🗗 RIDUCI: Riduce l'applicazione nella barra di sistema.\n"
             "• 📡 SYNC: Sincronizzazione Intelligente Gemini\n"
             "            L'integrazione con l'intelligenza artificiale di Gemini eleva il sistema ben oltre il semplice\n"
@@ -215,12 +228,21 @@ def show_info_app(self):
             "• 💳 Metodo: Riepilogo spese per metodo di pagamento.\n"
             "• 🏦 Conto: Riepilogo spese per conto/carta utilizzati.\n"
             "• 🔁 Checkout: Movimenti ricorrenti/pianificati in scadenza nel mese.\n"
+            "• Pulsante ciclo: passa da tab (Movimenti, Categorie...) a Cruscotto e Saldi dei conti.\n"
+            "• Il tab scelto e la vista (tab / Cruscotto / Saldi conti) vengono ricordati al riavvio. ESC torna alla tabella statistiche e al tab Movimenti.\n"
             "\n LEGENDA COLORI CALENDARIO (sopra il calendario)\n"
             "• 🟢 Entrata: giorno con almeno un'entrata registrata.\n"
             "• 🔴 Uscita: giorno con almeno un'uscita registrata.\n"
             "• 🟡 Entrata+Uscita: giorno con entrate e uscite.\n"
             "• ⬛ Weekend: sabato e domenica.\n"
             "• 🔵 Selezionato: giorno attualmente selezionato nel calendario.\n"
+            "• ⓘ Righe: passa il mouse per vedere i colori delle righe dei movimenti.\n"
+            "\n LEGENDA COLORI MOVIMENTI (tabella)\n"
+            "• Verde: Entrata.\n"
+            "• Rosso: Uscita.\n"
+            "• Giallo corsivo: movimento futuro (data successiva a oggi).\n"
+            "• Rosso spento grassetto: uscita del mese corrente in una categoria che ha superato il budget mensile.\n"
+            "• Azzurro corsivo: riga 'Pianificata' (quota di una spesa pianificata).\n"
             "\n PANNELLO \"REGISTRA O MODIFICA MOVIMENTO\"\n"
             "• ➕ AGGIUNGI: Registra il movimento compilato nel form.\n"
             "• 🔄 RESET (form): Svuota tutti i campi del form.\n"
@@ -240,8 +262,20 @@ def show_info_app(self):
             "• 📅 Calendario data: Apre il selettore data per il movimento da registrare.\n"
             "• 🔄 Reset data: Riporta la data del movimento a oggi.\n"
             "• ☑️ Blocca data: Impedisce che la data si aggiorni automaticamente a oggi.\n"
-            "• 📥 IMPORT IA: Importa un movimento da PDF/immagine/testo tramite intelligenza artificiale.\n"
+            "• 📥 IMPORT IA (Ctrl+B): Importa un movimento da PDF/immagine/testo tramite intelligenza artificiale.\n"
+            "• ✨ CHIEDI IA (Ctrl+H): Chat in linguaggio naturale sui dati del database (Gemini).\n"
             "• 💡 SMARTCAT ON/OFF: Indica se il suggerimento automatico di categoria è attivo.\n"
+            "\n SCORCIATOIE CLIC NEL FORM\n"
+            "• Clic su Conto: apre Portafoglio Bancario.\n"
+            "• Clic sull'icona pagamento: apre Estratti per Metodo.\n"
+            "• Clic su Partecipante: apre Dare/Avere.\n"
+            "• Destro su Ricorrenze: Lista Ricorrenze.\n"
+            "• Destro su Categorie: Suggerisci Categorie.\n"
+            "• Destro su Pianifica: gestione spese pianificate.\n"
+            "• Pulsante comprimi/espandi: riduce o riapre il pannello di inserimento.\n"
+            "\n INDICATORI BUDGET (a destra nel pannello)\n"
+            "• Target Mese / Target Anno: obiettivi impostati (N/D se non configurati).\n"
+            "• Categorie oltre soglia (rosso): budget mensile e annuo superati; il tooltip le elenca e il clic apre i movimenti oltre soglia.\n"
     )
     testo_menu = (
             f"🪐 {NAME} - Menu Laterale (Barra Sinistra)\n\n"
@@ -249,6 +283,7 @@ def show_info_app(self):
             "• ➤ / ◀ : Espande o comprime le etichette di testo del menu.\n"
             "• Logo / Nome App: Apre la Piramide, l'hub di navigazione 3D di tutti i moduli.\n"
             "• Campo di ricerca (a barra espansa): Ricerca rapida tra tutte le funzioni dell'app.\n"
+            "• Pallino arancione accanto alla versione (a barra espansa): ci sono messaggi di servizio non letti, clic per leggerli.\n"
             "\n 📁 GESTIONE\n"
             "• Gestione SuperMarket — Lista della spesa intelligente\n"
             "• Gestione Documenti (Contabili)\n"
@@ -256,11 +291,13 @@ def show_info_app(self):
             "• Gestione Utenze — Acqua, Luce, Gas (Ctrl+U)\n"
             "• ImmoBil — Gestione Immobili\n"
             "• AutoPark — Gestione Veicoli\n"
-            "• PetCare — Gestione Animali Domestici\n"
-            "• Sincronizza Acquisti Email (Gmail)\n"
-            "• Importa Documento con IA (Gemini)\n"
+            "• CasaCare — Manutenzione e Risparmio Casa\n"
+            "• PetCare — Gestione Animali\n"
+            "• StockBox — Magazzino e Scorte\n"
+            "• Sincronizza Acquisti Email (Gmail) (Ctrl+Shift+G)\n"
+            "• Importa Documento AI (Gemini) (Ctrl+B)\n"
             "• Log Importazioni\n"
-            "• Rubrica Contatti (Ctrl+R)\n"
+            "• Rubrica (Ctrl+R)\n"
             "• Promemoria (Ctrl+Y)\n"
             "• GCalendar — Generatore QR e Timer promemoria\n"
             "• Piano Dieta\n"
@@ -268,11 +305,12 @@ def show_info_app(self):
             "• Stampa (Ctrl+P)\n"
             "• Pannello Controllo (Ctrl+Z)\n"
             "• Calcolatrice (Ctrl+E)\n"
+            "• Salva ed Esci (Ctrl+Q)  |  Riduci a Icona (Ctrl+X)\n"
             "\n 📊 ANALISI\n"
             "• Ricerca Globale (Ctrl+F)\n"
             "• Gestione Tag # (categorie multiple)\n"
             "• Confronta Periodi (Ctrl+N)\n"
-            "• FairShare — Dare/Avere tra Partecipanti (Ctrl+D)\n"
+            "• FairShare Partecipanti (Ctrl+D)\n"
             "• Time Machine (Ctrl+W)\n"
             "• Aggrega Categorie (Ctrl+G)\n"
             "• Proiezione - Fondo Risparmio (Ctrl+A)\n"
@@ -292,6 +330,7 @@ def show_info_app(self):
             "• Estratti per Metodo e Conti\n"
             "• Analisi Andamento Bilancio con IA (Gemini)\n"
             "• Analisi e Confronto Documenti con IA (Gemini)\n"
+            "• Chiedi al Database (Gemini AI) (Ctrl+H)\n"
             "\n ⏰ RICORRENZE\n"
             "• Gestione Ricorrenze (Ctrl+T)\n"
             "• Lista Ricorrenze (Ctrl+L)\n"
@@ -306,6 +345,7 @@ def show_info_app(self):
             "\n 🔧 SISTEMA\n"
             "• Impostazioni App\n"
             "• Gestisci Profili Utenti\n"
+            "• Attiva / Esci da Modalità Demo\n"
             "• Cambia Password\n"
             "• Registra Prodotto\n"
             "• Gamification — punti, livelli e badge\n"
@@ -330,13 +370,14 @@ def show_info_app(self):
             "• Manuale CertBot SSL\n"
             "\n 🔧 ALTRE VOCI DELLA BARRA\n"
             "• 💼 Portafoglio — Accesso rapido al Fondo Risparmio\n"
-            "• ❓ Info — Apre questa guida\n"
+            "• ❓ Info — Apre questa guida (Ctrl+I)\n"
             "• ⚙️ Configura — Impostazioni complete dell'applicazione\n"
             "• 🔌 Esci — Salva ed esce dal programma (anche Ctrl+Q dal menu Gestione)\n"
     )
     resources_dir = os.path.join(DB_DIR, "resources")
     logo_path = os.path.join(resources_dir, "info_image.png")
     info_win = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
+    self._info_win = info_win
     info_win.transient(self)
     info_win.title(f"Info & Guida - {NAME}")
     info_win.resizable(False, False)
@@ -400,10 +441,11 @@ def show_info_app(self):
         canvas.configure(yscrollcommand=scroll.set)
         scroll.pack(side="right", fill="y")
         canvas.pack(side="left", fill="both", expand=True)
-        tk.Label(frm_testo, text=testo, font=("Arial", 10),
+        lbl_testo = tk.Label(frm_testo, text=testo, font=("Arial", 10),
                  bg=self.COLOR_WHITE, fg=self.COLOR_BLACK, justify=tk.LEFT, anchor='nw',
-                 wraplength=890).pack(fill='both', expand=True, padx=15, pady=5)
-        for widget in (canvas, frm_testo):
+                 wraplength=890)
+        lbl_testo.pack(fill='both', expand=True, padx=15, pady=5)
+        for widget in (canvas, frm_testo, lbl_testo):
             widget.bind("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
             widget.bind("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
             widget.bind("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))

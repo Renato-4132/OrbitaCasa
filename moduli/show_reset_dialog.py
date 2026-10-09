@@ -262,21 +262,6 @@ def show_reset_dialog(self):
     btn_nessuno.pack(side="left")
     btn_nessuno.bind("<Button-1>", lambda e: _deseleziona_tutto())
 
-    def _blocca_finestra_principale(messaggio):
-        blocco = tk.Toplevel(self, bg=self.COLOR_BACKGROUND)
-        blocco.overrideredirect(True)
-        blocco.transient(self)
-        w_b, h_b = 340, 90
-        x_b = self.winfo_rootx() + (self.winfo_width() // 2) - (w_b // 2)
-        y_b = self.winfo_rooty() + (self.winfo_height() // 2) - (h_b // 2)
-        blocco.geometry(f"{w_b}x{h_b}+{x_b}+{y_b}")
-        tk.Label(blocco, text=messaggio, bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
-                 font=("Arial", 10, "bold"), wraplength=w_b - 20, justify="center").pack(expand=True, fill="both", padx=10, pady=10)
-        blocco.focus_force()
-        blocco.update()
-        blocco.grab_set()
-        return blocco
-
     def _restart_application():
         script_path = os.path.abspath(sys.argv[0])
         args = [sys.executable, script_path] + sys.argv[1:]
@@ -323,8 +308,7 @@ def show_reset_dialog(self):
                 "\n\nPer sicurezza l'app verrà comunque riavviata, per evitare che i dati "
                 "ancora in memoria vengano risalvati sugli elementi cancellati con successo."
             )
-        self.show_toast("Riavvio in corso. Dati azzerati!")
-        _blocca_finestra_principale("Riavvio in corso...\nNon chiudere l'applicazione.")
+        self.show_toast("Riavvio in corso. Dati azzerati!", duration=2600)
         self._on_close_lock()
         self.after(2600, _restart_application)
 
@@ -347,8 +331,7 @@ def show_reset_dialog(self):
                 f"Errore durante l'azzeramento completo:\n{e}\n\n"
                 "Per sicurezza l'app verrà comunque riavviata."
             )
-        self.show_toast("Riavvio in corso. Dati azzerati allo stato predefinito!")
-        _blocca_finestra_principale("Riavvio in corso...\nNon chiudere l'applicazione.")
+        self.show_toast("Riavvio in corso. Dati azzerati allo stato predefinito!", duration=2600)
         self._on_close_lock()
         self.after(2600, _restart_application)
 

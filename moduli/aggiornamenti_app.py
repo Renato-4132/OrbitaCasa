@@ -111,6 +111,9 @@ def forza_aggiorna(self):
     import __main__ as _app
     GITHUB_FILE_URL = _app.GITHUB_FILE_URL
     NOME_FILE = _app.NOME_FILE
+    if getattr(_app, "DISABILITA_SYNC_MODULI_TEST", False):
+        self.show_toast("[TEST] Modalità test attiva: aggiornamento forzato disattivato.", duration=3000)
+        return
     if not getattr(self, '_lic_ok', False):
         self.show_toast("Nessuna licenza attiva.", duration=3000)
         return
@@ -130,6 +133,9 @@ def forza_aggiorna(self):
 # Esecuzione dell'Aggiornamento del Software con Backup e Riavvio Automatico
 def aggiorna(self, url, nome_file):
     import __main__ as _app
+    if getattr(_app, "DISABILITA_SYNC_MODULI_TEST", False):
+        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] [TEST] Aggiornamento .pyw bloccato")
+        return
     APRI_BROWSER = _app.APRI_BROWSER
     URL_QST = _app.URL_QST
     MODULI_DIR = _app.MODULI_DIR
@@ -191,28 +197,9 @@ def aggiorna(self, url, nome_file):
             _app.APRI_BROWSER = False
         self.save_db()
         self._on_close_lock() 
-        messaggio = "Riavvio in corso. File aggiornato! ATTENDERE..."
-        duration_s = 2
-        width = 350
-        height = 80
-        parent = self
-        parent.update_idletasks()
-        parent_width = parent.winfo_width()
-        parent_height = parent.winfo_height()
-        x_pos = (parent_width // 2) - (width // 2)
-        y_pos = (parent_height // 2) - (height // 2)
-        popup_frame = tk.Frame(parent, bg="orange", bd=3, relief="raised")
-        popup_frame.place(x=x_pos, y=y_pos, width=width, height=height)
-        popup_frame.lift()
-        label = tk.Label(popup_frame, text=messaggio, font=("Arial", 10, "bold"), 
-                          justify="center", padx=10, pady=10, bg="orange", fg="black")
-        label.pack(expand=True, fill='both')
-        parent.update() 
-        time.sleep(duration_s)
-        try:
-           popup_frame.destroy()
-        except:
-           pass
+        self.show_toast("Riavvio in corso. File aggiornato! ATTENDERE...", duration=2500)
+        self.update()
+        time.sleep(2)
         script_path = os.path.abspath(sys.argv[0])
         args = [sys.executable, script_path] + sys.argv[1:]
         if os.name == 'nt':
@@ -271,6 +258,9 @@ def _check_librerie_in_background(self):
 def _check_moduli_in_background(self):
     import threading
     import __main__ as _app
+    if getattr(_app, "DISABILITA_SYNC_MODULI_TEST", False):
+        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] [TEST] Check moduli in background disattivato")
+        return
     MODULI_DIR = _app.MODULI_DIR
     _boot_lista_moduli_remoti = _app._boot_lista_moduli_remoti
     _boot_git_blob_sha1 = _app._boot_git_blob_sha1
@@ -319,8 +309,10 @@ def _check_moduli_in_background(self):
 
 # Controllo automatico degli Aggiornamenti Software
 def check_aggiornamento_con_api(self):
+    import __main__ as _app
     splash_attivo = getattr(self, '_splash_reg', None) and self._splash_reg.winfo_exists()
-    if not splash_attivo and self._licenza_valida():
+    test_attivo = getattr(_app, "DISABILITA_SYNC_MODULI_TEST", False)
+    if not splash_attivo and not test_attivo and self._licenza_valida():
         threading.Thread(target=self.check_aggiornamento_thread, daemon=True).start()
     # Riprogramma sempre il prossimo controllo, anche se questo giro è stato saltato
     self._job_aggiornamento = self.after(43200000, self.check_aggiornamento_con_api)
@@ -1762,24 +1754,9 @@ def ripristina_da_backup(self):
             os.remove(nome_backup)
         self.save_db()
         self._on_close_lock() 
-        messaggio = "Riavvio in corso. File aggiornato! ATTENDERE..."
-        duration_s = 2
-        width = 350
-        height = 80
-        parent = self
-        parent.update_idletasks()
-        parent_width = parent.winfo_width()
-        parent_height = parent.winfo_height()
-        x_pos = (parent_width // 2) - (width // 2)
-        y_pos = (parent_height // 2) - (height // 2)
-        popup_frame = tk.Frame(parent, bg="orange", bd=3, relief="raised")
-        popup_frame.place(x=x_pos, y=y_pos, width=width, height=height)
-        popup_frame.lift()
-        label = tk.Label(popup_frame, text=messaggio, font=("Arial", 10, "bold"), 
-                          justify="center", padx=10, pady=10, bg="orange", fg="black")
-        label.pack(expand=True, fill='both')
-        parent.update() 
-        time.sleep(duration_s)
+        self.show_toast("Riavvio in corso. File aggiornato! ATTENDERE...", duration=2500)
+        self.update()
+        time.sleep(2)
         script_path = os.path.abspath(sys.argv[0])
         args = [sys.executable, script_path] + sys.argv[1:]
         if os.name == 'nt':

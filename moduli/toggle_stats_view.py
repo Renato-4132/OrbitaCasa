@@ -362,6 +362,7 @@ def toggle_stats_view(self, tipo="grafico"):
         self.stats_table.tag_configure("entrata", foreground="green")
         self.stats_table.tag_configure("futuro", foreground="#E5C07B", font=("Arial", 9, "italic"))
         self.stats_table.tag_configure("sforato", foreground='#C08081', font=("Arial", 9, "bold"))
+        self.stats_table.tag_configure("promemoria", foreground='#61AFEF', font=("Arial", 9, "italic"))
         self.stats_table.bind("<Double-1>", self.on_stats_table_double_click)
         self.stats_table.bind("<ButtonRelease-1>", self.on_table_click)
         self._bind_tooltip_metodo(self.stats_table, col_desc=2)

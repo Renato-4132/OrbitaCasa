@@ -22,6 +22,16 @@ def on_stats_table_double_click(self, event):
     values = self.stats_table.item(item_id, "values")
     if not values or len(values) < 1:
         return
+    if mode == "giorno" and "promemoria" in self.stats_table.item(item_id, "tags"):
+        _info_p = getattr(self.stats_table, "_metodo_lookup", {}).get(item_id, {})
+        try:
+            import datetime as _dtg
+            _g_p = _dtg.date.fromisoformat(str(_info_p.get("data_scadenza", ""))[:10])
+        except Exception:
+            return
+        from moduli.spese_pianificate import vai_a_giorno_piano
+        vai_a_giorno_piano(self, _g_p)
+        return
     testo_ricerca = self._ricerca_globale_var.get().strip() if hasattr(self, '_ricerca_globale_var') else ""
 
     if testo_ricerca and mode == "giorno":
@@ -38,7 +48,7 @@ def on_stats_table_double_click(self, event):
                     return float(t)
                 except Exception:
                     return 0.0
-            data_estratta = str(values[0]).strip()  # già in formato dd-mm-yyyy
+            data_estratta = str(values[0]).strip()
             categoria_da_tabella = str(values[1]).strip() if len(values) > 1 else "Generica"
             descrizione_reale = str(values[2]).strip() if len(values) > 2 else ""
             val_imp = pulisci_importo_ricerca(values[3]) if len(values) > 3 else 0.0
@@ -54,13 +64,14 @@ def on_stats_table_double_click(self, event):
         except Exception as e:
             print(f"Errore estrazione dati (ricerca globale): {e}")
         return
-    # --- fine gestione speciale righe da ricerca in modalità giorno ---
 
     if testo_ricerca and mode in ("mese", "anno", "totali"):
         categoria = str(values[1]).strip() if len(values) > 1 else ""
     else:
         categoria = str(values[0]).strip()
-    categoria_selezionata = str(values[1]).strip()
+    categoria_selezionata = str(values[1]).strip() if len(values) > 1 else ""
+    riga_pianificata = ("promemoria" in self.stats_table.item(item_id, "tags")
+                        or (len(values) > 2 and str(values[2]).strip() == "Pianificata"))
     spese_categoria = []
     if mode == "giorno":
         try:
@@ -145,8 +156,24 @@ def on_stats_table_double_click(self, event):
                     spese_categoria.append((d, desc, imp, tipo, conto_v, metodo_v, tag_v))
         titolo_periodo = "Tutte le annualità"
         testo_periodo = "tutti gli anni"
+
+    _giorni_piano = {}
+    if riga_pianificata and mode in ("mese", "anno") and hasattr(self, "ottieni_promemoria_mese"):
+        import datetime as _dtp
+        from moduli.spese_pianificate import quote_piani_categoria
+        spese_categoria = []
+        for _p, _a, _m, _q in quote_piani_categoria(self, categoria, ref_periodo.year,
+                                                    ref_periodo.month if mode == "mese" else None):
+            _nome_p = _p.get("descrizione") or _p.get("nome") or categoria
+            try:
+                _giorni_piano[f"📌 Quota piano: {_nome_p}"] = _dtp.date.fromisoformat(str(_p.get("data_scadenza"))[:10])
+            except Exception:
+                pass
+            spese_categoria.append((_dtp.date(_a, _m, __import__('calendar').monthrange(_a, _m)[1]), f"📌 Quota piano: {_nome_p}", _q, "Pianificata",
+                                    _p.get("conto", ""), _p.get("metodo_pagamento", ""),
+                                    " ".join(_p.get("hashtag", []) or [])))
     if not spese_categoria:
-        self.show_custom_info("Nessuna spesa", f"Nessuna spesa per la categoria '{categoria}' nel periodo selezionato.")
+        self.show_toast(f"Nessun movimento per '{categoria}' nel periodo selezionato")
         return
     popup = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
     popup.title(f"Dettaglio Movimenti - {categoria} ({titolo_periodo})")
@@ -179,7 +206,7 @@ def on_stats_table_double_click(self, event):
     label.pack(pady=8)
     tree_frame = ttk.Frame(popup)
     tree_frame.pack(fill="both", expand=True, padx=10, pady=6)
-    ttk.Label(tree_frame, text="Doppio clic → mostra nella lista principale  |  Clic destro → popola campi inserimento",
+    ttk.Label(tree_frame, text="Doppio clic → mostra nella lista principale  |  Clic destro → popola campi inserimento  |  Pianificate: doppio clic → scadenza, destro → gestione",
               font=("Arial", 9, "italic"), foreground="gray").pack(anchor="center", padx=4)
     vsb = ttk.Scrollbar(tree_frame, orient="vertical", style="Vertical.TScrollbar")
     vsb.pack(side="right", fill="y")
@@ -202,6 +229,11 @@ def on_stats_table_double_click(self, event):
     import datetime as _dt
     oggi_d = _dt.date.today()
     fut_entrate = fut_uscite = 0.0
+    pian_uscite = 0.0
+    _flag_pian_popup = bool(
+        (mode == "mese" and self.considera_pianificate_var.get())
+        or (mode == "anno" and self.considera_pianificate_anno_var.get())
+    )
     _uso_ordinale_st = {}
     _budget_categorie_ref = getattr(self, 'budget_categorie', {}) or {}
     _budget_val_cat = next(
@@ -234,7 +266,10 @@ def on_stats_table_double_click(self, event):
         else:
             nome_conto_tr = ""
         tree.insert("", "end", values=(d.strftime("%d-%m-%Y"), desc, f"{imp_formattato_it} €", tipo, nome_conto_tr, metodo_diretto, tag_diretto), tags=(tag_name,))
-        if d > oggi_d:
+        if tipo == "Pianificata":
+            tree.tag_configure(tag_name, foreground="#61AFEF", font=("Arial", 9, "italic"))
+            pian_uscite += imp
+        elif d > oggi_d:
             tree.tag_configure(tag_name, foreground="#E5C07B", font=("Arial", 9, "italic"))
             if tipo == "Entrata": fut_entrate += imp
             else: fut_uscite += imp
@@ -280,12 +315,12 @@ def on_stats_table_double_click(self, event):
     def formatta_italiano(valore):
         return f"{valore:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
     def aggiorna_totali():
+        e, u = tot_entrate, tot_uscite
         if includi_futuri_var.get():
-            e = tot_entrate + fut_entrate
-            u = tot_uscite  + fut_uscite
-        else:
-            e = tot_entrate
-            u = tot_uscite
+            e += fut_entrate
+            u += fut_uscite
+        if _flag_pian_popup:
+            u += pian_uscite
         s = e - u
         e_str = formatta_italiano(e)
         u_str = formatta_italiano(u)
@@ -304,7 +339,20 @@ def on_stats_table_double_click(self, event):
         lbl.tag_add(tag, f"1.{ss}", f"1.{ss+len(s_str)}")
         lbl.config(state="disabled")
     aggiorna_totali()
-    tree.bind("<Double-1>", lambda evt: self.goto_day_from_popup(tree, popup))
+    def _doppio_click_dettaglio(evt):
+        _it = tree.identify_row(evt.y)
+        if _it:
+            tree.focus(_it)
+            tree.selection_set(_it)
+            _v = list(tree.item(_it, "values"))
+            if len(_v) > 3 and str(_v[3]).strip() == "Pianificata":
+                _g = _giorni_piano.get(str(_v[1]).strip())
+                if not _g:
+                    return
+                _v[0] = _g.strftime("%d-%m-%Y")
+                tree.item(_it, values=_v)
+        self.goto_day_from_popup(tree, popup)
+    tree.bind("<Double-1>", _doppio_click_dettaglio)
     
     def on_right_click(event):
         item_id = tree.identify_row(event.y)
@@ -316,6 +364,14 @@ def on_stats_table_double_click(self, event):
         descrizione = str(values[1]).strip()
         importo_str = str(values[2]).replace("€", "").replace(".", "").replace(",", ".").strip()
         tipo        = str(values[3]).strip()
+        if tipo == "Pianificata":
+            try:
+                popup.destroy()
+            except Exception:
+                pass
+            if hasattr(self, "apri_gestione_spese_pianificate"):
+                self.after(80, self.apri_gestione_spese_pianificate)
+            return
         cat_match = next(
             (c for c in self.categorie if c.strip().lower() == categoria.lower()),
             None

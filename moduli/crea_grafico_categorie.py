@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from collections import defaultdict
+import calendar
 import datetime
 import tkinter as tk
 from tkinter import ttk
@@ -24,14 +25,25 @@ def crea_grafico_categorie(self, id_righe_selezionate):
     stats_mode = getattr(self, 'stats_mode', tk.StringVar(value="totali")).get() 
     stats_refdate = getattr(self, 'stats_refdate', None) 
     categorie_da_elaborare = []
+    categorie_pianificate = []
     for item_id in id_righe_selezionate:
         try:
-            cat_name_raw = str(self.stats_table.item(item_id, "values")[0]).strip()
+            _vals_it = self.stats_table.item(item_id, "values")
+            cat_name_raw = str(_vals_it[0]).strip()
             cat_name = ' '.join(cat_name_raw.split()) 
             if cat_name not in categorie_da_elaborare:
                 categorie_da_elaborare.append(cat_name)
+            if len(_vals_it) > 2 and str(_vals_it[2]).strip() == "Pianificata" and cat_name not in categorie_pianificate:
+                categorie_pianificate.append(cat_name)
         except:
             continue
+    _flag_pian_graf = bool(
+        (stats_mode == "mese" and self.considera_pianificate_var.get())
+        or (stats_mode == "anno" and self.considera_pianificate_anno_var.get())
+    )
+    _pianificate_escluse = list(categorie_pianificate) if not _flag_pian_graf else []
+    if not _flag_pian_graf:
+        categorie_pianificate = []
     if not categorie_da_elaborare:
         self.show_custom_info("Errore", "Nessuna categoria valida trovata.")
         return
@@ -61,6 +73,8 @@ def crea_grafico_categorie(self, id_righe_selezionate):
                     entrate_count += 1
                 elif "uscita" in tipo_lower:
                     uscite_count += 1
+    if categorie_pianificate and stats_mode in ("mese", "anno") and stats_refdate:
+        uscite_count += 1
     if entrate_count > 0 and uscite_count > 0:
         tipo_transazione_ricercato = "misto"
     elif entrate_count > 0:
@@ -125,6 +139,22 @@ def crea_grafico_categorie(self, id_righe_selezionate):
                         saldo_aggregato_totale -= abs(importo_numerico)
                 except (ValueError, TypeError):
                     continue
+    
+    if categorie_pianificate and stats_mode in ("mese", "anno") and stats_refdate \
+            and tipo_transazione_ricercato in ("misto", "uscita"):
+        from moduli.spese_pianificate import quote_piani_categoria
+        for _cat_p in categorie_pianificate:
+            _mese_p = stats_refdate.month if stats_mode == "mese" else None
+            for _piano, _a, _m, _q in quote_piani_categoria(self, _cat_p, stats_refdate.year, _mese_p):
+                if _q <= 0:
+                    continue
+                _k = (f"{calendar.monthrange(_a, _m)[1]:02d} {_m:02d} {_a}"
+                      if stats_mode == "mese" else f"{_a}-{_m:02d}")
+                _etichetta_p = f"{_cat_p} (pianificata)"
+                spese_combinate[_k]['Uscita'] += _q
+                spese_combinate[_k]['Dettaglio_Uscita'][_etichetta_p] += _q
+                spese_combinate[_k]['Dettaglio_Uscita_Conto'][(_piano.get("conto") or "(Nessun conto)")] += _q
+                saldo_aggregato_totale -= _q
     dati_filtrati_non_zero = {}
     totale_entrate_periodo = 0.0
     totale_uscite_periodo = 0.0
@@ -144,7 +174,14 @@ def crea_grafico_categorie(self, id_righe_selezionate):
                                                   'Dettaglio_Conto': v['Dettaglio_Uscita_Conto']}
     saldo_netto_periodo = totale_entrate_periodo - totale_uscite_periodo
     if not dati_filtrati_non_zero:
-        self.show_custom_info("Nessun Dato", "Nessun dato di transazione con importo non zero trovato per il filtro e il periodo selezionati.")
+        if _pianificate_escluse:
+            self.show_custom_info(
+                "Quote pianificate escluse",
+                "Questa categoria nel periodo ha solo quote pianificate.\n"
+                "Attiva il pallino 📌 nel Riepilogo Mese/Anno per vederle nel grafico."
+            )
+        else:
+            self.show_custom_info("Nessun Dato", "Nessun dato di transazione con importo non zero trovato per il filtro e il periodo selezionati.")
         return
     dati_ordinati = sorted(dati_filtrati_non_zero.items())
     dati_per_grafico = list(reversed(dati_ordinati)) 
@@ -616,6 +653,10 @@ def _build_filter_data(self, periodo, tipo, categories_to_elaborate, stats_mode)
         "mese": mese_bind, 
         "giorno": giorno_bind,
         "tipo": tipo,
-        "categorie": categories_to_elaborate
+        "categorie": categories_to_elaborate,
+        "quote_pianificate": bool(
+            (stats_mode == "mese" and self.considera_pianificate_var.get())
+            or (stats_mode == "anno" and self.considera_pianificate_anno_var.get())
+        ),
     }
 

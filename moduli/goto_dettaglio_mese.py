@@ -107,6 +107,60 @@ def goto_dettaglio_mese(self, salva=False):
                 righe_inserite += 1
             except:
                 continue
+
+    if hasattr(self, "ottieni_promemoria_mese"):
+        try:
+            for piano in self.ottieni_promemoria_mese(anno, mese):
+                quota = float(piano.get("quota_mese", piano.get("quota", 0.0)) or 0.0)
+                nome_p = piano.get("nome", "") or ""
+                _pid = self.stats_table.insert("", "end", values=(
+                    "", piano.get("categoria", ""),
+                    f"Pianificata · {nome_p}" if nome_p else "Pianificata",
+                    f"{quota:.2f}".replace(".", ","), "Pianificata", ""
+                ), tags=("promemoria",))
+                self.stats_table._metodo_lookup[_pid] = {
+                    "pianificata": True,
+                    "metodo": piano.get("metodo_pagamento", ""),
+                    "conto": piano.get("conto", ""),
+                    "hashtag": piano.get("hashtag", []) or [],
+                    "data_scadenza": piano.get("data_scadenza", ""),
+                    "descrizione": piano.get("descrizione", "") or nome_p,
+                    "categoria": piano.get("categoria", ""),
+                    "importo": quota,
+                }
+                righe_inserite += 1
+        except Exception:
+            pass
+    try:
+        from __main__ import _fmt_it
+        _flag_p = bool(self.considera_pianificate_var.get())
+        _in_piano = set()
+        if _flag_p and hasattr(self, "ids_spese_pianificate"):
+            _in_piano = self.ids_spese_pianificate()
+        _ricorr = self.considera_ricorrenze_var.get() if hasattr(self, "considera_ricorrenze_var") else True
+        tot_e, tot_u = 0.0, 0.0
+        for g in range(1, num_giorni + 1):
+            _g = datetime.date(anno, mese, g)
+            for sp in self.spese.get(_g, []):
+                if not _ricorr and (anno, mese) == (oggi.year, oggi.month) and _g > oggi:
+                    continue
+                _tipo = campo(sp, "tipo", "")
+                _imp = float(campo(sp, "importo", 0.0))
+                if _tipo == "Entrata":
+                    tot_e += _imp
+                else:
+                    if _in_piano and campo(sp, "id_spesa", None) in _in_piano:
+                        continue
+                    tot_u += _imp
+        if _flag_p and hasattr(self, "ottieni_promemoria_mese"):
+            for piano in self.ottieni_promemoria_mese(anno, mese):
+                tot_u += float(piano.get("quota_mese", piano.get("quota", 0.0)) or 0.0)
+        _diff = tot_e - tot_u
+        self.totali_label.config(
+            text=f"Totale Entrate: {_fmt_it(tot_e)}    Totale Uscite: {_fmt_it(tot_u)}    Differenza: {_fmt_it(_diff)}",
+            foreground="dodgerblue" if _diff >= 0 else "red", font=("Arial", 10, "bold"))
+    except Exception:
+        pass
     def proxy_index(item_id):
         return _mappa_indici_reali.get(item_id, self.stats_table._orig_index(item_id))
     self.stats_table.index = proxy_index
@@ -114,6 +168,7 @@ def goto_dettaglio_mese(self, salva=False):
     self.stats_table.tag_configure("Uscita",  foreground="red")
     self.stats_table.tag_configure("futuro",  foreground="#E5C07B", font=("Arial", 9, "italic"))
     self.stats_table.tag_configure("sforato", foreground='#C08081', font=("Arial", 9, "bold"))
+    self.stats_table.tag_configure("promemoria", foreground='#61AFEF', font=("Arial", 9, "italic"))
     if righe_inserite == 0:
         self.stats_table.insert("", "end", values=("—", "Nessun movimento", "", "", "", ""), tags=())
     self.stats_table.yview_moveto(0)

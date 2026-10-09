@@ -329,7 +329,7 @@ def gestisci_configurazione(self):
                     _cfg_precedente = json.load(f)
                 if "profilo_attivo" in _cfg_precedente:
                     nuova_config["profilo_attivo"] = _cfg_precedente["profilo_attivo"]
-                for _k in ("pianificate_mese_attivo", "pianificate_anno_attivo", "includi_futuri_totali", "includi_futuri_saldo", "stats_mode_avanzato", "stats_dettaglio_mese"):
+                for _k in ("pianificate_mese_attivo", "pianificate_anno_attivo", "includi_futuri_totali", "includi_futuri_saldo", "stats_mode_avanzato", "stats_dettaglio_mese", "analisi_mese_tab", "analisi_mese_vista"):
                     if _k in _cfg_precedente:
                         nuova_config[_k] = _cfg_precedente[_k]
             except Exception:

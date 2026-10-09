@@ -164,7 +164,7 @@ def carica_costanti(path_locale):
     g['WARN_TIMEOUT'] = 20000                       # Timeout Messaggi Popup (ms)
     g['USE_WAIT_WINDOW'] = False                    # Timeout chiusura self.show_custom_warning
     g['TOLL'] = 15                                  # Tolleranza Movimenti simili (SmartCat) - Euro
-    g['VERSION'] = "2.5.1"
+    g['VERSION'] = "2.5.2"
     g['ICONIZZA_INATTIVITA'] = True                 # Attiva/disattiva Timer Minimizza
     g['TIMEOUT_INATTIVITA_MS'] = 1200000            # 20 minuti in ms - Timer Minimizza
     g['ANNI_DA_MANTENERE'] = 10                     # Anni conservati nel db
@@ -233,6 +233,8 @@ def carica_costanti(path_locale):
         "includi_futuri_saldo": True,
         "stats_mode_avanzato": "giorno",
         "stats_dettaglio_mese": False,
+        "analisi_mese_tab": 0,
+        "analisi_mese_vista": 0,
     }
 
     g['CATEGORIE_PREDEFINITE'] = [

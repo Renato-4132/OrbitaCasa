@@ -117,6 +117,8 @@ def _decodifica_licenza(key, fernet=None, dati_reg=None):
 
 def verify_environment_update(self, tipo_install="UNKNOWN", rating=0, provenienza=""):
     import __main__ as _app
+    if getattr(_app, "DISABILITA_SYNC_MODULI_TEST", False):
+        return False
     VERSION = _app.VERSION
     _get_device_id = _app._get_device_id
     try:

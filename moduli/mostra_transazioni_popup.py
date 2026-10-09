@@ -149,7 +149,29 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
                 if tipo_filtro and tipo_t != tipo_filtro.capitalize():
                     continue
                 spese_filtrate.append((data_t, "Trasferimento", desc_t, imp_t, tipo_t, conto_per_trasferimenti, "", ""))
-    if not spese_filtrate:
+    quote_righe = []
+    _giorni_piano = {}
+    if (data_filter.get("quote_pianificate") and hasattr(self, "ottieni_promemoria_mese")
+            and anno and anno != "Tutti" and (not tipo_filtro or tipo_filtro.capitalize() == "Uscita")):
+        import calendar as _cal
+        from moduli.spese_pianificate import quote_piani_categoria
+        for _cat_f in categorie_filtro_list:
+            for _p, _a, _m, _q in quote_piani_categoria(self, _cat_f, int(anno), mese_filtro_num):
+                if _q <= 0:
+                    continue
+                _ult = _cal.monthrange(_a, _m)[1]
+                if giorno and giorno != "Tutti" and int(giorno) != _ult:
+                    continue
+                try:
+                    _giorni_piano[f"📌 Quota piano: {_p.get('descrizione') or _p.get('nome') or _cat_f}"] = \
+                        datetime.date.fromisoformat(str(_p.get("data_scadenza"))[:10])
+                except Exception:
+                    pass
+                quote_righe.append((datetime.date(_a, _m, _ult), _cat_f,
+                                    f"📌 Quota piano: {_p.get('descrizione') or _p.get('nome') or _cat_f}",
+                                    _q, "Pianificata", _p.get("conto", ""), _p.get("metodo_pagamento", ""),
+                                    " ".join(_p.get("hashtag", []) or [])))
+    if not spese_filtrate and not quote_righe:
         self.show_custom_info("Nessuna transazione", f"Nessuna transazione trovata per {title}.")
         return
     popup_width, popup_height = 1150, 450
@@ -172,7 +194,7 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
     popup.lift()
     popup.focus_force()
     tk.Label(popup, bg=self.COLOR_TOPLEVEL , fg=self.TEXT_COLOR, text=title, font=("Arial", 12, "bold")).pack(pady=10)
-    ttk.Label(popup, text="Doppio clic → mostra nella lista principale  |  Clic destro → popola campi inserimento",
+    ttk.Label(popup, text="Doppio clic → mostra nella lista principale  |  Clic destro → popola campi inserimento  |  Pianificate: doppio clic → scadenza, destro → gestione",
               font=("Arial", 9, "italic"), foreground="gray").pack(anchor="center", padx=4)
     tree_frame = ttk.Frame(popup)
     tree_frame.pack(fill="both", expand=True, padx=10, pady=6)
@@ -196,6 +218,11 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
         if not item:
             return
         valori = tree.item(item, "values")
+        if len(valori) > 4 and str(valori[4]).strip() == "Pianificata":
+            _chiudi_popup()
+            if hasattr(self, "apri_gestione_spese_pianificate"):
+                self.after(80, self.apri_gestione_spese_pianificate)
+            return
         categoria  = str(valori[1]).strip()
         descrizione = str(valori[2]).strip()
         importo_str = str(valori[3]).replace("€", "").replace(".", "").replace(",", ".").strip()
@@ -328,6 +355,13 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
         else:
             nome_conto_tr = ""
         tree.insert("", "end", values=(d.strftime("%d-%m-%Y"), cat, desc, f"{imp_formattato} €", tipo, nome_conto_tr, metodo_diretto, tag_diretto), tags=(tag_name,))
+    pian_uscite = 0.0
+    _flag_pian_pop = bool(quote_righe)
+    for d, cat, desc, imp, tipo, conto_q, metodo_q, tag_q in sorted(quote_righe, key=lambda x: x[0], reverse=True):
+        imp_f = f"{imp:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+        tree.insert("", "end", values=(d.strftime("%d-%m-%Y"), cat, desc, f"{imp_f} €", tipo, conto_q, metodo_q, tag_q), tags=("plan_row",))
+        pian_uscite += imp
+    tree.tag_configure("plan_row", foreground="#61AFEF", font=("Arial", 9, "italic"))
     tree.tag_configure("green_row",  foreground="green")
     tree.tag_configure("red_row",    foreground="red")
     tree.tag_configure("yellow_row", foreground="#E5C07B", font=("Arial", 9, "italic"))
@@ -365,12 +399,12 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
     def formatta_italiano(valore):
         return f"{valore:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
     def aggiorna_totali():
+        e, u = tot_entrate, tot_uscite
         if includi_futuri_var.get():
-            e = tot_entrate + fut_entrate
-            u = tot_uscite  + fut_uscite
-        else:
-            e = tot_entrate
-            u = tot_uscite
+            e += fut_entrate
+            u += fut_uscite
+        if _flag_pian_pop:
+            u += pian_uscite
         s = e - u
         e_str = formatta_italiano(e)
         u_str = formatta_italiano(u)
@@ -402,10 +436,20 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
     def _on_tree_double_click(evt):
         item = tree.identify_row(evt.y)
         if item:
+            tree.focus(item)
+            tree.selection_set(item)
             valori_riga = tree.item(item, "values")
+            if len(valori_riga) > 4 and str(valori_riga[4]).strip() == "Pianificata":
+                _g = _giorni_piano.get(str(valori_riga[2]).strip())
+                if not _g:
+                    return
+                _v = list(valori_riga)
+                _v[0] = _g.strftime("%d-%m-%Y")
+                tree.item(item, values=_v)
+                setattr(self, '_popup_da_doppio_click', True)
+                self.goto_day_from_popup(tree, popup)
+                return
             if len(valori_riga) > 1 and str(valori_riga[1]).strip() == "Trasferimento":
-                # i trasferimenti non sono in self.spese: la tabella principale (per giorno)
-                # non li mostrerebbe comunque, quindi si va direttamente al Portafoglio Bancario
                 popup.destroy()
                 self.open_saldo_conto(tab_iniziale="trasferimenti")
                 return
