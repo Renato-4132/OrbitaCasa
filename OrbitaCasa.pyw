@@ -743,7 +743,7 @@ class GestioneSpese(tk.Tk):
         img_mouse = self.icone_gui.get("mouse")
         hint_label = ttk.Label(
                 lbl_analisi_frame,
-                text=" Doppio clic → Dashboard  |  Clic destro → Copia nel form",
+                text=" Doppio clic → Dashboard  |  Clic Dx → Copia nel form",
                 image=img_mouse,
                 compound="right",
                 foreground="gray",
@@ -785,19 +785,19 @@ class GestioneSpese(tk.Tk):
         def aggiorna_hint(e):
             tab = self.mese_notebook.index(self.mese_notebook.select())
             if tab == 0:
-                hint_label.config(text=" Doppio clic → Dashboard | Clic destro → Copia nel form")
+                hint_label.config(text=" Doppio clic → Dashboard | Clic Dx → Copia nel form")
             elif tab == 1:
-                hint_label.config(text=" Doppio clic → Dettaglio | Clic destro → Storico categoria")
+                hint_label.config(text=" Doppio clic → Dettaglio | Clic Dx → Storico categoria")
             elif tab == 2:
                 hint_label.config(text=" Doppio clic → Dettaglio giorno")
             elif tab == 3:
-                hint_label.config(text=" Doppio clic → Dettaglio | Clic destro → Copia nel form")
+                hint_label.config(text=" Doppio clic → Dettaglio | Clic Dx → Copia nel form")
             elif tab == 4:
-                hint_label.config(text=" Doppio clic → Dettaglio | Clic destro → Estratti Metodo")
+                hint_label.config(text=" Doppio clic → Dettaglio | Clic Dx → Estratti Metodo")
             elif tab == 5:
-                hint_label.config(text=" Doppio clic → Dettaglio | Clic destro → Portafoglio Banca")
+                hint_label.config(text=" Doppio clic → Dettaglio | Clic Dx → Portafoglio Banca")
             elif tab == 6:
-                hint_label.config(text=" Doppio clic → Dettaglio | Clic destro → Copia nel form")
+                hint_label.config(text=" Doppio clic → Dettaglio | Clic Dx → Copia nel form")
         def _tab_analisi_cambiato(e):
             aggiorna_hint(e)
             if getattr(self, "_analisi_ripristinata", False):
@@ -2259,7 +2259,7 @@ class GestioneSpese(tk.Tk):
             self.mese_notebook.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
             self.btn_ciclo_cruscotto.config(text="▼")
             if hasattr(self, '_hint_label_analisi'):
-                self._hint_label_analisi.config(text=" Doppio clic → Dashboard  |  Clic destro → Copia nel form")
+                self._hint_label_analisi.config(text=" Doppio clic → Dashboard  |  Clic Dx → Copia nel form")
         if getattr(self, 'sidebar_espansa', False):
             self.contrai_sidebar_manuale()
             self.btn_toggle.configure(text="➤")
@@ -4785,7 +4785,7 @@ class GestioneSpese(tk.Tk):
             self.mese_notebook.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
             self.btn_ciclo_cruscotto.config(text="▼")
             if hasattr(self, '_hint_label_analisi'):
-                self._hint_label_analisi.config(text=" Doppio clic → Dashboard  |  Clic destro → Copia nel form")
+                self._hint_label_analisi.config(text=" Doppio clic → Dashboard  |  Clic Dx → Copia nel form")
         elif stato == 1:
             self._cruscotto_attivo = True
             self.cruscotto_canvas.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
@@ -4814,7 +4814,7 @@ class GestioneSpese(tk.Tk):
             self.cruscotto_canvas.bind("<Button-3>", lambda e: self.apri_fondo_risparmio())
             self.cruscotto_canvas.bind("<Configure>", _on_cruscotto_resize)
             if hasattr(self, '_hint_label_analisi'):
-                self._hint_label_analisi.config(text=" Doppio clic → Dettaglio  |  Clic destro → Fondo Risparmio")
+                self._hint_label_analisi.config(text=" Doppio clic → Dettaglio  |  Clic Dx → Fondo Risparmio")
         else:
             self.conti_canvas.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
             self.btn_ciclo_cruscotto.config(text="■")
@@ -6039,7 +6039,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "cfc472e66acd229caa89c196c1b38f3bc0bdab10d6a6ec6318e1722d052eb7b0"
+        E_H_B = "46f25fcd8abe246fb86e5d1dd1df3ecb3c55dc2537e523e07e336e9c4c5590e2"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
