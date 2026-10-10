@@ -11,5 +11,8 @@
     "testo": "Messaggio riservato a un singolo utente (usare il suo device_id come target)",
     "scadenza": "31-12-2026"
   },
-  {"to": "1524df6f2dc306a2", "enc": "Wb0qVyjaW1xnRPUj0gVvfXKHNdb_erc9iSV28nf2HkQ_czOQCG4oqvybsAEfu47uM3QrFMJ5cCJOqItcT7uS7fHzNZWv_eXYiBZHkp2eTdFcTaE7xHwqRqgNwg3g61cmvnoOir2yxmVxEpTfcIHGgGN3n-8KjSa2wi1SGFec_4qr2yN5yLp2Pc_HYii0a0dX9o3xPZDnBOXuN3ntyHUHCLzvS6BOezSa3hpe4pP5418OHFAXnOvKgcDbpVQnkUVv_ZwqkVTPi7FsxL2-5yJ-085WAhnY763UropVKUSI6xP4gsYj2g"}
+  {
+  "to": "0ef4691e67629f08",
+  "enc": "wF59ZeB9-KoJrgLJGm3EQDVNGNlmz2iWEhSY-_dafFm-JcjIwPhcpKU3phJ6P6hAnVRFJmZIb2LZqAmkOH-8y51hu8h1Uw3bQNIHhH81QjxJ3yFSza59z_B8I010sths0MMXXGtToduRh0cFfJREKox8E6-jo9RcRxJ5pb8NW2AwmoNaZO9ygSQOZHUW0PFfnNbHV2zgjqVVWiCQ3tQZY6MhM7pW4dg7-n46L-RREuDzRmdh6jVMYXbqrTGbBvHmDL5xAb3O1VPa0pMlPE15evU_n6SfGwF2jhl8lRzlAOyfCs-Ywg"
+  }
 ]
