@@ -800,7 +800,7 @@ class GestioneSpese(tk.Tk):
                 hint_label.config(text=" Doppio clic → Dettaglio | Clic Dx → Copia nel form")
         def _tab_analisi_cambiato(e):
             aggiorna_hint(e)
-            if getattr(self, "_analisi_ripristinata", False):
+            if getattr(self, "_analisi_ripristinata", False) and not getattr(self, "_esc_analisi_in_corso", False):
                 try:
                     _salva_chiave_config("analisi_mese_tab", self.mese_notebook.index(self.mese_notebook.select()))
                 except Exception:
@@ -980,6 +980,8 @@ class GestioneSpese(tk.Tk):
         self.tree_ricorrenti.configure(yscrollcommand=sb_ricorrenti.set)
         self.tree_ricorrenti.bind("<Double-1>", lambda e: self.calcola_mancanti())
         self.tree_ricorrenti.bind("<Button-3>", on_ricorrenti_right_click)
+        self.tree_ricorrenti._metodo_lookup = {}
+        self._bind_tooltip_metodo(self.tree_ricorrenti, col_desc=99)
         self.aggiorna_vista_ricorrenti()
         right_frame = ttk.Frame(main_frame)
         right_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -1433,7 +1435,7 @@ class GestioneSpese(tk.Tk):
         form_frame.grid_columnconfigure(1, weight=1)
         row = 0  
         right_info_container = tk.Frame(form_frame, bd=2, relief="flat", bg=self.COLOR_WIDGET_BG)
-        right_info_container.grid(row=0, column=2, rowspan=4, sticky="nsew", padx=10, pady=5)
+        right_info_container.grid(row=1, column=2, rowspan=4, sticky="nsew", padx=10, pady=5)
         txt_m = f"Target Mese: € {_fmt_it(TARGET_MESE)}" if TARGET_MESE > 0 else "Target Mese: N/D"
         txt_a = f"Target Anno: € {_fmt_it(TARGET_ANNO)}" if TARGET_ANNO > 0 else "Target Anno: N/D"
         self.lbl_budget_mese_widget = ttk.Label(right_info_container, text=txt_m, font=("Arial", 8, "bold"), style="TLabel")
@@ -2151,9 +2153,11 @@ class GestioneSpese(tk.Tk):
         oggi = datetime.today().date()
         for i in self.tree_ricorrenti.get_children():
             self.tree_ricorrenti.delete(i)
+        self.tree_ricorrenti._metodo_lookup = {}
         mancanti = self.get_lista_categorie_mancanti()
         for cat in mancanti:
             importi = []
+            date_occ = []
             ultima = None
             for d, sp in self.spese.items():
                 if isinstance(d, str):
@@ -2174,6 +2178,7 @@ class GestioneSpese(tk.Tk):
                             imp = float(voce[2])
                             tipo_voce = campo(voce, "tipo", "Uscita").strip().title() or "Uscita"
                             importi.append(imp)
+                            date_occ.append(dd)
                             if ultima is None or dd > ultima[0]:
                                 ultima = (dd, imp, tipo_voce)
                         except:
@@ -2184,7 +2189,17 @@ class GestioneSpese(tk.Tk):
             else:
                 ultima_spesa = "N/D"
             freq = len(importi)
-            self.tree_ricorrenti.insert("", "end", values=(cat, ultima_spesa, f"{freq} volte/anno"))
+            _item_ric = self.tree_ricorrenti.insert("", "end", values=(cat, ultima_spesa, f"{freq} volte/anno"))
+            if importi:
+                _righe_st = [("Ultima", ultima[0].strftime("%d/%m/%Y")), ("Occorrenze", f"{freq} negli ultimi 12 mesi")]
+                _righe_st.append(("Totale", f"€ {_fmt_it(sum(importi))}"))
+                _righe_st.append(("Media", f"€ {_fmt_it(sum(importi) / freq)}"))
+                _righe_st.append(("Min / Max", f"€ {_fmt_it(min(importi))} / € {_fmt_it(max(importi))}"))
+                _date_ord = sorted(set(date_occ))
+                if len(_date_ord) > 1:
+                    _gap = (_date_ord[-1] - _date_ord[0]).days / (len(_date_ord) - 1)
+                    _righe_st.append(("Ogni", f"~{round(_gap)} giorni"))
+                self.tree_ricorrenti._metodo_lookup[_item_ric] = {"_righe_extra": _righe_st}
 
     def _avvia_rotazione_oggi(self):
         path = os.path.join(PATH_LOCALE, "db", "resources", "filtri.png")
@@ -2245,13 +2260,18 @@ class GestioneSpese(tk.Tk):
             self.after(0, self.imp_entry.focus_set)
     
     def _esc_torna_treeview(self):
-        if self.stats_view_mode.get() != "tabella":
-            self.mostra_treeview_statistiche()
+        try:
+            self.goto_today(mantieni_stato=False, salva=False)
+        except Exception as _e:
+            print(f"Errore Esc -> oggi: {_e}")
+            if self.stats_view_mode.get() != "tabella":
+                self.mostra_treeview_statistiche()
         if hasattr(self, 'mese_notebook') and self.mese_notebook.winfo_exists():
+            self._esc_analisi_in_corso = True
             self.mese_notebook.select(0)
+            self.after(300, lambda: setattr(self, "_esc_analisi_in_corso", False))
         if getattr(self, '_cruscotto_stato', 0) != 0:
             self._cruscotto_stato = 0
-            _salva_chiave_config("analisi_mese_vista", 0)
             self.mese_notebook.pack_forget()
             self.cruscotto_canvas.pack_forget()
             if hasattr(self, 'conti_canvas'):
@@ -2403,7 +2423,7 @@ class GestioneSpese(tk.Tk):
                 return None
             data_s = str((info or {}).get("data", "")).replace("-", "")
             imp = (info or {}).get("importo", None)
-            tipo = str(valori[4]) if len(valori) > 4 else ""
+            tipo = str((info or {}).get("tipo") or (valori[4] if len(valori) > 4 else ""))
             if not data_s or imp in (None, ""):
                 return None
             cent = str(int(round(float(str(imp).replace(",", ".")) * 100)))
@@ -2519,6 +2539,8 @@ class GestioneSpese(tk.Tk):
             if _piano is not None:
                 if _piano.get("categoria"):
                     righe.append(("Categoria", _piano.get("categoria")))
+                if _piano.get("_n_piani"):
+                    righe.append(("Piani", str(_piano.get("_n_piani"))))
                 if _piano.get("descrizione"):
                     righe.append(("Descrizione", _piano.get("descrizione")))
                 if _piano.get("conto"):
@@ -2529,7 +2551,7 @@ class GestioneSpese(tk.Tk):
                     pass
                 try:
                     _quota_tt = _piano.get("quota_mese", _piano.get("quota", 0.0))
-                    righe.append(("Quota mese", f"€ {_fmt_it(float(_quota_tt))}"))
+                    righe.append((_piano.get("_etichetta_quota", "Quota mese"), f"€ {_fmt_it(float(_quota_tt))}"))
                 except (TypeError, ValueError):
                     pass
                 try:
@@ -2634,6 +2656,8 @@ class GestioneSpese(tk.Tk):
                 _tag_fmt = ", ".join(f"#{t.lstrip('#')}" for t in _hashtag if t)
                 if _tag_fmt:
                     righe.append(("Tag", _tag_fmt))
+            for _r_extra in (_info.get("_righe_extra") or []):
+                righe.append(_r_extra)
             if "sforato" in tree.item(item, "tags") and _categoria_info:
                 _budget_cat = getattr(self, 'budget_categorie', {}).get(_categoria_info, 0)
                 _tot_precalcolato = _info.get("tot_categoria_uscita", None)
@@ -3029,22 +3053,6 @@ class GestioneSpese(tk.Tk):
 
     # Caricamento del database JSON e inizializzazione dei dati applicativi 
     def load_db(self):
-        if os.path.exists(PARTECIPANTI):
-            try:
-                with open(PARTECIPANTI, 'r', encoding='utf-8') as f:
-                    raw = json.load(f)
-                if isinstance(raw, dict):
-                    lista = raw.get("partecipanti", [])
-                else:
-                    lista = raw
-                self.nomi_partecipanti = [
-                    p if isinstance(p, dict) else {"nome": p, "tipo": "persona"}
-                    for p in lista
-                ]
-            except Exception:
-                self.nomi_partecipanti = []
-        else:
-            self.nomi_partecipanti = []
         self.carica_memoria_descrizioni()
         if not os.path.exists(DB_FILE):
             self.db = {
@@ -3056,6 +3064,8 @@ class GestioneSpese(tk.Tk):
                 "budget_annuale_categorie": {},
                 "_window_geometry": None
             }
+            self.carica_partecipanti_da_db()
+            self.carica_pianificate_da_db()
             self.categorie = self.db["categorie"]
             self.categorie_tipi = self.db["categorie_tipi"]
             self.spese = {}
@@ -3068,6 +3078,8 @@ class GestioneSpese(tk.Tk):
         try:
             with open(DB_FILE, "r", encoding="utf-8") as f:
                 self.db = json.load(f)
+            self.carica_partecipanti_da_db()
+            self.carica_pianificate_da_db()
             self.categorie = self.db.get("categorie", ["Generica"])
             self.categorie_tipi = self.db.get("categorie_tipi", {"Generica": "Uscita"})
             self.spese = {}
@@ -3102,26 +3114,14 @@ class GestioneSpese(tk.Tk):
                         import shutil
                         os.replace(DB_FILE, DB_FILE + ".corrotto") 
                         shutil.copy2(bak_file, DB_FILE)
-                        migrazione_emoji_ok = True
-                        try:
-                            from moduli.migrazione_emoji_dati import migra_emoji_nei_dati
-                            migra_emoji_nei_dati([(DB_FILE, 2)])
-                        except Exception as _e:
-                            migrazione_emoji_ok = False
-                            print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Migrazione emoji dati (ripristino .bak) fallita: {_e}")
                         print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Ripristino completato dal file .bak")
                         risultato = self.load_db()
-                        if not migrazione_emoji_ok:
-                            self.show_custom_warning(
-                                "Attenzione",
-                                "Database ripristinato dal backup .bak, ma la migrazione emoji→testo non è riuscita.\n"
-                                "Alcuni dati potrebbero restare nel vecchio formato. Riavvia l'app: "
-                                "la migrazione viene ritentata automaticamente ad ogni avvio."
-                            )
                         return risultato
                     except Exception as err_bak:
                         print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Ripristino fallito: {err_bak}")
             self.db = {"categorie": ["Generica"], "categorie_tipi": {"Generica": "Uscita"}, "spese": [], "ricorrenze": {}, "budget_categorie": {}, "budget_annuale_categorie": {}, "_window_geometry": None}
+            self.carica_partecipanti_da_db()
+            self.carica_pianificate_da_db()
             CATEGORIA_PRIORITARIA = "Generica"
             cat_raw = self.db.get("categorie", ["Generica"])
             self.categorie = (
@@ -3210,6 +3210,11 @@ class GestioneSpese(tk.Tk):
                     "ricorrenze": self.ricorrenze,
                     "budget_categorie": self.budget_categorie,
                     "budget_annuale_categorie": self.budget_annuale_categorie,
+                    "pianificate": getattr(self, "pianificate", {"piani": []}),
+                    "fairshare": {
+                        "gestore_partecipa": bool(getattr(self, "fairshare_gestore_partecipa", True)),
+                        "partecipanti": getattr(self, "nomi_partecipanti", []),
+                    },
                     "_window_geometry": self._window_geometry or (self.geometry() if hasattr(self, 'geometry') else None)
                 }
                 if os.path.exists(DB_FILE):
@@ -3876,6 +3881,7 @@ class GestioneSpese(tk.Tk):
             ora=campo(voce_old, "ora", ""),
             metodo_pagamento=_metodo_nuovo,
             hashtag=_tags,
+            fairshare=campo(voce_old, "fairshare", None),
         )
         self.spese[new_dt].append(voce_new)
         if hasattr(self, '_cache_tutti_tag'):
@@ -4215,6 +4221,7 @@ class GestioneSpese(tk.Tk):
             self.stats_table.delete(i)
         self.stats_table._metodo_lookup = {}
         self.stats_table._entry_lookup = {}
+        self.stats_table._promemoria_lookup = {}
         oggi = datetime.date.today()
         tot_entrate, tot_uscite = 0.0, 0.0
         righe_trovate = []
@@ -4265,6 +4272,7 @@ class GestioneSpese(tk.Tk):
             self.stats_table.delete(i)
         self.stats_table._metodo_lookup = {}
         self.stats_table._entry_lookup = {}
+        self.stats_table._promemoria_lookup = {}
         mode = self.stats_mode.get()
         tot_entrate, tot_uscite = 0.0, 0.0
         oggi = datetime.date.today()
@@ -4354,6 +4362,7 @@ class GestioneSpese(tk.Tk):
             _in_piano_st = set()
             _quote_pian = {}
             _escluse_tot = 0.0
+            _n_mov_agg = {}
             _flag_pian = (self.considera_pianificate_var.get() if mode == "mese"
                           else self.considera_pianificate_anno_var.get() if mode == "anno"
                           else False)
@@ -4396,6 +4405,7 @@ class GestioneSpese(tk.Tk):
                     if cat not in totali:
                         totali[cat] = {"Entrata": 0.0, "Uscita": 0.0}
                     totali[cat][tipo] += imp
+                    _n_mov_agg[(cat, tipo)] = _n_mov_agg.get((cat, tipo), 0) + 1
                     if _e_in_piano:
                         _escluse_tot += imp
             if not totali and not _quote_pian:
@@ -4419,17 +4429,38 @@ class GestioneSpese(tk.Tk):
                             values=(cat, _fmt_it_safe(totali[cat][tipo]), tipo),
                             tags=(tag,)
                         )
+                        _extra_agg = [("Tipo", tipo), ("Movimenti", str(_n_mov_agg.get((cat, tipo), 0))),
+                                      ("Totale", f"€ {_fmt_it(totali[cat][tipo])}")]
+                        if tipo == "Uscita" and tag != "sforato":
+                            _bud_agg = (getattr(self, "budget_annuale_categorie", {}) if mode == "anno"
+                                        else getattr(self, "budget_categorie", {})).get(cat, 0)
+                            if _bud_agg:
+                                _dif_agg = totali[cat][tipo] - _bud_agg
+                                _extra_agg.append(("Budget", f"€ {_fmt_it(_bud_agg)}\n"
+                                                   f"Speso € {_fmt_it(totali[cat][tipo])}  ({'+' if _dif_agg >= 0 else '-'}€ {_fmt_it(abs(_dif_agg))})"))
+                        self.stats_table._metodo_lookup[item_id_agg] = {
+                            "categoria": cat,
+                            "_righe_extra": _extra_agg,
+                            "tot_categoria_uscita": totali[cat][tipo] if mode == "mese" else None,
+                        }
                         if tipo == "Entrata":
                             tot_entrate += totali[cat][tipo]
                         else:
                             tot_uscite += totali[cat][tipo]
             for cat in sorted(_quote_pian.keys()):
                 if _quote_pian[cat] > 0:
-                    self.stats_table.insert(
+                    _item_prom_st = self.stats_table.insert(
                         "", "end",
                         values=(cat, _fmt_it_safe(_quote_pian[cat]), "Pianificata"),
                         tags=("promemoria",)
                     )
+                    try:
+                        from moduli.spese_pianificate import piano_tooltip_categoria
+                        _tt_piano = piano_tooltip_categoria(self, cat, ref.year, ref.month if mode == "mese" else None)
+                        if _tt_piano:
+                            self.stats_table._promemoria_lookup[_item_prom_st] = _tt_piano
+                    except Exception:
+                        pass
                     if _flag_pian:
                         tot_uscite += _quote_pian[cat]
             if _flag_pian:
@@ -4644,13 +4675,6 @@ class GestioneSpese(tk.Tk):
                     dbdata = fsrc.read()
                 with open(DB_FILE, "w", encoding="utf-8") as fdst:
                     fdst.write(dbdata)
-                migrazione_emoji_ok = True
-                try:
-                    from moduli.migrazione_emoji_dati import migra_emoji_nei_dati
-                    migra_emoji_nei_dati([(DB_FILE, 2)])
-                except Exception as _e:
-                    migrazione_emoji_ok = False
-                    print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Migrazione emoji dati (import DB) fallita: {_e}")
                 self.load_db()
                 if hasattr(self, 'cat_menu'):
                     self.cat_menu["values"] = self.categorie
@@ -4665,12 +4689,6 @@ class GestioneSpese(tk.Tk):
                 self.update_totalizzatore_mese_corrente()
                 self.update_spese_mese_corrente()
                 msg_importazione = f"Database importato da {file}"
-                if not migrazione_emoji_ok:
-                    msg_importazione += (
-                        "\n\nATTENZIONE: la migrazione emoji→testo non è riuscita su questo import.\n"
-                        "Alcuni dati potrebbero restare nel vecchio formato. Riavvia l'app: "
-                        "la migrazione viene ritentata automaticamente ad ogni avvio."
-                    )
                 self.show_custom_warning("Importazione completata", msg_importazione)
             except Exception as e:
                 print(f"Errore durante l'importazione: {e}")
@@ -5264,6 +5282,56 @@ class GestioneSpese(tk.Tk):
             self.after_idle(lambda: self.forza_scroll_e_pulizia_selezione() if hasattr(self, 'forza_scroll_e_pulizia_selezione') else None)
         self.after(50, chiudi_e_aggiorna)
         
+    def seleziona_spesa_in_lista(self, giorno, desc="", id_spesa=""):
+        t = getattr(self, "spese_mese_tree", None)
+        if t is None:
+            return
+        _lk = getattr(t, "_entry_lookup", None) or {}
+        trovata = None
+        for iid in t.get_children():
+            v = t.item(iid, "values")
+            if not v or not str(v[0]).strip():
+                continue
+            try:
+                dv = datetime.datetime.strptime(str(v[0]).strip().replace("/", "-"), "%d-%m-%Y").date()
+            except ValueError:
+                continue
+            if dv != giorno:
+                continue
+            _e = _lk.get(iid)
+            if id_spesa and _e is not None and campo(_e, "id_spesa", "") == id_spesa:
+                trovata = iid
+                break
+            if trovata is None and desc and desc in str(v[2]):
+                trovata = iid
+        if trovata:
+            t.selection_set(trovata)
+            t.see(trovata)
+
+    def vai_a_spesa(self, giorno, popup=None, desc="", id_spesa=""):
+        if self.stats_view_mode.get() != "tabella":
+            self.mostra_treeview_statistiche()
+        self.set_stats_mode("giorno")
+        if hasattr(self, "cal"):
+            self.cal.selection_set(giorno)
+            self.cal._sel_date = giorno
+        self.stats_refdate = giorno
+        self.estratto_month_var.set(f"{giorno.month:02d}")
+        self.estratto_year_var.set(str(giorno.year))
+        self.stats_label.config(text=f"Riepilogo Giornaliero - {giorno.strftime('%d-%m-%Y')}",
+                                foreground="purple", font=("Arial", 10, "bold"))
+        if giorno != datetime.date.today():
+            self.blink_label_colors(self.stats_label, "purple", "yellow")
+        else:
+            self.stop_blink_label_colors(self.stats_label, final_color="purple")
+        if popup is not None:
+            try:
+                popup.destroy()
+            except Exception:
+                pass
+        self.update_stats()
+        self.after(400, lambda: self.seleziona_spesa_in_lista(giorno, desc, id_spesa))
+
     # Gestore Cambio Stato Blocco Data
     def on_blocca_data_changed(self):
         if not self.blocca_data_var.get():
@@ -5366,6 +5434,7 @@ class GestioneSpese(tk.Tk):
             ora=campo(originale, "ora", ""),
             metodo_pagamento=_metodo_web,
             hashtag=campo(originale, "hashtag", []),
+            fairshare=campo(originale, "fairshare", None),
         )
         if d_vecchia_obj == d_nuova_obj:
             self.spese[d_nuova_obj][v_idx] = nuova_voce
@@ -6039,7 +6108,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "46f25fcd8abe246fb86e5d1dd1df3ecb3c55dc2537e523e07e336e9c4c5590e2"
+        E_H_B = "78040d1f8936c9c18b31f52b319d27ee7a2c476a78fa3d738db39734f52fed20"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
@@ -6612,32 +6681,6 @@ def _salva_chiave_config(chiave, valore):
     except Exception as e:
         print(f"Errore salvataggio config ({chiave}): {e}")
 
-# Gestione Dati Partecipanti
-def _leggi_gestore_partecipa():
-    try:
-        if os.path.exists(PARTECIPANTI):
-            with open(PARTECIPANTI, 'r', encoding='utf-8') as _f:
-                _raw = json.load(_f)
-            if isinstance(_raw, dict):
-                return _raw.get("gestore_partecipa", True)
-    except Exception:
-        pass
-    return True
-def _scrivi_gestore_partecipa(valore):
-    try:
-        raw = []
-        if os.path.exists(PARTECIPANTI):
-            with open(PARTECIPANTI, 'r', encoding='utf-8') as _f:
-                raw = json.load(_f)
-        if isinstance(raw, list):
-            raw = {"gestore_partecipa": valore, "partecipanti": raw}
-        elif isinstance(raw, dict):
-            raw["gestore_partecipa"] = valore
-        with open(PARTECIPANTI, 'w', encoding='utf-8') as _f:
-            json.dump(raw, _f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"Errore salvataggio gestore_partecipa: {e}")
-    
 # DataBase Condiviso
 def ascolta_aggiornamenti_rete(app_istanza):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -7127,12 +7170,6 @@ if __name__ == "__main__":
         if not os.path.exists(DOC_PERS_DIR):
             os.makedirs(DOC_PERS_DIR)
 
-        try:
-            from moduli.migrazione_emoji_dati import migra_emoji_nei_dati
-            migra_emoji_nei_dati([(DB_FILE, 2), (REGISTRY_FILE, 4)])
-        except Exception as _e:
-            print(f"[{time.strftime('%H:%M:%S')}] Migrazione emoji dati fallita: {_e}")
-        
         # Caricamento Finale dei Parametri di Configurazione Globali
         app_config_globale = aggiorna_configurazione_globale()
         AUTO_ICONIZE_STARTUP = app_config_globale.get("enable_auto_login_flow", False)
