@@ -99,6 +99,8 @@ def setup_sidebar(self):
     self.lbl_logo_container.pack(fill="x")
     self.lbl_logo_container.pack_propagate(False)
     self._logo_img = _carica_icona_scintille(self)
+    self._busta_img = _carica_icona_scintille(self, nome="scadenze_B")
+    self._busta_img_dim = _carica_icona_scintille(self, nome="scadenze_B", alpha=0.3)
     self.lbl_logo = tk.Label(self.lbl_logo_container, bg=self.MENU_BG_DARK)
     if self._logo_img:
         self.lbl_logo.configure(image=self._logo_img)
@@ -112,13 +114,10 @@ def setup_sidebar(self):
         bg=self.MENU_BG_DARK, fg=self.COLOR_GREEN
     )
     self.lbl_logo_testo.bind("<Button-1>", lambda e: self.mostra_piramide())
-    self.badge_messaggi_servizio = tk.Canvas(
-        self.lbl_logo_container, width=10, height=10,
-        bg=self.MENU_BG_DARK, highlightthickness=0, cursor="hand2"
-    )
+    self.lbl_logo.bind("<Button-1>", lambda e: self.mostra_messaggi_servizio() if getattr(self, "_messaggi_servizio_pendenti", []) else self.mostra_piramide())
     if getattr(self, "_messaggi_servizio_pendenti", []):
-        self.badge_messaggi_servizio.create_oval(0, 0, 10, 10, fill="#E65100", outline="")
-    self.badge_messaggi_servizio.bind("<Button-1>", lambda e: self.mostra_messaggi_servizio())
+        from moduli.messaggi_servizio import _aggiorna_badge_messaggi_servizio
+        _aggiorna_badge_messaggi_servizio(self)
     self._search_var = tk.StringVar()
     self._search_entry = tk.Entry(
         self.sidebar, textvariable=self._search_var,
@@ -151,15 +150,17 @@ def setup_sidebar(self):
     self._crea_voce_sidebar("spina_B", "Esci", self._on_close, icon_fallback="✖") 
     self.configura_scorciatoie() 
     
-def _carica_icona_scintille(self, size=(20, 20)):
+def _carica_icona_scintille(self, size=(20, 20), nome="scintille_B", alpha=1.0):
     import os
     import __main__ as _app
     from PIL import Image, ImageTk
-    p = os.path.join(_app.DB_DIR, "resources", "scintille_B.png")
+    p = os.path.join(_app.DB_DIR, "resources", f"{nome}.png")
     if not os.path.exists(p):
         return None
     try:
         img = Image.open(p).convert("RGBA").resize(size, Image.LANCZOS)
+        if alpha < 1.0:
+            img.putalpha(img.getchannel("A").point(lambda a: int(a * alpha)))
         return ImageTk.PhotoImage(img)
     except Exception:
         return None
@@ -245,6 +246,7 @@ def pop_gestione(self):
     self._add_m_item(m, "Gestione SuperMarket", "spesa", self.spesa_supermercato) 
     self._add_m_item(m, "Gestione Documenti", "documenti", self.gestisci_archivi_pdf) 
     self._add_m_item(m, "Gestione Documenti Personali", "documenti", self.gestisci_documenti_personali)
+    self._add_m_item(m, "Scansiona e salva PDF", "scansiona", self.scansiona_e_salva)
     self._add_m_item(m, "Gestione Utenze", "mobile", self.utenze, "Ctrl+U") 
     self._add_m_item(m, "ImmoBil — Gestione Immobili", "home", self.immobil)
     self._add_m_item(m, "CasaCare — Manutenzione e Risparmio Casa", "auto_manutenzione", self.manutenzione_casa)
@@ -495,6 +497,7 @@ def _filtra_sidebar(self, *_):
         ("Gestione SuperMarket",                  self.spesa_supermercato),
         ("Gestione Documenti",                    self.gestisci_archivi_pdf),
         ("Gestione Documenti Personali",          self.gestisci_documenti_personali),
+        ("Scansiona e salva PDF",                 self.scansiona_e_salva),
         ("Gestione Utenze",                       self.utenze),
         ("ImmoBil — Gestione Immobili",           self.immobil),
         ("AutoPark",                              self.veicoli),

@@ -6,6 +6,14 @@ from tkinter import ttk
 from moduli.modello_spesa import campo
 from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa
 
+def _extra_voce(entry):
+    return {
+        "id_spesa": campo(entry, "id_spesa", ""),
+        "ora": campo(entry, "ora", ""),
+        "id_ricorrenza": campo(entry, "id_ricorrenza", ""),
+        "hashtag": campo(entry, "hashtag", []) or [],
+    }
+
 # Visualizzazione Dettagliata per Categoria (Doppio Click sul Riepilogo)
 def on_stats_table_double_click(self, event):
     import __main__ as _app
@@ -128,7 +136,7 @@ def on_stats_table_double_click(self, event):
                         conto_v = campo(entry, "conto", "")
                         metodo_v = campo(entry, "metodo_pagamento", "")
                         tag_v = " ".join(campo(entry, "hashtag", []) or [])
-                        spese_categoria.append((d, desc, imp, tipo, conto_v, metodo_v, tag_v))
+                        spese_categoria.append((d, desc, imp, tipo, conto_v, metodo_v, tag_v, _extra_voce(entry)))
         titolo_periodo = f"{nome_mese} {anno}"
         testo_periodo = f"il mese di {nome_mese} {anno}"
     elif mode == "anno":
@@ -142,7 +150,7 @@ def on_stats_table_double_click(self, event):
                         conto_v = campo(entry, "conto", "")
                         metodo_v = campo(entry, "metodo_pagamento", "")
                         tag_v = " ".join(campo(entry, "hashtag", []) or [])
-                        spese_categoria.append((d, desc, imp, tipo, conto_v, metodo_v, tag_v))
+                        spese_categoria.append((d, desc, imp, tipo, conto_v, metodo_v, tag_v, _extra_voce(entry)))
         titolo_periodo = f"{anno}"
         testo_periodo = f"l'anno {anno}"
     elif mode == "totali":
@@ -153,7 +161,7 @@ def on_stats_table_double_click(self, event):
                     conto_v = campo(entry, "conto", "")
                     metodo_v = campo(entry, "metodo_pagamento", "")
                     tag_v = " ".join(campo(entry, "hashtag", []) or [])
-                    spese_categoria.append((d, desc, imp, tipo, conto_v, metodo_v, tag_v))
+                    spese_categoria.append((d, desc, imp, tipo, conto_v, metodo_v, tag_v, _extra_voce(entry)))
         titolo_periodo = "Tutte le annualità"
         testo_periodo = "tutti gli anni"
 
@@ -171,7 +179,8 @@ def on_stats_table_double_click(self, event):
                 pass
             spese_categoria.append((_dtp.date(_a, _m, __import__('calendar').monthrange(_a, _m)[1]), f"📌 Quota piano: {_nome_p}", _q, "Pianificata",
                                     _p.get("conto", ""), _p.get("metodo_pagamento", ""),
-                                    " ".join(_p.get("hashtag", []) or [])))
+                                    " ".join(_p.get("hashtag", []) or []),
+                                    {"_piano": dict(_p, quota_mese=_q)}))
     if not spese_categoria:
         self.show_toast(f"Nessun movimento per '{categoria}' nel periodo selezionato")
         return
@@ -225,6 +234,8 @@ def on_stats_table_double_click(self, event):
         anchor = "w" if col == "Descrizione" else "center"
         tree.heading(col, text=col, command=lambda c=col: self.treeview_sort_column(tree, c, False))
         tree.column(col, width=w, anchor=anchor)
+    tree._metodo_lookup = {}
+    tree._promemoria_lookup = {}
     tot_entrate = tot_uscite = 0.0
     import datetime as _dt
     oggi_d = _dt.date.today()
@@ -256,7 +267,7 @@ def on_stats_table_double_click(self, event):
             _tot_categoria_mese_cache[chiave] = tot
         return _tot_categoria_mese_cache[chiave]
     _agganci_st = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
-    for d, desc, imp, tipo, conto_diretto, metodo_diretto, tag_diretto in sorted(spese_categoria, key=lambda x: x[0], reverse=True):
+    for d, desc, imp, tipo, conto_diretto, metodo_diretto, tag_diretto, _extra in sorted(spese_categoria, key=lambda x: x[0], reverse=True):
         imp_formattato_it = f"{imp:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
         tag_name = f"row_{d.strftime('%Y%m%d%H%M%S')}_{len(tree.get_children(''))}"
         if conto_diretto:
@@ -265,7 +276,23 @@ def on_stats_table_double_click(self, event):
             nome_conto_tr = conto_da_mappa(_agganci_st, _uso_ordinale_st, d.strftime("%d-%m-%Y"), imp, tipo)
         else:
             nome_conto_tr = ""
-        tree.insert("", "end", values=(d.strftime("%d-%m-%Y"), desc, f"{imp_formattato_it} €", tipo, nome_conto_tr, metodo_diretto, tag_diretto), tags=(tag_name,))
+        _iid_st = tree.insert("", "end", values=(d.strftime("%d-%m-%Y"), desc, f"{imp_formattato_it} €", tipo, nome_conto_tr, metodo_diretto, tag_diretto), tags=(tag_name,))
+        if tipo == "Pianificata":
+            if _extra.get("_piano") is not None:
+                tree._promemoria_lookup[_iid_st] = _extra["_piano"]
+        else:
+            tree._metodo_lookup[_iid_st] = {
+                "metodo": metodo_diretto,
+                "conto": nome_conto_tr,
+                "ora": _extra.get("ora", ""),
+                "hashtag": _extra.get("hashtag", []),
+                "id_ricorrenza": _extra.get("id_ricorrenza", ""),
+                "id_spesa": _extra.get("id_spesa", ""),
+                "data": d.strftime("%d-%m-%Y"),
+                "categoria": categoria,
+                "importo": imp,
+                "tipo": tipo,
+            }
         if tipo == "Pianificata":
             tree.tag_configure(tag_name, foreground="#61AFEF", font=("Arial", 9, "italic"))
             pian_uscite += imp
@@ -330,11 +357,11 @@ def on_stats_table_double_click(self, event):
         lbl.delete("1.0", "end")
         lbl.insert("end", text)
         lbl.tag_add("center", "1.0", "end")
-        es = text.find(e_str)
+        es = text.find(e_str, text.find("Totale entrate:") + len("Totale entrate:"))
         lbl.tag_add("entrate_color", f"1.{es}", f"1.{es+len(e_str)}")
-        us = text.find(u_str, es)
+        us = text.find(u_str, text.find("Totale uscite:") + len("Totale uscite:"))
         lbl.tag_add("uscite_color",  f"1.{us}", f"1.{us+len(u_str)}")
-        ss = text.find(s_str, us)
+        ss = text.find(s_str, text.find("Saldo:") + len("Saldo:"))
         tag = "saldo_pos_color" if s >= 0 else "saldo_neg_color"
         lbl.tag_add(tag, f"1.{ss}", f"1.{ss+len(s_str)}")
         lbl.config(state="disabled")
@@ -351,7 +378,17 @@ def on_stats_table_double_click(self, event):
                     return
                 _v[0] = _g.strftime("%d-%m-%Y")
                 tree.item(_it, values=_v)
+        _sel_g = _sel_desc = _sel_id = None
+        if _it and not (len(_v) > 3 and str(_v[3]).strip() == "Pianificata"):
+            try:
+                _sel_g = _dt.datetime.strptime(str(_v[0]).strip(), "%d-%m-%Y").date()
+                _sel_desc = str(_v[1])[:20]
+                _sel_id = (tree._metodo_lookup.get(_it) or {}).get("id_spesa", "")
+            except Exception:
+                _sel_g = None
         self.goto_day_from_popup(tree, popup)
+        if _sel_g is not None:
+            self.after(450, lambda: self.seleziona_spesa_in_lista(_sel_g, _sel_desc, _sel_id))
     tree.bind("<Double-1>", _doppio_click_dettaglio)
     
     def on_right_click(event):
@@ -411,6 +448,7 @@ def on_stats_table_double_click(self, event):
                     pass
             setattr(self, attr, None)
     tree.bind("<Button-3>", on_right_click)
+    self._bind_tooltip_metodo(tree, col_desc=1)
     img_chiudi_pop = self.icone_gui.get("chiudi")
     btn_chiudi_pop = tk.Label(popup, compound="left", image=img_chiudi_pop, text="Chiudi" if img_chiudi_pop else "Chiudi", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padx=15, pady=6, font=("Arial", 9, "bold"))
     btn_chiudi_pop.pack(pady=4)

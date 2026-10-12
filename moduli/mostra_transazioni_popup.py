@@ -13,6 +13,14 @@ from moduli.mappa_conti_trasferimenti import (
     e_trasferimento_virtuale,
 )
 
+def _extra_voce(entry):
+    return {
+        "id_spesa": campo(entry, "id_spesa", ""),
+        "ora": campo(entry, "ora", ""),
+        "id_ricorrenza": campo(entry, "id_ricorrenza", ""),
+        "hashtag": campo(entry, "hashtag", []) or [],
+    }
+
 def _carica_db_conti_popup():
     try:
         from __main__ import PORTAFOGLIO_BANCARIO
@@ -106,7 +114,7 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
             entry_conto_diretto = campo(entry, "conto", "")
             entry_metodo_diretto = campo(entry, "metodo_pagamento", "")
             entry_tag_diretto = " ".join(campo(entry, "hashtag", []) or [])
-            spese_filtrate.append((data, cat_normalized_display, desc, entry_imp, entry_tipo, entry_conto_diretto, entry_metodo_diretto, entry_tag_diretto))
+            spese_filtrate.append((data, cat_normalized_display, desc, entry_imp, entry_tipo, entry_conto_diretto, entry_metodo_diretto, entry_tag_diretto, _extra_voce(entry)))
 
     conto_per_trasferimenti = trasferimenti_conto
     if (conto_per_trasferimenti is None and conto_filtro and not devo_filtrare_categorie
@@ -148,7 +156,7 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
                     desc_t += f" ({t['note']})"
                 if tipo_filtro and tipo_t != tipo_filtro.capitalize():
                     continue
-                spese_filtrate.append((data_t, "Trasferimento", desc_t, imp_t, tipo_t, conto_per_trasferimenti, "", ""))
+                spese_filtrate.append((data_t, "Trasferimento", desc_t, imp_t, tipo_t, conto_per_trasferimenti, "", "", {}))
     quote_righe = []
     _giorni_piano = {}
     if (data_filter.get("quote_pianificate") and hasattr(self, "ottieni_promemoria_mese")
@@ -170,7 +178,8 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
                 quote_righe.append((datetime.date(_a, _m, _ult), _cat_f,
                                     f"📌 Quota piano: {_p.get('descrizione') or _p.get('nome') or _cat_f}",
                                     _q, "Pianificata", _p.get("conto", ""), _p.get("metodo_pagamento", ""),
-                                    " ".join(_p.get("hashtag", []) or [])))
+                                    " ".join(_p.get("hashtag", []) or []),
+                                    {"_piano": dict(_p, quota_mese=_q)}))
     if not spese_filtrate and not quote_righe:
         self.show_custom_info("Nessuna transazione", f"Nessuna transazione trovata per {title}.")
         return
@@ -308,6 +317,8 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
         tree.column(col, width=w, anchor=a)
     import datetime as _dt
     oggi_d = _dt.date.today()
+    tree._metodo_lookup = {}
+    tree._promemoria_lookup = {}
     tot_entrate = tot_uscite = 0.0
     fut_entrate = fut_uscite = 0.0
     _uso_ordinale_tr = {}
@@ -333,7 +344,7 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
             _tot_categoria_mese_cache[chiave] = tot
         return _tot_categoria_mese_cache[chiave]
     _agganci_tr = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
-    for d, cat, desc, imp, tipo, conto_diretto, metodo_diretto, tag_diretto in sorted(spese_filtrate, key=lambda x: x[0], reverse=True):
+    for d, cat, desc, imp, tipo, conto_diretto, metodo_diretto, tag_diretto, _extra in sorted(spese_filtrate, key=lambda x: x[0], reverse=True):
         imp_formattato = f"{imp:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
         if d > oggi_d:
             tag_name = "yellow_row"
@@ -354,12 +365,26 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
             nome_conto_tr = conto_da_mappa(_agganci_tr, _uso_ordinale_tr, d.strftime("%d-%m-%Y"), imp, tipo)
         else:
             nome_conto_tr = ""
-        tree.insert("", "end", values=(d.strftime("%d-%m-%Y"), cat, desc, f"{imp_formattato} €", tipo, nome_conto_tr, metodo_diretto, tag_diretto), tags=(tag_name,))
+        _iid_tr = tree.insert("", "end", values=(d.strftime("%d-%m-%Y"), cat, desc, f"{imp_formattato} €", tipo, nome_conto_tr, metodo_diretto, tag_diretto), tags=(tag_name,))
+        tree._metodo_lookup[_iid_tr] = {
+            "metodo": metodo_diretto,
+            "conto": nome_conto_tr,
+            "ora": _extra.get("ora", ""),
+            "hashtag": _extra.get("hashtag", []),
+            "id_ricorrenza": _extra.get("id_ricorrenza", ""),
+            "id_spesa": _extra.get("id_spesa", ""),
+            "data": d.strftime("%d-%m-%Y"),
+            "categoria": cat,
+            "importo": imp,
+            "tipo": tipo,
+        }
     pian_uscite = 0.0
     _flag_pian_pop = bool(quote_righe)
-    for d, cat, desc, imp, tipo, conto_q, metodo_q, tag_q in sorted(quote_righe, key=lambda x: x[0], reverse=True):
+    for d, cat, desc, imp, tipo, conto_q, metodo_q, tag_q, _extra_q in sorted(quote_righe, key=lambda x: x[0], reverse=True):
         imp_f = f"{imp:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
-        tree.insert("", "end", values=(d.strftime("%d-%m-%Y"), cat, desc, f"{imp_f} €", tipo, conto_q, metodo_q, tag_q), tags=("plan_row",))
+        _iid_q = tree.insert("", "end", values=(d.strftime("%d-%m-%Y"), cat, desc, f"{imp_f} €", tipo, conto_q, metodo_q, tag_q), tags=("plan_row",))
+        if _extra_q.get("_piano") is not None:
+            tree._promemoria_lookup[_iid_q] = _extra_q["_piano"]
         pian_uscite += imp
     tree.tag_configure("plan_row", foreground="#61AFEF", font=("Arial", 9, "italic"))
     tree.tag_configure("green_row",  foreground="green")
@@ -414,11 +439,11 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
         lbl.delete("1.0", "end")
         lbl.insert("end", text)
         lbl.tag_add("center", "1.0", "end")
-        es = text.find(e_str)
+        es = text.find(e_str, text.find("Totale Entrate:") + len("Totale Entrate:"))
         lbl.tag_add("entrate_color", f"1.{es}", f"1.{es+len(e_str)}")
-        us = text.find(u_str, es)
+        us = text.find(u_str, text.find("Totale Uscite:") + len("Totale Uscite:"))
         lbl.tag_add("uscite_color",  f"1.{us}", f"1.{us+len(u_str)}")
-        ss = text.find(s_str, us)
+        ss = text.find(s_str, text.find("Saldo:") + len("Saldo:"))
         tag = "saldo_pos_color" if s >= 0 else "saldo_neg_color"
         lbl.tag_add(tag, f"1.{ss}", f"1.{ss+len(s_str)}")
         lbl.config(state="disabled")
@@ -454,12 +479,23 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
                 self.open_saldo_conto(tab_iniziale="trasferimenti")
                 return
         setattr(self, '_popup_da_doppio_click', True)
+        _sel_g = _sel_desc = _sel_id = None
+        if item:
+            try:
+                _sel_g = datetime.datetime.strptime(str(valori_riga[0]).strip(), "%d-%m-%Y").date()
+                _sel_desc = str(valori_riga[2])[:20]
+                _sel_id = (tree._metodo_lookup.get(item) or {}).get("id_spesa", "")
+            except Exception:
+                _sel_g = None
         self.goto_day_from_popup(tree, popup)
+        if _sel_g is not None:
+            self.after(450, lambda: self.seleziona_spesa_in_lista(_sel_g, _sel_desc, _sel_id))
     tree.bind("<Double-1>", _on_tree_double_click)
     popup.bind("<Escape>", lambda event: _chiudi_popup())
     popup.protocol("WM_DELETE_WINDOW", lambda: _chiudi_popup())
     aggiorna_totali()
     tree.bind("<Button-3>", popola_form_da_transazione)
+    self._bind_tooltip_metodo(tree, col_desc=2)
     img_chiudi_pop = self.icone_gui.get("chiudi")
     btn_chiudi_pop = ttk.Label(popup, compound="left", image=img_chiudi_pop, text=" Chiudi" if img_chiudi_pop else "Chiudi", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
     btn_chiudi_pop.pack(pady=10)

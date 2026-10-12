@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import os
-import json
+import copy
 import uuid
 import datetime
 import tkinter as tk
@@ -15,23 +14,20 @@ MESI_BREVI = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
 
 COLORE_PROMEMORIA = "#61AFEF"
 
-def _sp_file():
-    import __main__ as _app
-    return _app.PIANIFICA_FILE
-    
-def _carica_sp():
-    f = _sp_file()
-    try:
-        if os.path.exists(f):
-            with open(f, "r", encoding="utf-8") as fh:
-                dati = json.load(fh)
-                if isinstance(dati, dict) and isinstance(dati.get("piani"), list):
-                    return _pulisci_piani_scaduti(dati)
-    except Exception:
-        pass
-    return {"piani": []}
+def carica_pianificate_da_db(self):
+    blocco = (getattr(self, "db", None) or {}).get("pianificate")
+    if isinstance(blocco, dict) and isinstance(blocco.get("piani"), list):
+        self.pianificate = {"piani": blocco["piani"]}
+    elif not hasattr(self, "pianificate"):
+        self.pianificate = {"piani": []}
 
-def _pulisci_piani_scaduti(dati):
+def _carica_sp(self):
+    dati = copy.deepcopy(getattr(self, "pianificate", None) or {"piani": []})
+    if not isinstance(dati.get("piani"), list):
+        dati = {"piani": []}
+    return _pulisci_piani_scaduti(self, dati)
+
+def _pulisci_piani_scaduti(self, dati):
     oggi = datetime.date.today()
     piani_validi = []
     scaduti = False
@@ -47,21 +43,29 @@ def _pulisci_piani_scaduti(dati):
             piani_validi.append(p)
     if scaduti:
         dati = {"piani": piani_validi}
-        _salva_sp(dati)
+        self.pianificate = copy.deepcopy(dati)
+        try:
+            self.after(200, self.save_db)
+        except Exception:
+            pass
     return dati
 
-def _salva_sp(dati):
-    import __main__ as _app
+def _aggiorna_finestra_pianifica(self):
+    ricarica = getattr(self, "_pianifica_ricarica", None)
+    win = getattr(self, "_win_spese_pianificate", None)
+    if not ricarica or not win:
+        return
     try:
-        os.makedirs(_app.DB_DIR, exist_ok=True)
-        percorso = _sp_file()
-        percorso_tmp = f"{percorso}.tmp"
-        with open(percorso_tmp, "w", encoding="utf-8") as fh:
-            json.dump(dati, fh, indent=2, ensure_ascii=False)
-        os.replace(percorso_tmp, percorso)
-        return True
+        if win.winfo_exists():
+            ricarica()
     except Exception:
-        return False
+        pass
+
+def _salva_sp(self, dati):
+    self.pianificate = copy.deepcopy(dati)
+    self.save_db()
+    _aggiorna_finestra_pianifica(self)
+    return True
 
 def _fmt(v):
     try:
@@ -94,22 +98,22 @@ def _mesi_coperti(inizio, scadenza):
 def esiste_piano_per_spesa(self, id_spesa):
     if not id_spesa:
         return False
-    dati = _carica_sp()
+    dati = _carica_sp(self)
     return any(p.get("id_spesa_collegata") == id_spesa for p in dati["piani"])
 
 def elimina_piano(self, id_piano):
-    dati = _carica_sp()
+    dati = _carica_sp(self)
     dati["piani"] = [p for p in dati["piani"] if p.get("id") != id_piano]
-    _salva_sp(dati)
+    _salva_sp(self, dati)
 
 def elimina_piano_per_spesa(self, id_spesa):
     if not id_spesa:
         return
-    dati = _carica_sp()
+    dati = _carica_sp(self)
     prima = len(dati["piani"])
     dati["piani"] = [p for p in dati["piani"] if p.get("id_spesa_collegata") != id_spesa]
     if len(dati["piani"]) != prima:
-        _salva_sp(dati)
+        _salva_sp(self, dati)
 
 def _quote_mensili(importo_totale, mesi):
     if mesi <= 0:
@@ -131,14 +135,14 @@ def _quota_effettiva(piano, anno, mese):
     return quote[mesi_lista.index((anno, mese))]
 
 def piani_puliti(self):
-    return _carica_sp()
+    return _carica_sp(self)
 
 def ids_spese_pianificate(self):
-    dati = _carica_sp()
+    dati = _carica_sp(self)
     return {p.get("id_spesa_collegata") for p in dati.get("piani", []) if p.get("id_spesa_collegata")}
 
 def ottieni_promemoria_mese(self, anno, mese):
-    dati = _carica_sp()
+    dati = _carica_sp(self)
     risultato = []
     for p in dati.get("piani", []):
         try:
@@ -213,7 +217,7 @@ def apri_spalma_spesa(self, entry, data_spesa):
     import __main__ as _app
 
     id_spesa = campo(entry, "id_spesa", None)
-    dati_esistenti = _carica_sp()
+    dati_esistenti = _carica_sp(self)
     piano_esistente = next(
         (p for p in dati_esistenti.get("piani", []) if p.get("id_spesa_collegata") == id_spesa), None
     )
@@ -221,7 +225,7 @@ def apri_spalma_spesa(self, entry, data_spesa):
         importo_attuale = float(campo(entry, "importo", 0.0))
         esito = _chiedi_ricalcolo_piano(self, piano_esistente, importo_attuale)
         if esito in ("ricalcolato", "pulito", "invariato"):
-            _salva_sp(dati_esistenti)
+            _salva_sp(self, dati_esistenti)
         if esito == "ricalcolato":
             self.show_toast("Piano di accantonamento aggiornato con il nuovo importo")
             _refresh_dashboard_pianificazione(self)
@@ -358,7 +362,7 @@ def apri_spalma_spesa(self, entry, data_spesa):
         except Exception:
             n = stato["max"]
         inizio = _sottrai_mesi(data_spesa, n)
-        dati = _carica_sp()
+        dati = _carica_sp(self)
         dati["piani"].append({
             "id": uuid.uuid4().hex[:12],
             "nome": nome,
@@ -375,7 +379,7 @@ def apri_spalma_spesa(self, entry, data_spesa):
             "id_spesa_collegata": id_spesa,
             "creato_il": datetime.date.today().isoformat(),
         })
-        _salva_sp(dati)
+        _salva_sp(self, dati)
         self.show_toast("Piano di accantonamento creato")
         win.destroy()
         _refresh_dashboard_pianificazione(self)
@@ -402,7 +406,7 @@ def on_piano_doppio_click(self, event):
     item_id = tree.focus()
     if not item_id:
         return
-    dati = _carica_sp()
+    dati = _carica_sp(self)
     piano = next((p for p in dati.get("piani", []) if p.get("id") == item_id), None)
     if not piano:
         return
@@ -544,9 +548,11 @@ def apri_gestione_spese_pianificate(self):
     tree.pack(side="left", fill="both", expand=True)
     tree.tag_configure("orfano", foreground="#E5C07B")
     tree.bind("<Double-1>", lambda e: self.on_piano_doppio_click(e))
+    tree._metodo_lookup = {}
+    self._bind_tooltip_metodo(tree, col_desc=1)
 
     def _esporta_piani_testo():
-        piani = sorted(_carica_sp().get("piani", []), key=lambda x: x.get("data_scadenza", ""))
+        piani = sorted(_carica_sp(self).get("piani", []), key=lambda x: x.get("data_scadenza", ""))
         col_desc, col_nome, col_conto, col_metodo, col_tag, col_imp, col_quota, col_per = 20, 18, 12, 12, 14, 16, 16, 22
         header = (f"{'Categoria':<{col_nome}} {'Descrizione':<{col_desc}} {'Conto':<{col_conto}} "
                   f"{'Metodo':<{col_metodo}} {'Tag':<{col_tag}} {'Importo totale':>{col_imp}} "
@@ -603,11 +609,22 @@ def apri_gestione_spese_pianificate(self):
                     return v
         return None
 
+    def _data_spesa_viva(id_spesa):
+        from moduli.modello_spesa import campo
+        if not id_spesa:
+            return ""
+        for d, voci in getattr(self, "spese", {}).items():
+            for v in voci:
+                if campo(v, "id_spesa", None) == id_spesa:
+                    return d.strftime("%d-%m-%Y")
+        return ""
+
     def _ricarica():
         from moduli.modello_spesa import campo
         for i in tree.get_children():
             tree.delete(i)
-        dati = _carica_sp()
+        tree._metodo_lookup = {}
+        dati = _carica_sp(self)
         for p in sorted(dati.get("piani", []), key=lambda x: x.get("data_scadenza", "")):
             try:
                 inizio = _parse_data(p["inizio"])
@@ -635,10 +652,32 @@ def apri_gestione_spese_pianificate(self):
                 conto_v, metodo_v, tag_v,
                 _fmt(p.get("importo_totale", 0)), _fmt(p.get("quota", 0)), periodo
             ), tags=riga_tags)
+            _righe_extra = [
+                ("Importo totale", _fmt(p.get("importo_totale", 0))),
+                ("Quota mensile", _fmt(p.get("quota", 0))),
+                ("Periodo", periodo),
+            ]
+            _info_tt = {
+                "metodo": metodo_v,
+                "conto": conto_v,
+                "categoria": categoria_v,
+                "hashtag": list(p.get("hashtag", []) or []),
+                "_righe_extra": _righe_extra,
+            }
+            if spesa_viva is not None:
+                _info_tt["data"] = _data_spesa_viva(p.get("id_spesa_collegata"))
+                _info_tt["ora"] = campo(spesa_viva, "ora", "")
+                _info_tt["importo"] = campo(spesa_viva, "importo", "")
+                _info_tt["tipo"] = campo(spesa_viva, "tipo", "")
+                _info_tt["id_ricorrenza"] = campo(spesa_viva, "id_ricorrenza", "") or ""
+                _info_tt["hashtag"] = list(campo(spesa_viva, "hashtag", []) or p.get("hashtag", []) or [])
+            else:
+                _righe_extra.append(("Stato", "Spesa collegata non trovata"))
+            tree._metodo_lookup[p.get("id")] = _info_tt
 
     def _verifica_importi_variati():
         from moduli.modello_spesa import campo
-        dati = _carica_sp()
+        dati = _carica_sp(self)
         modificato = False
         for p in dati.get("piani", []):
             spesa_viva = _trova_spesa_viva(p.get("id_spesa_collegata"))
@@ -649,10 +688,12 @@ def apri_gestione_spese_pianificate(self):
             if esito != "nessuno":
                 modificato = True
         if modificato:
-            _salva_sp(dati)
+            _salva_sp(self, dati)
             _ricarica()
             _refresh_dashboard_pianificazione(self)
 
+    self._pianifica_ricarica = _ricarica
+    win.bind("<Destroy>", lambda e: setattr(self, "_pianifica_ricarica", None) if e.widget is win else None)
     _ricarica()
     win.deiconify()
     win.after(150, _verifica_importi_variati)
@@ -668,3 +709,39 @@ def quote_piani_categoria(self, categoria, anno, mese=None):
                 quota = float(p.get("quota_mese", p.get("quota", 0.0)) or 0.0)
                 risultato.append((p, anno, m, quota))
     return risultato
+
+def piano_tooltip_categoria(self, categoria, anno, mese=None):
+    voci = quote_piani_categoria(self, categoria, anno, mese)
+    if not voci:
+        return None
+    distinti = {}
+    for p, _a, _m, q in voci:
+        k = (p.get("inizio"), p.get("data_scadenza"), p.get("importo_totale"),
+             p.get("descrizione") or p.get("nome"), p.get("conto"))
+        if k not in distinti:
+            distinti[k] = [p, 0.0]
+        distinti[k][1] += q
+    etichetta = "Quota mese" if mese else "Quota anno"
+    if len(distinti) == 1:
+        p, q = next(iter(distinti.values()))
+        r = dict(p)
+        r["quota_mese"] = q
+        r["_etichetta_quota"] = etichetta
+        return r
+    piani = [v[0] for v in distinti.values()]
+    r = {
+        "categoria": categoria,
+        "_n_piani": len(piani),
+        "_etichetta_quota": etichetta,
+        "importo_totale": sum(float(p.get("importo_totale", 0) or 0) for p in piani),
+        "quota_mese": sum(v[1] for v in distinti.values()),
+    }
+    conti = {p.get("conto") for p in piani if p.get("conto")}
+    if len(conti) == 1:
+        r["conto"] = conti.pop()
+    inizi = [p["inizio"] for p in piani if p.get("inizio")]
+    scad = [p["data_scadenza"] for p in piani if p.get("data_scadenza")]
+    if inizi and scad:
+        r["inizio"] = min(inizi)
+        r["data_scadenza"] = max(scad)
+    return r

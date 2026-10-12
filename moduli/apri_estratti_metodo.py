@@ -220,6 +220,7 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
     self._bind_tooltip_metodo(tree, col_desc=2)
     def aggiorna(*_):
         tree.delete(*tree.get_children())
+        tree._metodo_lookup = {}
         metodo_sel = var_metodo.get()
         _nome_metodo_sel = metodo_pagamento_pulito(metodo_sel)
         _emoji_a_nome = NOME_DA_EMOJI
@@ -288,13 +289,27 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
                         tag_colore = "sforato"
                 if tipo == "Entrata":
                     tot_e += importo
-                    righe.append((data_obj, data_str, cat, desc, f"{_app._fmt_it(importo)} €", "", tag_colore, nome_conto_em, metodo_voce, ora_voce, tag_voce))
+                    righe.append((data_obj, data_str, cat, desc, f"{_app._fmt_it(importo)} €", "", tag_colore, nome_conto_em, metodo_voce, ora_voce, tag_voce, voce))
                 else:
                     tot_u += importo
-                    righe.append((data_obj, data_str, cat, desc, "", f"{_app._fmt_it(importo)} €", tag_colore, nome_conto_em, metodo_voce, ora_voce, tag_voce))
+                    righe.append((data_obj, data_str, cat, desc, "", f"{_app._fmt_it(importo)} €", tag_colore, nome_conto_em, metodo_voce, ora_voce, tag_voce, voce))
         righe.sort(key=lambda r: (r[0], r[9]), reverse=True)
         for r in righe:
-            tree.insert("", "end", values=(r[1], r[2], r[3], r[4], r[5], r[7], r[8], r[9], r[10]), tags=(r[6],))
+            _iid_em = tree.insert("", "end", values=(r[1], r[2], r[3], r[4], r[5], r[7], r[8], r[9], r[10]), tags=(r[6],))
+            _v_em = r[11]
+            _tipo_em = campo(_v_em, "tipo", "").strip()
+            tree._metodo_lookup[_iid_em] = {
+                "metodo": metodo_pagamento_pulito(r[8]),
+                "conto": r[7],
+                "ora": r[9],
+                "hashtag": list(campo(_v_em, "hashtag", []) or []),
+                "id_ricorrenza": campo(_v_em, "id_ricorrenza", "") or "",
+                "id_spesa": campo(_v_em, "id_spesa", "") or "",
+                "data": r[1],
+                "categoria": r[2],
+                "importo": float(campo(_v_em, "importo", 0.0)),
+                "tipo": _tipo_em,
+            }
         saldo = tot_e - tot_u
         lbl_entrate.config(text=f"Entrate: {_app._fmt_it(tot_e)} €")
         lbl_uscite.config(text=f"Uscite: {_app._fmt_it(tot_u)} €")

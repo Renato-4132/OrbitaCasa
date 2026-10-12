@@ -4,11 +4,25 @@
 import datetime
 import tkinter as tk
 from tkinter import ttk
-from moduli.modello_spesa import campo
+from moduli.modello_spesa import campo, metodo_pagamento_pulito
 
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
     return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+
+def _info_tooltip_voce(d, voce):
+    return {
+        "metodo": metodo_pagamento_pulito(campo(voce, "metodo_pagamento", "")),
+        "conto": campo(voce, "conto", ""),
+        "ora": campo(voce, "ora", ""),
+        "hashtag": list(campo(voce, "hashtag", []) or []),
+        "id_ricorrenza": campo(voce, "id_ricorrenza", "") or "",
+        "id_spesa": campo(voce, "id_spesa", "") or "",
+        "data": d.strftime("%d-%m-%Y"),
+        "categoria": campo(voce, "categoria", ""),
+        "importo": campo(voce, "importo", 0.0),
+        "tipo": campo(voce, "tipo", ""),
+    }
 
 # Popup Movimenti Simili     
 def mostra_spese_simili(self):
@@ -86,6 +100,7 @@ def mostra_spese_simili(self):
         ]
         for item in tree.get_children():
             tree.delete(item)
+        tree._metodo_lookup = {}
         nuove_voci.sort(key=lambda x: x[0], reverse=True)
         for d, voce in nuove_voci:
             try:
@@ -106,7 +121,7 @@ def mostra_spese_simili(self):
                     if ((d.year, d.month) == (oggi_ms.year, oggi_ms.month)
                             and categoria in getattr(self, "_budget_sforati", set())):
                         tag = "sforato"
-                tree.insert("", tk.END, values=(
+                _iid = tree.insert("", tk.END, values=(
                     d.strftime("%d-%m-%Y"),
                     tipo,
                     categoria,
@@ -116,6 +131,7 @@ def mostra_spese_simili(self):
                     metodo_v,
                     tag_v
                 ), tags=(tag,))
+                tree._metodo_lookup[_iid] = _info_tooltip_voce(d, voce)
             except Exception:
                 continue
     spin_tolleranza_popup = ttk.Spinbox(
@@ -155,6 +171,7 @@ def mostra_spese_simili(self):
         selectmode='browse'
     )
     tree.pack(fill="both", expand=True)
+    tree._metodo_lookup = {}
     tree.bind("<Double-1>", lambda e: usa_categoria())
     vsb.config(command=tree.yview)
     for col in columns:
@@ -187,7 +204,7 @@ def mostra_spese_simili(self):
                 if ((d.year, d.month) == (oggi_ms0.year, oggi_ms0.month)
                         and categoria in getattr(self, "_budget_sforati", set())):
                     tag = "sforato"
-            tree.insert("", tk.END, values=(
+            _iid0 = tree.insert("", tk.END, values=(
                 d.strftime("%d-%m-%Y"),
                 tipo,
                 categoria,
@@ -197,6 +214,7 @@ def mostra_spese_simili(self):
                 metodo_v,
                 tag_v
             ), tags=(tag,))
+            tree._metodo_lookup[_iid0] = _info_tooltip_voce(d, voce)
         except Exception as e:
             print(f"[Voce malformata]: {voce} → {e}")
             continue
@@ -204,6 +222,7 @@ def mostra_spese_simili(self):
     tree.tag_configure("uscita", foreground="red")
     tree.tag_configure("futuro", foreground="#E5C07B", font=("Arial", 9, "italic"))
     tree.tag_configure("sforato", foreground='#C08081', font=("Arial", 9, "bold"))
+    self._bind_tooltip_metodo(tree, col_desc=3)
     def usa_categoria():
         selezione = tree.selection()
         if not selezione:

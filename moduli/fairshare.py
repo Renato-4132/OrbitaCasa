@@ -2,14 +2,19 @@
 # -*- coding: utf-8 -*-
 
 import os
+import re
 import json
 import tkinter as tk
 from tkinter import ttk, filedialog
 import datetime
-from collections import Counter
+from collections import defaultdict
 
 import __main__ as _app
-from moduli.modello_spesa import SIMBOLI_METODO, campo
+from moduli.modello_spesa import SIMBOLI_METODO, SpesaEntry, campo
+
+ICONE_TAG = ("CNT·", "PER·", "CTP·")
+FMT_DATA = "%d/%m/%Y"
+
 
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
@@ -20,7 +25,6 @@ def _quota_persona(deb, nome):
     return deb.get("quote", {}).get(nome, deb.get("quota", 0.0))
 
 
-
 def _compensa_debiti(chi_deve):
     netto = {}
     for (debitore, creditore), imp in chi_deve.items():
@@ -28,6 +32,16 @@ def _compensa_debiti(chi_deve):
         if diff > 0.005:
             netto[(debitore, creditore)] = diff
     return netto
+
+
+def _nome_gestore():
+    profilo = getattr(_app, "PROFILO_ATTIVO", "Principale")
+    return profilo if profilo != "Principale" else os.path.basename(os.getcwd())
+
+
+def _gn(p):
+    return p.get("nome", "") if isinstance(p, dict) else p
+
 
 def _percentuale_di(self, nome):
     for p in self.nomi_partecipanti:
@@ -47,36 +61,86 @@ def calcola_quote_spesa(self, imp, partecipanti):
     n = len(partecipanti)
     if n == 0:
         return {}
-    percentuali = {nm: self._percentuale_di(nm) for nm in partecipanti}
+    percentuali = {}
+    for nm in partecipanti:
+        pct = _percentuale_di(self, nm)
+        percentuali[nm] = pct if (pct is not None and pct >= 0) else None
     fissi  = {nm: pct for nm, pct in percentuali.items() if pct is not None}
     liberi = [nm for nm in partecipanti if percentuali[nm] is None]
     somma_fissi = sum(fissi.values())
-    if somma_fissi > 100.0 + 1e-9 and fissi:
+    if somma_fissi > 100.0 + 1e-9:
         fattore = 100.0 / somma_fissi
         fissi = {nm: pct * fattore for nm, pct in fissi.items()}
         somma_fissi = 100.0
     pct_finali = dict(fissi)
     if liberi:
-        residuo     = max(0.0, 100.0 - somma_fissi)
-        pct_libero  = residuo / len(liberi)
+        pct_libero = max(0.0, 100.0 - somma_fissi) / len(liberi)
         for nm in liberi:
             pct_finali[nm] = pct_libero
-    elif somma_fissi > 0 and abs(somma_fissi - 100.0) > 0.01:
+    elif somma_fissi <= 0:
+        pct_finali = {nm: 100.0 / n for nm in partecipanti}
+    elif abs(somma_fissi - 100.0) > 0.01:
         fattore = 100.0 / somma_fissi
         pct_finali = {nm: pct * fattore for nm, pct in fissi.items()}
+    segno = -1 if imp < 0 else 1
+    cent_tot = int(round(abs(imp) * 100))
     quote = {}
-    residuo_imp = round(imp, 2)
+    residuo = cent_tot
     for i, nm in enumerate(partecipanti):
         if i == n - 1:
-            quote[nm] = round(residuo_imp, 2)
+            c = residuo
         else:
-            q = round(imp * pct_finali.get(nm, 0.0) / 100.0, 2)
-            quote[nm] = q
-            residuo_imp -= q
+            c = min(residuo, int(cent_tot * pct_finali.get(nm, 0.0) / 100.0 + 0.5 + 1e-9))
+            residuo -= c
+        quote[nm] = segno * c / 100.0
     return quote
 
 
-# Gestione Partecipanti 
+# Descrizione: inserimento/sostituzione del tag partecipante (PER· / CNT· / CTP·)
+def _riscrivi_descrizione(self, scelta_combo, desc):
+    if scelta_combo and "Gestisci Partecipanti" in scelta_combo:
+        return None
+    nome_nuovo = ""
+    nuova_ico = ""
+    if scelta_combo:
+        nome_nuovo = scelta_combo.strip()
+        for ico in ICONE_TAG:
+            if nome_nuovo.startswith(ico):
+                nome_nuovo = nome_nuovo[len(ico):].strip()
+                break
+        nuova_ico = "PER·"
+        for p in self.nomi_partecipanti:
+            if isinstance(p, dict) and p.get("nome") == nome_nuovo:
+                nuova_ico = {"personale": "CTP·", "contenitore": "CNT·"}.get(p.get("tipo"), "PER·")
+                break
+    desc = desc.strip()
+    prefisso_pag = ""
+    for s in set(SIMBOLI_METODO.values()):
+        if desc.startswith(s):
+            prefisso_pag = s
+            desc = desc[len(s):].strip()
+            break
+    nomi_noti = sorted([_gn(p) for p in self.nomi_partecipanti] + [_nome_gestore()],
+                       key=len, reverse=True)
+    tolto = False
+    for ico in ICONE_TAG:
+        for nome in nomi_noti:
+            pref = f"{ico}{nome}"
+            if nome and desc.startswith(pref):
+                desc = desc[len(pref):].strip()
+                tolto = True
+                break
+        if tolto:
+            break
+    if not tolto:
+        for ico in ICONE_TAG:
+            if desc.startswith(ico):
+                desc = desc[len(ico):].strip()
+                break
+    parti = [x for x in (prefisso_pag, f"{nuova_ico}{nome_nuovo}" if nome_nuovo else "", desc) if x]
+    return " ".join(parti)
+
+
 def _on_partecipante_selected(self, event=None):
     scelta = self.partecipante_var.get()
     if "Gestisci Partecipanti" in scelta:
@@ -84,63 +148,18 @@ def _on_partecipante_selected(self, event=None):
         self.gestisci_partecipanti()
         return
     self._aggiorna_descrizione_con_partecipante(scelta)
+
+
 def _aggiorna_descrizione_con_partecipante(self, scelta_combo, target_var=None):
-    if scelta_combo and "Gestisci Partecipanti" in scelta_combo:
-            return
-    def _gn(p): return p.get("nome", p) if isinstance(p, dict) else p
-    nome_nuovo = ""
-    nuova_ico = ""
-    if scelta_combo:
-            nome_nuovo = scelta_combo.strip()
-            for _ico_combo in ("CNT·", "PER·", "CTP·"):
-                    if nome_nuovo.startswith(_ico_combo):
-                            nome_nuovo = nome_nuovo[len(_ico_combo):].strip()
-                            break
-            nuova_ico = "PER·"
-            for p in self.nomi_partecipanti:
-                    if _gn(p) == nome_nuovo and isinstance(p, dict):
-                            if p.get("tipo") == "personale":
-                                    nuova_ico = "CTP·"
-                            elif p.get("tipo") == "contenitore":
-                                    nuova_ico = "CNT·"
-                            break
-    desc = target_var.get().strip() if target_var else self.desc_entry.get().strip()
-    simboli_pag = set(SIMBOLI_METODO.values())
-    prefisso_pag = ""
-    for s in simboli_pag:
-            if desc.startswith(s):
-                    prefisso_pag = s
-                    desc = desc[len(s):].strip()
-                    break
-    icone_possibili = ["CNT·", "PER·", "CTP·"]
-    import __main__ as _app
-    _profilo_attivo_fs = getattr(_app, "PROFILO_ATTIVO", "Principale")
-    _gestore_n = _profilo_attivo_fs if _profilo_attivo_fs != "Principale" else os.path.basename(os.getcwd())
-    nomi_noti = sorted([_gn(p) for p in self.nomi_partecipanti] + [_gestore_n], key=len, reverse=True)
-    blocco_trovato = False
-    for ico_v in icone_possibili:
-            for n_v in nomi_noti:
-                   stringa_da_togliere = f"{ico_v}{n_v}"
-                   if desc.startswith(stringa_da_togliere):
-                            desc = desc[len(stringa_da_togliere):].strip()
-                            blocco_trovato = True
-                            break
-            if blocco_trovato: break
-    if not blocco_trovato:
-            for ico_v in icone_possibili:
-                    if desc.startswith(ico_v):
-                            desc = desc[len(ico_v):].strip()
-                            break
-    parti = []
-    if prefisso_pag:
-            parti.append(prefisso_pag)
-    if nome_nuovo:
-            parti.append(f"{nuova_ico}{nome_nuovo}")
-    if desc:
-            parti.append(desc)
+    desc = target_var.get() if target_var else self.desc_entry.get()
+    nuova = _riscrivi_descrizione(self, scelta_combo, desc)
+    if nuova is None:
+        return
     self.desc_entry.delete(0, "end")
-    self.desc_entry.insert(0, " ".join(parti))
+    self.desc_entry.insert(0, nuova)
     self.desc_entry.icursor("end")
+
+
 def _on_ric_partecipante_selected(self, event=None):
     scelta = self.ric_partecipante_var.get()
     if "Gestisci Partecipanti" in scelta:
@@ -148,290 +167,325 @@ def _on_ric_partecipante_selected(self, event=None):
         self.gestisci_partecipanti()
         return
     self._aggiorna_descrizione_con_ric_partecipante(scelta)
+
+
 def _aggiorna_descrizione_con_ric_partecipante(self, scelta_combo, target_var=None):
-    if scelta_combo and "Gestisci Partecipanti" in scelta_combo:
+    desc = target_var.get() if target_var else self.ricorrenza_desc.get()
+    nuova = _riscrivi_descrizione(self, scelta_combo, desc)
+    if nuova is None:
         return
-    def _gn(p): return p.get("nome", p) if isinstance(p, dict) else p
-    nome_nuovo = ""
-    nuova_ico = ""
-    if scelta_combo:
-        nome_nuovo = scelta_combo.strip()
-        for _ico_combo in ("CNT·", "PER·", "CTP·"):
-            if nome_nuovo.startswith(_ico_combo):
-                nome_nuovo = nome_nuovo[len(_ico_combo):].strip()
-                break
-        nuova_ico = "PER·"
-        for p in self.nomi_partecipanti:
-            if _gn(p) == nome_nuovo and isinstance(p, dict):
-                if p.get("tipo") == "personale":
-                    nuova_ico = "CTP·"
-                elif p.get("tipo") == "contenitore":
-                    nuova_ico = "CNT·"
-                break
-    desc = target_var.get().strip() if target_var else self.ricorrenza_desc.get().strip()
-    simboli_pag = set(SIMBOLI_METODO.values())
-    prefisso_pag = ""
-    for s in simboli_pag:
-        if desc.startswith(s):
-            prefisso_pag = s
-            desc = desc[len(s):].strip()
-            break
-    icone_possibili = ["CNT·", "PER·", "CTP·"]
-    import __main__ as _app
-    _profilo_attivo_fs = getattr(_app, "PROFILO_ATTIVO", "Principale")
-    _gestore_n = _profilo_attivo_fs if _profilo_attivo_fs != "Principale" else os.path.basename(os.getcwd())
-    nomi_noti = sorted([_gn(p) for p in self.nomi_partecipanti] + [_gestore_n], key=len, reverse=True)
-    blocco_trovato = False
-    for ico_v in icone_possibili:
-        for n_v in nomi_noti:
-            stringa_da_togliere = f"{ico_v}{n_v}"
-            if desc.startswith(stringa_da_togliere):
-                desc = desc[len(stringa_da_togliere):].strip()
-                blocco_trovato = True
-                break
-        if blocco_trovato: break
-    if not blocco_trovato:
-        for ico_v in icone_possibili:
-            if desc.startswith(ico_v):
-                desc = desc[len(ico_v):].strip()
-                break
-    parti = []
-    if prefisso_pag:
-        parti.append(prefisso_pag)
-    if nome_nuovo:
-        parti.append(f"{nuova_ico}{nome_nuovo}")
-    if desc:
-        parti.append(desc)
-    self.ricorrenza_desc.set(" ".join(parti))
+    self.ricorrenza_desc.set(nuova)
+
 
 def _gestore_partecipa(self):
+    return bool(getattr(self, "fairshare_gestore_partecipa", True))
+
+
+def carica_partecipanti_da_db(self):
+    blocco = (getattr(self, "db", None) or {}).get("fairshare")
+    if isinstance(blocco, dict):
+        lista = blocco.get("partecipanti", []) or []
+        gestore = blocco.get("gestore_partecipa", True)
+    elif hasattr(self, "nomi_partecipanti"):
+        # db senza blocco fairshare (es. import di un export vecchio): tengo i partecipanti attuali
+        return
+    else:
+        lista, gestore = [], True
+    self.nomi_partecipanti = [
+        p if isinstance(p, dict) else {"nome": p, "tipo": "persona"}
+        for p in lista if p
+    ]
+    self.fairshare_gestore_partecipa = bool(gestore)
+
+
+def rinomina_partecipante_fairshare(self, vecchio, nuovo):
+    nuovo = (nuovo or "").strip()
+    if not nuovo:
+        return False, "Il nuovo nome è vuoto."
+    if nuovo == vecchio:
+        return False, "Il nome è uguale a quello attuale."
+    if nuovo in {_gn(p) for p in self.nomi_partecipanti} | {_nome_gestore()}:
+        return False, f"'{nuovo}' è già presente."
+    anagrafica = next((p for p in self.nomi_partecipanti
+                       if isinstance(p, dict) and p.get("nome") == vecchio), None)
+    if anagrafica is None:
+        return False, f"'{vecchio}' non trovato."
+    nomi_alt = sorted({_gn(p) for p in self.nomi_partecipanti} | {_nome_gestore(), vecchio},
+                      key=len, reverse=True)
+    rx = re.compile(r"(PER|CNT|CTP)·(" + "|".join(re.escape(n) for n in nomi_alt if n) + r")(?!\w)")
+    def sost(testo):
+        if not isinstance(testo, str):
+            return testo
+        return rx.sub(lambda m: f"{m.group(1)}·{nuovo}" if m.group(2) == vecchio else m.group(0), testo)
+    n_voci = 0
+    for voci in self.spese.values():
+        for v in voci:
+            if not isinstance(v, SpesaEntry):
+                continue
+            mod = False
+            d2 = sost(v.descrizione)
+            if d2 != v.descrizione:
+                v.descrizione = d2
+                mod = True
+            pag = (v.fairshare or {}).get("pagamenti", {})
+            if vecchio in pag:
+                pag[nuovo] = pag.pop(vecchio)
+                mod = True
+            if mod:
+                n_voci += 1
+    for r in (getattr(self, "ricorrenze", None) or {}).values():
+        if isinstance(r, dict) and "desc" in r:
+            r["desc"] = sost(r["desc"])
+    anagrafica["nome"] = nuovo
+    for p in self.nomi_partecipanti:
+        if isinstance(p, dict) and vecchio in p.get("soci", []):
+            p["soci"] = [nuovo if s == vecchio else s for s in p["soci"]]
+    self.save_db()
     try:
-        if os.path.exists(_app.PARTECIPANTI):
-            with open(_app.PARTECIPANTI, 'r', encoding='utf-8') as f:
-                raw = json.load(f)
-            if isinstance(raw, dict):
-                return raw.get("gestore_partecipa", True)
+        from moduli.spese_pianificate import _carica_sp, _salva_sp
+        dati = _carica_sp(self)
+        cambiato = False
+        for piano in dati.get("piani", []):
+            for k in ("descrizione", "nome"):
+                nv = sost(piano.get(k))
+                if nv != piano.get(k):
+                    piano[k] = nv
+                    cambiato = True
+        if cambiato:
+            _salva_sp(self, dati)
     except Exception:
         pass
-    return True
+    if hasattr(self, "refresh_gui"):
+        self.refresh_gui()
+    return True, f"'{vecchio}' rinominato in '{nuovo}' ({n_voci} movimenti aggiornati)."
+
+
+# Motore FairShare 
+def _rx_tag(sigla, nomi):
+    nomi = sorted({n for n in nomi if n}, key=len, reverse=True)
+    if not nomi:
+        return None
+    return re.compile(sigla + "·(" + "|".join(re.escape(n) for n in nomi) + r")(?!\w)")
+
+
+def _contesto_fairshare(self):
+    gestore = _nome_gestore()
+    parts = [p for p in self.nomi_partecipanti if isinstance(p, dict) and p.get("nome")]
+    persone = {p["nome"] for p in parts if p.get("tipo", "persona") == "persona"}
+    if _gestore_partecipa(self):
+        persone.add(gestore)
+    persone = sorted(persone, key=lambda n: (-len(n), n))
+    contenitori = {
+        p["nome"]: [s for s in p.get("soci", []) if s in persone]
+        for p in parts if p.get("tipo") == "contenitore"
+    }
+    tutti_nomi = [p["nome"] for p in parts] + [gestore]
+    nomi_alt = sorted(set(tutti_nomi), key=len, reverse=True)
+    rx_pulisci = re.compile(
+        "(?:PER|CNT|CTP)·(?:" + "|".join(re.escape(n) for n in nomi_alt) + r")(?!\w)"
+    )
+    return {
+        "gestore":     gestore,
+        "persone":     persone,
+        "contenitori": contenitori,
+        "rx_per":      _rx_tag("PER", persone),
+        "rx_cnt":      _rx_tag("CNT", contenitori.keys()),
+        "rx_pulisci":  rx_pulisci,
+    }
+
+
+def _analizza_descrizione(desc, ctx):
+    parti = []
+    if ctx["rx_cnt"]:
+        for m in ctx["rx_cnt"].finditer(desc):
+            soci = ctx["contenitori"].get(m.group(1), [])
+            if soci:
+                parti = list(soci)
+                break
+    creditore = None
+    if ctx["rx_per"]:
+        m = ctx["rx_per"].search(desc)
+        if m:
+            creditore = m.group(1)
+    if not parti and creditore:
+        parti = list(ctx["persone"]) or [creditore]
+    if not parti:
+        return None
+    return creditore or ctx["gestore"], sorted(set(parti))
+
+
+def _stato_debito(deb):
+    parti = deb.get("partecipanti", [])
+    tutti_ok = bool(parti) and all(
+        deb["pagamenti"].get(nm, {}).get("pagato", False) for nm in parti
+    )
+    deb["stato"] = "chiuso" if tutti_ok else "aperto"
+
+
+def _debito_da_voce(self, data_obj, voce, ctx):
+    if not isinstance(voce, SpesaEntry):
+        return None
+    if str(campo(voce, "tipo", "")).strip() != "Uscita":
+        return None
+    try:
+        imp = round(float(campo(voce, "importo", 0.0)), 2)
+    except (TypeError, ValueError):
+        return None
+    if imp <= 0:
+        return None
+    desc_str = str(campo(voce, "descrizione", "")).strip()
+    esito = _analizza_descrizione(desc_str, ctx)
+    if not esito:
+        return None
+    creditore, parti = esito
+    n = len(parti)
+    data_str = data_obj.strftime(FMT_DATA)
+    id_spesa = campo(voce, "id_spesa", "")
+    salvati = (campo(voce, "fairshare", None) or {}).get("pagamenti", {})
+    pagamenti = {}
+    for nm in parti:
+        info = salvati.get(nm)
+        if isinstance(info, dict) and info.get("sorgente") in ("manuale", "auto"):
+            pagamenti[nm] = {"pagato": bool(info.get("pagato")),
+                             "data": info.get("data"),
+                             "sorgente": info["sorgente"]}
+        elif nm == creditore:
+            pagamenti[nm] = {"pagato": True, "data": data_str, "sorgente": "creditore"}
+        else:
+            pagamenti[nm] = {"pagato": False, "data": None}
+    desc_pulita = " ".join(ctx["rx_pulisci"].sub("", desc_str).split())
+    deb = {
+        "_key":           f"{data_str}#{id_spesa}",
+        "_id_spesa":      id_spesa,
+        "data":           data_str,
+        "categoria":      str(campo(voce, "categoria", "")).strip(),
+        "descrizione":    desc_pulita,
+        "importo_totale": imp,
+        "quota":          round(imp / n, 2),
+        "quote":          calcola_quote_spesa(self, imp, parti),
+        "n_partecipanti": n,
+        "creditore":      creditore,
+        "partecipanti":   parti,
+        "pagamenti":      pagamenti,
+    }
+    _stato_debito(deb)
+    return voce, deb
+
+
+def _coppie_debiti(self, ctx):
+    coppie = []
+    for data_obj in sorted(k for k in self.spese if isinstance(k, datetime.date)):
+        for voce in self.spese[data_obj]:
+            r = _debito_da_voce(self, data_obj, voce, ctx)
+            if r:
+                coppie.append(r)
+    return coppie
+
+
+def _entrate_pagate(self, ctx):
+    out = defaultdict(list)
+    if not ctx["rx_per"]:
+        return out
+    for data_obj in sorted(k for k in self.spese if isinstance(k, datetime.date)):
+        for voce in self.spese[data_obj]:
+            if str(campo(voce, "tipo", "")).strip() != "Entrata":
+                continue
+            m = ctx["rx_per"].search(str(campo(voce, "descrizione", "")))
+            if not m:
+                continue
+            try:
+                imp = round(float(campo(voce, "importo", 0.0)), 2)
+            except (TypeError, ValueError):
+                continue
+            out[(m.group(1), str(campo(voce, "categoria", "")).strip(), imp)].append(data_obj)
+    return out
+
+
+def _applica_pagamenti_auto(coppie, entrate):
+    for _voce, deb in coppie:
+        cat = deb["categoria"]
+        for nm, info in list(deb["pagamenti"].items()):
+            sorgente = info.get("sorgente", "")
+            if sorgente in ("manuale", "creditore"):
+                continue
+            lista = entrate.get((nm, cat, round(_quota_persona(deb, nm), 2)))
+            if lista:
+                d_ent = lista.pop(0)
+                if not info.get("pagato"):
+                    deb["pagamenti"][nm] = {"pagato": True,
+                                            "data": d_ent.strftime(FMT_DATA),
+                                            "sorgente": "auto"}
+            elif info.get("pagato") and sorgente == "auto":
+                deb["pagamenti"][nm] = {"pagato": False, "data": None}
+        _stato_debito(deb)
+
+
+def _payload_fs(deb):
+    pag = {
+        nm: {"pagato": bool(i.get("pagato")), "data": i.get("data"), "sorgente": i["sorgente"]}
+        for nm, i in deb.get("pagamenti", {}).items()
+        if i.get("sorgente") in ("manuale", "auto")
+    }
+    return {"pagamenti": pag} if pag else None
+
+
+def _persisti_pagamenti(coppie):
+    modificato = False
+    for voce, deb in coppie:
+        nuovo = _payload_fs(deb)
+        if (voce.fairshare or None) != nuovo:
+            voce.fairshare = nuovo
+            modificato = True
+    return modificato
+
+
 def carica_fairshare_state(self):
-    try:
-        if os.path.exists(_app.FAIRSHARE_STATE):
-            with open(_app.FAIRSHARE_STATE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            if isinstance(data, list):
-                return data
-    except Exception:
-        pass
-    return []
+    ctx = _contesto_fairshare(self)
+    coppie = _coppie_debiti(self, ctx)
+    _applica_pagamenti_auto(coppie, _entrate_pagate(self, ctx))
+    return [deb for _v, deb in coppie]
+
+
 def salva_fairshare_state(self, debiti):
-    try:
-        os.makedirs(_app.DB_DIR, exist_ok=True)
-        with open(_app.FAIRSHARE_STATE, "w", encoding="utf-8") as f:
-            json.dump(debiti, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        self.show_custom_warning("Errore", f"Impossibile salvare fairshare_state.json:\n{e}")
+    idx = {}
+    for voci in self.spese.values():
+        for v in voci:
+            if isinstance(v, SpesaEntry):
+                idx[v.id_spesa] = v
+    modificato = False
+    for deb in debiti:
+        voce = idx.get(deb.get("_id_spesa"))
+        if voce is None:
+            continue
+        nuovo = _payload_fs(deb)
+        if (voce.fairshare or None) != nuovo:
+            voce.fairshare = nuovo
+            modificato = True
+    if modificato:
+        self.save_db()
+
+
+def sincronizza_fairshare_state(self):
+    ctx = _contesto_fairshare(self)
+    coppie = _coppie_debiti(self, ctx)
+    _applica_pagamenti_auto(coppie, _entrate_pagate(self, ctx))
+    if _persisti_pagamenti(coppie):
+        self.save_db()
+    return [deb for _v, deb in coppie]
+
+
 def _sync_fairshare_e_aggiorna(self):
-    self.sincronizza_fairshare_state()
+    sincronizza_fairshare_state(self)
     def _aggiorna_se_aperta():
         try:
-            if (hasattr(self, '_dare_avere_aggiorna') and
-                    self._dare_avere_aggiorna and
-                    hasattr(self, '_dare_avere_popup') and
-                    self._dare_avere_popup and
+            if (getattr(self, '_dare_avere_aggiorna', None) and
+                    getattr(self, '_dare_avere_popup', None) and
                     self._dare_avere_popup.winfo_exists()):
                 self._dare_avere_aggiorna()
         except Exception:
             pass
     self.after(50, _aggiorna_se_aperta)
-def sincronizza_fairshare_state(self):
-    import __main__ as _app
-    _profilo_attivo_fs = getattr(_app, "PROFILO_ATTIVO", "Principale")
-    NOME_GESTORE = _profilo_attivo_fs if _profilo_attivo_fs != "Principale" else os.path.basename(os.getcwd())
-    debiti_esistenti = self.carica_fairshare_state()
-    idx = {}
-    for d in debiti_esistenti:
-        k = d.get("_key", "")
-        if k:
-            idx[k] = d
-    tutti_partecipanti = sorted(self.nomi_partecipanti, key=lambda p: len(p.get("nome", "")), reverse=True)
-    persone_fisiche = [pp["nome"] for pp in tutti_partecipanti
-                       if pp.get("tipo", "persona") == "persona"]
-    gestore_partecipa = self._gestore_partecipa()
-    if gestore_partecipa and NOME_GESTORE not in persone_fisiche:
-        persone_fisiche.append(NOME_GESTORE)
-    persone_fisiche = sorted(persone_fisiche, key=len, reverse=True)
-    soci_per_cont = {
-        p["nome"]: [s for s in p.get("soci", []) if s in persone_fisiche]
-        for p in tutti_partecipanti if p.get("tipo") == "contenitore"
-    }
-    nuove_chiavi = set()
-    for data_obj in sorted(k for k in self.spese.keys() if isinstance(k, datetime.date)):
-        if not isinstance(data_obj, datetime.date):
-            continue
-        voci     = self.spese[data_obj]
-        data_str = data_obj.strftime("%d/%m/%Y")
-        for idx_v, voce in enumerate(voci):
-            try:
-                cat      = campo(voce, "categoria", "").strip()
-                desc_str = campo(voce, "descrizione", "").strip()
-                imp      = float(campo(voce, "importo", 0.0))
-                tipo_mov = campo(voce, "tipo", "").strip()
-            except Exception:
-                continue
-            if tipo_mov != "Uscita":
-                continue
-            parti_trovati = []
-            for p in tutti_partecipanti:
-                nome_p = p["nome"]
-                tipo_p = p.get("tipo", "persona")
-                if tipo_p not in ("persona", "contenitore"):
-                    continue
-                if tipo_p == "contenitore":
-                    if f"CNT·{nome_p}" in desc_str:
-                        soci = soci_per_cont.get(nome_p, [])
-                        if soci:
-                            parti_trovati = list(soci)
-                        break
-                else:
-                    if f"PER·{nome_p}" in desc_str:
-                        parti_trovati = list(persone_fisiche) if persone_fisiche else [nome_p]
-                        break
-            if not parti_trovati and gestore_partecipa and f"PER·{NOME_GESTORE}" in desc_str:
-                parti_trovati = list(persone_fisiche) if persone_fisiche else [NOME_GESTORE]
 
-            parti_sorted = sorted(set(parti_trovati))
-            n = len(parti_sorted)
-            if n == 0:
-                continue
-            quote_map  = self.calcola_quote_spesa(imp, parti_sorted)
-            quota      = round(imp / n, 2)
-            id_spesa_v = campo(voce, "id_spesa", "") or str(idx_v)
-            key        = f"{data_str}#{id_spesa_v}|{cat}|{imp:.2f}"
-            key_legacy = f"{data_str}#{idx_v}|{cat}|{imp:.2f}"
-            if key not in idx and key_legacy != key and key_legacy in idx:
-                idx[key] = idx.pop(key_legacy)
-                idx[key]["_key"] = key
-            desc_pulita = desc_str
-            for p in tutti_partecipanti:
-                desc_pulita = desc_pulita.replace(f"PER·{p['nome']}", "").replace(f"CNT·{p['nome']}", "").replace(f"CTP·{p['nome']}", "")
-            if gestore_partecipa:
-                desc_pulita = desc_pulita.replace(f"PER·{NOME_GESTORE}", "")
-            desc_pulita = desc_pulita.strip()
-            nuove_chiavi.add(key)
-            creditore = None
-            for pf in persone_fisiche:
-                if f"PER·{pf}" in desc_str:
-                    creditore = pf
-                    break
-            if creditore is None:
-                creditore = NOME_GESTORE
-            if key not in idx:
-                pagamenti = {}
-                for nm in parti_sorted:
-                    if nm == creditore:
-                        pagamenti[nm] = {"pagato": True, "data": data_str, "sorgente": "creditore"}
-                    else:
-                        pagamenti[nm] = {"pagato": False, "data": None}
-                idx[key] = {
-                    "_key":           key,
-                    "data":           data_str,
-                    "categoria":      cat,
-                    "descrizione":    desc_pulita,
-                    "importo_totale": imp,
-                    "quota":          quota,
-                    "quote":          quote_map,
-                    "n_partecipanti": n,
-                    "creditore":      creditore,
-                    "partecipanti":   parti_sorted,
-                    "pagamenti":      pagamenti,
-                    "stato":          "aperto",
-                }
-            else:
-                d = idx[key]
-                vecchio_creditore = d.get("creditore")
-                if vecchio_creditore != creditore and vecchio_creditore in d.get("pagamenti", {}):
-                    info_vecchio = d["pagamenti"][vecchio_creditore]
-                    if info_vecchio.get("sorgente") == "creditore":
-                        # Il vecchio creditore non e' piu' esente: torna a dover
-                        # versare la propria quota come chiunque altro.
-                        d["pagamenti"][vecchio_creditore] = {"pagato": False, "data": None}
-                d["importo_totale"] = imp
-                d["quota"]          = quota
-                d["quote"]          = quote_map
-                d["n_partecipanti"] = n
-                d["descrizione"]    = desc_pulita
-                d["creditore"]      = creditore
-                d["partecipanti"]   = parti_sorted
-                d["pagamenti"] = {nm: info for nm, info in d["pagamenti"].items() if nm in parti_sorted}
-                for nm in parti_sorted:
-                    if nm not in d["pagamenti"]:
-                        if nm == creditore:
-                            d["pagamenti"][nm] = {"pagato": True, "data": data_str, "sorgente": "creditore"}
-                        else:
-                            d["pagamenti"][nm] = {"pagato": False, "data": None}
-                    elif (nm == creditore and not d["pagamenti"][nm].get("pagato")
-                          and d["pagamenti"][nm].get("sorgente") != "manuale"):
-                        d["pagamenti"][nm] = {"pagato": True, "data": data_str, "sorgente": "creditore"}
-    entrate_valide = Counter()
-    for data_obj in sorted(k for k in self.spese.keys() if isinstance(k, datetime.date)):
-        if not isinstance(data_obj, datetime.date):
-            continue
-        for voce in self.spese[data_obj]:
-            try:
-                cat      = campo(voce, "categoria", "").strip()
-                desc_str = campo(voce, "descrizione", "").strip()
-                imp      = float(campo(voce, "importo", 0.0))
-                tipo_mov = campo(voce, "tipo", "").strip()
-            except Exception:
-                continue
-            if tipo_mov != "Entrata":
-                continue
-            pagante = None
-            for p in tutti_partecipanti:
-                if p.get("tipo") == "persona" and f"PER·{p['nome']}" in desc_str:
-                    pagante = p["nome"]
-                    break
-            if not pagante and f"PER·{NOME_GESTORE}" in desc_str:
-                pagante = NOME_GESTORE
-            if pagante:
-                entrate_valide[(pagante, cat, round(imp, 2))] += 1
-    def _data_ordinabile(deb):
-        try:
-            return datetime.datetime.strptime(deb.get("data", ""), "%d/%m/%Y")
-        except Exception:
-            return datetime.datetime.min
-    for deb in sorted(idx.values(), key=_data_ordinabile):
-        cat_deb = deb.get("categoria", "")
-        for nm, info in deb.get("pagamenti", {}).items():
-            sorgente = info.get("sorgente", "")
-            if sorgente in ("manuale", "creditore"):
-                continue
-            quota_deb = round(_quota_persona(deb, nm), 2)
-            chiave_entrata = (nm, cat_deb, quota_deb)
-            if entrate_valide.get(chiave_entrata, 0) > 0:
-                if not info.get("pagato"):
-                    info["pagato"]   = True
-                    info["data"]     = datetime.date.today().strftime("%d/%m/%Y")
-                    info["sorgente"] = "auto"
-                entrate_valide[chiave_entrata] -= 1
-            elif info.get("pagato") and sorgente == "auto":
-                info["pagato"] = False
-                info["data"]   = None
-                info.pop("sorgente", None)
-    debiti_finali = []
-    for k, deb in idx.items():
-        if k not in nuove_chiavi:
-            continue
-        parti = deb.get("partecipanti", [])
-        tutti_ok = bool(parti) and all(
-            deb["pagamenti"].get(nm, {}).get("pagato", False)
-            for nm in parti
-        )
-        deb["stato"] = "chiuso" if tutti_ok else "aperto"
-        debiti_finali.append(deb)
-    self.salva_fairshare_state(debiti_finali)
-    return debiti_finali
 
 def mostra_riepilogo_fairshare_periodo(self):
     if hasattr(self, '_analitico_popup') and self._analitico_popup and self._analitico_popup.winfo_exists():
@@ -462,9 +516,7 @@ def mostra_riepilogo_fairshare_periodo(self):
         anni_db.insert(0, oggi.year)
     nomi_p_raw = {p["nome"]: p.get("tipo","persona") for p in self.nomi_partecipanti
                   if p.get("tipo") in ("persona","contenitore")}
-    import __main__ as _app
-    _profilo_attivo_fs = getattr(_app, "PROFILO_ATTIVO", "Principale")
-    _gestore = _profilo_attivo_fs if _profilo_attivo_fs != "Principale" else os.path.basename(os.getcwd())
+    _gestore = _nome_gestore()
     if self._gestore_partecipa() and _gestore not in nomi_p_raw:
         nomi_p_raw[_gestore] = "persona"
     def _ico_p(nome):
@@ -495,7 +547,7 @@ def mostra_riepilogo_fairshare_periodo(self):
     _lbl2("Stato:")
     cb_stato = ttk.Combobox(filter_f, values=["Tutti", "Aperto", "Chiuso"],
                             width=8, state="readonly", style="Border.TCombobox")
-    cb_stato.set("Tutti"); cb_stato.pack(side=tk.LEFT, padx=3)
+    cb_stato.set("Aperto"); cb_stato.pack(side=tk.LEFT, padx=3)
 
     tree_frame = ttk.Frame(popup)
     tree_frame.pack(fill=tk.X, padx=15, pady=5)
@@ -523,7 +575,9 @@ def mostra_riepilogo_fairshare_periodo(self):
             except Exception:
                 return None
         return s.lower()
+    _sort_stato = {"col": None, "rev": False}
     def _sort_analitico(col, reverse=False):
+        _sort_stato["col"], _sort_stato["rev"] = col, reverse
         righe = [(_val_sort(col, tree_a.set(k, col)), k) for k in tree_a.get_children("")]
         con    = [(v, k) for v, k in righe if v is not None]
         senza  = [k for v, k in righe if v is None]
@@ -541,6 +595,17 @@ def mostra_riepilogo_fairshare_periodo(self):
     tree_a.tag_configure("aperto",  foreground="#E06C75")
     tree_a.tag_configure("chiuso",  foreground="#61AFEF")
     self._bind_tooltip_metodo(tree_a, col_desc=2)
+    _riga_deb_a = {}
+    def _vai_a_spesa_a(event):
+        deb = _riga_deb_a.get(tree_a.identify_row(event.y))
+        if not deb:
+            return
+        try:
+            d = datetime.datetime.strptime(deb.get("data", ""), "%d/%m/%Y").date()
+        except ValueError:
+            return
+        self.vai_a_spesa(d, popup, str(deb.get("descrizione", ""))[:20], deb.get("_id_spesa", ""))
+    tree_a.bind("<Double-1>", _vai_a_spesa_a)
     det_frame = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
     det_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=(0, 4))
     vsb_det = ttk.Scrollbar(det_frame, orient="vertical", style="Vertical.TScrollbar")
@@ -558,6 +623,8 @@ def mostra_riepilogo_fairshare_periodo(self):
     lbl_det.tag_config("bold",   font=("Courier New", 9, "bold"))
     def aggiorna_tabella(*_args):
         tree_a.delete(*tree_a.get_children())
+        tree_a._metodo_lookup = {}
+        _riga_deb_a.clear()
         p_sel  = cb_part.get()
         if p_sel not in ("", "Tutti") and " " in p_sel:
             p_sel = p_sel.split(" ", 1)[1].strip()
@@ -566,7 +633,12 @@ def mostra_riepilogo_fairshare_periodo(self):
         c_sel  = cb_cat.get()
         st_sel = cb_stato.get()
         tot_dovuto = {}; tot_versato = {}; tot_debito = {}; chi_deve_a_chi_a = {}
-        for deb in sorted(debiti, key=lambda d: d.get("data", "")):
+        def _chiave_data(d):
+            try:
+                return datetime.datetime.strptime(d.get("data", ""), "%d/%m/%Y")
+            except Exception:
+                return datetime.datetime.max
+        for deb in sorted(debiti, key=_chiave_data):
             data_str = deb.get("data", "")
             try:
                 d_obj = datetime.datetime.strptime(data_str, "%d/%m/%Y").date()
@@ -591,7 +663,7 @@ def mostra_riepilogo_fairshare_periodo(self):
             attesa  = [n for n in parti if not pag.get(n, {}).get("pagato", False)]
             st_ic   = "Chiuso" if stato == "chiuso" else "Aperto"
             tag_row = "chiuso" if stato == "chiuso" else "aperto"
-            tree_a.insert("", "end", tags=(tag_row,), values=(
+            _iid_a = tree_a.insert("", "end", tags=(tag_row,), values=(
                 data_str,
                 deb.get("categoria", ""),
                 deb.get("descrizione", ""),
@@ -602,6 +674,18 @@ def mostra_riepilogo_fairshare_periodo(self):
                 len(attesa),
                 st_ic,
             ))
+            _riga_deb_a[_iid_a] = deb
+            _extra_a = []
+            if deb.get("creditore"):
+                _extra_a.append(("Creditore", deb.get("creditore")))
+            _extra_a.append(("Paganti", ", ".join(paganti) if paganti else "—"))
+            _extra_a.append(("In attesa", ", ".join(attesa) if attesa else "—"))
+            tree_a._metodo_lookup[_iid_a] = {
+                "data": d_obj.strftime("%d-%m-%Y"),
+                "categoria": deb.get("categoria", ""),
+                "importo": imp,
+                "_righe_extra": _extra_a,
+            }
             for nome in parti:
                 if p_sel != "Tutti" and nome != p_sel: continue
                 quota = _quota_persona(deb, nome)
@@ -653,6 +737,8 @@ def mostra_riepilogo_fairshare_periodo(self):
         else:
             lbl_det.insert("end", "  Nessun risultato per i filtri selezionati.\n", "neutro")
         lbl_det.config(state="disabled")
+        if _sort_stato["col"]:
+            _sort_analitico(_sort_stato["col"], _sort_stato["rev"])
 
     def apri_anteprima_export():
         p_sel = cb_part.get(); a_sel = cb_anno.get()
@@ -821,6 +907,17 @@ def popup_personali(self):
     tree.tag_configure("pos", foreground="#98C379")
     tree.tag_configure("neg", foreground="#E06C75")
     self._bind_tooltip_metodo(tree, col_desc=3)
+    def _vai_a_spesa_ctp(event):
+        iid = tree.identify_row(event.y)
+        info = getattr(tree, "_metodo_lookup", {}).get(iid)
+        if not info:
+            return
+        try:
+            d = datetime.datetime.strptime(info.get("data", ""), "%d-%m-%Y").date()
+        except ValueError:
+            return
+        self.vai_a_spesa(d, popup, str(tree.item(iid, "values")[3])[:20], info.get("id_spesa", ""))
+    tree.bind("<Double-1>", _vai_a_spesa_ctp)
     summary_f = tk.Frame(popup, bg=self.COLOR_TOPLEVEL,
                          highlightbackground=self.COLOR_WIDGET_BG, highlightthickness=1)
     summary_f.pack(fill=tk.X, padx=15, pady=5)
@@ -838,6 +935,7 @@ def popup_personali(self):
         widget.pack(side=tk.LEFT, padx=(0, 20))
     def ricarica(*_):
         tree.delete(*tree.get_children())
+        tree._metodo_lookup = {}
         idx_m = mese_nomi.index(mese_v.get())
         t_ent = t_usc = 0.0
         for data, voci in self.spese.items():
@@ -864,7 +962,7 @@ def popup_personali(self):
                 if cat_v.get() != "Tutti" and cat_v.get() != categoria:
                     continue
                 tag = "pos" if tipo == "Entrata" else "neg"
-                tree.insert("", "end",
+                _iid_c = tree.insert("", "end",
                             values=(data.strftime("%d/%m/%Y"),
                                     f"CTP· {nome_ind}",
                                     categoria,
@@ -872,6 +970,18 @@ def popup_personali(self):
                                     tipo,
                                     f"{_fmt_it(imp)} €"),
                             tags=(tag,))
+                tree._metodo_lookup[_iid_c] = {
+                    "metodo": campo(v, "metodo_pagamento", ""),
+                    "conto": campo(v, "conto", ""),
+                    "ora": campo(v, "ora", ""),
+                    "hashtag": campo(v, "hashtag", []),
+                    "id_ricorrenza": campo(v, "id_ricorrenza", ""),
+                    "data": data.strftime("%d-%m-%Y"),
+                    "categoria": categoria,
+                    "importo": imp,
+                    "tipo": tipo,
+                    "id_spesa": campo(v, "id_spesa", ""),
+                }
                 if tipo == "Entrata":
                     t_ent += imp
                 else:
@@ -1324,9 +1434,7 @@ def mostra_guida_dare_avere(self, popup=None):
     guida_win.bind("<Escape>", lambda e: guida_win.destroy())
     guida_win.bind("<Destroy>", lambda e: setattr(self, '_guida_popup', None) if e.widget is guida_win else None)
     guida_win.transient(popup)
-    import __main__ as _app
-    _profilo_attivo_fs = getattr(_app, "PROFILO_ATTIVO", "Principale")
-    NOME_GESTORE = _profilo_attivo_fs if _profilo_attivo_fs != "Principale" else os.path.basename(os.getcwd())
+    NOME_GESTORE = _nome_gestore()
     testo_guida = (
         "1. LOGICA DI BASE\n"
         "   La quota di ogni Persona = totale uscite (incluse quelle dei Gruppi) / numero Persone.\n"

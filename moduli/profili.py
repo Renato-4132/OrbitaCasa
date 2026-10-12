@@ -171,6 +171,32 @@ def cancella_profilo(self, nome_profilo):
         self.show_toast(f"Errore durante l'eliminazione del profilo: {e}")
         return False
 
+class DemoNonCompatibile(Exception):
+    pass
+
+def _versione_tuple(v):
+    return tuple(int(x) for x in str(v).strip().split("."))
+
+def _controlla_versione_demo(percorso_zip, versione_app):
+    """Se lo zip contiene demo_info.json con 'versione_minima_app' e l'app è più
+    vecchia, solleva un errore. Se il file manca o è illeggibile, la demo si
+    considera compatibile."""
+    try:
+        with zipfile.ZipFile(percorso_zip, "r") as zf:
+            nome = next((n for n in zf.namelist()
+                         if os.path.basename(n) == "demo_info.json"), None)
+            if not nome:
+                return
+            minima = json.loads(zf.read(nome).decode("utf-8")).get("versione_minima_app")
+        if not minima:
+            return
+        if _versione_tuple(versione_app) >= _versione_tuple(minima):
+            return
+    except Exception:
+        return
+    raise DemoNonCompatibile(f"La demo richiede la versione {minima} o successiva "
+                     f"(la tua è la {versione_app}). Aggiorna l'app e riprova.")
+
 def attiva_modalita_demo(self):
     import __main__ as _app
     import threading
@@ -198,6 +224,7 @@ def attiva_modalita_demo(self):
                 f.write(risposta.content)
             if not zipfile.is_zipfile(percorso_tmp):
                 raise ValueError("Il file scaricato non è un archivio valido")
+            _controlla_versione_demo(percorso_tmp, _app.VERSION)
             _estrai_zip_sicuro(percorso_tmp, db_demo)
             os.remove(percorso_tmp)
             _copia_certificati_e_licenza(_app.DB_DIR, db_demo)
@@ -209,7 +236,10 @@ def attiva_modalita_demo(self):
                     shutil.rmtree(cartella_demo)
             except Exception:
                 pass
-            self.after(0, lambda: self.show_toast(f"Errore durante la preparazione della Demo: {msg_errore}"))
+            if isinstance(e, DemoNonCompatibile):
+                self.after(0, lambda: self.show_custom_warning("Demo non compatibile", msg_errore))
+            else:
+                self.after(0, lambda: self.show_toast(f"Errore durante la preparazione della Demo: {msg_errore}"))
             return
         try:
             os.makedirs(_app.PROFILI_DIR, exist_ok=True)

@@ -115,8 +115,6 @@ def carica_costanti(path_locale):
     g['LOGIN_WEB_FAIL'] = os.path.join(DB_DIR, "login_web_fail.json")
     g['LOGIN_LCL'] = os.path.join(DB_DIR, "login_lcl.json")
     g['ACCESS_CONTROL_WEB'] = FILE_LICENZA["web_access_control.json"]
-    g['PARTECIPANTI'] = os.path.join(DB_DIR, "fairshare.json")
-    g['FAIRSHARE_STATE'] = os.path.join(DB_DIR, "fairshare_state.json")
     g['FR_FILE'] = os.path.join(DB_DIR, "fondo_risparmio.json")
     g['DIETA_FILE'] = os.path.join(DB_DIR, "dieta_piano.json")
     g['CUSTOM_FILE'] = os.path.join(DB_DIR, "alimenti_custom.json")
@@ -133,7 +131,6 @@ def carica_costanti(path_locale):
     g['IMMOBIL_FILE'] = os.path.join(DB_DIR, "immobil.json")
     g['MANUTENZIONE_CASA_FILE'] = os.path.join(DB_DIR, "manutenzione_casa.json")
     g['SCHEDULE_FILE'] = os.path.join(DB_DIR, "schedule.json")
-    g['PIANIFICA_FILE'] = os.path.join(DB_DIR, "spese_pianificate.json")
     g['EMAIL_USER'] = ""
     g['APP_PASSWORD'] = ""
     g['PAROLE_CHIAVE'] = ["no-reply-ML@aceaenergia.it", "no-reply.acque@acque.net", "contotelefonico@fatturazione.windtre.it"]
@@ -144,6 +141,7 @@ def carica_costanti(path_locale):
     g['DOC_PERS_DIR'] = os.path.join(DB_DIR, "documenti_personali")
     g['VEICOLI_FILE'] = os.path.join(DB_DIR, "veicoli.json")
     g['MAGAZZINO_FILE'] = os.path.join(DB_DIR, "magazzino.json")
+    g['SCANNER_FILE'] = os.path.join(DB_DIR, "scanner_impostazioni.json")
     g['ANIMALI_FILE'] = os.path.join(DB_DIR, "animali.json")
     g['GAMIFICATION_FILE'] = os.path.join(DB_DIR, "gamification.json")
     g['CREDENTIALS_FILE'] = os.path.join(DB_DIR, "webauthn_credentials.json")
@@ -164,7 +162,7 @@ def carica_costanti(path_locale):
     g['WARN_TIMEOUT'] = 20000                       # Timeout Messaggi Popup (ms)
     g['USE_WAIT_WINDOW'] = False                    # Timeout chiusura self.show_custom_warning
     g['TOLL'] = 15                                  # Tolleranza Movimenti simili (SmartCat) - Euro
-    g['VERSION'] = "2.5.2"
+    g['VERSION'] = "2.5.3"
     g['ICONIZZA_INATTIVITA'] = True                 # Attiva/disattiva Timer Minimizza
     g['TIMEOUT_INATTIVITA_MS'] = 1200000            # 20 minuti in ms - Timer Minimizza
     g['ANNI_DA_MANTENERE'] = 10                     # Anni conservati nel db
@@ -310,6 +308,7 @@ def carica_costanti(path_locale):
         ("chiudi", ("274c", "❌")),
         ("salva", ("1f4be", "💾")),
         ("stampa", ("1f5a8", "🖨️")),
+        ("scansiona", ("1f4f7", "📷")),
         ("check", ("2714", "✅")),
         ("delete", ("1f5d1", "🗑️")),
         ("search", ("1f50d", "🔍")),

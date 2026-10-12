@@ -2,9 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import os
-import json
 import tkinter as tk
 from tkinter import ttk
+
+from moduli.fairshare import rinomina_partecipante_fairshare
 
 def _fmt_pct(v):
     s = f"{v:.2f}".rstrip("0").rstrip(".")
@@ -12,32 +13,19 @@ def _fmt_pct(v):
 
 def gestisci_partecipanti(self, target_popup=None):
     import __main__ as _app
-    PARTECIPANTI = _app.PARTECIPANTI
-    _leggi_gestore_partecipa = _app._leggi_gestore_partecipa
-    _scrivi_gestore_partecipa = _app._scrivi_gestore_partecipa
-
     if hasattr(self, '_gestione_popup') and self._gestione_popup and self._gestione_popup.winfo_exists():
         self._gestione_popup.lift()
         self._gestione_popup.focus_force()
         return
 
+    def _leggi_gestore_partecipa():
+        return self._gestore_partecipa()
+    def _scrivi_gestore_partecipa(valore):
+        self.fairshare_gestore_partecipa = bool(valore)
+        self.save_db()
     def _salva_partecipanti_json():
-        _gp_val = _leggi_gestore_partecipa()
-        payload = {"gestore_partecipa": _gp_val, "partecipanti": self.nomi_partecipanti}
-        tmp_path = PARTECIPANTI + ".tmp"
-        try:
-            with open(tmp_path, 'w', encoding='utf-8') as fp:
-                json.dump(payload, fp, indent=2)
-            os.replace(tmp_path, PARTECIPANTI)
-            return True
-        except Exception as e:
-            try:
-                if os.path.exists(tmp_path):
-                    os.remove(tmp_path)
-            except Exception:
-                pass
-            self.show_toast(f"Errore salvataggio partecipanti: {e}")
-            return False
+        self.save_db()
+        return True
 
     dialogo = tk.Toplevel(self)
     self._gestione_popup = dialogo
@@ -45,7 +33,7 @@ def gestisci_partecipanti(self, target_popup=None):
     dialogo.resizable(False, False)
     dialogo.withdraw()
     self.update_idletasks()
-    w, h = 750, 620
+    w, h = 800, 620
     x = self.winfo_rootx() + (self.winfo_width() // 2) - (w // 2)
     y = self.winfo_rooty() + (self.winfo_height() // 2) - (h // 2)
     dialogo.geometry(f"{w}x{h}+{x}+{y}")
@@ -322,6 +310,28 @@ def gestisci_partecipanti(self, target_popup=None):
         nascondi_soci()
         aggiorna_lista()
         listbox.focus_set()
+    def rinomina():
+        sel = listbox.curselection()
+        if not sel:
+            self.show_toast("Seleziona un partecipante da rinominare.")
+            return
+        vecchio = _get_nome(self.nomi_partecipanti[sel[0]])
+        nuovo = nuovo_var.get().strip()
+        if not nuovo:
+            self.show_toast("Scrivi il nuovo nome nel campo Nome, poi clicca Rinomina.")
+            return
+        ok, msg = rinomina_partecipante_fairshare(self, vecchio, nuovo)
+        self.show_toast(msg)
+        if not ok:
+            return
+        valore_corrente = self.partecipante_var.get()
+        nome_corrente = valore_corrente.split(" ", 1)[1].strip() if " " in valore_corrente else valore_corrente
+        if nome_corrente == vecchio:
+            self.partecipante_var.set("")
+        nuovo_var.set("")
+        nascondi_soci()
+        aggiorna_lista()
+        listbox.focus_set()
     listbox.bind("<Delete>", lambda e: rimuovi())
     def apri_percentuali():
         _profilo_attivo_gp = getattr(_app, "PROFILO_ATTIVO", "Principale")
@@ -533,6 +543,13 @@ def gestisci_partecipanti(self, target_popup=None):
                         cursor="hand2", padding=(8, 4))
     btn_del.pack(side=tk.LEFT)
     btn_del.bind("<Button-1>", lambda e: rimuovi())
+    img_ren = self.icone_gui.get("modifica")
+    btn_ren = ttk.Label(btn_frame, compound="left", image=img_ren,
+                        text=" Rinomina" if img_ren else "Rinomina",
+                        background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
+                        cursor="hand2", padding=(8, 4))
+    btn_ren.pack(side=tk.LEFT, padx=4)
+    btn_ren.bind("<Button-1>", lambda e: rinomina())
     btn_pct = ttk.Label(btn_frame, text=" % Percentuali",
                         background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
                         cursor="hand2", padding=(8, 4))

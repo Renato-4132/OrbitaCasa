@@ -8,7 +8,7 @@ import datetime
 from collections import defaultdict
 import tkinter as tk
 from tkinter import ttk
-from moduli.modello_spesa import SpesaEntry
+from moduli.modello_spesa import SpesaEntry, campo, metodo_pagamento_pulito
 
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
@@ -225,11 +225,14 @@ def _veicoli_importa_da_spese(self, db, win, nb):
         tree.heading(c, text=c, command=lambda _c=c: self.treeview_sort_column(tree, _c, False))
         tree.column(c, width=w, anchor=anc)
     tree.tag_configure("gia_importata", foreground="#888888")
+    tree._metodo_lookup = {}
+    self._bind_tooltip_metodo(tree, col_desc=2)
 
     riga_map = {}
 
     def _popola():
         tree.delete(*tree.get_children())
+        tree._metodo_lookup = {}
         riga_map.clear()
         fc = v_catf.get()
         fm = v_mesef.get()
@@ -252,6 +255,19 @@ def _veicoli_importa_da_spese(self, db, win, nb):
                 data_key.strftime("%d-%m-%Y"), entry.categoria,
                 entry.descrizione, f"{_fmt_it(entry.importo)} €", stato_txt
             ))
+            tree._metodo_lookup[iid] = {
+                "metodo": metodo_pagamento_pulito(campo(entry, "metodo_pagamento", "")),
+                "conto": campo(entry, "conto", ""),
+                "ora": campo(entry, "ora", ""),
+                "hashtag": list(campo(entry, "hashtag", []) or []),
+                "id_ricorrenza": campo(entry, "id_ricorrenza", "") or "",
+                "id_spesa": campo(entry, "id_spesa", "") or "",
+                "data": data_key.strftime("%d-%m-%Y"),
+                "categoria": entry.categoria,
+                "importo": entry.importo,
+                "tipo": campo(entry, "tipo", ""),
+                "_righe_extra": [("Stato", stato_txt)],
+            }
     cb_catf.bind("<<ComboboxSelected>>", lambda e: _popola())
     cb_mesef.bind("<<ComboboxSelected>>", lambda e: _popola())
     cb_annof.bind("<<ComboboxSelected>>", lambda e: _popola())

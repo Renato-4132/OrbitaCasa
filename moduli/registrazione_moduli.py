@@ -134,9 +134,9 @@ def registra_tutti_i_moduli(GestioneSpese):
     
     from moduli.immobil import (
         _immobil_carica, _immobil_salva, immobil, _immobil_crea_tab, _immobil_nuovo, _immobil_elimina, _immobil_grafici,
-        _immobil_estratto, _immobil_estratto_totale,)
+        _immobil_estratto, _immobil_estratto_totale, _immobil_importa_da_spese,)
     _registra(_immobil_carica, _immobil_salva, immobil, _immobil_crea_tab, _immobil_nuovo, _immobil_elimina, 
-    _immobil_grafici, _immobil_estratto, _immobil_estratto_totale)
+    _immobil_grafici, _immobil_estratto, _immobil_estratto_totale, _immobil_importa_da_spese)
 
     from moduli.manutenzione_casa import (
         _manutenzione_carica, _manutenzione_salva, _manutenzione_calcola_prossima, _manutenzione_giorni_a_scadenza,
@@ -203,11 +203,11 @@ def registra_tutti_i_moduli(GestioneSpese):
     from moduli.spese_pianificate import (
         apri_spalma_spesa, apri_gestione_spese_pianificate, ottieni_promemoria_mese,
         esiste_piano_per_spesa, elimina_piano, elimina_piano_per_spesa, ids_spese_pianificate,
-        piani_puliti, on_piano_doppio_click,
+        piani_puliti, on_piano_doppio_click, carica_pianificate_da_db,
     )
     _registra(apri_spalma_spesa, apri_gestione_spese_pianificate, ottieni_promemoria_mese,
               esiste_piano_per_spesa, elimina_piano, elimina_piano_per_spesa, ids_spese_pianificate,
-              piani_puliti, on_piano_doppio_click)
+              piani_puliti, on_piano_doppio_click, carica_pianificate_da_db)
 
     from moduli.pensione import apri_fondo_pensione
     _registra(apri_fondo_pensione)
@@ -343,6 +343,9 @@ def registra_tutti_i_moduli(GestioneSpese):
     from moduli.apri_calcolatrice import apri_calcolatrice
     _registra(apri_calcolatrice)
     
+    from moduli.scanner import scansiona_e_salva
+    _registra(scansiona_e_salva)
+    
     from moduli.contatta_assistenza import apri_pannello_topic, invia_email_assistenza
     _registra(apri_pannello_topic, invia_email_assistenza)
     
@@ -399,13 +402,13 @@ def registra_tutti_i_moduli(GestioneSpese):
         _on_partecipante_selected, _aggiorna_descrizione_con_partecipante, _on_ric_partecipante_selected, _aggiorna_descrizione_con_ric_partecipante,
         _gestore_partecipa, carica_fairshare_state, salva_fairshare_state, _sync_fairshare_e_aggiorna, sincronizza_fairshare_state,
         mostra_riepilogo_fairshare_periodo, popup_personali, popup_grafico_categorie_personali, mostra_guida_dare_avere,
-        get_fairshare_data_json, _percentuale_di, calcola_quote_spesa,)
+        get_fairshare_data_json, _percentuale_di, calcola_quote_spesa, carica_partecipanti_da_db,)
     _registra(_on_partecipante_selected, _aggiorna_descrizione_con_partecipante, 
     _on_ric_partecipante_selected, _aggiorna_descrizione_con_ric_partecipante, 
     _gestore_partecipa, carica_fairshare_state, salva_fairshare_state, 
     _sync_fairshare_e_aggiorna, sincronizza_fairshare_state, mostra_riepilogo_fairshare_periodo,
     popup_personali, popup_grafico_categorie_personali, mostra_guida_dare_avere, 
-    get_fairshare_data_json, _percentuale_di, calcola_quote_spesa)
+    get_fairshare_data_json, _percentuale_di, calcola_quote_spesa, carica_partecipanti_da_db)
 
     from moduli.webserver import (
         apri_webserver, _crea_flask_app, start_web_server, manda_push,

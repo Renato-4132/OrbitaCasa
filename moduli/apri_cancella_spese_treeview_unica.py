@@ -129,6 +129,7 @@ def apri_cancella_spese_treeview_unica(self):
         self.show_custom_warning("Successo", f"✓ {num_selezionate} spese sono state cancellate.")
     def popola_treeview_spese():
         self.spese_treeview.delete(*self.spese_treeview.get_children())
+        self.spese_treeview._metodo_lookup = {}
         if not self.spese:
             self.spese_treeview.insert("", "end", iid="FILTER_MSG",
                                        text="",
@@ -268,6 +269,18 @@ def apri_cancella_spese_treeview_unica(self):
                             values=(giorno_visualizzato, categoria, descrizione, tipo, importo_formattato, nome_conto_sp, metodo_sp, ora_sp, hashtag_txt_sp),
                             tags=tags
                         )
+                        self.spese_treeview._metodo_lookup[iid] = {
+                            "metodo": metodo_sp,
+                            "conto": nome_conto_sp,
+                            "ora": ora_sp,
+                            "hashtag": list(hashtag_sp),
+                            "id_ricorrenza": campo(voce, "id_ricorrenza", ""),
+                            "data": d.strftime("%d-%m-%Y") if d else "",
+                            "categoria": categoria,
+                            "importo": float(importo),
+                            "tipo": tipo,
+                            "id_spesa": campo(voce, "id_spesa", ""),
+                        }
                         items_inserted += 1
                 except Exception:
                     continue
@@ -615,7 +628,32 @@ def apri_cancella_spese_treeview_unica(self):
     self.spese_treeview.tag_configure('futuro', foreground='#E5C07B', font=('Arial', 9, 'italic'))
     self.spese_treeview.tag_configure('sforato', foreground='#C08081', font=('Arial', 9, 'bold'))
     self.spese_treeview.tag_configure('empty', foreground='gray', font=('Arial', 10, 'italic'))
+    def vai_a_spesa_doppio_clic(event):
+        iid = self.spese_treeview.identify_row(event.y)
+        if not iid or iid in ("EMPTY_MSG", "FILTER_MSG"): return
+        toggle_selection_treeview(event)
+        vals = self.spese_treeview.item(iid, "values")
+        try:
+            d = datetime.datetime.strptime(str(vals[0]).strip(), "%d/%m/%Y").date()
+        except (ValueError, IndexError):
+            return
+        desc_sel = str(vals[2])[:20]
+        _id_sp = (getattr(self.spese_treeview, "_metodo_lookup", {}).get(iid) or {}).get("id_spesa", "")
+        chiudi_popup_cf()
+        if self.stats_view_mode.get() != "tabella":
+            self.mostra_treeview_statistiche()
+        self.stats_view_mode.set("giorno")
+        if hasattr(self, "cal"):
+            self.cal.selection_set(d)
+            self.cal._sel_date = d
+            self.cal.event_generate("<<CalendarSelected>>")
+        self.update_stats()
+        self.stats_label.config(
+            text=f"Riepilogo Giornaliero - {d.strftime('%d-%m-%Y')}",
+            foreground="purple", font=("Arial", 10, "bold"))
+        self.after(400, lambda: self.seleziona_spesa_in_lista(d, desc_sel, _id_sp))
     self.spese_treeview.bind('<Button-1>', toggle_selection_treeview)
+    self.spese_treeview.bind('<Double-1>', vai_a_spesa_doppio_clic)
     btn_frame = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
     btn_frame.pack(pady=10) 
     img_canc_sel = self.icone_gui.get("delete")

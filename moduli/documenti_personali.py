@@ -80,7 +80,7 @@ def gestisci_documenti_personali(self):
     self._win_doc_pers = win
     win.title("Documenti Personali")
     win.withdraw()
-    win.minsize(1100, 620)
+    win.minsize(1300, 620)
     def chiudi_win():
         if hasattr(self, 'popup_calendario') and self.popup_calendario and self.popup_calendario.winfo_exists():
             self.popup_calendario.destroy()
@@ -237,7 +237,8 @@ def gestisci_documenti_personali(self):
                     pix = pg.get_pixmap(matrix=_fz.Matrix(z, z), alpha=False, annots=False)
                     img = _Im.frombytes("RGB", [pix.width, pix.height], pix.samples)
                 return _ImTk.PhotoImage(img)
-            except Exception:
+            except Exception as _e_pv:
+                print(f"[anteprima PDF] errore render '{path}': {_e_pv!r}")
                 return None
         def _pv_chiudi_big(event=None):
             if _pv["job"]:
@@ -345,6 +346,7 @@ def gestisci_documenti_personali(self):
                 return
             path = os.path.join(profilo_docs(nome_profilo), fname) if fname else ""
             if not path or not os.path.exists(path):
+                print(f"[anteprima PDF] file non trovato: '{path}'")
                 return
             h = max(300, min(600, win.winfo_screenheight() - 160))
             if _pvt["img_path"] != path or _pvt["img"] is None:
@@ -432,8 +434,20 @@ def gestisci_documenti_personali(self):
                 tree.delete(r)
             reg = load_registry(nome_profilo)
             fl  = filtro.lower().strip()
-            for fname, d in sorted(reg.items(),
-                                   key=lambda x: x[1].get("data_raw", ""), reverse=True):
+            def _data_ord(item):
+                d_ = item[1]
+                try:
+                    return datetime.strptime(d_.get("data_fmt", ""), "%d-%m-%Y")
+                except Exception:
+                    try:
+                        return datetime.strptime(d_.get("data_raw", ""), "%d%m%Y")
+                    except Exception:
+                        return datetime.min
+            _sort.clear()
+            for c in COLS:
+                tree.heading(c, text=COL_HDRS[c] + (" ▼" if c == "data" else ""),
+                             command=lambda x=c: sort_col(x))
+            for fname, d in sorted(reg.items(), key=_data_ord, reverse=True):
                 df   = d.get("data_fmt", "")
                 cat  = d.get("categoria", "")
                 desc = d.get("descrizione", "")
@@ -1022,10 +1036,42 @@ def gestisci_documenti_personali(self):
                 frm.dnd_bind("<<Drop>>", on_drop_dp)
             except Exception:
                 pass
+        def _scansiona_dp():
+            from moduli.scanner import apri_dialog_scansione
+            def _dopo_scansione_dp(pdf_path, usa_ai=True):
+                if _HAS_DND and usa_ai and API_KEY:
+                    class _EvScanDp:
+                        pass
+                    _ev = _EvScanDp()
+                    _ev.data = "{" + pdf_path + "}"
+                    on_drop_dp(_ev)
+                else:
+                    _drop_path_ref[0] = pdf_path
+                    _pv_imposta(pdf_path, "drop")
+                    self.show_toast(f"Scansione pronta: {os.path.basename(pdf_path)} — compila i campi e clicca Archivia PDF")
+            apri_dialog_scansione(self, win, _dopo_scansione_dp)
+        def scarta_pdf():
+            p = _drop_path_ref[0]
+            if not p:
+                return self.show_toast("Nessun PDF da annullare.")
+            if not self.show_custom_askyesno("Annulla PDF", "Annullare il PDF caricato e svuotare i campi?"):
+                return
+            from moduli.scanner import scarta_scansione
+            scarta_scansione(p)
+            _drop_path_ref[0] = None
+            _pv_imposta(None, None)
+            entry_desc.delete(0, tk.END)
+            entry_note.delete(0, tk.END)
+            scad_var.set("")
+            data_var.set(datetime.now().strftime("%d-%m-%Y"))
+            _aggiorna_visibilita_scadenza()
+            self.show_toast("PDF annullato.")
         frm_btn = ttk.Frame(frm, padding="8 4 8 10")
         frm_btn.pack(fill="x")
         for lbl, cmd, ik in [
             (" Archivia PDF", archivia,             "archivia"),
+            (" Scansiona" if "scansiona" in self.icone_gui else "📷 Scansiona", _scansiona_dp, "scansiona"),
+            (" Annulla PDF",  scarta_pdf,            "chiudi"),
             (" Modifica",     modifica,              "descrizione"),
             (" Cancella",     cancella,              "cancella"),
             (" Salva",        esporta,               "salva"),

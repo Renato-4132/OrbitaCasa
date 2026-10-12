@@ -10,7 +10,7 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import ttk
 from moduli.modello_spesa import (
-    SpesaEntry, METODI_PAGAMENTO_EMOJI, SIMBOLI_METODO, metodo_pagamento_pulito,
+    SpesaEntry, METODI_PAGAMENTO_EMOJI, SIMBOLI_METODO, metodo_pagamento_pulito, campo,
 )
 
 def _fmt_it(v, spec=",.2f"):
@@ -38,6 +38,235 @@ def _immobil_salva(self, db):
             json.dump(db, f, indent=2, ensure_ascii=False)
     except Exception as e:
         self.show_toast(f"Errore salvataggio ImmoBil: {e}")
+def _immobil_importa_da_spese(self, db, win, nb):
+    if not db.get("immobili"):
+        self.show_toast("Crea prima almeno un immobile.")
+        return
+
+    candidate = []
+    for data_key, lista in self.spese.items():
+        for entry in lista:
+            if getattr(entry, "tipo", "") not in ("Uscita", "Entrata"):
+                continue
+            gia_importata = "#immobili" in (getattr(entry, "hashtag", []) or [])
+            candidate.append((data_key, entry, gia_importata))
+    candidate.sort(key=lambda t: t[0], reverse=True)
+
+    popup = tk.Toplevel(win, bg=self.COLOR_TOPLEVEL)
+    popup.title("Importa spese in ImmoBil")
+    popup.transient(win)
+    popup.withdraw()
+    win.update_idletasks()
+    W, H = 1050, 560
+    x = win.winfo_rootx() + (win.winfo_width() // 2) - (W // 2)
+    y = win.winfo_rooty() + (win.winfo_height() // 2) - (H // 2)
+    popup.geometry(f"{W}x{H}+{max(0,x)}+{max(0,y)}")
+    popup.deiconify()
+    popup.lift()
+    popup.focus_force()
+    popup.bind("<Escape>", lambda e: popup.destroy())
+
+    top_f = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
+    top_f.pack(fill=tk.X, padx=10, pady=(10, 4))
+    tk.Label(top_f, text="Immobile destinazione:", bg=self.COLOR_TOPLEVEL,
+             fg=self.TEXT_COLOR, font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=(0, 6))
+    nomi_i = [x.get("nome", "Immobile") for x in db["immobili"]]
+    v_dest = tk.StringVar(value=nomi_i[0])
+    cb_dest = ttk.Combobox(top_f, textvariable=v_dest, values=nomi_i,
+                           state="readonly", style="Border.TCombobox", width=20)
+    cb_dest.pack(side=tk.LEFT, padx=(0, 12))
+
+    tk.Label(top_f, text="Categoria immobile:", bg=self.COLOR_TOPLEVEL,
+             fg=self.TEXT_COLOR, font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=(0, 6))
+    v_catdest = tk.StringVar()
+    cb_catdest = ttk.Combobox(top_f, textvariable=v_catdest, state="readonly",
+                              style="Border.TCombobox", width=24)
+    cb_catdest.pack(side=tk.LEFT)
+
+    def _aggiorna_catdest(*_a):
+        imm_sel = next((x for x in db["immobili"] if x.get("nome") == v_dest.get()), None)
+        cat_i_dest = (imm_sel or {}).get("categorie") or ["Generale"]
+        cb_catdest["values"] = cat_i_dest
+        if cat_i_dest:
+            v_catdest.set(cat_i_dest[0])
+    cb_dest.bind("<<ComboboxSelected>>", _aggiorna_catdest)
+    _aggiorna_catdest()
+
+    filtro_f = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
+    filtro_f.pack(fill=tk.X, padx=10, pady=(4, 0))
+    tk.Label(filtro_f, text="Filtra per categoria spesa originale:", bg=self.COLOR_TOPLEVEL,
+             fg=self.TEXT_COLOR, font=("Arial", 9)).pack(side=tk.LEFT, padx=(0, 6))
+    cats_presenti = sorted({e.categoria for _, e, _ in candidate}, key=str.lower)
+    v_catf = tk.StringVar(value="Tutte")
+    cb_catf = ttk.Combobox(filtro_f, textvariable=v_catf, values=["Tutte"] + cats_presenti,
+                           state="readonly", style="Border.TCombobox", width=18)
+    cb_catf.pack(side=tk.LEFT, padx=(0, 12))
+
+    tk.Label(filtro_f, text="Mese:", bg=self.COLOR_TOPLEVEL,
+             fg=self.TEXT_COLOR, font=("Arial", 9)).pack(side=tk.LEFT, padx=(0, 6))
+    mesi_presenti = sorted({data_key.strftime("%m") for data_key, _, _ in candidate})
+    v_mesef = tk.StringVar(value="Tutti")
+    cb_mesef = ttk.Combobox(filtro_f, textvariable=v_mesef, values=["Tutti"] + mesi_presenti,
+                            state="readonly", style="Border.TCombobox", width=6)
+    cb_mesef.pack(side=tk.LEFT, padx=(0, 12))
+
+    tk.Label(filtro_f, text="Anno:", bg=self.COLOR_TOPLEVEL,
+             fg=self.TEXT_COLOR, font=("Arial", 9)).pack(side=tk.LEFT, padx=(0, 6))
+    anni_presenti = sorted({data_key.strftime("%Y") for data_key, _, _ in candidate})
+    v_annof = tk.StringVar(value="Tutti")
+    cb_annof = ttk.Combobox(filtro_f, textvariable=v_annof, values=["Tutti"] + anni_presenti,
+                            state="readonly", style="Border.TCombobox", width=8)
+    cb_annof.pack(side=tk.LEFT, padx=(0, 12))
+
+    v_nascondi = tk.BooleanVar(value=False)
+    chk_nascondi = ttk.Checkbutton(filtro_f, text="Nascondi già collegate", variable=v_nascondi)
+    chk_nascondi.pack(side=tk.LEFT)
+
+    cols = ("Data", "Categoria originale", "Descrizione", "Tipo", "Importo", "Stato")
+    tree_f = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
+    tree_f.pack(fill=tk.BOTH, expand=True, padx=10, pady=6)
+    tree = ttk.Treeview(tree_f, columns=cols, show="headings", selectmode="extended")
+    vsb = ttk.Scrollbar(tree_f, orient="vertical", command=tree.yview)
+    tree.configure(yscrollcommand=vsb.set)
+    vsb.pack(side=tk.RIGHT, fill=tk.Y)
+    tree.pack(fill=tk.BOTH, expand=True)
+    wcfg = {"Data": (90, "w"), "Categoria originale": (150, "w"),
+            "Descrizione": (240, "w"), "Tipo": (70, "center"),
+            "Importo": (90, "e"), "Stato": (110, "center")}
+    for c in cols:
+        w, anc = wcfg[c]
+        tree.heading(c, text=c, command=lambda _c=c: self.treeview_sort_column(tree, _c, False))
+        tree.column(c, width=w, anchor=anc)
+    tree.tag_configure("gia_importata", foreground="#888888")
+    tree.tag_configure("entrata", foreground=self.COLOR_GREEN)
+    tree.tag_configure("uscita",  foreground=self.COLOR_RED)
+    tree._metodo_lookup = {}
+    self._bind_tooltip_metodo(tree, col_desc=2)
+
+    riga_map = {}
+
+    def _popola():
+        tree.delete(*tree.get_children())
+        tree._metodo_lookup = {}
+        riga_map.clear()
+        fc = v_catf.get()
+        fm = v_mesef.get()
+        fa = v_annof.get()
+        nascondi = v_nascondi.get()
+        for i, (data_key, entry, gia_importata) in enumerate(candidate):
+            if fc != "Tutte" and entry.categoria != fc:
+                continue
+            if fm != "Tutti" and data_key.strftime("%m") != fm:
+                continue
+            if fa != "Tutti" and data_key.strftime("%Y") != fa:
+                continue
+            if nascondi and gia_importata:
+                continue
+            iid = str(i)
+            riga_map[iid] = (data_key, entry, gia_importata)
+            stato_txt = "✔ Collegata" if gia_importata else "Da importare"
+            tag = ("gia_importata" if gia_importata
+                   else ("entrata" if entry.tipo == "Entrata" else "uscita"))
+            tree.insert("", "end", iid=iid, tags=(tag,), values=(
+                data_key.strftime("%d-%m-%Y"), entry.categoria,
+                entry.descrizione, entry.tipo, f"{_fmt_it(entry.importo)} €", stato_txt
+            ))
+            tree._metodo_lookup[iid] = {
+                "metodo": metodo_pagamento_pulito(campo(entry, "metodo_pagamento", "")),
+                "conto": campo(entry, "conto", ""),
+                "ora": campo(entry, "ora", ""),
+                "hashtag": list(campo(entry, "hashtag", []) or []),
+                "id_ricorrenza": campo(entry, "id_ricorrenza", "") or "",
+                "id_spesa": campo(entry, "id_spesa", "") or "",
+                "data": data_key.strftime("%d-%m-%Y"),
+                "categoria": entry.categoria,
+                "importo": entry.importo,
+                "tipo": campo(entry, "tipo", ""),
+                "_righe_extra": [("Stato", stato_txt)],
+            }
+    cb_catf.bind("<<ComboboxSelected>>", lambda e: _popola())
+    cb_mesef.bind("<<ComboboxSelected>>", lambda e: _popola())
+    cb_annof.bind("<<ComboboxSelected>>", lambda e: _popola())
+    chk_nascondi.configure(command=_popola)
+    _popola()
+
+    def _importa():
+        sel = tree.selection()
+        if not sel:
+            self.show_toast("Seleziona almeno una spesa da importare.")
+            return
+        gia_sel = [riga_map[iid] for iid in sel if riga_map.get(iid, (None, None, False))[2]]
+        sel_valide = [iid for iid in sel if not riga_map.get(iid, (None, None, False))[2]]
+        if not sel_valide:
+            self.show_toast("Le spese selezionate risultano già collegate.")
+            return
+        immobile = next((x for x in db["immobili"] if x.get("nome") == v_dest.get()), None)
+        if immobile is None:
+            self.show_toast("Immobile non trovato.")
+            return
+        cat_dest = v_catdest.get().strip()
+        if not cat_dest:
+            self.show_toast("Seleziona una categoria di destinazione.")
+            return
+        n = 0
+        for iid in sel_valide:
+            data_key, entry, _ = riga_map.get(iid, (None, None, False))
+            if entry is None:
+                continue
+            export_id = str(uuid.uuid4())
+            nuovo_mov = {
+                "id": str(uuid.uuid4()),
+                "data": data_key.strftime("%d-%m-%Y"),
+                "categoria": cat_dest,
+                "descrizione": entry.descrizione,
+                "importo": entry.importo,
+                "tipo": entry.tipo,
+                "esportato": export_id,
+            }
+            immobile.setdefault("spese", []).append(nuovo_mov)
+            entry.hashtag = list(getattr(entry, "hashtag", []) or []) + ["#immobili", f"#immexp:{export_id}"]
+            n += 1
+        self._immobil_salva(db)
+        self.save_db()
+        self.refresh_gui()
+
+        nome_dest = immobile.get("nome")
+        for tab_id in list(nb.tabs()):
+            nb.forget(tab_id)
+        for ii in db["immobili"]:
+            self._immobil_crea_tab(nb, ii, db, win)
+        for i, ii in enumerate(db["immobili"]):
+            if ii.get("nome") == nome_dest:
+                nb.select(i)
+                break
+
+        msg = f"Importate {n} spese in {immobile.get('nome')} (categoria: {cat_dest})."
+        if gia_sel:
+            msg += f" {len(gia_sel)} già collegate saltate."
+        self.show_toast(msg)
+        popup.destroy()
+
+    btn_f = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
+    btn_f.pack(fill=tk.X, padx=10, pady=(0, 10))
+    img_imp = self.icone_gui.get("aggiungi")
+    b_imp = ttk.Label(btn_f, compound="left", image=img_imp,
+                      text=" Importa selezionate" if img_imp else "📥 Importa selezionate",
+                      background=self.COLOR_TOPLEVEL, foreground=self.TEXT_COLOR, cursor="hand2")
+    b_imp.image = img_imp
+    b_imp.pack(side=tk.LEFT, padx=4)
+    b_imp.bind("<Button-1>", lambda e: _importa())
+    img_ch = self.icone_gui.get("chiudi")
+    b_ch = ttk.Label(btn_f, compound="left", image=img_ch,
+                     text=" Chiudi" if img_ch else "Chiudi",
+                     background=self.COLOR_TOPLEVEL, foreground=self.TEXT_COLOR, cursor="hand2")
+    b_ch.image = img_ch
+    b_ch.pack(side=tk.LEFT, padx=4)
+    b_ch.bind("<Button-1>", lambda e: popup.destroy())
+
+    if not candidate:
+        tk.Label(popup, text="Nessuna spesa da importare: non ci sono ancora spese registrate.",
+                 bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR, font=("Arial", 10)).pack(pady=20)
+
 def immobil(self):
     if hasattr(self, "_immobil_win") and self._immobil_win and self._immobil_win.winfo_exists():
         self._immobil_win.lift()
@@ -72,6 +301,7 @@ def immobil(self):
     _btn(toolbar, " Nuovo Immobile",   lambda: self._immobil_nuovo(db, nb, win),  "home")
     _btn(toolbar, " Elimina Immobile", lambda: self._immobil_elimina(db, nb, win),"delete")
     _btn(toolbar, " Grafici",          lambda: self._immobil_grafici(db),          "report")
+    _btn(toolbar, " Importa da Spese", lambda: self._immobil_importa_da_spese(db, win, nb), "aggiungi")
     def _get_vars():
         try:
             idx = nb.index(nb.select())
@@ -480,6 +710,8 @@ def _immobil_crea_tab(self, nb, imm, db, win):
         tree.column(c, width=w, anchor=anc)
     tree.tag_configure("entrata", foreground=self.COLOR_GREEN)
     tree.tag_configure("uscita",  foreground=self.COLOR_RED)
+    tree._metodo_lookup = {}
+    self._bind_tooltip_metodo(tree, col_desc=2)
     def _match_f(data_str):
         if len(data_str) != 10:
             return True
@@ -531,6 +763,13 @@ def _immobil_crea_tab(self, nb, imm, db, win):
         if migrato:
             self._immobil_salva(db)
         tree.delete(*tree.get_children())
+        tree._metodo_lookup = {}
+        _idx_exp = {}
+        for _d_sp, _lista_sp in self.spese.items():
+            for _e_sp in _lista_sp:
+                for _h_sp in (getattr(_e_sp, "hashtag", []) or []):
+                    if str(_h_sp).startswith("#immexp:"):
+                        _idx_exp[str(_h_sp)[len("#immexp:"):]] = (_d_sp, _e_sp)
         for m in sorted(imm.get("spese", []), key=lambda x: x.get("data","")):
             if not _match_f(m.get("data", "")):
                 continue
@@ -550,6 +789,34 @@ def _immobil_crea_tab(self, nb, imm, db, win):
                 f"{val_float:.2f}".replace(".", ",") + " €",
                 "Sì" if m.get("esportato") else "No"
             ))
+            _exp_tt = m.get("esportato")
+            _link_tt = _idx_exp.get(_exp_tt) if _exp_tt and _exp_tt is not True else None
+            if _link_tt:
+                _d_l, _e_l = _link_tt
+                _ora_l = campo(_e_l, "ora", "")
+                _extra_tt = [("Esportazione", "Esportato in Spese"),
+                             ("Spesa del", _d_l.strftime("%d-%m-%Y") + (f" alle {_ora_l}" if _ora_l else ""))]
+                _conto_l = campo(_e_l, "conto", "")
+                if _conto_l:
+                    _extra_tt.append(("Conto spesa", _conto_l))
+                _met_l = metodo_pagamento_pulito(campo(_e_l, "metodo_pagamento", ""))
+                if _met_l:
+                    _extra_tt.append(("Pagamento", _met_l))
+                _extra_tt.append(("Importo spesa", f"€ {_fmt_it(float(_e_l.importo))}"))
+                _desc_l = str(_e_l.descrizione or "").strip()
+                if _desc_l:
+                    _extra_tt.append(("Descrizione spesa", _desc_l))
+            elif _exp_tt:
+                _extra_tt = [("Esportazione", "Esportato (spesa collegata non trovata)")]
+            else:
+                _extra_tt = [("Esportazione", "Non esportato")]
+            tree._metodo_lookup[m["id"]] = {
+                "data": m.get("data", ""),
+                "categoria": m.get("categoria", ""),
+                "importo": val_float,
+                "tipo": m.get("tipo", ""),
+                "_righe_extra": _extra_tt,
+            }
         _aggiorna_totali()
         
     riga_in_modifica = None

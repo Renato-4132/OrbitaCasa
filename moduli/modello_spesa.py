@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import copy
 import uuid
 import datetime
 
@@ -51,12 +52,12 @@ def campo(entry, nome, default=""):
 class SpesaEntry:
     __slots__ = (
         "categoria", "descrizione", "importo", "tipo", "id_ricorrenza",
-        "id_spesa", "conto", "ora", "hashtag", "metodo_pagamento",
+        "id_spesa", "conto", "ora", "hashtag", "metodo_pagamento", "fairshare",
     )
 
     def __init__(self, categoria, descrizione, importo, tipo,
                  id_ricorrenza=None, id_spesa=None, conto="", ora="",
-                 hashtag=None, metodo_pagamento=""):
+                 hashtag=None, metodo_pagamento="", fairshare=None):
         self.categoria = categoria
         self.descrizione = descrizione
         self.importo = abs(float(importo))
@@ -67,6 +68,7 @@ class SpesaEntry:
         self.ora = ora or ""
         self.hashtag = list(hashtag) if hashtag else []
         self.metodo_pagamento = metodo_pagamento or ""
+        self.fairshare = copy.deepcopy(fairshare) if fairshare else None
     def _tupla_legacy(self):
         base = (self.categoria, self.descrizione, self.importo, self.tipo)
         if self.id_ricorrenza is not None:
@@ -103,6 +105,7 @@ class SpesaEntry:
             ora=e.get("ora", ""),
             hashtag=e.get("hashtag", []),
             metodo_pagamento=e.get("metodo_pagamento", ""),
+            fairshare=e.get("fairshare"),
         )
     def a_dict(self):
         d = {
@@ -122,6 +125,8 @@ class SpesaEntry:
             d["hashtag"] = self.hashtag
         if self.metodo_pagamento:
             d["metodo_pagamento"] = self.metodo_pagamento
+        if self.fairshare:
+            d["fairshare"] = self.fairshare
         return d
 
     @classmethod

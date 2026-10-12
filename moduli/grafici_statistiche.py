@@ -26,6 +26,127 @@ def formatta_italiano(numero, segno=False, decimali=2):
     fmt = "{:+,.%df}" % decimali if segno else "{:,.%df}" % decimali
     return fmt.format(numero).replace(',', 'X').replace('.', ',').replace('X', '.')
 
+_MESI_BREVI = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
+_MESI_LUNGHI = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
+                "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
+
+def _pct_segno(x):
+    return f"{x:+.1f}%".replace(".", ",")
+
+def _pct(x):
+    return f"{x:.1f}%".replace(".", ",")
+
+def _voce_std(entry):
+    try:
+        if isinstance(entry, dict):
+            return (entry.get("categoria", "Altro"), entry.get("descrizione", ""),
+                    abs(float(entry.get("importo", 0) or 0)), entry.get("tipo", ""),
+                    entry.get("conto", "") or "")
+        return (entry[0], entry[1], abs(float(entry[2])), entry[3], campo(entry, "conto", "") or "")
+    except Exception:
+        return None
+
+def _nuova_stat():
+    return {"n": 0, "tot": 0.0, "max": (0.0, ""), "cat": defaultdict(float),
+            "conti": defaultdict(float), "mesi": defaultdict(float), "ultimo": None}
+
+def _aggiorna_stat(st, giorno, cat, desc, imp, conto):
+    st["n"] += 1
+    st["tot"] += imp
+    if imp > st["max"][0]:
+        st["max"] = (imp, str(desc).strip())
+    st["cat"][cat] += imp
+    st["conti"][conto] += imp
+    st["mesi"][(giorno.year, giorno.month)] += imp
+    if st["ultimo"] is None or giorno > st["ultimo"]:
+        st["ultimo"] = giorno
+
+def _raccogli_stat_periodo(self, conto_sel, modo, anno_corrente):
+    stat = {}
+    oggi = datetime.date.today()
+    con_futuri = self.considera_ricorrenze_var.get()
+    for giorno, entries in self.spese.items():
+        if not hasattr(giorno, "year"):
+            continue
+        if modo == "mese":
+            if giorno.year != anno_corrente:
+                continue
+            chiave = giorno.month
+        elif modo == "anno":
+            chiave = giorno.year
+        else:
+            chiave = (giorno.year, giorno.month)
+        if not con_futuri and giorno > oggi:
+            continue
+        for entry in entries:
+            v = _voce_std(entry)
+            if not v:
+                continue
+            cat, desc, imp, tipo, conto = v
+            if conto_sel is not None and conto != conto_sel.get("nome", ""):
+                continue
+            if tipo not in ("Entrata", "Uscita"):
+                continue
+            st = stat.setdefault((chiave, tipo), _nuova_stat())
+            _aggiorna_stat(st, giorno, str(cat).strip() or "Altro", desc, imp, conto.strip() or "(Nessun conto)")
+    return stat
+
+def _blocco_top(d, n=5):
+    voci = sorted([(k, v) for k, v in d.items() if v > 0], key=lambda kv: kv[1], reverse=True)
+    if not voci:
+        return ""
+    tot = sum(v for _, v in voci)
+    visibili = [((k if len(k) <= 22 else k[:21] + "…"), v) for k, v in voci[:n]]
+    resto = voci[n:]
+    w = max(len(k) for k, _ in visibili) + 3
+    righe = [f"{(k + ':').ljust(w)}{formatta_italiano(v)} €  ({_pct(v / tot * 100)})" for k, v in visibili]
+    if resto:
+        righe.append(f"… altre {len(resto)}: {formatta_italiano(sum(v for _, v in resto))} €")
+    return "\n".join(righe)
+
+def _righe_stat(st, totale):
+    righe = [("Totale", f"{formatta_italiano(totale)} €")]
+    if st and st["n"]:
+        righe.append(("Movimenti", f"{st['n']}  (media {formatta_italiano(st['tot'] / st['n'])} €)"))
+        imp, desc = st["max"]
+        if imp > 0:
+            d = desc if len(desc) <= 26 else desc[:25] + "…"
+            righe.append(("Più alto", f"{formatta_italiano(imp)} €" + (f"  ({d})" if d else "")))
+        if st["ultimo"]:
+            righe.append(("Ultimo", st["ultimo"].strftime("%d/%m/%Y")))
+    return righe
+
+def _componi_tooltip(intestazione, righe, blocchi=(), hint="Doppio clic → dettaglio movimenti"):
+    testo = intestazione + "\n" + "─" * (len(intestazione) + 2)
+    if righe:
+        w = max(len(e) for e, _ in righe) + 2
+        testo += "\n" + "\n".join(f"{((e + ':') if e else '').ljust(w)}{v}" for e, v in righe)
+    for tit, corpo in blocchi:
+        if corpo:
+            testo += f"\n— {tit} —\n{corpo}"
+    if hint:
+        testo += "\n" + hint
+    return testo
+
+def _tooltip_categoria(label, tipo, val, st, tot_tipo, n_barre, periodo_str, budget, sfora, conto_filtrato):
+    righe = _righe_stat(st, val)
+    if tot_tipo > 0 and n_barre > 1:
+        righe.append(("Quota", f"{_pct(val / tot_tipo * 100)} di {formatta_italiano(tot_tipo)} €"))
+    if st and len(st["mesi"]) > 1:
+        (a, m), v_m = max(st["mesi"].items(), key=lambda kv: kv[1])
+        righe.append(("Mese max", f"{_MESI_BREVI[m - 1]} {a}  {formatta_italiano(v_m)} €"))
+    if budget is not None and budget > 0:
+        righe.append(("Budget annuo", f"{formatta_italiano(budget)} €  (usato {_pct(val / budget * 100)})"))
+        if sfora:
+            righe.append(("", f"Superato di {formatta_italiano(val - budget)} €"))
+        else:
+            righe.append(("", f"Residuo {formatta_italiano(budget - val)} €"))
+    blocchi = []
+    if st and not conto_filtrato and len(st["conti"]) > 1:
+        blocchi.append(("Per Conto", _blocco_top(st["conti"], 3)))
+    intestazione = f"{label}  ·  {'Uscite' if tipo == 'Uscita' else 'Entrate'}  ({periodo_str})"
+    return _componi_tooltip(intestazione, righe, blocchi)
+
 def draw_bar_chart(self, event=None):
     if self.stats_view_mode.get() != "grafico":
         return
@@ -61,6 +182,7 @@ def draw_bar_chart(self, event=None):
             conto_sel = next((c for c in conti_disponibili if c.get("nome", "") == self.bar_grafico_conto_filtro), None)
         category_totals = defaultdict(float)
         income_totals = defaultdict(float)
+        stat_cat = {}
         oggi = datetime.date.today()
         anno_corrente = oggi.year
         anni_presenti = [g.year for g in self.spese.keys() if hasattr(g, 'year')]
@@ -81,10 +203,14 @@ def draw_bar_chart(self, event=None):
                             continue
                         try: imp = float(str(imp).replace(",", ".").replace("€", "").strip())
                         except: imp = 0
+                        _v = _voce_std(entry)
+                        _desc_v, _conto_v = (_v[1], _v[4]) if _v else ("", "")
                         if str(tipo).lower() == "uscita" and imp > 0:
                             category_totals[cat] += imp
+                            _aggiorna_stat(stat_cat.setdefault(("Uscita", cat), _nuova_stat()), giorno, str(cat), _desc_v, imp, _conto_v.strip() or "(Nessun conto)")
                         elif str(tipo).lower() == "entrata" and imp > 0:
                             income_totals[cat] += imp
+                            _aggiorna_stat(stat_cat.setdefault(("Entrata", cat), _nuova_stat()), giorno, str(cat), _desc_v, imp, _conto_v.strip() or "(Nessun conto)")
         data_out = sorted([{'label': k, 'value': v} for k, v in category_totals.items() if v > 0], key=lambda x: x['value'], reverse=True)
         data_in = sorted([{'label': k, 'value': v} for k, v in income_totals.items() if v > 0], key=lambda x: x['value'], reverse=True)
         BAR_SPACE, CHART_LEFT = 40, 50
@@ -183,9 +309,11 @@ def draw_bar_chart(self, event=None):
             )
             canvas.create_text(x, CHART_BOTTOM + 5, text=label, anchor="ne", angle=45, font=("Arial", 7, "bold"), fill=color)
             canvas.create_text(x, CHART_BOTTOM-h_barra-5, text=f"€ {formatta_italiano(val, decimali=0)}", anchor="s", font=("Arial", 7, "bold"), fill=self.TEXT_COLOR)
-            tooltip_txt = f"{label}: € {formatta_italiano(val)}"
-            if budget is not None and budget > 0:
-                tooltip_txt += f"\nBudget annuo: € {formatta_italiano(budget)}" + (" — Budget superato" if sfora else "")
+            tooltip_txt = _tooltip_categoria(
+                label, tipo, val, stat_cat.get((tipo, label)),
+                t_out if tipo == "Uscita" else t_in,
+                len(data_out) if tipo == "Uscita" else len(data_in),
+                periodo_str, budget, sfora, conto_sel is not None)
             canvas.tag_bind(tag, "<Enter>", lambda e, t=tooltip_txt: self.show_tooltip(e, t))
             canvas.tag_bind(tag, "<Leave>", lambda e: self.hide_tooltip())
             conto_bar_attivo = None if self.bar_grafico_conto_filtro == HOUSEHOLD_LABEL else self.bar_grafico_conto_filtro
@@ -341,6 +469,39 @@ def draw_mensile_chart(self, event=None):
                     elif t.get("a") == conto_sel.get("id"):
                         mensili[mese_idx_t]["entrata"] += imp
             self.data_for_chart = mensili
+        stat_m = _raccogli_stat_periodo(self, conto_sel, "anno" if self.visualizza_tutti_gli_anni_mensile else "mese", anno_corrente)
+        def tooltip_barra(i, tipo, p_text):
+            dati = self.data_for_chart
+            item = dati[i]
+            k = "entrata" if tipo == "Entrata" else "uscita"
+            val = item[k]
+            chiave = int(item["label"]) if self.visualizza_tutti_gli_anni_mensile else i + 1
+            st = stat_m.get((chiave, tipo))
+            righe = _righe_stat(st, val)
+            righe.insert(1, ("Saldo periodo", f"{formatta_italiano(item['entrata'] - item['uscita'], segno=True)} €"))
+            tot_tipo = sum(it[k] for it in dati)
+            if tot_tipo > 0 and len(dati) > 1:
+                righe.append(("Quota", f"{_pct(val / tot_tipo * 100)} di {formatta_italiano(tot_tipo)} €"))
+            j = i - 1
+            while j >= 0 and dati[j][k] <= 0:
+                j -= 1
+            if j >= 0 and val > 0:
+                dl = val - dati[j][k]
+                righe.append((f"vs {dati[j]['label']}", f"{'▲' if dl >= 0 else '▼'} {_pct_segno(dl / dati[j][k] * 100)}  ({formatta_italiano(dl, segno=True)} €)"))
+            serie = [it[k] for it in dati if it[k] > 0]
+            if len(serie) > 2:
+                media = sum(serie) / len(serie)
+                dm = val - media
+                righe.append(("vs media", f"{'▲' if dm >= 0 else '▼'} {_pct_segno(dm / media * 100)}  (media {formatta_italiano(media)} €)"))
+            diff_trasf = val - (sum(st["cat"].values()) if st else 0.0)
+            if abs(diff_trasf) > 0.005:
+                righe.append(("Trasferimenti", f"{formatta_italiano(diff_trasf, segno=True)} €"))
+            blocchi = []
+            if st:
+                blocchi.append(("Per Categoria", _blocco_top(st["cat"], 5)))
+                if conto_sel is None and len(st["conti"]) > 1:
+                    blocchi.append(("Per Conto", _blocco_top(st["conti"], 3)))
+            return _componi_tooltip(f"{p_text}  ·  {'Entrate' if tipo == 'Entrata' else 'Uscite'}", righe, blocchi)
         c_width = canvas.winfo_width() if canvas.winfo_width() > 10 else 800
         c_height = canvas.winfo_height() if canvas.winfo_height() > 10 else 400
         CHART_LEFT = 50
@@ -444,9 +605,9 @@ def draw_mensile_chart(self, event=None):
                 self.mostra_transazioni_popup({"anno": a, "mese": m, "categoria": None, "tipo": "Entrata", "conto": c}, f"Transazioni {t} - Solo Entrate"))
             canvas.tag_bind(tag_u, "<Double-1>", lambda e, a=f_anno, m=f_mese, t=p_text, c=conto_mensile_attivo: 
                 self.mostra_transazioni_popup({"anno": a, "mese": m, "categoria": None, "tipo": "Uscita", "conto": c}, f"Transazioni {t} - Solo Uscite"))
-            canvas.tag_bind(tag_e, "<Enter>", lambda e, v=item['entrata'], l=item['label']: self.show_tooltip(e, f"{l} - Entrata: € {formatta_italiano(v)}"))
+            canvas.tag_bind(tag_e, "<Enter>", lambda e, t=tooltip_barra(i, "Entrata", p_text): self.show_tooltip(e, t))
             canvas.tag_bind(tag_e, "<Leave>", self.hide_tooltip)
-            canvas.tag_bind(tag_u, "<Enter>", lambda e, v=item['uscita'], l=item['label']: self.show_tooltip(e, f"{l} - Uscita: € {formatta_italiano(v)}"))
+            canvas.tag_bind(tag_u, "<Enter>", lambda e, t=tooltip_barra(i, "Uscita", p_text): self.show_tooltip(e, t))
             canvas.tag_bind(tag_u, "<Leave>", self.hide_tooltip)
         canvas.create_text(CHART_LEFT - 5, CHART_TOP, text=formatta_italiano(max_value, decimali=0), anchor="e", font=("Arial", 8), fill=self.TEXT_COLOR)
         canvas.create_text(CHART_LEFT - 5, CHART_BOTTOM, text="0", anchor="e", font=("Arial", 8), fill=self.TEXT_COLOR)
@@ -743,6 +904,52 @@ def draw_saldo_chart(self, event=None):
                                 text="Nessun dato saldo disponibile.",
                                 font=("Arial", 12), fill="#AAAAAA")
             return
+        _modo_st = "anno_mese" if self.visualizza_saldo_10_anni else ("anno" if self.visualizza_saldo_totale else "mese")
+        stat_s = _raccogli_stat_periodo(self, conto_sel, _modo_st, anno_corrente)
+        def tooltip_saldo(i, titolo):
+            dati = self.data_for_chart
+            item = dati[i]
+            saldo = item["saldo"]
+            if self.visualizza_saldo_10_anni:
+                chiave = (item["data"].year, item["data"].month)
+            elif self.visualizza_saldo_totale:
+                chiave = int(item["label"])
+            else:
+                chiave = i + 1
+            se, su = stat_s.get((chiave, "Entrata")), stat_s.get((chiave, "Uscita"))
+            ent = se["tot"] if se else 0.0
+            usc = su["tot"] if su else 0.0
+            n_mov = (se["n"] if se else 0) + (su["n"] if su else 0)
+            righe = []
+            if self.visualizza_saldo_10_anni:
+                righe.append(("Saldo", f"{formatta_italiano(saldo, segno=True)} €"))
+                if i > 0:
+                    dl = saldo - dati[i - 1]["saldo"]
+                    righe.append((f"vs {dati[i - 1]['label']}", f"{'▲' if dl >= 0 else '▼'} {formatta_italiano(dl, segno=True)} €"))
+                righe.append(("Entrate mese", f"{formatta_italiano(ent)} €"))
+                righe.append(("Uscite mese", f"{formatta_italiano(usc)} €"))
+                righe.append(("Netto mese", f"{formatta_italiano(ent - usc, segno=True)} €"))
+            else:
+                righe.append(("Saldo", f"{formatta_italiano(saldo, segno=True)} €"))
+                righe.append(("Entrate", f"{formatta_italiano(ent)} €"))
+                righe.append(("Uscite", f"{formatta_italiano(usc)} €"))
+                if ent > 0:
+                    righe.append(("Risparmio", f"{_pct((ent - usc) / ent * 100)} delle entrate"))
+                if i > 0 and dati[i - 1]["saldo"] != 0:
+                    dl = saldo - dati[i - 1]["saldo"]
+                    righe.append((f"vs {dati[i - 1]['label']}", f"{'▲' if dl >= 0 else '▼'} {formatta_italiano(dl, segno=True)} €"))
+                righe.append(("Cumulato", f"{formatta_italiano(sum(it['saldo'] for it in dati[:i + 1]), segno=True)} €"))
+                diff_trasf = saldo - (ent - usc)
+                if abs(diff_trasf) > 0.005:
+                    righe.append(("Trasferimenti", f"{formatta_italiano(diff_trasf, segno=True)} €"))
+            if n_mov:
+                righe.append(("Movimenti", str(n_mov)))
+            blocchi = []
+            if su:
+                blocchi.append(("Uscite principali", _blocco_top(su["cat"], 3)))
+            if se:
+                blocchi.append(("Entrate principali", _blocco_top(se["cat"], 3)))
+            return _componi_tooltip(titolo, righe, blocchi)
         saldi = [item["saldo"] for item in self.data_for_chart]
         max_saldo = max(saldi)
         min_saldo = min(saldi)
@@ -788,7 +995,7 @@ def draw_saldo_chart(self, event=None):
                 }
                 canvas.tag_bind(rect_id, "<Double-1>", 
                                 lambda e, f=d_filter, t=popup_title: self.mostra_transazioni_popup(f, t))
-                tooltip_text = f"Data:  {item['label']}\nSaldo: € {formatta_italiano(item['saldo'], segno=True)}"
+                tooltip_text = tooltip_saldo(i, f"{_MESI_LUNGHI[d_data.month - 1]} {d_data.year}  ·  Saldo a fine mese")
                 canvas.tag_bind(rect_id, "<Enter>", lambda e, txt=tooltip_text: self.show_tooltip(e, txt))
                 canvas.tag_bind(rect_id, "<Leave>", self.hide_tooltip)
                 if i == 0 or (item['data'].month == 1 and item['data'].day == 1) or i == len(self.data_for_chart) - 1:
@@ -854,7 +1061,9 @@ def draw_saldo_chart(self, event=None):
                     canvas.tag_bind(rect_id, "<Double-1>", 
                                     lambda e, f=data_filter, t=popup_title: 
                                         self.mostra_transazioni_popup(f, t))
-                canvas.tag_bind(rect_id, "<Enter>", lambda e, txt=f"{item['label']}: € {formatta_italiano(saldo, segno=True)}": self.show_tooltip(e, txt))
+                _tit_s = (f"Anno {item['label']}  ·  Saldo" if self.visualizza_saldo_totale
+                          else f"{mesi_completi[i]} {anno_corrente}  ·  Saldo")
+                canvas.tag_bind(rect_id, "<Enter>", lambda e, txt=tooltip_saldo(i, _tit_s): self.show_tooltip(e, txt))
                 canvas.tag_bind(rect_id, "<Leave>", self.hide_tooltip)
                 canvas.create_text(x_center, CHART_BOTTOM + NUOVO_OFFSET_TESTO, text=item["label"], anchor="n", angle=45, font=("Arial", 8), fill=self.TEXT_COLOR)
                 canvas.create_text(x_center, text_y, text=f"€ {formatta_italiano(abs(saldo), decimali=0)}", anchor=text_anchor, font=("Arial", 8, "bold"), fill=color)

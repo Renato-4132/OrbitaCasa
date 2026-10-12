@@ -23,8 +23,6 @@ def gestisci_backup_popup(self):
     SUPERMERCATI_DB = _app.SUPERMERCATI_DB
     DEFAULT_API = _app.DEFAULT_API
     CONTROLLO_F_M = _app.CONTROLLO_F_M
-    PARTECIPANTI = _app.PARTECIPANTI
-    FAIRSHARE_STATE = _app.FAIRSHARE_STATE
     PORTAFOGLIO_AZIONI = _app.PORTAFOGLIO_AZIONI
     DIETA_FILE = _app.DIETA_FILE
     CUSTOM_FILE = _app.CUSTOM_FILE
@@ -47,7 +45,7 @@ def gestisci_backup_popup(self):
     PENSIONE_FILE = _app.PENSIONE_FILE
     ANIMALI_FILE = _app.ANIMALI_FILE
     MAGAZZINO_FILE = _app.MAGAZZINO_FILE
-    PIANIFICA_FILE = _app.PIANIFICA_FILE
+    SCANNER_FILE = _app.SCANNER_FILE
     MANUTENZIONE_CASA_FILE = _app.MANUTENZIONE_CASA_FILE
     MESSAGGI_VISTI_FILE = _app.MESSAGGI_VISTI_FILE
     
@@ -72,8 +70,6 @@ def gestisci_backup_popup(self):
         "memoria_categorie.json":         "SmartCat",
         "api.json":                       "API Key",
         "controllo_fm.json":              "Controllo FM",
-        "fairshare.json":                 "FairShare Partecipanti",
-        "fairshare_state.json":           "FairShare Stato",
         "portafoglio.json":               "Portafoglio Azioni",
         "dieta_piano.json":               "Dieta",
         "alimenti_custom.json":           "Alimenti Custom",
@@ -92,7 +88,6 @@ def gestisci_backup_popup(self):
         "magazzino.json":                 "StockBox",
         "fondo_risparmio.json":           "Fondo Risparmio",
         "fondo_pensione.json":            "Fondo Pensione",
-        "spese_pianificate.json":         "Spese Pianificate",
         "animali.json":                   "Pet Care",
         "manutenzione_casa.json":         "Manutenzione Casa",
         "schedule.json":                  "Schedulatore",
@@ -317,13 +312,13 @@ def gestisci_backup_popup(self):
                 DB_FILE, DATI_FILE, UTENZE_DB, REGISTRY_FILE,
                 PW_FILE, MEM_CAT, CONFIG_FILE, RIMANDA_FILE,
                 PROMEMORIA_FILE, SUPERMERCATI_DB, DEFAULT_API, CONTROLLO_F_M,
-                PARTECIPANTI, FAIRSHARE_STATE, PORTAFOGLIO_AZIONI, DIETA_FILE,
+                PORTAFOGLIO_AZIONI, DIETA_FILE,
                 CUSTOM_FILE, PESO_FILE, FABB_FILE, PEDOMETRO_FILE, STUDIO_CLIENTI,
                 STUDIO_APPUNTAMENTI, STUDIO_PRESTAZIONI, STUDIO_FATTURE, STUDIO_EMITTENTE,
                 STUDIO_CASSA, STUDIO_MAGAZZINO, IMMOBIL_FILE, FR_FILE, PORTAFOGLIO_BANCARIO,
                 SCHEDULE_FILE, VEICOLI_FILE, GAMIFICATION_FILE, CREDENTIALS_FILE, PENSIONE_FILE,
-                ANIMALI_FILE, PIANIFICA_FILE, MANUTENZIONE_CASA_FILE, MESSAGGI_VISTI_FILE,
-                MAGAZZINO_FILE
+                ANIMALI_FILE, MANUTENZIONE_CASA_FILE, MESSAGGI_VISTI_FILE,
+                MAGAZZINO_FILE, SCANNER_FILE
             ]
             for s in selezione:
                 nome_bak = tree.set(s, "File")

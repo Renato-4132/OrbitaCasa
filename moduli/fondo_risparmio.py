@@ -123,16 +123,22 @@ def apri_fondo_risparmio(self):
         for m in range(1, 13):
             if m in mesi_reali:
                 e, u, futuro = mesi_reali[m]["e"], mesi_reali[m]["u"], False
+                origine = "reale"
             else:
                 if m in mesi_anno_prec:
                     e = mesi_anno_prec[m]["e"]
                     u = mesi_anno_prec[m]["u"]
+                    origine = "anno_prec"
                 elif stats["n_mesi"] >= SOGLIA_MESI_PROIEZIONE:
                     e, u = stats["media_e"], stats["media_u"]
+                    origine = "media"
                 else:
                     e, u = 0.0, 0.0
+                    origine = "nessuno"
                 futuro = True
-            proiezione.append({"m": m, "e": e, "u": u, "r": e - u, "futuro": futuro})
+            r_prec = (mesi_anno_prec[m]["e"] - mesi_anno_prec[m]["u"]) if m in mesi_anno_prec else None
+            proiezione.append({"m": m, "e": e, "u": u, "r": e - u, "futuro": futuro,
+                               "origine": origine, "r_prec": r_prec})
             entrate_tot += e
             uscite_tot  += u
         return proiezione, entrate_tot, uscite_tot, entrate_tot - uscite_tot
@@ -304,6 +310,51 @@ def apri_fondo_risparmio(self):
             bar_gw = aw / 12
             bar_w  = min(bar_gw * 0.35, 24)
             anno_c = datetime.date.today().year
+            anno_prec = anno_c - 1
+            tot_e_anno = sum(q["e"] for q in proj)
+            tot_u_anno = sum(q["u"] for q in proj)
+            cum_r = []
+            _acc = 0.0
+            for q in proj:
+                _acc += q["r"]
+                cum_r.append(_acc)
+            def _fmt_sg(v):
+                return f"{'+' if v >= 0 else '-'}{fmt(abs(v))}"
+            def _pc(x):
+                return f"{x:.1f}%".replace(".", ",")
+            def _tip(i, p, quale):
+                nome_q = {"e": "Entrate", "u": "Uscite", "r": "Risparmio"}[quale]
+                intest = f"{MESI_ESTESI[p['m'] - 1]} {anno_c}  ·  {nome_q}"
+                if p["futuro"]:
+                    intest += "  (proiezione)"
+                stato = {"reale": "Dato reale",
+                         "anno_prec": f"Proiezione: stesso mese {anno_prec}",
+                         "media": "Proiezione: media ultimi 12 mesi",
+                         "nessuno": "Nessun dato per proiettare"}[p["origine"]]
+                righe = [("Stato", stato),
+                         ("Entrate", fmt(p["e"])),
+                         ("Uscite", fmt(p["u"])),
+                         ("Risparmio", _fmt_sg(p["r"]))]
+                if p["e"] > 0:
+                    righe.append(("Risparmio %", f"{_pc(p['r'] / p['e'] * 100)} delle entrate"))
+                if quale == "e" and tot_e_anno > 0:
+                    righe.append(("Quota entrate", f"{_pc(p['e'] / tot_e_anno * 100)} di {fmt(tot_e_anno)}"))
+                if quale == "u" and tot_u_anno > 0:
+                    righe.append(("Quota uscite", f"{_pc(p['u'] / tot_u_anno * 100)} di {fmt(tot_u_anno)}"))
+                if p["origine"] == "reale" and p["r_prec"] is not None:
+                    dl = p["r"] - p["r_prec"]
+                    righe.append((f"vs {MESI_BREVI[p['m'] - 1]} {anno_prec}",
+                                  f"{'▲' if dl >= 0 else '▼'} {_fmt_sg(dl)}  (era {_fmt_sg(p['r_prec'])})"))
+                if stats["n_mesi"] >= 2:
+                    dm = p["r"] - stats["media_r"]
+                    righe.append(("vs media",
+                                  f"{'▲' if dm >= 0 else '▼'} {_fmt_sg(dm)}  (media {_fmt_sg(stats['media_r'])})"))
+                righe.append(("Cumulato anno", _fmt_sg(cum_r[i])))
+                w = max(len(e) for e, _ in righe) + 2
+                testo = intest + "\n" + "─" * (len(intest) + 2) + "\n"
+                testo += "\n".join(f"{(e + ':').ljust(w)}{v}" for e, v in righe)
+                testo += "\n" + ("Doppio clic → scegli anno e movimenti" if p["futuro"] else "Doppio clic → dettaglio movimenti")
+                return testo
             for i, p in enumerate(proj):
                 xc    = PL + i * bar_gw + bar_gw / 2 - bar_w / 2
                 nm    = MESI_ESTESI[p["m"] - 1]
@@ -350,6 +401,9 @@ def apri_fondo_risparmio(self):
                 cvs.create_text(xc + bar_w/2 + 1, PT + ah + 14, anchor="center",
                                 text=MESI_BREVI[p["m"] - 1],
                                 font=("Arial", 8, "bold"), fill=fill_lbl)
+                for _tg, _q in [(tag_e, "e"), (tag_u, "u"), (tag_r, "r")]:
+                    cvs.tag_bind(_tg, "<Enter>", lambda e, t=_tip(i, p, _q): self.show_tooltip(e, t))
+                    cvs.tag_bind(_tg, "<Leave>", lambda e: self.hide_tooltip())
                 if p["futuro"]:
                     cvs.tag_bind(tag_e, "<Double-1>", lambda e, a=anno_c, m=p["m"], n=nm:
                         _scelta_mese_futuro(a, m, n, "Entrata"))

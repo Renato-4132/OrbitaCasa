@@ -103,6 +103,15 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
          while s.startswith('ALL·'):
              s = s[len('ALL·'):].strip()
          return s
+    def _parole_desc(t):
+        t = re.sub(r'(?:CNT|PER|CTP)·\s*\S+', ' ', rimuovi_prefisso_all(t or ""))
+        t = t.replace('ALL·', ' ')
+        return set(re.findall(r'\w+', t.lower()))
+    def desc_compatibili(a, b):
+        a, b = str(a or ""), str(b or "")
+        if a == b or rimuovi_prefisso_all(a) == rimuovi_prefisso_all(b):
+            return True
+        return _parole_desc(a) == _parole_desc(b)
     def sanitizza_stringa(s, max_len=None):
          s_sanitizzata = s.strip().replace(' ', '_')
          s_sanitizzata = re.sub(r'[^\w\.-]', '', s_sanitizzata) 
@@ -452,6 +461,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                         ora=campo(s, "ora", ""),
                         metodo_pagamento=_metodo_sel_doc or campo(s, "metodo_pagamento", ""),
                         hashtag=_tags_doc or campo(s, "hashtag", []),
+                        fairshare=campo(s, "fairshare", None),
                     )
                     nuova_lista.append(s_agg)
                     trovato = True
@@ -504,7 +514,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                         for s in self.spese[d_o]:
                             desc_db = str(s[1]).replace("ALL· ", "").strip()
                             desc_tabella = str(d_v).replace("ALL· ", "").strip()
-                            if (s[0] == c_v and s[3] == t_v and abs(float(s[2]) - i_f) < 0.01 and desc_db == desc_tabella):
+                            if (s[0] == c_v and s[3] == t_v and abs(float(s[2]) - i_f) < 0.01 and desc_compatibili(s[1], d_v)):
                                 spese_trovate = True
                                 break
                 except: continue
@@ -527,7 +537,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                         for s in self.spese[d_o]:
                             desc_db = str(s[1]).replace("ALL· ", "").strip()
                             desc_tabella = str(d_v).replace("ALL· ", "").strip()
-                            if (s[0] == c_v and s[3] == t_v and abs(float(s[2]) - i_f) < 0.01 and desc_db == desc_tabella):
+                            if (s[0] == c_v and s[3] == t_v and abs(float(s[2]) - i_f) < 0.01 and desc_compatibili(s[1], d_v)):
                                 mod = True
                                 if not cancella_anche_spesa:
                                     nuova_lista.append([s[0], desc_db, s[2], s[3]])
@@ -834,8 +844,8 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
     self.pdf_window = pdf_window
     pdf_window.title("Archivio Documenti Contabili")
     pdf_window.withdraw()
-    larghezza_finestra = 1250
-    altezza_finestra = 600
+    larghezza_finestra = 1300
+    altezza_finestra = 620
     larghezza_schermo = self.winfo_screenwidth()
     altezza_schermo = self.winfo_screenheight()
     x = (larghezza_schermo // 2) - (larghezza_finestra // 2)
@@ -1172,7 +1182,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
         _w.bind("<Enter>", _pv_entra)
         _w.bind("<Leave>", _pv_chiudi_big)
         _w.bind("<Button-1>", _pv_apri)
-    _pvt = {"item": None, "job": None, "popup": None, "img": None, "img_path": None}
+    _pvt = {"item": None, "job": None, "popup": None, "img": None, "img_path": None, "su_desc": False}
     def _pvt_chiudi(event=None):
         if _pvt["job"]:
             try: pdf_window.after_cancel(_pvt["job"])
@@ -1195,28 +1205,93 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
             if os.path.exists(fp):
                 return fp
         return None
+    _pvt_parole_desc = _parole_desc
+    def _pvt_spesa_collegata(nome):
+        try:
+            doc = load_document_registry().get(nome) or {}
+            d_obj = datetime.strptime(doc.get('data_raw', ''), "%d%m%Y").date()
+            imp = float(doc.get('importo_raw', 0)) / 100
+            tipo = doc.get('tipo_esatto', '')
+            cat = doc.get('categoria_esatta', '')
+            cand = [_s for _s in self.spese.get(d_obj, [])
+                    if abs(float(_s[2]) - imp) < 0.01 and _s[3] == tipo]
+            if not cand:
+                return None
+            if len(cand) == 1:
+                return cand[0]
+            w_doc = _pvt_parole_desc(doc.get('descrizione_esatta', ''))
+            def punti(_s):
+                w_s = _pvt_parole_desc(_s[1])
+                return (len(w_doc & w_s) * 2 + (1 if _s[0] == cat else 0)
+                        + (3 if w_doc and w_doc <= w_s else 0))
+            return max(cand, key=punti)
+        except Exception:
+            return None
+    def _pvt_righe(item):
+        try:
+            v = tree.item(item, 'values')
+            data, cat, desc, imp, tipo, nome = v[0], v[1], v[2], v[3], v[4], v[5]
+        except Exception:
+            return []
+        righe = [("Data", str(data))]
+        sp = _pvt_spesa_collegata(nome)
+        if sp is not None:
+            ora = campo(sp, "ora", "")
+            if ora:
+                righe.append(("Orario", ora))
+        righe.append(("Categoria", str(cat)))
+        if sp is not None:
+            met = metodo_pagamento_pulito(campo(sp, "metodo_pagamento", ""))
+            if met:
+                righe.append(("Pagamento", met))
+            conto = campo(sp, "conto", "")
+            if conto:
+                righe.append(("Conto", conto))
+        righe.append(("Importo", str(imp)))
+        righe.append(("Tipo", str(tipo)))
+        if sp is not None:
+            if campo(sp, "id_ricorrenza", ""):
+                _ric = getattr(self, "ricorrenze", {}).get(campo(sp, "id_ricorrenza", ""), {})
+                righe.append(("Ricorrente", _ric.get("tipo", "") or "Sì"))
+            tags = [t.lstrip('#') for t in (campo(sp, "hashtag", []) or []) if t]
+            if tags:
+                righe.append(("Tag", ", ".join(f"#{t}" for t in tags)))
+            righe.append(("Spesa", "Collegata"))
+        else:
+            righe.append(("Spesa", "Nessuna spesa collegata"))
+        righe.append(("File", str(nome)))
+        return righe
     def _pvt_mostra(item):
         _pvt["job"] = None
-        if _pvt["popup"] or _pvt["item"] != item:
+        if _pvt["popup"] or _pvt["item"] != (item, _pvt["su_desc"]):
             return
-        path = _pvt_percorso(item)
-        if not path:
-            return
-        h = max(300, min(600, pdf_window.winfo_screenheight() - 160))
-        if _pvt["img_path"] != path or _pvt["img"] is None:
-            _pvt["img"] = _pv_render(path, h)
-            _pvt["img_path"] = path
-        img = _pvt["img"]
-        if img is None:
+        righe = _pvt_righe(item)
+        img = None
+        if _pvt["su_desc"]:
+            path = _pvt_percorso(item)
+            if path:
+                h = max(300, min(600, pdf_window.winfo_screenheight() - 160))
+                if _pvt["img_path"] != path or _pvt["img"] is None:
+                    _pvt["img"] = _pv_render(path, h)
+                    _pvt["img_path"] = path
+                img = _pvt["img"]
+        if not righe and img is None:
             return
         top = tk.Toplevel(pdf_window)
         top.withdraw()
         top.overrideredirect(True)
         try: top.attributes("-topmost", True)
         except Exception: pass
-        lbl = tk.Label(top, image=img, bd=0, bg="#222222", highlightthickness=2, highlightbackground="#888888")
-        lbl.image = img
-        lbl.pack()
+        top.config(highlightthickness=1, highlightbackground=self.COLOR_HIGHLIGHT, bg=self.COLOR_TOOLTIP)
+        if righe:
+            pad = max(len(e) for e, _ in righe) + 3
+            testo = "\n".join(f"{(e + ':').ljust(pad)}{v}" for e, v in righe)
+            ttk.Label(top, text=testo, style="Tooltip.TLabel", justify="left",
+                      font=("Courier New", 9, "bold")).pack()
+        if img is not None:
+            lbl = tk.Label(top, image=img, bd=0, bg=self.COLOR_TOOLTIP)
+            lbl.image = img
+            lbl.pack(padx=4, pady=(2, 4))
         top.update_idletasks()
         sw, sh = top.winfo_screenwidth(), top.winfo_screenheight()
         pw, ph = top.winfo_reqwidth(), top.winfo_reqheight()
@@ -1231,15 +1306,18 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
         _pvt["popup"] = top
     def _pvt_motion(event):
         item = tree.identify_row(event.y)
-        if not item or tree.identify_column(event.x) != "#3":
+        if not item:
             if _pvt["item"] is not None or _pvt["popup"]:
                 _pvt_chiudi()
             return
-        if item == _pvt["item"]:
+        su_desc = (tree.identify_column(event.x) == "#3")
+        chiave = (item, su_desc)
+        if chiave == _pvt["item"]:
             return
         _pvt_chiudi()
-        _pvt["item"] = item
-        _pvt["job"] = pdf_window.after(450, lambda it=item: _pvt_mostra(it))
+        _pvt["su_desc"] = su_desc
+        _pvt["item"] = chiave
+        _pvt["job"] = pdf_window.after(450 if su_desc else 700, lambda it=item: _pvt_mostra(it))
     def esegui_auto_tipo(event=None, forza_tipo=None):
             if forza_tipo:
                     combo_tipo.set(forza_tipo)
@@ -1303,7 +1381,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
             if _data_obj_orig in self.spese:
                 for _s in self.spese[_data_obj_orig]:
                     if (abs(float(_s[2]) - _imp_orig) < 0.01 and _s[3] == _tipo_orig
-                            and (_s[1] == _desc_orig or _s[1] == rimuovi_prefisso_all(_desc_orig))):
+                            and desc_compatibili(_s[1], _desc_orig)):
                         tag_e_var.set(" ".join(campo(_s, "hashtag", [])))
                         _spesa_collegata_mod = _s
                         break
@@ -1456,7 +1534,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                 for i, s in enumerate(self.spese[data_obj_old]):
                     corrispondenza_importo = abs(float(s[2]) - imp_float_old) < 0.01
                     corrispondenza_tipo    = s[3] == tipo_old
-                    corrispondenza_desc    = s[1] == desc_old or s[1] == rimuovi_prefisso_all(desc_old)
+                    corrispondenza_desc    = desc_compatibili(s[1], desc_old)
                     if corrispondenza_importo and corrispondenza_tipo and corrispondenza_desc:
                         idx_spesa = i
                         break
@@ -1505,6 +1583,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                     ora=campo(voce_originale, "ora", ""),
                     metodo_pagamento=_metodo_sel_e or campo(voce_originale, "metodo_pagamento", ""),
                     hashtag=_tags_e or campo(voce_originale, "hashtag", []),
+                    fairshare=campo(voce_originale, "fairshare", None),
                 )
                 if data_obj == data_obj_old:
                     self.spese[data_obj_old][idx_spesa] = voce_aggiornata
@@ -1794,9 +1873,22 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
     tree.bind('<Button-5>', _pvt_chiudi, add='+')
     if _drop_path_ref[0]:
         pdf_window.after(200, lambda: _pv_imposta(_drop_path_ref[0], "drop"))
-    self._bind_tooltip_metodo(tree, col_desc=2)
     tree.bind('<Motion>', _pvt_motion, add='+')
     tree.bind('<Leave>', _pvt_chiudi, add='+')
+    def _scansiona_documento():
+        from moduli.scanner import apri_dialog_scansione
+        def _dopo_scansione(pdf_path, usa_ai=True):
+            if _HAS_DND and usa_ai and API_KEY:
+                class _EvScan:
+                    pass
+                _ev = _EvScan()
+                _ev.data = "{" + pdf_path + "}"
+                on_drop(_ev)
+            else:
+                _drop_path_ref[0] = pdf_path
+                _pv_imposta(pdf_path, "drop")
+                self.show_toast(f"Scansione pronta: {os.path.basename(pdf_path)} — compila i campi e clicca Archivia PDF")
+        apri_dialog_scansione(self, pdf_window, _dopo_scansione)
     frame_bottom_buttons = ttk.Frame(pdf_window, padding="10") 
     frame_bottom_buttons.pack(fill='x', padx=10, pady=(5, 10))
     btn_archivia = ttk.Label(
@@ -1811,6 +1903,47 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
     btn_archivia.image = self.icone_gui.get("archivia")
     btn_archivia.pack(side='left', padx=10)
     btn_archivia.bind("<Button-1>", lambda e: inserisci_documento_e_copia())
+    def _scarta_pdf_caricato():
+        p = _drop_path_ref[0]
+        if not p:
+            return self.show_toast("Nessun PDF da annullare.")
+        if not self.show_custom_askyesno("Annulla PDF", "Annullare il PDF caricato e svuotare i campi?"):
+            return
+        from moduli.scanner import scarta_scansione
+        scarta_scansione(p)
+        _drop_path_ref[0] = None
+        _pv_imposta(None, None)
+        data_var.set(datetime.now().strftime("%d-%m-%Y"))
+        importo_var.set("")
+        desc_var.set("")
+        tag_var.set("")
+        metodo_doc_var.set("")
+        self.show_toast("PDF annullato.")
+    _ico_scan = self.icone_gui.get("scansiona")
+    btn_scansiona = ttk.Label(
+            frame_bottom_buttons,
+            image=_ico_scan,
+            text=" Scansiona" if _ico_scan else "📷 Scansiona",
+            compound="left",
+            cursor="hand2",
+            background=self.COLOR_WIDGET_BG,
+            foreground=self.TEXT_COLOR
+    )
+    btn_scansiona.image = _ico_scan
+    btn_scansiona.pack(side='left', padx=10)
+    btn_scansiona.bind("<Button-1>", lambda e: _scansiona_documento())
+    btn_scarta = ttk.Label(
+            frame_bottom_buttons,
+            image=self.icone_gui.get("chiudi"),
+            text=" Annulla PDF" if self.icone_gui.get("chiudi") else "Annulla PDF",
+            compound="left",
+            cursor="hand2",
+            background=self.COLOR_WIDGET_BG,
+            foreground=self.TEXT_COLOR
+    )
+    btn_scarta.image = self.icone_gui.get("chiudi")
+    btn_scarta.pack(side='left', padx=10)
+    btn_scarta.bind("<Button-1>", lambda e: _scarta_pdf_caricato())
     btn_modifica = ttk.Label(
         frame_bottom_buttons,
         image=self.icone_gui.get("modifica"),
@@ -1909,6 +2042,7 @@ def mostra_help_pdf(self):
         testo += "---------------------------------------\n"
         testo += "• Campi di Archiviazione: I campi nel pannello superiore sono obbligatori e vengono usati per creare il nome univoco del file e per registrare i metadati nel registro locale.\n\n"
         testo += "• Archivia PDF (Bottone Verde): Apre il selettore file. Il PDF selezionato viene copiato nella directory locale (db/doc). Attenzione: se il nome file generato esiste già, il file viene sovrascritto.\n"
+        testo += "• Scansiona: acquisisce uno o più fogli da uno scanner USB o di rete (Windows, Linux, Mac), li unisce in un PDF e lo carica come se lo avessi trascinato (con analisi AI se attiva). Poi clicca Archivia PDF.\n"
 
         testo += "\nNavigazione e Interazione (Treeview Documenti):\n"
         testo += "---------------------------------------------------------\n"
@@ -1941,7 +2075,8 @@ def mostra_help_pdf(self):
     tk.Label(
         content_frame,
         text="• Campi di Archiviazione: I campi nel pannello superiore sono obbligatori e vengono usati per creare il nome univoco del file\n      e per registrare i metadati nel registro locale.\n\n"
-             "• Archivia PDF (Bottone Verde): Apre il selettore file. Il PDF selezionato viene copiato nella directory locale (`db/doc`).\n      Attenzione: se il nome file generato esiste già, il file viene sovrascritto.",
+             "• Archivia PDF (Bottone Verde): Apre il selettore file. Il PDF selezionato viene copiato nella directory locale (`db/doc`).\n      Attenzione: se il nome file generato esiste già, il file viene sovrascritto.\n"
+             "• Scansiona: acquisisce uno o più fogli da uno scanner USB o di rete (Windows, Linux, Mac), li unisce in un PDF e lo carica come se lo avessi trascinato. Poi clicca Archivia PDF.",
         font=("Arial", 9),
         justify=tk.LEFT,
         anchor='w',
@@ -2127,16 +2262,9 @@ def esegui_import_documenti_pdf(self):
         if os.path.exists(DOC_DIR):
             shutil.rmtree(DOC_DIR)
         shutil.copytree(temp_pdf_dir, DOC_DIR)
-        migrazione_emoji_ok = True
         if registry_present:
             if not os.path.exists(DB_DIR): os.makedirs(DB_DIR) 
             shutil.copy2(temp_registry_file, REGISTRY_FILE)
-            try:
-                from moduli.migrazione_emoji_dati import migra_emoji_nei_dati
-                migra_emoji_nei_dati([(REGISTRY_FILE, 4)])
-            except Exception as _e:
-                migrazione_emoji_ok = False
-                print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Migrazione emoji dati (import documenti) fallita: {_e}")
         if hasattr(self, 'pdf_window') and self.pdf_window.winfo_exists():
             self.filtri_avanzati = {}
             tabella = getattr(self, 'tabella_documenti', None)
@@ -2150,13 +2278,6 @@ def esegui_import_documenti_pdf(self):
             if DB_CONDIVISO:
                 self.notifica_modifica_web()
                 print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] 📡 Notifica di aggiornamento inviata .")    
-        if not migrazione_emoji_ok:
-            self.show_custom_warning(
-                "Attenzione",
-                "Documenti importati, ma la migrazione emoji→testo sul registro non è riuscita.\n"
-                "Alcuni dati potrebbero restare nel vecchio formato. Riavvia l'app: "
-                "la migrazione viene ritentata automaticamente ad ogni avvio."
-            )
     except Exception as e:
         self.show_custom_warning("Errore Importazione", f"Si è verificato un errore critico durante l'importazione: {e}")
     finally:

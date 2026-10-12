@@ -66,7 +66,7 @@ def mostra_dare_avere(self):
     mese_var    = tk.StringVar(value="Tutti")
     parte_var   = tk.StringVar(value="Tutti")
     cat_var     = tk.StringVar(value="Tutte")
-    stato_var   = tk.StringVar(value="Tutti")
+    stato_var   = tk.StringVar(value="Aperto")
     _lbl(top_frame, "Anno:")
     ttk.Combobox(top_frame, textvariable=anno_var,
                  values=["Tutti"] + [str(a) for a in anni_db],
@@ -99,8 +99,42 @@ def mostra_dare_avere(self):
                         height=15, yscrollcommand=vsb.set)
     tree.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
     vsb.config(command=tree.yview)
+    _col_date = ("Data", "Data Pagam.")
+    _col_num  = ("Tot €", "Quota €")
+    _sort_stato = {"col": None, "rev": False}
+    def _val_sort(col, v):
+        t = str(v).replace("€", "").strip()
+        if not t:
+            return None
+        if col in _col_date:
+            try:
+                return datetime.datetime.strptime(t, "%d/%m/%Y")
+            except Exception:
+                return None
+        if col in _col_num:
+            try:
+                return float(t.replace(".", "").replace(",", "."))
+            except Exception:
+                return None
+        return t.lower()
+    def _sort_col(col, reverse=False):
+        _sort_stato["col"], _sort_stato["rev"] = col, reverse
+        con, senza = [], []
+        for k in tree.get_children(""):
+            if "sep" in tree.item(k, "tags"):
+                senza.append(k)
+                continue
+            v = _val_sort(col, tree.set(k, col))
+            (senza if v is None else con).append((v, k) if v is not None else k)
+        con.sort(key=lambda t: t[0], reverse=reverse)
+        for i, k in enumerate([k for _, k in con] + senza):
+            tree.move(k, "", i)
+        for c in cols:
+            freccia = (" ▼" if reverse else " ▲") if c == col else ""
+            tree.heading(c, text=c + freccia,
+                         command=lambda _c=c: _sort_col(_c, not reverse if _c == col else False))
     for col, w_ in zip(cols, widths):
-        tree.heading(col, text=col, command=lambda c=col: self.treeview_sort_column(tree, c, False))
+        tree.heading(col, text=col, command=lambda c=col: _sort_col(c, False))
         tree.column(col, width=w_,
                     anchor="w" if col in ("Descrizione", "Partecipante") else "center")
     tree.tag_configure("pagato",  foreground="#98C379")
@@ -134,6 +168,7 @@ def mostra_dare_avere(self):
             import traceback; traceback.print_exc()
     def _aggiorna_tree_impl():
         tree.delete(*tree.get_children())
+        tree._metodo_lookup = {}
         a_sel  = anno_var.get()
         m_sel  = mese_var.get()
         p_sel  = parte_var.get()
@@ -208,6 +243,16 @@ def mostra_dare_avere(self):
                                 nome, paid_ic, data_p, st_ic),
                         tags=(tag,),
                         iid=row_iid)
+            tree._metodo_lookup[row_iid] = {
+                "data": d_obj.strftime("%d-%m-%Y"),
+                "categoria": cat,
+                "importo": imp,
+                "partecipante": nome,
+                "_righe_extra": [
+                    ("Quota", f"€ {_fmt_it(quota)}"),
+                    ("Pagamento", f"Pagato il {data_p}" if pagato and data_p else ("Pagato" if pagato else "Non pagato")),
+                ],
+            }
         if not righe:
             tree.insert("", "end",
                         values=("—", "Nessun dato",
@@ -218,6 +263,8 @@ def mostra_dare_avere(self):
             tree.insert("", "end",
                         values=("", "", "", "", "", "", "", "", ""),
                         tags=("sep",))
+        if _sort_stato["col"]:
+            _sort_col(_sort_stato["col"], _sort_stato["rev"])
         lbl_riep.config(state="normal")
         lbl_riep.delete("1.0", "end")
         lbl_riep.insert("end",
@@ -280,6 +327,32 @@ def mostra_dare_avere(self):
         self.salva_fairshare_state(_debiti_ref[0])
         aggiorna_tree()
     tree.bind("<Double-1>", on_double_click)
+    def _vai_a_movimento(iid):
+        if iid not in _row_map:
+            return
+        key, _nome = _row_map[iid]
+        for deb in _debiti_ref[0]:
+            if deb.get("_key") != key:
+                continue
+            try:
+                d = datetime.datetime.strptime(deb.get("data", ""), "%d/%m/%Y").date()
+            except ValueError:
+                return
+            self.vai_a_spesa(d, popup, str(deb.get("descrizione", ""))[:20], deb.get("_id_spesa", ""))
+            return
+    def _menu_dx(event):
+        iid = tree.identify_row(event.y)
+        if not iid or iid not in _row_map:
+            return
+        tree.selection_set(iid)
+        m = tk.Menu(popup, tearoff=0)
+        m.add_command(label="Vai al movimento", command=lambda: _vai_a_movimento(iid))
+        try:
+            m.tk_popup(event.x_root, event.y_root)
+        finally:
+            m.grab_release()
+    tree.bind("<Button-3>", _menu_dx)
+    tree.bind("<Control-Double-1>", lambda e: _vai_a_movimento(tree.identify_row(e.y)))
     def _build_export_text():
         sep = "═" * 126
         titolo = (f"FAIR SHARE — DARE & AVERE PER SPESA\n"

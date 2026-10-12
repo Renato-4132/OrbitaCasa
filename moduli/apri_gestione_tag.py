@@ -104,6 +104,7 @@ def apri_gestione_tag(self):
         return "\n".join(lines)
     def _popola(filtri=None):
         tv.delete(*tv.get_children())
+        tv._metodo_lookup = {}
         tdb = _carica()
         _agganci_conto = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
         _uso_ordinale_conto = {}
@@ -170,6 +171,18 @@ def apri_gestione_tag(self):
             tv.insert("", "end", iid=chiave,
                       values=(data_fmt, cat, desc, imp_fmt, tipo, conto, metodo, ora, tags_str),
                       tags=(color_tag,) if color_tag else ())
+            tv._metodo_lookup[chiave] = {
+                "metodo": metodo,
+                "conto": conto,
+                "ora": ora,
+                "hashtag": list(tags),
+                "id_ricorrenza": campo(entry_match, "id_ricorrenza", ""),
+                "data": data_fmt,
+                "categoria": cat,
+                "importo": imp,
+                "tipo": tipo,
+                "id_spesa": campo(entry_match, "id_spesa", ""),
+            }
             date_ordinamento.append((d, chiave))
             inserted += 1
         lbl_count.config(text=f"{inserted} voci")
@@ -218,6 +231,9 @@ def apri_gestione_tag(self):
             self.stats_label.config(
                     text=f"Riepilogo Giornaliero - {d.strftime('%d-%m-%Y')}",
                     foreground="purple", font=("Arial", 10, "bold"))
+            _desc_sel = str(vals[2])[:20]
+            _id_sp = (getattr(tv, "_metodo_lookup", {}).get(iid) or {}).get("id_spesa", "")
+            self.after(400, lambda: self.seleziona_spesa_in_lista(d, _desc_sel, _id_sp))
             win.destroy()
     def _apri_filtri():
         fw = tk.Toplevel(win, bg=self.COLOR_TOPLEVEL)
@@ -498,6 +514,7 @@ def apri_gestione_tag(self):
         self.show_toast("Movimento copiato nel form")
     tv.bind("<Button-3>", _on_right_click)
     tv.bind("<Double-1>", _on_double_click)
+    self._bind_tooltip_metodo(tv, col_desc=2)
     riepilogo_frame = ttk.LabelFrame(win, text=" Riepilogo Avanzato",
                                      style="RedBold.TLabelframe")
     riepilogo_frame.pack(fill="x", padx=10, pady=(4,2))

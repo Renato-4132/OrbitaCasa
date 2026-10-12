@@ -67,16 +67,28 @@ def toggle_stats_view(self, tipo="grafico"):
         for m in range(1, 13):
             if m in mesi_reali_pf:
                 e_pf, u_pf, futuro_pf = mesi_reali_pf[m]["e"], mesi_reali_pf[m]["u"], False
+                origine_pf = "reale"
             else:
                 if m in mesi_prec_pf:
                     e_pf = mesi_prec_pf[m]["e"]
                     u_pf = mesi_prec_pf[m]["u"]
+                    origine_pf = "anno_prec"
                 elif n_mesi_pf >= SOGLIA_MESI_PROIEZIONE_PF:
                     e_pf, u_pf = media_e_pf, media_u_pf
+                    origine_pf = "media"
                 else:
                     e_pf, u_pf = 0.0, 0.0
+                    origine_pf = "nessuno"
                 futuro_pf = True
-            proj_pf.append({"m": m, "e": e_pf, "u": u_pf, "r": e_pf - u_pf, "futuro": futuro_pf})
+            proj_pf.append({"m": m, "e": e_pf, "u": u_pf, "r": e_pf - u_pf, "futuro": futuro_pf, "origine": origine_pf})
+        tot_e_anno_pf = sum(q["e"] for q in proj_pf)
+        tot_u_anno_pf = sum(q["u"] for q in proj_pf)
+        cum_r_pf = []
+        _acc_pf = 0.0
+        for q in proj_pf:
+            _acc_pf += q["r"]
+            cum_r_pf.append(_acc_pf)
+        media_r_pf = media_e_pf - media_u_pf
         self.stats_pf_container = tk.Frame(parent_frame, bg=self.COLOR_BACKGROUND)
         self.stats_pf_container.pack(fill=tk.BOTH, expand=True)
         frm_kpi_pf = tk.Frame(self.stats_pf_container, bg=self.COLOR_BACKGROUND)
@@ -193,6 +205,42 @@ def toggle_stats_view(self, tipo="grafico"):
             bar_w_pf  = max(3, min(bar_gw_pf * 0.22, 12))
             def _fmt_eur(v):
                 return f"€ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            def _fmt_sg(v):
+                return f"{'+' if v >= 0 else '-'}{_fmt_eur(abs(v))}"
+            def _pc(x, segno=False):
+                return (f"{x:+.1f}%" if segno else f"{x:.1f}%").replace(".", ",")
+            def _tip_pf(i, p, quale):
+                nome = {"e": "Entrate", "u": "Uscite", "r": "Risparmio"}[quale]
+                intest = f"{MESI_ESTESI[p['m'] - 1]} {anno_c_pf}  ·  {nome}"
+                if p["futuro"]:
+                    intest += "  (proiezione)"
+                stato = {"reale": "Dato reale",
+                         "anno_prec": f"Proiezione: stesso mese {anno_prec_pf}",
+                         "media": "Proiezione: media ultimi 12 mesi",
+                         "nessuno": "Nessun dato per proiettare"}[p["origine"]]
+                righe = [("Stato", stato),
+                         ("Entrate", _fmt_eur(p["e"])),
+                         ("Uscite", _fmt_eur(p["u"])),
+                         ("Risparmio", _fmt_sg(p["r"]))]
+                if p["e"] > 0:
+                    righe.append(("Risparmio %", f"{_pc(p['r'] / p['e'] * 100)} delle entrate"))
+                if quale == "e" and tot_e_anno_pf > 0:
+                    righe.append(("Quota entrate", f"{_pc(p['e'] / tot_e_anno_pf * 100)} di {_fmt_eur(tot_e_anno_pf)}"))
+                if quale == "u" and tot_u_anno_pf > 0:
+                    righe.append(("Quota uscite", f"{_pc(p['u'] / tot_u_anno_pf * 100)} di {_fmt_eur(tot_u_anno_pf)}"))
+                if p["origine"] == "reale" and p["m"] in mesi_prec_pf:
+                    r_prec = mesi_prec_pf[p["m"]]["e"] - mesi_prec_pf[p["m"]]["u"]
+                    dl = p["r"] - r_prec
+                    righe.append((f"vs {MESI_BREVI[p['m'] - 1]} {anno_prec_pf}", f"{'▲' if dl >= 0 else '▼'} {_fmt_sg(dl)}  (era {_fmt_sg(r_prec)})"))
+                if n_mesi_pf >= 2:
+                    dm = p["r"] - media_r_pf
+                    righe.append(("vs media", f"{'▲' if dm >= 0 else '▼'} {_fmt_sg(dm)}  (media {_fmt_sg(media_r_pf)})"))
+                righe.append(("Cumulato anno", _fmt_sg(cum_r_pf[i])))
+                w = max(len(e) for e, _ in righe) + 2
+                testo = intest + "\n" + "─" * (len(intest) + 2) + "\n"
+                testo += "\n".join(f"{(e + ':').ljust(w)}{v}" for e, v in righe)
+                testo += "\n" + ("Doppio clic → scegli anno e movimenti" if p["futuro"] else "Doppio clic → dettaglio movimenti")
+                return testo
             for i, p in enumerate(proj_pf):
                 xc_pf  = PL_pf + i * bar_gw_pf + bar_gw_pf / 2
                 nm_pf  = MESI_ESTESI[p["m"] - 1]
@@ -220,10 +268,9 @@ def toggle_stats_view(self, tipo="grafico"):
                 cvs_pf.create_text(xc_pf, PT_pf + ah_pf + 13, anchor="center",
                                    text=MESI_BREVI[p["m"] - 1],
                                    font=("Arial", 7, "bold"), fill=fill_lbl_pf)
-                segno_pf = "+" if p["r"] >= 0 else ""
-                tip_e = f"{nm_pf} — Entrate: {_fmt_eur(p['e'])}"
-                tip_u = f"{nm_pf} — Uscite: {_fmt_eur(p['u'])}"
-                tip_r = f"{nm_pf} — Risparmio: {segno_pf}{_fmt_eur(p['r'])}"
+                tip_e = _tip_pf(i, p, "e")
+                tip_u = _tip_pf(i, p, "u")
+                tip_r = _tip_pf(i, p, "r")
                 cvs_pf.tag_bind(tag_e_pf, "<Enter>", lambda e, t=tip_e: self.show_tooltip(e, t))
                 cvs_pf.tag_bind(tag_e_pf, "<Leave>", lambda e: self.hide_tooltip())
                 cvs_pf.tag_bind(tag_u_pf, "<Enter>", lambda e, t=tip_u: self.show_tooltip(e, t))

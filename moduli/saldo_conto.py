@@ -702,8 +702,27 @@ def open_saldo_conto(self, tab_iniziale=None):
             tree.configure(yscrollcommand=vsb.set)
             vsb.pack(side="right", fill="y")
             tree.pack(fill=tk.BOTH, expand=True)
+            tree._metodo_lookup = {}
+            self._bind_tooltip_metodo(tree, col_desc=4)
+            def _conto_tt(cid):
+                _n = nome_da_id.get(cid, "?")
+                _t = str(tipo_da_id.get(cid, "") or "").strip()
+                return f"{_n} ({_t.capitalize()})" if _t and _t.lower() != "altro" else _n
+            def _info_trasf(t, extra=None, data=None):
+                _extra = [("Da", _conto_tt(t.get("da", ""))), ("A", _conto_tt(t.get("a", "")))]
+                _extra += (extra or [])
+                _note = str(t.get("note", "") or "").strip()
+                if _note:
+                    _extra.append(("Note", _note))
+                try:
+                    _imp = float(t.get("importo", 0))
+                except (TypeError, ValueError):
+                    _imp = None
+                return {"data": data if data is not None else t.get("data", ""),
+                        "importo": _imp, "_righe_extra": _extra}
             def ricarica_tree_t():
                 tree.delete(*tree.get_children())
+                tree._metodo_lookup = {}
                 db_r = carica_db()
                 lista = [t for t in db_r.get("trasferimenti", [])
                          if not e_trasferimento_virtuale(t)]
@@ -763,6 +782,16 @@ def open_saldo_conto(self, tab_iniziale=None):
                                             f"{_fmt_it(float(primo.get('importo',0)))}",
                                             f"{primo.get('note','')} ({primo.get('ricorrenza_tipo','').lower()})",
                                             f"🔁 x{len(occ)}"))
+                        _tot_g = 0.0
+                        for _o in occ:
+                            try: _tot_g += float(_o.get("importo", 0))
+                            except (TypeError, ValueError): pass
+                        _ric_g = str(primo.get("ricorrenza_tipo", "") or "").strip()
+                        tree._metodo_lookup[gid] = _info_trasf(
+                            primo, data=periodo,
+                            extra=([("Ricorrenza", _ric_g.lower())] if _ric_g else [])
+                                  + [("Occorrenze", str(len(occ))),
+                                     ("Totale registrato", f"€ {_fmt_it(_tot_g)}")])
                         for o in occ:
                             tag_o = f"tipoconto_{tipo_da_id.get(o.get('da',''), 'altro')}"
                             tree.tag_configure(tag_o, foreground=TIPO_COLORI.get(
@@ -774,6 +803,10 @@ def open_saldo_conto(self, tab_iniziale=None):
                                                 f"{_fmt_it(float(o.get('importo',0)))}",
                                                 o.get("note",""),
                                                 f"{o.get('ricorrenza_seq','?')}/{o.get('ricorrenza_totale','?')}"))
+                            _ric_o = str(o.get("ricorrenza_tipo", "") or "").strip()
+                            tree._metodo_lookup[o["id"]] = _info_trasf(
+                                o, extra=[("Rata", f"{o.get('ricorrenza_seq','?')}/{o.get('ricorrenza_totale','?')}")]
+                                         + ([("Ricorrenza", _ric_o.lower())] if _ric_o else []))
                     else:
                         tag = f"tipoconto_{tipo_da_id.get(r.get('da',''), 'altro')}"
                         tree.tag_configure(tag, foreground=TIPO_COLORI.get(
@@ -784,6 +817,7 @@ def open_saldo_conto(self, tab_iniziale=None):
                                             nome_da_id.get(r.get("a",""), "?"),
                                             f"{_fmt_it(float(r.get('importo',0)))}",
                                             r.get("note",""), ""))
+                        tree._metodo_lookup[r["id"]] = _info_trasf(r)
             for _v in (v_f_anno, v_f_mese, v_f_conto, v_f_tipo):
                 _v.trace_add("write", lambda *_a: ricarica_tree_t())
             ricarica_tree_t()
@@ -1222,6 +1256,7 @@ def open_saldo_conto(self, tab_iniziale=None):
             lbl_riepilogo.pack(fill=tk.X, padx=12, pady=(0,4))
             def aggiorna_tree(*_):
                 tree.delete(*tree.get_children())
+                tree._metodo_lookup = {}
                 try:
                     anno_f = int(v_anno.get())
                 except ValueError:
@@ -1264,9 +1299,21 @@ def open_saldo_conto(self, tab_iniziale=None):
                             if ((d.year, d.month) == (oggi.year, oggi.month)
                                     and cat in getattr(self, "_budget_sforati", set())):
                                 tag = "sforato"
-                        tree.insert("", "end",
+                        _iid_m = tree.insert("", "end",
                                     values=(d.strftime("%d-%m-%Y"), cat, desc, f"{_fmt_it(imp)}", tipo, nome_conto_sp, metodo_sp, tag_sp),
                                     tags=(tag,))
+                        tree._metodo_lookup[_iid_m] = {
+                            "metodo": metodo_sp,
+                            "conto": nome_conto_sp,
+                            "ora": campo(v, "ora", ""),
+                            "hashtag": campo(v, "hashtag", []),
+                            "id_ricorrenza": campo(v, "id_ricorrenza", ""),
+                            "data": d.strftime("%d-%m-%Y"),
+                            "categoria": cat,
+                            "importo": imp,
+                            "tipo": tipo,
+                            "id_spesa": campo(v, "id_spesa", ""),
+                        }
                         if tipo == "Entrata": tot_e += imp
                         else:                 tot_u += imp
                 tree.tag_configure("entrata",    foreground=self.COLOR_GREEN)
@@ -1298,19 +1345,9 @@ def open_saldo_conto(self, tab_iniziale=None):
                     self.estratto_year_var.set(str(giorno.year))
                     self.on_calendar_change()
                 desc_cerca = str(r[2])[:20]
-                def _sel(g=giorno, d=desc_cerca):
-                    for iid in self.spese_mese_tree.get_children():
-                        v = self.spese_mese_tree.item(iid, "values")
-                        try:
-                            dv = datetime.datetime.strptime(v[0].strip(), "%d/%m/%Y").date()
-                        except Exception:
-                            continue
-                        if dv == g and d in str(v[2]):
-                            self.spese_mese_tree.selection_set(iid)
-                            self.spese_mese_tree.see(iid)
-                            break
+                _id_sp = (getattr(tree, "_metodo_lookup", {}).get(sel[0]) or {}).get("id_spesa", "")
                 popup.destroy()
-                self.after(400, _sel)
+                self.after(400, lambda: self.seleziona_spesa_in_lista(giorno, desc_cerca, _id_sp))
             tree.bind("<Double-1>", on_doppio_click_mov)
             
             def on_click_dx_mov(e):

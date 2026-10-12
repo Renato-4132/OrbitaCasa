@@ -55,6 +55,7 @@ def goto_dettaglio_mese(self, salva=False):
     for i in self.stats_table.get_children():
         self.stats_table.delete(i)
     self.stats_table._metodo_lookup = {}
+    self.stats_table._promemoria_lookup = {}
     oggi = datetime.date.today()
     _agganci_uso = {}
     _agganci = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
@@ -128,6 +129,7 @@ def goto_dettaglio_mese(self, salva=False):
                     "categoria": piano.get("categoria", ""),
                     "importo": quota,
                 }
+                self.stats_table._promemoria_lookup[_pid] = piano
                 righe_inserite += 1
         except Exception:
             pass

@@ -114,6 +114,7 @@ def cerca_operazioni(self):
         finestra.destroy()
     tree.bind("<Double-1>", self.cerca_doppio_click)
     tree.bind("<Button-3>", on_right_click)
+    self._bind_tooltip_metodo(tree, col_desc=2)
     def converti_importo(s):
         s = str(s).strip().replace('€', '').strip().replace(',', '')
         if s.count(',') == 1 and s.count('.') != 1:
@@ -185,6 +186,7 @@ def cerca_operazioni(self):
             filtri = {}
         for item in tree.get_children():
             tree.delete(item)
+        tree._metodo_lookup = {}
         risultati = []
         oggi = datetime.date.today()
         mostra_futuro = mostra_futuro_var.get()
@@ -294,7 +296,9 @@ def cerca_operazioni(self):
                         "conto":       nome_conto_cerca,
                         "metodo":      metodo_cerca,
                         "ora":         ora_cerca,
-                        "hashtag":     hashtag_txt
+                        "hashtag":     hashtag_txt,
+                        "id_ricorrenza": campo(voce, "id_ricorrenza", ""),
+                        "id_spesa":    campo(voce, "id_spesa", "")
                     })
         risultati.sort(key=lambda x: datetime.datetime.strptime(x['data'], '%d/%m/%Y'), reverse=True)
         tot_entrate = sum(r['importo'] for r in risultati if r['tipo'] == "Entrata")
@@ -370,7 +374,7 @@ def cerca_operazioni(self):
                             tag = "sforato_tag"
                 else:
                     tag = "neutro_tag"
-                tree.insert("", "end", values=(
+                _item_c = tree.insert("", "end", values=(
                     riga['data'],
                     riga['categoria'],
                     riga['descrizione'],
@@ -381,6 +385,19 @@ def cerca_operazioni(self):
                     riga.get('hashtag', ''),
                     riga.get('metodo', '')
                 ), tags=(tag,))
+                tree._metodo_lookup[_item_c] = {
+                    "metodo": riga.get('metodo', ''),
+                    "conto": riga.get('conto', ''),
+                    "ora": riga.get('ora', ''),
+                    "hashtag": riga.get('hashtag', ''),
+                    "id_ricorrenza": riga.get('id_ricorrenza', ''),
+                    "partecipante": riga.get('partecipante', ''),
+                    "data": d_riga.strftime('%d-%m-%Y'),
+                    "categoria": riga['categoria'],
+                    "importo": riga['importo'],
+                    "tipo": riga['tipo'],
+                    "id_spesa": riga.get('id_spesa', ''),
+                }
     campo_input.bind("<KeyRelease>", esegui_ricerca)
     mostra_futuro_var.trace_add("write", lambda *_: esegui_ricerca())
     da_data_var.trace_add("write", lambda *_: esegui_ricerca())
@@ -726,4 +743,7 @@ def cerca_doppio_click(self, event):
     if hasattr(self, '_finestra_cerca') and self._finestra_cerca.winfo_exists():
         self._finestra_cerca.destroy()
         self._finestra_cerca = None
+    desc_cerca = str(vals[2])[:20] if len(vals) > 2 else ""
+    _id_sp = (getattr(tree, "_metodo_lookup", {}).get(item_id) or {}).get("id_spesa", "")
+    self.after(400, lambda: self.seleziona_spesa_in_lista(giorno, desc_cerca, _id_sp))
 

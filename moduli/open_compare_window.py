@@ -170,6 +170,8 @@ def open_compare_window(self):
     for col, w, anchor in [("Categoria", 180, "w"), ("Data", 110, "center"), ("Entrata", 100, "center"), ("Uscita", 100, "center")]:
         left_tree.heading(col, text=col, anchor=anchor, command=lambda _col=col: self.treeview_sort_column(left_tree, _col, False))
         left_tree.column(col, width=w, anchor=anchor, stretch=False)
+    left_tree._metodo_lookup = {}
+    self._bind_tooltip_metodo(left_tree, col_desc=0)
     left_diff_frame = tk.Frame(left_container, bg=self.COLOR_TOPLEVEL)
     left_diff_frame.grid(row=1, column=0, columnspan=2, pady=(4, 0), sticky=tk.W+tk.E)
     tk.Label(left_diff_frame, bg=self.COLOR_TOPLEVEL ,fg=self.TEXT_COLOR, text="Entrate:", font=("Arial", 10, "bold")).pack(side=tk.LEFT)
@@ -212,6 +214,8 @@ def open_compare_window(self):
     for col, w, anchor in [("Categoria", 180, "w"), ("Data", 110, "center"), ("Entrata", 100, "center"), ("Uscita", 100, "center")]:
         right_tree.heading(col, text=col, anchor=anchor, command=lambda _col=col: self.treeview_sort_column(right_tree, _col, False))
         right_tree.column(col, width=w, anchor=anchor, stretch=False)
+    right_tree._metodo_lookup = {}
+    self._bind_tooltip_metodo(right_tree, col_desc=0)
     right_diff_frame = tk.Frame(right_container, bg=self.COLOR_TOPLEVEL)
     right_diff_frame.grid(row=1, column=0, columnspan=2, pady=(4, 0), sticky=tk.W+tk.E)
     tk.Label(right_diff_frame, bg=self.COLOR_TOPLEVEL ,fg=self.TEXT_COLOR, text="Entrate:", font=("Arial", 10, "bold")).pack(side=tk.LEFT)
@@ -274,6 +278,39 @@ def open_compare_window(self):
             cb_ra.pack_forget()
             cb_rm.pack(side="left", padx=(0, 3))
             cb_ra.pack(side="left")
+    def _righe_tooltip_confronto(cat, per_anno, label, label_altro, raw, raw_altro):
+        def _tot(rr):
+            n = 0; e = 0.0; u = 0.0
+            for c_, _d, en_, us_ in rr:
+                if c_ == cat:
+                    n += 1; e += en_; u += us_
+            return n, e, u
+        n1, e1, u1 = _tot(raw)
+        _n2, e2, u2 = _tot(raw_altro)
+        righe = [
+            ("Periodo", label),
+            ("Movimenti", str(n1)),
+        ]
+        if e1:
+            righe.append(("Entrate", f"€ {_fmt_it(e1)}"))
+        if u1:
+            righe.append(("Uscite", f"€ {_fmt_it(u1)}"))
+        righe.append(("Saldo", f"€ {_fmt_it(e1 - u1, '+,.2f')}"))
+        if e1 or e2:
+            righe.append((f"Δ Entrate vs {label_altro}", f"€ {_fmt_it(e1 - e2, '+,.2f')}"))
+        if u1 or u2:
+            righe.append((f"Δ Uscite vs {label_altro}", f"€ {_fmt_it(u1 - u2, '+,.2f')}"))
+        if not per_anno and u1:
+            _bud = next((v for k, v in (getattr(self, "budget_categorie", {}) or {}).items()
+                         if str(k).strip().lower() == str(cat).strip().lower()), 0)
+            try:
+                _bud = float(_bud or 0)
+            except (TypeError, ValueError):
+                _bud = 0
+            if _bud > 0:
+                righe.append(("Budget mese", f"€ {_fmt_it(_bud)}"))
+                righe.append(("Speso", f"€ {_fmt_it(u1)} ({u1 / _bud * 100:.0f}%)"))
+        return righe
     def update_tables():
         update_month_visibility()
         per_anno = compare_by_year.get()
@@ -284,11 +321,19 @@ def open_compare_window(self):
         date_placeholder = "Totale Anno" if per_anno else "Totale Mese"
         rows1 = aggregate_rows_by_category(rows1_raw, date_placeholder)
         rows2 = aggregate_rows_by_category(rows2_raw, date_placeholder)
+        label1 = str(a1) if per_anno else f"{m1:02d}/{a1}"
+        label2 = str(a2) if per_anno else f"{m2:02d}/{a2}"
+        left_tree._metodo_lookup = {}
+        right_tree._metodo_lookup = {}
         left_tree.delete(*left_tree.get_children())
         tot_ent1, tot_usc1 = 0, 0
         for cat, data, ent, usc in sorted(rows1, key=lambda x: x[0].lower()): 
             tag = 'entrata' if ent > 0 else ('uscita' if usc > 0 else '')
-            left_tree.insert("", "end", values=(cat, data, f"{_fmt_it(ent)} €", f"{_fmt_it(usc)} €"), tags=(tag,))
+            _iid_l = left_tree.insert("", "end", values=(cat, data, f"{_fmt_it(ent)} €", f"{_fmt_it(usc)} €"), tags=(tag,))
+            left_tree._metodo_lookup[_iid_l] = {
+                "categoria": cat,
+                "_righe_extra": _righe_tooltip_confronto(cat, per_anno, label1, label2, rows1_raw, rows2_raw),
+            }
             tot_ent1, tot_usc1 = tot_ent1 + ent, tot_usc1 + usc
         diff1 = tot_ent1 - tot_usc1
         left_total_ent_lbl.config(text=f"{_fmt_it(tot_ent1)} €", fg="green")
@@ -301,7 +346,11 @@ def open_compare_window(self):
         tot_ent2, tot_usc2 = 0, 0
         for cat, data, ent, usc in sorted(rows2, key=lambda x: x[0].lower()):
             tag = 'entrata' if ent > 0 else ('uscita' if usc > 0 else '')
-            right_tree.insert("", "end", values=(cat, data, f"{_fmt_it(ent)} €", f"{_fmt_it(usc)} €"), tags=(tag,))
+            _iid_r = right_tree.insert("", "end", values=(cat, data, f"{_fmt_it(ent)} €", f"{_fmt_it(usc)} €"), tags=(tag,))
+            right_tree._metodo_lookup[_iid_r] = {
+                "categoria": cat,
+                "_righe_extra": _righe_tooltip_confronto(cat, per_anno, label2, label1, rows2_raw, rows1_raw),
+            }
             tot_ent2, tot_usc2 = tot_ent2 + ent, tot_usc2 + usc
         diff2 = tot_ent2 - tot_usc2
         right_total_ent_lbl.config(text=f"{_fmt_it(tot_ent2)} €", fg="green")
@@ -523,6 +572,33 @@ def crea_grafico_confronto(self, m1_str, a1_str, m2_str, a2_str, per_anno, categ
         canvas.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
         bottom_frame = tk.Frame(main_frame, bg=bg_color)
         bottom_frame.pack(fill=tk.X, side=tk.BOTTOM, padx=6, pady=6)
+        hsb_graf = ttk.Scrollbar(main_frame, orient="horizontal")
+        hsb_graf.pack(fill=tk.X, side=tk.BOTTOM, padx=6, after=bottom_frame)
+        _asse_x = [0]
+        def _fissa_asse():
+            try:
+                x0 = canvas.canvasx(0)
+                canvas.move("yaxis", x0 - _asse_x[0], 0)
+                _asse_x[0] = x0
+                canvas.tag_raise("yaxis")
+            except Exception:
+                pass
+        def _xscroll(a, b):
+            hsb_graf.set(a, b)
+            _fissa_asse()
+        canvas.configure(xscrollcommand=_xscroll)
+        hsb_graf.configure(command=canvas.xview)
+        def _rotella_orizzontale(event):
+            d = getattr(event, "delta", 0)
+            if d:
+                canvas.xview_scroll(-1 if d > 0 else 1, "units")
+            elif getattr(event, "num", 0) == 4:
+                canvas.xview_scroll(-1, "units")
+            elif getattr(event, "num", 0) == 5:
+                canvas.xview_scroll(1, "units")
+            return "break"
+        for _seq in ("<MouseWheel>", "<Shift-MouseWheel>", "<Button-4>", "<Button-5>"):
+            canvas.bind(_seq, _rotella_orizzontale)
         legenda_frame = tk.Frame(bottom_frame, bg=bg_color)
         legenda_frame.pack(side=tk.LEFT)
         btn_container = tk.Frame(bottom_frame, bg=bg_color)
@@ -649,12 +725,16 @@ def crea_grafico_confronto(self, m1_str, a1_str, m2_str, a2_str, per_anno, categ
                 MIN_BAR_HEIGHT_PX = 4
                 canvas_width = max(200, canvas.winfo_width()); canvas_height = max(120, canvas.winfo_height())
                 canvas.delete("all")
+                _asse_x[0] = 0
                 side_padding_factor = 0.035
                 side_padding = max(50, int(canvas_width * side_padding_factor))
                 right_padding = max(20, int(canvas_width * side_padding_factor))
                 top_padding_plot = max(12, int(canvas_height * 0.08))
                 bottom_padding_plot = max(48, int(canvas_height * 0.15))
-                plot_width = canvas_width - side_padding - right_padding
+                _min_step = 130 if per_anno else 120
+                plot_width = max(canvas_width - side_padding - right_padding, len(labels_x) * _min_step)
+                _larghezza_tot = side_padding + plot_width + right_padding
+                canvas.configure(scrollregion=(0, 0, _larghezza_tot, canvas_height))
                 plot_height = canvas_height - top_padding_plot - bottom_padding_plot
                 if plot_width <= 0 or plot_height <= 10: return
                 plot_vals1 = [abs(v) for v in saldos1]
@@ -670,14 +750,15 @@ def crea_grafico_confronto(self, m1_str, a1_str, m2_str, a2_str, per_anno, categ
                     normalized = (val - min_val) / y_range
                     return top_padding_plot + plot_height * (1 - normalized)
                 canvas_y_top = top_padding_plot; canvas_y_end = top_padding_plot + plot_height
-                canvas.create_line(side_padding, canvas_y_top, side_padding, canvas_y_end, fill="gray", width=2)
-                canvas.create_text(side_padding - 6, scale_y_plot(max_val), anchor="e", text=format_euro(max_val, 0), font=("Arial", 9), fill=text_color)
-                canvas.create_text(side_padding - 6, scale_y_plot(min_val), anchor="e", text=format_euro(min_val, 0), font=("Arial", 9), fill=text_color)
+                canvas.create_rectangle(0, 0, side_padding, canvas_height, fill=bg_color, outline="", tags=("yaxis",))
+                canvas.create_line(side_padding, canvas_y_top, side_padding, canvas_y_end, fill="gray", width=2, tags=("yaxis",))
+                canvas.create_text(side_padding - 6, scale_y_plot(max_val), anchor="e", text=format_euro(max_val, 0), font=("Arial", 9), fill=text_color, tags=("yaxis",))
+                canvas.create_text(side_padding - 6, scale_y_plot(min_val), anchor="e", text=format_euro(min_val, 0), font=("Arial", 9), fill=text_color, tags=("yaxis",))
                 num_points = len(labels_x)
                 if num_points == 0: return
                 x_step = plot_width / num_points
-                bar_w = max(6, int(min(40, x_step * 0.35)))
-                gap = max(4, int(bar_w * 0.2))
+                bar_w = max(14, int(min(32, x_step * 0.26)))
+                gap = max(12, int(bar_w * 0.4))
                 y_base = scale_y_plot(0)
                 small_font = ("Arial", 8)
                 y_base_tic = canvas_y_end + 6
@@ -720,10 +801,11 @@ def crea_grafico_confronto(self, m1_str, a1_str, m2_str, a2_str, per_anno, categ
                                 canvas.create_text(x_center, y_base_tic, anchor="n", text=labels_x[i], font=small_font, fill=text_color)
                         else:
                             canvas.create_text(x_center, y_base_tic, anchor="n", text=labels_x[i], font=small_font, fill=text_color)
+                _fissa_asse()
             except Exception as e:
                 print(f"Errore draw_chart:", e)
         def on_bar_double_click(event):
-            item_id = canvas.find_closest(event.x, event.y)[0]
+            item_id = canvas.find_closest(canvas.canvasx(event.x), canvas.canvasy(event.y))[0]
             tags = canvas.gettags(item_id)
             index = -1; period = None
             for tag in tags:
@@ -775,6 +857,103 @@ def crea_grafico_confronto(self, m1_str, a1_str, m2_str, a2_str, per_anno, categ
         mostra_future_var.trace_add("write", lambda *a: refresh_all())
         popup_grafico.bind("<Escape>", lambda e: popup_grafico.destroy())
         canvas.tag_bind("bar", "<Double-Button-1>", on_bar_double_click)
+        _tt_bar = {"win": None, "job": None, "chiave": None}
+        def _tt_bar_chiudi(event=None):
+            if _tt_bar["job"]:
+                try: canvas.after_cancel(_tt_bar["job"])
+                except Exception: pass
+                _tt_bar["job"] = None
+            if _tt_bar["win"]:
+                try: _tt_bar["win"].destroy()
+                except Exception: pass
+                _tt_bar["win"] = None
+            _tt_bar["chiave"] = None
+        def _tt_bar_mostra(index, period):
+            _tt_bar["job"] = None
+            if _tt_bar["win"] or _tt_bar["chiave"] != (index, period) or not popup_grafico.winfo_exists():
+                return
+            if index >= len(keys_all):
+                return
+            key = keys_all[index]
+            e1, u1 = data1_raw_cache.get(key, (0.0, 0.0))
+            e2, u2 = data2_raw_cache.get(key, (0.0, 0.0))
+            ent, usc = (e1, u1) if period == 1 else (e2, u2)
+            ent_o, usc_o = (e2, u2) if period == 1 else (e1, u1)
+            lab_p = f"P{period}"
+            lab_o = f"P{2 if period == 1 else 1}"
+            periodo_p = (f"{a1}" if per_anno else f"{m1:02d}/{a1}") if period == 1 else (f"{a2}" if per_anno else f"{m2:02d}/{a2}")
+            periodo_o = (f"{a2}" if per_anno else f"{m2:02d}/{a2}") if period == 1 else (f"{a1}" if per_anno else f"{m1:02d}/{a1}")
+            mesi_nome = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio",
+                         "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
+            try:
+                if per_anno:
+                    anno_t = a1 if period == 1 else a2
+                    quando = f"{mesi_nome[int(key) - 1]} {anno_t}"
+                else:
+                    _y, _m, _g = key.split("-")
+                    quando = f"{int(_g):02d}/{int(_m):02d}/{_y}"
+            except Exception:
+                quando = str(key)
+            righe = [
+                ("Periodo", f"{lab_p}: {periodo_p}"),
+                ("Mese" if per_anno else "Giorno", quando),
+                ("Categoria", categoria_var.get()),
+                ("Entrate", f"€ {format_euro(ent, 2)}"),
+                ("Uscite", f"€ {format_euro(usc, 2)}"),
+                ("Saldo", f"€ {format_euro(ent - usc, 2)}"),
+                (f"Saldo {lab_o}", f"€ {format_euro(ent_o - usc_o, 2)}  ({periodo_o})"),
+                (f"Δ vs {lab_o}", f"€ {format_euro((ent - usc) - (ent_o - usc_o), 2)}"),
+            ]
+            w_et = max(len(e) for e, _ in righe) + 3
+            testo = "\n".join(f"{(e + ':').ljust(w_et)}{v}" for e, v in righe)
+            tw = tk.Toplevel(popup_grafico)
+            tw.withdraw()
+            tw.wm_overrideredirect(True)
+            try: tw.attributes("-topmost", True)
+            except Exception: pass
+            tw.config(highlightthickness=1, highlightbackground=self.COLOR_HIGHLIGHT, bg=self.COLOR_TOOLTIP)
+            ttk.Label(tw, text=testo, style="Tooltip.TLabel", justify="left",
+                      font=("Courier New", 9, "bold")).pack()
+            tw.update_idletasks()
+            w_t, h_t = tw.winfo_reqwidth(), tw.winfo_reqheight()
+            x = popup_grafico.winfo_pointerx() + 14
+            y = popup_grafico.winfo_pointery() + 14
+            sw, sh = popup_grafico.winfo_screenwidth(), popup_grafico.winfo_screenheight()
+            if x + w_t > sw: x = max(0, sw - w_t - 5)
+            if y + h_t > sh: y = max(0, sh - h_t - 5)
+            tw.wm_geometry(f"+{int(x)}+{int(y)}")
+            tw.deiconify()
+            tw.lift()
+            _tt_bar["win"] = tw
+        def _tt_bar_motion(event):
+            try:
+                cx, cy = canvas.canvasx(event.x), canvas.canvasy(event.y)
+                trovato = None
+                for it in reversed(canvas.find_overlapping(cx - 1, cy - 1, cx + 1, cy + 1)):
+                    for tg in canvas.gettags(it):
+                        if tg.startswith("bar_p1_") or tg.startswith("bar_p2_"):
+                            trovato = (int(tg.split("_")[2]), 1 if tg.startswith("bar_p1_") else 2)
+                            break
+                    if trovato:
+                        break
+            except Exception:
+                trovato = None
+            if trovato is None:
+                if _tt_bar["chiave"] is not None or _tt_bar["win"]:
+                    _tt_bar_chiudi()
+                return
+            if trovato == _tt_bar["chiave"]:
+                return
+            _tt_bar_chiudi()
+            _tt_bar["chiave"] = trovato
+            _tt_bar["job"] = canvas.after(350, lambda i=trovato[0], p=trovato[1]: _tt_bar_mostra(i, p))
+        canvas.bind("<Motion>", _tt_bar_motion, add="+")
+        canvas.bind("<Leave>", _tt_bar_chiudi, add="+")
+        canvas.bind("<ButtonPress>", _tt_bar_chiudi, add="+")
+        canvas.bind("<MouseWheel>", _tt_bar_chiudi, add="+")
+        canvas.bind("<Button-4>", _tt_bar_chiudi, add="+")
+        canvas.bind("<Button-5>", _tt_bar_chiudi, add="+")
+        popup_grafico.bind("<Destroy>", lambda e: _tt_bar_chiudi() if e.widget is popup_grafico else None, add="+")
         for child in legenda_frame.winfo_children(): child.destroy()
         tk.Label(legenda_frame, text=f"P1 (Blu): {a1 if per_anno else f'{m1:02d}/{a1}'}", bg=bg_color, fg=p1_color, font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=(2, 8))
         tk.Label(legenda_frame, text=f"P2 (Arancione): {a2 if per_anno else f'{m2:02d}/{a2}'}", bg=bg_color, fg=p2_color, font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=(2, 8))

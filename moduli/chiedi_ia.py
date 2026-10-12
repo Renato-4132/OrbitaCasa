@@ -756,7 +756,7 @@ def _costruisci_contesto_database(self, _app, _fmt_it):
     righe += _blocco_fondo_pensione(_leggi_json(getattr(_app, 'PENSIONE_FILE', None)), _fmt_it)
     righe += _blocco_fondo_risparmio(_leggi_json(getattr(_app, 'FR_FILE', None)), _fmt_it)
     righe += _blocco_immobili(_leggi_json(getattr(_app, 'IMMOBIL_FILE', None)), _fmt_it)
-    righe += _blocco_fairshare(_leggi_json(getattr(_app, 'FAIRSHARE_STATE', None)), _fmt_it)
+    righe += _blocco_fairshare(self.carica_fairshare_state(), _fmt_it)
     righe += _blocco_veicoli(_leggi_json(getattr(_app, 'VEICOLI_FILE', None)), _fmt_it)
     righe += _blocco_utenze(_leggi_json(getattr(_app, 'UTENZE_DB', None)), _fmt_it)
     righe += _blocco_studio(

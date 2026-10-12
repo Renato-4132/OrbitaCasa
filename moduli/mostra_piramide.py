@@ -69,6 +69,7 @@ def mostra_piramide(self):
                     ("Spesa",            "Spesa Supermercato",        _g("spesa_supermercato")),
                     ("Archivi",          "PDF contabili",             _g("gestisci_archivi_pdf")),
                     ("Personali",        "PDF personali",             _g("gestisci_documenti_personali")),
+                    ("Scansiona",        "Scanner → PDF salvato",     _g("scansiona_e_salva")),
                 ],
             },
             {

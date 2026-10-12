@@ -400,7 +400,7 @@ def calcolo_mutuo_prestito(self):
                 contenuto_testo += linea + "\n"
                 contenuto_testo += f"{'Anno':<10} | {'Entrate (€)':>13} | {'Spese (€)':>12} | {'Rata (€)':>12} | {'Residuo (€)':>13} | {'Rata/Entrate (%)':>17} | {'Stato':<15}\n"
                 contenuto_testo += linea + "\n"
-                stato_testo_map = {"g": "Margine sano", "y": "Attenzione", "r": "A rischio"}
+                stato_testo_map = {"g": "Margine sano", "y": "Da monitorare", "r": "A rischio"}
                 for r in righe_sost:
                     etichetta_anno = "Oggi" if r["anno"] == 0 else f"Anno {r['anno']}"
                     contenuto_testo += (
@@ -1546,7 +1546,7 @@ def calcolo_mutuo_prestito(self):
             tree_sost.delete(row)
         for r in righe:
             etichetta_anno = "Oggi" if r["anno"] == 0 else f"Anno {r['anno']}"
-            stato_testo = {"g": "Margine sano", "y": "Attenzione", "r": "A rischio"}[r["stato"]]
+            stato_testo = {"g": "Margine sano", "y": "Da monitorare", "r": "A rischio"}[r["stato"]]
             tree_sost.insert("", "end", values=(
                 etichetta_anno, f"{_fmt_it(r['entrate'])} €", f"{_fmt_it(r['spese'])} €", f"{_fmt_it(r['rata'])} €",
                 f"{_fmt_it(r['residuo'])} €", f"{_fmt_it(r['pct'], ',.1f')} %", stato_testo

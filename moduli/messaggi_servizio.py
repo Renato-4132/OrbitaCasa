@@ -124,24 +124,28 @@ def _registra_licenza_da_messaggio(self, msg):
         return f"errore: {e}"
 
 def _lampeggia_badge_messaggi_servizio(self):
-    badge = getattr(self, "badge_messaggi_servizio", None)
-    if badge is None or not badge.winfo_exists() or not getattr(self, "_messaggi_servizio_pendenti", []):
+    logo = getattr(self, "lbl_logo", None)
+    if logo is None or not logo.winfo_exists() or not getattr(self, "_messaggi_servizio_pendenti", []):
         self._badge_blink_job = None
         return
     acceso = not getattr(self, "_badge_blink_acceso", False)
     self._badge_blink_acceso = acceso
-    badge.delete("all")
-    colore = "#E65100" if acceso else self.MENU_BG_DARK
-    badge.create_oval(0, 0, 10, 10, fill=colore, outline="")
+    img = getattr(self, "_busta_img", None) if acceso else getattr(self, "_busta_img_dim", None)
+    if img:
+        logo.configure(image=img)
+    else:
+        logo.configure(fg="#E65100" if acceso else "#7A3300")
     self._badge_blink_job = self.after(500, lambda: _lampeggia_badge_messaggi_servizio(self))
 
 def _aggiorna_badge_messaggi_servizio(self):
-    badge = getattr(self, "badge_messaggi_servizio", None)
-    if badge is None or not badge.winfo_exists():
+    logo = getattr(self, "lbl_logo", None)
+    if logo is None or not logo.winfo_exists():
         return
     if getattr(self, "_messaggi_servizio_pendenti", []):
-        badge.place(relx=1.0, x=-8, y=4, anchor="ne")
-        tk.Misc.lift(badge)
+        if getattr(self, "_busta_img", None):
+            logo.configure(image=self._busta_img, text="")
+        else:
+            logo.configure(image="", text="\u2709", font=("Segoe UI Symbol", 15, "bold"), fg="#E65100")
         if not getattr(self, "_badge_blink_job", None):
             _lampeggia_badge_messaggi_servizio(self)
     else:
@@ -152,8 +156,11 @@ def _aggiorna_badge_messaggi_servizio(self):
             except Exception:
                 pass
             self._badge_blink_job = None
-        badge.delete("all")
-        badge.place_forget()
+        img = getattr(self, "_logo_img", None)
+        if img:
+            logo.configure(image=img, text="")
+        else:
+            logo.configure(text="")
 
 # Intervallo tra un controllo e il successivo (ms); GitHub raw ha comunque una cache di ~5 minuti
 INTERVALLO_CONTROLLO_MS = 60 * 60 * 1000
@@ -247,7 +254,7 @@ def _check_messaggi_servizio_in_background(self):
                 self._messaggi_servizio_notificati = notificati | {m["_id"] for m in nuovi}
                 _aggiorna_badge_messaggi_servizio(self)
                 if da_notificare:
-                    self.show_toast("📬 Nuovo messaggio di servizio\n\nClicca sul pallino arancione lampeggiante in alto a sinistra per leggerlo", duration=6000)
+                    self.show_toast("📬 Nuovo messaggio di servizio\n\nClicca sull'icona lampeggiante in alto a sinistra per leggerlo", duration=6000)
             self.after(0, _applica)
     threading.Thread(target=_check, daemon=True).start()
 

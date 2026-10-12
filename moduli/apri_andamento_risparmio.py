@@ -222,6 +222,32 @@ def apri_andamento_risparmio(self):
     lbl_tot_s1 = tk.Label(footer1, text="", bg=self.COLOR_TOPLEVEL, font=("Arial", 9, "bold"))
     lbl_tot_s1.pack(side="left", padx=16)
 
+    def _tip_rich(intest, prec_lbl, i, entrate_v, uscite_v, saldi_v, quale):
+        e_val, u_val, s_val = entrate_v[i], uscite_v[i], saldi_v[i]
+        _eur = lambda v, sg=False: f"{formatta_italiano(v, segno=sg)} €"
+        _pc = lambda x: f"{x:.1f}%".replace(".", ",")
+        righe = [("Entrate", _eur(e_val)), ("Uscite", _eur(u_val)), ("Saldo", _eur(s_val, True))]
+        if e_val > 0:
+            righe.append(("Risparmio %", f"{_pc(s_val / e_val * 100)} delle entrate"))
+        tot_e, tot_u = sum(entrate_v), sum(uscite_v)
+        if quale == "e" and tot_e > 0:
+            righe.append(("Quota entrate", f"{_pc(e_val / tot_e * 100)} di {_eur(tot_e)}"))
+        if quale == "u" and tot_u > 0:
+            righe.append(("Quota uscite", f"{_pc(u_val / tot_u * 100)} di {_eur(tot_u)}"))
+        if i > 0 and (entrate_v[i - 1] > 0 or uscite_v[i - 1] > 0):
+            dl = s_val - saldi_v[i - 1]
+            righe.append((f"vs {prec_lbl}", f"{'▲' if dl >= 0 else '▼'} {_eur(dl, True)}  (era {_eur(saldi_v[i - 1], True)})"))
+        attivi = [saldi_v[k] for k in range(len(saldi_v)) if entrate_v[k] > 0 or uscite_v[k] > 0]
+        if len(attivi) >= 2:
+            media = sum(attivi) / len(attivi)
+            dm = s_val - media
+            righe.append(("vs media", f"{'▲' if dm >= 0 else '▼'} {_eur(dm, True)}  (media {_eur(media, True)})"))
+        righe.append(("Cumulato", _eur(sum(saldi_v[:i + 1]), True)))
+        w = max(len(e) for e, _ in righe) + 2
+        testo = intest + "\n" + "─" * (len(intest) + 2) + "\n"
+        testo += "\n".join(f"{(e + ':').ljust(w)}{v}" for e, v in righe)
+        return testo + "\nDoppio clic → dettaglio movimenti"
+
     def _disegna_barre(categorie, entrate_v, uscite_v, saldi_v, ctx_annuale, anno_ctx=None):
         if _chiusura_in_corso[0]:
             return
@@ -262,15 +288,17 @@ def apri_andamento_risparmio(self):
                 titolo_ctx = f"{categorie[i]} {anno_ctx}"
                 anno_i = anno_ctx
                 mese_i = i + 1
-            tip_txt = (f"{titolo_ctx}\nEntrate:  {formatta_italiano(e_val)} €\n"
-                       f"Uscite:   {formatta_italiano(u_val)} €\nSaldo:    {formatta_italiano(s_val, segno=True)} €")
+            prec_lbl = (categorie[i - 1] if ctx_annuale else f"{categorie[i - 1]} {anno_ctx}") if i > 0 else ""
+            tip_e = _tip_rich(f"{titolo_ctx}  ·  Entrate", prec_lbl, i, entrate_v, uscite_v, saldi_v, "e")
+            tip_u = _tip_rich(f"{titolo_ctx}  ·  Uscite", prec_lbl, i, entrate_v, uscite_v, saldi_v, "u")
+            tip_s = _tip_rich(f"{titolo_ctx}  ·  Saldo", prec_lbl, i, entrate_v, uscite_v, saldi_v, "s")
 
             e_h = (e_val / max_val) * area_h if e_val > 0 else 0
             x0e, x1e = cx - bar_w * 1.5 - gap, cx - bar_w * 0.5 - gap
             if e_val > 0:
                 rid = canvas1.create_rectangle(x0e, y_base - e_h, x1e, y_base,
                                                 fill=self.COLOR_GREEN_SMOOTH, outline="")
-                canvas1.tag_bind(rid, "<Enter>", lambda e, t=tip_txt: _tooltip_show(e, t))
+                canvas1.tag_bind(rid, "<Enter>", lambda e, t=tip_e: _tooltip_show(e, t))
                 canvas1.tag_bind(rid, "<Leave>", _tooltip_hide)
                 canvas1.tag_bind(rid, "<Double-Button-1>",
                                   lambda e, a=anno_i, m=mese_i, tt=titolo_ctx: _apri_dettaglio(
@@ -283,7 +311,7 @@ def apri_andamento_risparmio(self):
             if u_val > 0:
                 rid = canvas1.create_rectangle(x0u, y_base - u_h, x1u, y_base,
                                                 fill=self.COLOR_RED_SMOOTH, outline="")
-                canvas1.tag_bind(rid, "<Enter>", lambda e, t=tip_txt: _tooltip_show(e, t))
+                canvas1.tag_bind(rid, "<Enter>", lambda e, t=tip_u: _tooltip_show(e, t))
                 canvas1.tag_bind(rid, "<Leave>", _tooltip_hide)
                 canvas1.tag_bind(rid, "<Double-Button-1>",
                                   lambda e, a=anno_i, m=mese_i, tt=titolo_ctx: _apri_dettaglio(
@@ -296,7 +324,7 @@ def apri_andamento_risparmio(self):
             x0s, x1s = cx + bar_w * 0.5 + gap, cx + bar_w * 1.5 + gap
             if abs(s_val) > 0:
                 rid = canvas1.create_rectangle(x0s, y_base - s_h, x1s, y_base, fill=s_col, outline="")
-                canvas1.tag_bind(rid, "<Enter>", lambda e, t=tip_txt: _tooltip_show(e, t))
+                canvas1.tag_bind(rid, "<Enter>", lambda e, t=tip_s: _tooltip_show(e, t))
                 canvas1.tag_bind(rid, "<Leave>", _tooltip_hide)
                 canvas1.tag_bind(rid, "<Double-Button-1>",
                                   lambda e, a=anno_i, m=mese_i, tt=titolo_ctx: _apri_dettaglio(
@@ -427,10 +455,8 @@ def apri_andamento_risparmio(self):
                 cx = MARG_L + slot_w * i
                 cy = _y(valori[i])
                 rid = canvas2.create_oval(cx-3, cy-3, cx+3, cy+3, fill=colore, outline="")
-                tip = (f"{categorie[i]} ({nome})\n"
-                       f"Entrate:  {formatta_italiano(entrate_v[i])} €\n"
-                       f"Uscite:   {formatta_italiano(uscite_v[i])} €\n"
-                       f"Saldo:    {formatta_italiano(saldi_v[i], segno=True)} €")
+                tip = _tip_rich(f"{categorie[i]}  ·  {nome}", categorie[i - 1] if i > 0 else "",
+                                i, entrate_v, uscite_v, saldi_v, nome[0].lower())
                 canvas2.tag_bind(rid, "<Enter>", lambda e, t=tip: _tooltip_show(e, t))
                 canvas2.tag_bind(rid, "<Leave>", _tooltip_hide)
                 if righe_ctx:

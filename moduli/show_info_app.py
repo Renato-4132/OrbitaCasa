@@ -283,7 +283,7 @@ def show_info_app(self):
             "• ➤ / ◀ : Espande o comprime le etichette di testo del menu.\n"
             "• Logo / Nome App: Apre la Piramide, l'hub di navigazione 3D di tutti i moduli.\n"
             "• Campo di ricerca (a barra espansa): Ricerca rapida tra tutte le funzioni dell'app.\n"
-            "• Pallino arancione accanto alla versione (a barra espansa): ci sono messaggi di servizio non letti, clic per leggerli.\n"
+            "• Icona lampeggiante al posto della stella in alto a sinistra nella sidebar: ci sono messaggi di servizio non letti, clic per leggerli.\n"
             "\n 📁 GESTIONE\n"
             "• Gestione SuperMarket — Lista della spesa intelligente\n"
             "• Gestione Documenti (Contabili)\n"

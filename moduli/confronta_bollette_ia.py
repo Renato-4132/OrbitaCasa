@@ -105,8 +105,14 @@ def confronta_bollette_ia(self):
         for i in reversed(sel):
             listbox.delete(i)
             file_paths.pop(i)
+    def scansiona_doc():
+        from moduli.scanner import apri_dialog_scansione
+        def _dopo_scansione(pdf_path):
+            _aggiungi_path(pdf_path)
+        apri_dialog_scansione(self, popup, _dopo_scansione)
     for txt, ico_k, cmd in [
         (" Aggiungi", "carica", aggiungi_file),
+        (" Scansiona" if "scansiona" in self.icone_gui else "📷 Scansiona", "scansiona", scansiona_doc),
         (" Rimuovi",  "chiudi", rimuovi_file),
     ]:
         img = self.icone_gui.get(ico_k)

@@ -89,7 +89,9 @@ def crea_grafico_categorie(self, id_righe_selezionate):
         'Dettaglio_Entrata': defaultdict(float),
         'Dettaglio_Uscita': defaultdict(float),
         'Dettaglio_Entrata_Conto': defaultdict(float),
-        'Dettaglio_Uscita_Conto': defaultdict(float)
+        'Dettaglio_Uscita_Conto': defaultdict(float),
+        'N_Entrata': 0, 'N_Uscita': 0,
+        'Max_Entrata': (0.0, ""), 'Max_Uscita': (0.0, "")
     })
     saldo_aggregato_totale = 0.0 
     for data_objeto, entries in self.spese.items():
@@ -116,6 +118,12 @@ def crea_grafico_categorie(self, id_righe_selezionate):
                 try:
                     importo_numerico = float(imp)
                     nome_conto = campo(entry, "conto", "").strip() or "(Nessun conto)"
+                    _lato = "Entrata" if "entrata" in tipo_lower else ("Uscita" if "uscita" in tipo_lower else None)
+                    if _lato and (tipo_transazione_ricercato == "misto" or _lato.lower() == tipo_transazione_ricercato):
+                        _sc = spese_combinate[chiave_aggregazione]
+                        _sc['N_' + _lato] += 1
+                        if abs(importo_numerico) > _sc['Max_' + _lato][0]:
+                            _sc['Max_' + _lato] = (abs(importo_numerico), str(desc).strip())
                     if tipo_transazione_ricercato == "misto":
                         if "entrata" in tipo_lower:
                             spese_combinate[chiave_aggregazione]['Entrata'] += importo_numerico
@@ -168,10 +176,12 @@ def crea_grafico_categorie(self, id_righe_selezionate):
                 valore_unico = v['Entrata'] + v['Uscita']
                 if tipo_transazione_ricercato == "entrata":
                     dati_filtrati_non_zero[k] = {'Totale': valore_unico, 'Dettaglio': v['Dettaglio_Entrata'],
-                                                  'Dettaglio_Conto': v['Dettaglio_Entrata_Conto']}
+                                                  'Dettaglio_Conto': v['Dettaglio_Entrata_Conto'],
+                                                  'N': v['N_Entrata'], 'Max': v['Max_Entrata']}
                 else:
                     dati_filtrati_non_zero[k] = {'Totale': valore_unico, 'Dettaglio': v['Dettaglio_Uscita'],
-                                                  'Dettaglio_Conto': v['Dettaglio_Uscita_Conto']}
+                                                  'Dettaglio_Conto': v['Dettaglio_Uscita_Conto'],
+                                                  'N': v['N_Uscita'], 'Max': v['Max_Uscita']}
     saldo_netto_periodo = totale_entrate_periodo - totale_uscite_periodo
     if not dati_filtrati_non_zero:
         if _pianificate_escluse:
@@ -247,6 +257,21 @@ def crea_grafico_categorie(self, id_righe_selezionate):
         etichetta_tempo = "Generale"  
         filtro_titolo = " - Periodo Non Specificato"
         totale_copertura_desc = f"{totale_copertura_desc_saldo} Generale"
+    _serie = {"Entrata": [], "Uscita": []}
+    for _p, _v in dati_ordinati:
+        if isinstance(_v, dict) and 'Entrata' in _v and 'Uscita' in _v and 'Totale' not in _v:
+            if _v['Entrata'] > 0: _serie["Entrata"].append((_p, _v['Entrata']))
+            if _v['Uscita'] > 0: _serie["Uscita"].append((_p, _v['Uscita']))
+        elif isinstance(_v, dict):
+            _serie["Entrata" if tipo_transazione_ricercato == "entrata" else "Uscita"].append((_p, abs(_v.get('Totale', 0))))
+    def _confronto(periodo, lato):
+        serie = _serie.get(lato, [])
+        idx = next((i for i, (p_, _) in enumerate(serie) if p_ == periodo), None)
+        if idx is None:
+            return None, 0, 0
+        prev = serie[idx - 1] if idx > 0 else None
+        media = sum(v_ for _, v_ in serie) / len(serie) if serie else 0
+        return prev, media, len(serie)
     titolo_grafico = f"{tipo_transazione_base} {tipo_titolo} {etichetta_tempo}{filtro_titolo}"
     popup_width, popup_height = 1200, 600 
     self.popup_grafico = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
@@ -339,6 +364,14 @@ def crea_grafico_categorie(self, id_righe_selezionate):
         label = ttk.Label(tooltip_window, text=text, style="Tooltip.TLabel",
                            justify="left", font=("Courier New", 9, "bold"))
         label.pack()
+        tooltip_window.update_idletasks()
+        _tw, _th = tooltip_window.winfo_reqwidth(), tooltip_window.winfo_reqheight()
+        _sw, _sh = canvas.winfo_screenwidth(), canvas.winfo_screenheight()
+        if screen_x + _tw > _sw:
+            screen_x = max(0, screen_x - _tw - 30)
+        if screen_y + _th > _sh:
+            screen_y = max(0, _sh - _th - 10)
+        tooltip_window.wm_geometry(f"+{screen_x}+{screen_y}")
         tooltip_window.deiconify()
     self.popup_grafico.bind("<Destroy>", lambda e: hide_tooltip_local(), add="+")
     def disegna_barre_scroll(c, dati_tuple):
@@ -417,15 +450,22 @@ def crea_grafico_categorie(self, id_righe_selezionate):
         def formatta_dettaglio(dettagli_dict):
             if not dettagli_dict:
                 return "Nessun dettaglio categoria."
-            dati_ordinati = sorted(dettagli_dict.items(), key=lambda item: item[0], reverse=False)
+            dati_ordinati = sorted(dettagli_dict.items(), key=lambda item: item[1], reverse=True)
             righe = [(cat, importo) for cat, importo in dati_ordinati if importo > 0]
             if not righe:
                 return "Nessun dettaglio categoria."
             _larghezza_etichetta = max(len(_e) for _e, _ in righe) + 1
-            dettaglio_lines = [
-                f"{(_e + ':').ljust(_larghezza_etichetta + 2)}{_fmt_it(_v)} €"
-                for _e, _v in righe
-            ]
+            _tot_righe = sum(_v for _, _v in righe)
+            if len(righe) > 1:
+                dettaglio_lines = [
+                    f"{(_e + ':').ljust(_larghezza_etichetta + 2)}{_fmt_it(_v)} €  ({(_v / _tot_righe * 100):.1f}%)"
+                    for _e, _v in righe
+                ]
+            else:
+                dettaglio_lines = [
+                    f"{(_e + ':').ljust(_larghezza_etichetta + 2)}{_fmt_it(_v)} €"
+                    for _e, _v in righe
+                ]
             return "\n".join(dettaglio_lines)
         def formatta_dettaglio_conto(dettagli_dict):
             if not dettagli_dict:
@@ -441,6 +481,35 @@ def crea_grafico_categorie(self, id_righe_selezionate):
                 for _e, _v in righe
             ]
             return "\n".join(dettaglio_lines)
+        def _pct(x):
+            return f"{x:+.1f}%".replace(".", ",")
+        def costruisci_tooltip(periodo, lato, valore, n_mov, max_mov, dett_cat, dett_conto, tot_lato, saldo=None):
+            etich = _etichetta_periodo(periodo, stats_mode)
+            nome_lato = "Entrate" if lato == "Entrata" else "Uscite"
+            righe = [("Totale", f"{_fmt_it(valore)} €")]
+            if n_mov:
+                righe.append(("Movimenti", f"{n_mov}  (media {_fmt_it(valore / n_mov)} €)"))
+            if max_mov and max_mov[0] > 0:
+                _d = max_mov[1] if len(max_mov[1]) <= 26 else max_mov[1][:25] + "…"
+                righe.append(("Più alto", f"{_fmt_it(max_mov[0])} €" + (f"  ({_d})" if _d else "")))
+            if tot_lato and tot_lato > 0 and stats_mode != "giorno":
+                righe.append(("Quota", f"{(valore / tot_lato * 100):.1f}%".replace(".", ",") + f" di {_fmt_it(tot_lato)} €"))
+            prev, media, n_serie = _confronto(periodo, lato)
+            if prev and prev[1] > 0:
+                _dl = valore - prev[1]
+                righe.append((f"vs {_etichetta_periodo(prev[0], stats_mode)}",
+                              f"{'▲' if _dl >= 0 else '▼'} {_pct(_dl / prev[1] * 100)}  ({'+' if _dl >= 0 else '-'}{_fmt_it(abs(_dl))} €)"))
+            if n_serie > 2 and media > 0:
+                _dm = valore - media
+                righe.append(("vs media", f"{'▲' if _dm >= 0 else '▼'} {_pct(_dm / media * 100)}  (media {_fmt_it(media)} €)"))
+            if saldo is not None:
+                righe.append(("Saldo periodo", f"{_fmt_it(saldo)} €"))
+            _w = max(len(_e) for _e, _ in righe) + 2
+            intestazione = f"{etich}  ·  {nome_lato}"
+            testo = intestazione + "\n" + "─" * (len(intestazione) + 2) + "\n"
+            testo += "\n".join(f"{(_e + ':').ljust(_w)}{_v}" for _e, _v in righe)
+            testo += f"\n— Per Categoria —\n{dett_cat}\n— Per Conto —\n{dett_conto}\nDoppio clic → dettaglio movimenti"
+            return testo
         for item in dati_posizioni:
             periodo_originale = item['periodo']
             dati_valore = item['dati_valore']
@@ -471,12 +540,11 @@ def crea_grafico_categorie(self, id_righe_selezionate):
                     )
                     dettaglio_cat_e = formatta_dettaglio(dettaglio_e)
                     dettaglio_conto_e = formatta_dettaglio_conto(dati_valore.get('Dettaglio_Entrata_Conto', {}))
-                    tooltip_text_e = (
-                        f"Totale Entrata: {_fmt_it(valore_e)} €\n"
-                        f"{dettaglio_cat_e}\n"
-                        f"— Per Conto —\n"
-                        f"{dettaglio_conto_e}"
-                    )
+                    tooltip_text_e = costruisci_tooltip(
+                        periodo_originale, "Entrata", valore_e,
+                        dati_valore.get('N_Entrata', 0), dati_valore.get('Max_Entrata'),
+                        dettaglio_cat_e, dettaglio_conto_e, totale_entrate_periodo,
+                        saldo=valore_e - valore_u)
                     c.tag_bind(rect_e, "<Enter>", lambda e, t=tooltip_text_e: show_tooltip_local(e, t))
                     c.tag_bind(rect_e, "<Leave>", hide_tooltip_local)                        
                     tipo_bind_e = 'Entrata'
@@ -500,12 +568,11 @@ def crea_grafico_categorie(self, id_righe_selezionate):
                     )
                     dettaglio_cat_u = formatta_dettaglio(dettaglio_u)
                     dettaglio_conto_u = formatta_dettaglio_conto(dati_valore.get('Dettaglio_Uscita_Conto', {}))
-                    tooltip_text_u = (
-                        f"Totale Uscita: {_fmt_it(valore_u)} €\n"
-                        f"{dettaglio_cat_u}\n"
-                        f"— Per Conto —\n"
-                        f"{dettaglio_conto_u}"
-                    )
+                    tooltip_text_u = costruisci_tooltip(
+                        periodo_originale, "Uscita", valore_u,
+                        dati_valore.get('N_Uscita', 0), dati_valore.get('Max_Uscita'),
+                        dettaglio_cat_u, dettaglio_conto_u, totale_uscite_periodo,
+                        saldo=valore_e - valore_u)
                     c.tag_bind(rect_u, "<Enter>", lambda e, t=tooltip_text_u: show_tooltip_local(e, t))
                     c.tag_bind(rect_u, "<Leave>", hide_tooltip_local)
                     tipo_bind_u = 'Uscita'
@@ -539,12 +606,11 @@ def crea_grafico_categorie(self, id_righe_selezionate):
                 tipo_testo = "Entrata" if tipo_transazione_ricercato == "entrata" else "Uscita"
                 dettaglio_cat = formatta_dettaglio(dettaglio)
                 dettaglio_conto_txt = formatta_dettaglio_conto(dettaglio_conto)
-                tooltip_text = (
-                    f"Totale {tipo_testo}: {_fmt_it(valore)} €\n"
-                    f"{dettaglio_cat}\n"
-                    f"— Per Conto —\n"
-                    f"{dettaglio_conto_txt}"
-                )
+                tooltip_text = costruisci_tooltip(
+                    periodo_originale, tipo_testo, valore,
+                    dati_valore.get('N', 0) if isinstance(dati_valore, dict) else 0,
+                    dati_valore.get('Max') if isinstance(dati_valore, dict) else None,
+                    dettaglio_cat, dettaglio_conto_txt, totale_aggregato)
                 c.tag_bind(rect, "<Enter>", lambda e, t=tooltip_text: show_tooltip_local(e, t))
                 c.tag_bind(rect, "<Leave>", hide_tooltip_local)                    
                 tipo_bind = tipo_transazione_ricercato.capitalize()

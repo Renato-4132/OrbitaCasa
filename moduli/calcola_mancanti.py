@@ -111,10 +111,13 @@ def calcola_mancanti(self):
     self.tree.tag_configure("cadenza_trimestrale", background="#FFF0E0", foreground="#FF6600")
     self.tree.tag_configure("cadenza_irregolare",  background="#FFEEEE", foreground="#CC0000")
     self.tree.tag_configure("intestazione",        background="#CCCCCC", foreground="black", font=("Arial", 10, "bold"))
+    self.tree._metodo_lookup = {}
+    self._bind_tooltip_metodo(self.tree, col_desc=99)
     def analizza():
         dati_mensili = {}
         for i in self.tree.get_children():
             self.tree.delete(i)
+        self.tree._metodo_lookup = {}
         try:
             anno = int(anno_var.get())
         except ValueError:
@@ -177,6 +180,26 @@ def calcola_mancanti(self):
                     simbolo = f"[{simbolo}]"
                 valori_riga.append(simbolo)
             self.tree.insert("", "end", iid=cat, values=valori_riga, tags=(tag_riga,))
+            _dm = dati_mensili.get(cat, {})
+            _tot_u = sum(m["Uscita"] for m in _dm.values())
+            _tot_e = sum(m["Entrata"] for m in _dm.values())
+            _righe_st = [("Anno", str(anno)), ("Movimenti", str(n_elementi)),
+                         ("Mesi presenti", f"{len(mesi_presenti)}/12")]
+            _manc = [mesi[m - 1] for m in range(1, 13)
+                     if m not in mesi_presenti and not (anno == oggi.year and m > oggi.month)]
+            if _manc:
+                _righe_st.append(("Mancano", ", ".join(_manc)))
+            if _tot_u:
+                _righe_st.append(("Uscite", f"€ {_app._fmt_it(_tot_u)}"))
+            if _tot_e:
+                _righe_st.append(("Entrate", f"€ {_app._fmt_it(_tot_e)}"))
+            _vol = {m: v["Entrata"] + v["Uscita"] for m, v in _dm.items()}
+            if len(_vol) > 1:
+                _mx = max(_vol, key=_vol.get)
+                _mn = min(_vol, key=_vol.get)
+                _righe_st.append(("Mese max", f"{mesi[_mx - 1]}  € {_app._fmt_it(_vol[_mx])}"))
+                _righe_st.append(("Mese min", f"{mesi[_mn - 1]}  € {_app._fmt_it(_vol[_mn])}"))
+            self.tree._metodo_lookup[cat] = {"_righe_extra": _righe_st}
             count += 1
         if count == 0:
             self.tree.insert("", "end",
@@ -261,9 +284,12 @@ def calcola_mancanti(self):
     tree_annuali.tag_configure("ann_presente", foreground=self.COLOR_GREEN_SMOOTH)
     tree_annuali.tag_configure("ann_mancante", foreground=self.COLOR_RED_SMOOTH, font=("Arial", 9, "bold"))
     tree_annuali.tag_configure("ann_futuro",   foreground="#FFAA00")
+    tree_annuali._metodo_lookup = {}
+    self._bind_tooltip_metodo(tree_annuali, col_desc=99)
     def analizza_annuali():
         for i in tree_annuali.get_children():
             tree_annuali.delete(i)
+        tree_annuali._metodo_lookup = {}
         anno_corrente = oggi.year
         storico = {}
         importi_storico = {}
@@ -323,9 +349,18 @@ def calcola_mancanti(self):
             else:
                 tag = "ann_mancante"; simbolo = "✖"
             segno = "+" if media >= 0 else "-"
-            tree_annuali.insert("", "end",
+            _iid_ann = tree_annuali.insert("", "end",
                                 values=(cat, mesi_nomi[mese - 1], f"€ {segno}{_app._fmt_it(abs(media))}", n_anni, simbolo),
                                 tags=(tag,))
+            _abs_imp = [abs(x) for x in importi_storico.get((cat, mese), [])]
+            _righe_st = [("Mese atteso", mesi_nomi[mese - 1]),
+                         ("Anni", ", ".join(str(a) for a in sorted(storico.get((cat, mese), set()))))]
+            if _abs_imp:
+                _righe_st.append(("Occorrenze", str(len(_abs_imp))))
+                _righe_st.append(("Min / Max", f"€ {_app._fmt_it(min(_abs_imp))} / € {_app._fmt_it(max(_abs_imp))}"))
+            _righe_st.append((str(oggi.year), "registrata" if presente else
+                              ("non ancora (mese futuro)" if mese > oggi.month else "mancante")))
+            tree_annuali._metodo_lookup[_iid_ann] = {"_righe_extra": _righe_st}
         if not tree_annuali.get_children():
             tree_annuali.insert("", "end",
                                 values=("Nessuna ricorrenza annuale rilevata.", "", "", "", ""),

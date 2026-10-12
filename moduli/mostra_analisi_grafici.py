@@ -51,11 +51,91 @@ def mostra_analisi_grafici(self):
     for _attr in ("analisi_tab1_conto_filtro", "analisi_tab2_conto_filtro", "analisi_tab3_conto_filtro"):
         if not hasattr(self, _attr) or getattr(self, _attr) not in nomi_conti_analisi:
             setattr(self, _attr, HOUSEHOLD_LABEL)
+    def _eur(v, spec=",.2f"):
+        return f"€ {_fmt_it(v, spec)}"
+    def _tt_stato(canvas):
+        st = getattr(canvas, "_tt_stato", None)
+        if st is None:
+            st = canvas._tt_stato = {"info": {}, "win": None, "job": None, "item": None, "bound": False}
+        return st
+    def _tt_chiudi(canvas, event=None):
+        st = _tt_stato(canvas)
+        if st["job"]:
+            try: canvas.after_cancel(st["job"])
+            except Exception: pass
+            st["job"] = None
+        if st["win"]:
+            try: st["win"].destroy()
+            except Exception: pass
+            st["win"] = None
+        st["item"] = None
+    def _tt_reset(canvas):
+        _tt_chiudi(canvas)
+        _tt_stato(canvas)["info"] = {}
+    def _tt_registra(canvas, item, righe):
+        _tt_stato(canvas)["info"][item] = righe
+    def _tt_mostra(canvas, item):
+        st = _tt_stato(canvas)
+        st["job"] = None
+        righe = st["info"].get(item)
+        if not righe or st["win"] or st["item"] != item:
+            return
+        w_et = max(len(e) for e, _ in righe) + 3
+        testo = "\n".join(f"{(e + ':').ljust(w_et)}{v}" for e, v in righe)
+        tw = tk.Toplevel(canvas)
+        tw.withdraw()
+        tw.wm_overrideredirect(True)
+        try: tw.attributes("-topmost", True)
+        except Exception: pass
+        tw.config(highlightthickness=1, highlightbackground=self.COLOR_HIGHLIGHT, bg=self.COLOR_TOOLTIP)
+        ttk.Label(tw, text=testo, style="Tooltip.TLabel", justify="left",
+                  font=("Courier New", 9, "bold")).pack()
+        tw.update_idletasks()
+        w_t, h_t = tw.winfo_reqwidth(), tw.winfo_reqheight()
+        x = canvas.winfo_pointerx() + 14
+        y = canvas.winfo_pointery() + 14
+        sw, sh = canvas.winfo_screenwidth(), canvas.winfo_screenheight()
+        if x + w_t > sw: x = max(0, sw - w_t - 5)
+        if y + h_t > sh: y = max(0, sh - h_t - 5)
+        tw.wm_geometry(f"+{int(x)}+{int(y)}")
+        tw.deiconify()
+        tw.lift()
+        st["win"] = tw
+    def _tt_motion(canvas, event):
+        st = _tt_stato(canvas)
+        try:
+            cx, cy = canvas.canvasx(event.x), canvas.canvasy(event.y)
+            trovato = None
+            for it in reversed(canvas.find_overlapping(cx - 1, cy - 1, cx + 1, cy + 1)):
+                if it in st["info"]:
+                    trovato = it
+                    break
+        except Exception:
+            trovato = None
+        if trovato is None:
+            if st["item"] is not None or st["win"]:
+                _tt_chiudi(canvas)
+            return
+        if trovato == st["item"]:
+            return
+        _tt_chiudi(canvas)
+        st["item"] = trovato
+        st["job"] = canvas.after(300, lambda it=trovato: _tt_mostra(canvas, it))
+    def _tt_attiva(canvas):
+        st = _tt_stato(canvas)
+        if st["bound"]:
+            return
+        st["bound"] = True
+        canvas.bind("<Motion>", lambda e: _tt_motion(canvas, e), add="+")
+        canvas.bind("<Leave>", lambda e: _tt_chiudi(canvas), add="+")
+        canvas.bind("<ButtonPress>", lambda e: _tt_chiudi(canvas), add="+")
+        canvas.bind("<MouseWheel>", lambda e: _tt_chiudi(canvas), add="+")
     def bind_popup(canvas, item, filter_data, title):
         canvas.tag_bind(item, "<Double-1>", 
                         lambda e: self.mostra_transazioni_popup(filter_data, title))
     def disegna_barre(canvas, dati, colori, mostra_anno=False, mostra_tipo=False, centro=False):
         canvas.delete("all")
+        _tt_reset(canvas)
         canvas.update_idletasks()
         larghezza = canvas.winfo_width()
         altezza = canvas.winfo_height()
@@ -115,6 +195,26 @@ def mostra_analisi_grafici(self):
                 rect = canvas.create_rectangle(x0, y_base, x1, y1, fill=colore)
                 canvas.create_text((x0 + x1) / 2, y1 + 10, text=f"{_fmt_it(valore)}", font=("Arial", 8), fill=self.TEXT_COLOR)
             bind_popup(canvas, rect, filter_data, title_text)
+            _periodo_tt = str(anno_filter) if anno_selezionato == "Tutti" else f"{nome_mese_completo} {anno_filter}"
+            _righe_tt = [("Periodo", _periodo_tt)]
+            if mostra_tipo and tipo:
+                _righe_tt.append(("Tipo", tipo))
+            _righe_tt.append(("Importo", _eur(valore)))
+            if mostra_tipo and (i ^ 1) < len(elementi):
+                _lab_p, _val_p = elementi[i ^ 1]
+                _ent_p = valore if tipo == "Entrata" else _val_p
+                _usc_p = valore if tipo == "Uscita" else _val_p
+                _righe_tt.append((str(_lab_p).split(" ")[-1], _eur(_val_p)))
+                _righe_tt.append(("Saldo", _eur(_ent_p - _usc_p, "+,.2f")))
+                if _ent_p > 0:
+                    _righe_tt.append(("Uscite/Entrate", f"{_usc_p / _ent_p * 100:.0f}%"))
+            if mostra_tipo and tipo:
+                _tot_tipo = sum(v for l, v in elementi if str(l).split(" ")[-1] == tipo)
+                if _tot_tipo > 0:
+                    _righe_tt.append(("Quota", f"{valore / _tot_tipo * 100:.1f}% delle {tipo.lower()}"))
+            if filter_data.get("conto"):
+                _righe_tt.append(("Conto", str(filter_data["conto"])))
+            _tt_registra(canvas, rect, _righe_tt)
             if mostra_tipo and " " in etichetta:
                 tipo_label = etichetta.split(" ")[1]
                 canvas.create_text((x0 + x1) / 2, y_base + 15, text=tipo_label, font=("Arial", 8), fill=self.TEXT_COLOR)
@@ -129,6 +229,7 @@ def mostra_analisi_grafici(self):
             canvas.tooltip.destroy()
             canvas.tooltip = None
         canvas.delete("all")
+        _tt_reset(canvas)
         canvas.update_idletasks()
         LARGHEZZA_BARRA_FISSA = 80
         margine_laterale = 50
@@ -173,28 +274,28 @@ def mostra_analisi_grafici(self):
                 anchor="ne",
                 fill=colore
             )
-            def show_tooltip(event, text=categoria):
-                if hasattr(canvas, "tooltip") and canvas.tooltip:
-                    canvas.tooltip.destroy()
-                    canvas.tooltip = None
-                canvas.tooltip = tk.Toplevel(canvas)
-                canvas.tooltip.wm_overrideredirect(True)
-                canvas.tooltip.config(
-                    highlightthickness=1,
-                    highlightbackground=self.COLOR_HIGHLIGHT,
-                    bg=self.COLOR_TOOLTIP
-                )
-                try:
-                    canvas.tooltip.wm_geometry(f"+{event.x_root + 10}+{event.y_root + 10}")
-                except: pass
-                label = ttk.Label(canvas.tooltip, text=text, style="Tooltip.TLabel")
-                label.pack(ipadx=4)
-            def hide_tooltip(event):
-                if hasattr(canvas, "tooltip") and canvas.tooltip:
-                    canvas.tooltip.destroy()
-                    canvas.tooltip = None
-            canvas.tag_bind(rect, "<Enter>", show_tooltip)
-            canvas.tag_bind(rect, "<Leave>", hide_tooltip)
+            _righe_tt = [
+                ("Categoria", str(categoria)),
+                ("Periodo", "Tutti gli anni" if anno_selezionato == "Tutti" else str(anno_selezionato)),
+                ("Uscite", _eur(valore)),
+                ("Quota", f"{percentuale:.1f}% del totale ({_eur(totale)})"),
+                ("Posizione", f"{i + 1}° di {len(dati)}"),
+            ]
+            _n_mov = getattr(canvas, "conteggi", {}).get(categoria)
+            if _n_mov:
+                _righe_tt.append(("Movimenti", str(_n_mov)))
+                _righe_tt.append(("Media", _eur(valore / _n_mov)))
+            _bud_tt = next((v for k, v in (getattr(self, "budget_categorie", {}) or {}).items()
+                            if str(k).strip().lower() == str(categoria).strip().lower()), 0)
+            try:
+                _bud_tt = float(_bud_tt or 0)
+            except (TypeError, ValueError):
+                _bud_tt = 0
+            if _bud_tt > 0:
+                _righe_tt.append(("Budget mese", _eur(_bud_tt)))
+            if self.analisi_tab2_conto_filtro != HOUSEHOLD_LABEL:
+                _righe_tt.append(("Conto", str(self.analisi_tab2_conto_filtro)))
+            _tt_registra(canvas, rect, _righe_tt)
         lbl_totale = tk.Label(canvas, text=f"Totale uscite: € {_fmt_it(totale)}", font=("Arial", 10, "bold"), bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR, padx=5)
         win_totale = canvas.create_window(10, altezza - 25, window=lbl_totale, anchor="w", tags="fissato")
         def fissa_elementi(event=None):
@@ -211,6 +312,7 @@ def mostra_analisi_grafici(self):
             canvas.tooltip.destroy()
             canvas.tooltip = None
         canvas.delete("all")
+        _tt_reset(canvas)
         canvas.update_idletasks()
         LARGHEZZA_BARRA_FISSA = 80
         margine_laterale = 50
@@ -254,28 +356,18 @@ def mostra_analisi_grafici(self):
                 anchor="ne",
                 fill=colore
             )
-            def show_tooltip(event, text=conto):
-                if hasattr(canvas, "tooltip") and canvas.tooltip:
-                    canvas.tooltip.destroy()
-                    canvas.tooltip = None
-                canvas.tooltip = tk.Toplevel(canvas)
-                canvas.tooltip.wm_overrideredirect(True)
-                canvas.tooltip.config(
-                    highlightthickness=1,
-                    highlightbackground=self.COLOR_HIGHLIGHT,
-                    bg=self.COLOR_TOOLTIP
-                )
-                try:
-                    canvas.tooltip.wm_geometry(f"+{event.x_root + 10}+{event.y_root + 10}")
-                except: pass
-                label = ttk.Label(canvas.tooltip, text=text, style="Tooltip.TLabel")
-                label.pack(ipadx=4)
-            def hide_tooltip(event):
-                if hasattr(canvas, "tooltip") and canvas.tooltip:
-                    canvas.tooltip.destroy()
-                    canvas.tooltip = None
-            canvas.tag_bind(rect, "<Enter>", show_tooltip)
-            canvas.tag_bind(rect, "<Leave>", hide_tooltip)
+            _righe_tt = [
+                ("Conto", str(conto)),
+                ("Periodo", "Tutti gli anni" if anno_selezionato == "Tutti" else str(anno_selezionato)),
+                ("Uscite", _eur(valore)),
+                ("Quota", f"{percentuale:.1f}% del totale ({_eur(totale)})"),
+                ("Posizione", f"{i + 1}° di {len(dati)}"),
+            ]
+            _n_mov = getattr(canvas, "conteggi", {}).get(conto)
+            if _n_mov:
+                _righe_tt.append(("Movimenti", str(_n_mov)))
+                _righe_tt.append(("Media", _eur(valore / _n_mov)))
+            _tt_registra(canvas, rect, _righe_tt)
         lbl_totale = tk.Label(canvas, text=f"Totale uscite: € {_fmt_it(totale)}", font=("Arial", 10, "bold"), bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR, padx=5)
         win_totale = canvas.create_window(10, altezza - 25, window=lbl_totale, anchor="w", tags="fissato")
         def fissa_elementi(event=None):
@@ -308,6 +400,7 @@ def mostra_analisi_grafici(self):
         nomi_completi_mesi = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", 
                               "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
         canvas.delete("all")
+        _tt_reset(canvas)
         canvas.update_idletasks()
         larghezza = canvas.winfo_width()
         altezza = canvas.winfo_height()
@@ -349,6 +442,26 @@ def mostra_analisi_grafici(self):
                 filter_data = {"anno": anno_filtro, "mese": mese_num,
                                 "conto": None if self.analisi_tab3_conto_filtro == HOUSEHOLD_LABEL else self.analisi_tab3_conto_filtro}
                 bind_popup(canvas, rect, filter_data, title_text)
+                _det = getattr(canvas, "dettaglio", {})
+                _ent_t, _usc_t = _det.get(etichetta, (0.0, 0.0))
+                _periodo_tt = str(etichetta) if anno_selezionato_selettore == "Tutti" else f"{nome_mese_per_titolo} {anno_filtro}"
+                _righe_tt = [
+                    ("Periodo", _periodo_tt),
+                    ("Entrate", _eur(_ent_t)),
+                    ("Uscite", _eur(_usc_t)),
+                    ("Saldo", _eur(valore, "+,.2f")),
+                ]
+                if _ent_t > 0:
+                    _righe_tt.append(("Risparmio", f"{valore / _ent_t * 100:.0f}% delle entrate"))
+                if i > 0:
+                    _prec = chiavi[i - 1]
+                    _val_prec = dati.get(_prec, 0)
+                    _righe_tt.append((f"Δ vs {_prec}", _eur(valore - _val_prec, "+,.2f")))
+                _progr = sum(dati.get(k, 0) for k in chiavi[:i + 1])
+                _righe_tt.append(("Progressivo", _eur(_progr, "+,.2f")))
+                if self.analisi_tab3_conto_filtro != HOUSEHOLD_LABEL:
+                    _righe_tt.append(("Conto", str(self.analisi_tab3_conto_filtro)))
+                _tt_registra(canvas, rect, _righe_tt)
                 testo_y = y1 - 10
                 valore_formattato = f"{_fmt_it(abs(valore))}"
                 canvas.create_text(
@@ -440,6 +553,10 @@ def mostra_analisi_grafici(self):
             mesi = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
             grafico = {mesi[m - 1]: saldo_per_grafico.get(m, 0) for m in range(1, 13)}
         canvas3.dati_cache = grafico
+        if selezione == "Tutti":
+            canvas3.dettaglio = {str(a): (entrate.get(str(a), 0.0), uscite.get(str(a), 0.0)) for a in saldo_per_grafico}
+        else:
+            canvas3.dettaglio = {mesi[m - 1]: (entrate.get(m, 0.0), uscite.get(m, 0.0)) for m in range(1, 13)}
         ridisegna_tab3()
     def ridisegna_tab3(event=None):
         if hasattr(canvas3, "dati_cache"):
@@ -451,6 +568,7 @@ def mostra_analisi_grafici(self):
         if self.analisi_tab2_conto_filtro != HOUSEHOLD_LABEL:
             conto_sel2 = next((c for c in conti_disponibili_analisi if c.get("nome", "") == self.analisi_tab2_conto_filtro), None)
         categories = defaultdict(float)
+        conteggi_t2 = defaultdict(int)
         _uso_ordinale_t2 = {}
         for data, voci in self.spese.items():
             if anno == "Tutti" or str(data.year) == anno:
@@ -463,6 +581,7 @@ def mostra_analisi_grafici(self):
                         continue
                     if campo(voce, "tipo", "").strip().lower() == "uscita":
                         categories[campo(voce, "categoria", "")] += float(campo(voce, "importo", 0.0))
+                        conteggi_t2[campo(voce, "categoria", "")] += 1
         tutte_categorie = sorted(categories.items(), key=lambda x: x[1], reverse=True)
         colore = {}
         if not hasattr(self, '_colori_categorie'):
@@ -473,6 +592,7 @@ def mostra_analisi_grafici(self):
         colore = self._colori_categorie
         canvas2.tutte_categorie = tutte_categorie
         canvas2.colori = colore
+        canvas2.conteggi = dict(conteggi_t2)
         canvas2.dati_cache = tutte_categorie
         canvas2.colori_cache = colore
         ridisegna_tab2()
@@ -493,6 +613,7 @@ def mostra_analisi_grafici(self):
         anno = selettore_anno4.get()
         canvas4.anno_corrente = anno
         conti = defaultdict(float)
+        conteggi_t4 = defaultdict(int)
         _uso_ordinale_t4 = {}
         for data, voci in self.spese.items():
             if anno == "Tutti" or str(data.year) == anno:
@@ -502,6 +623,7 @@ def mostra_analisi_grafici(self):
                     if campo(voce, "tipo", "").strip().lower() == "uscita":
                         nome_conto = _risolvi_conto_voce(voce, data, _agganci_analisi, _uso_ordinale_t4) or "(Nessun conto)"
                         conti[nome_conto] += float(campo(voce, "importo", 0.0))
+                        conteggi_t4[nome_conto] += 1
         tutti_conti = sorted(conti.items(), key=lambda x: x[1], reverse=True)
         if not hasattr(self, '_colori_conti'):
             self._colori_conti = {}
@@ -509,6 +631,7 @@ def mostra_analisi_grafici(self):
             if conto not in self._colori_conti:
                 self._colori_conti[conto] = f'#{random.randint(50,200):02x}{random.randint(50,200):02x}{random.randint(50,200):02x}'
         colore = self._colori_conti
+        canvas4.conteggi = dict(conteggi_t4)
         canvas4.dati_cache = tutti_conti
         canvas4.colori_cache = colore
         ridisegna_tab4()
@@ -675,6 +798,7 @@ def mostra_analisi_grafici(self):
     canvas1.pack(fill="both", expand=True, padx=10, pady=10)
     canvas1.selettore_rif = selettore_anno1
     canvas1.bind("<Configure>", ridisegna_tab1)
+    _tt_attiva(canvas1)
     tab2 = ttk.Frame(notebook)
     tab2.grid_columnconfigure(0, weight=3)
     tab2.grid_columnconfigure(1, weight=1)
@@ -728,6 +852,7 @@ def mostra_analisi_grafici(self):
     canvas2.tooltip = None
     canvas2.anno_corrente = selettore_anno2.get()
     canvas2.bind("<Configure>", ridisegna_tab2)
+    _tt_attiva(canvas2)
     frame_legenda = ttk.Frame(tab2)
     frame_legenda.grid(row=1, column=1, sticky="nsew", padx=5, pady=(0, 10))
     lbl_leg = tk.Label(frame_legenda, text="Legenda Categorie", bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR, font=("Arial", 10, "bold"))
@@ -797,6 +922,7 @@ def mostra_analisi_grafici(self):
     canvas3.pack(fill="both", expand=True, padx=10, pady=10)
     canvas3.selettore_rif = selettore_anno3
     canvas3.bind("<Configure>", ridisegna_tab3)
+    _tt_attiva(canvas3)
     tab4 = ttk.Frame(notebook)
     tab4.grid_columnconfigure(0, weight=3)
     tab4.grid_columnconfigure(1, weight=1)
@@ -841,6 +967,7 @@ def mostra_analisi_grafici(self):
     canvas4.tooltip = None
     canvas4.anno_corrente = selettore_anno4.get()
     canvas4.bind("<Configure>", ridisegna_tab4)
+    _tt_attiva(canvas4)
     frame_legenda4 = ttk.Frame(tab4)
     frame_legenda4.grid(row=1, column=1, sticky="nsew", padx=5, pady=(0, 10))
     lbl_leg4 = tk.Label(frame_legenda4, text="Legenda Conti", bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR, font=("Arial", 10, "bold"))

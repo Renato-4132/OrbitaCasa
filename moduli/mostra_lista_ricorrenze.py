@@ -158,6 +158,7 @@ def mostra_lista_ricorrenze(self):
         tree.heading(col, text=col, command=lambda _col=col: self.treeview_sort_column(tree, _col, False))
         tree.column(col, width=larghezze[col], anchor="center")
     tree.pack(fill="both", expand=True)
+    tree._metodo_lookup = {}
     oggi = datetime.date.today()
     bilancio_mensile = 0.0
     conteggio_reale = {}
@@ -188,9 +189,28 @@ def mostra_lista_ricorrenze(self):
         tag = "uscita" if tipo_voce == "Uscita" else "entrata"
         values = (cat, conto, metodo, tag_str, tipo_voce, f"{_fmt_it(imp)} €", n_volte, volte_passate, data_inizio_str, data_fine, f"{_fmt_it(importo_totale)} €", f"{_fmt_it(importo_gia_pagato)} €", f"{_fmt_it(importo_rimasto)} €", id_ricorrenza)
         tree.insert("", "end", iid=id_ricorrenza, values=values, tags=(tag,))
+        tree._metodo_lookup[id_ricorrenza] = {
+            "metodo": metodo,
+            "conto": conto,
+            "categoria": cat,
+            "importo": imp,
+            "hashtag": list(dati.get("hashtag", []) or []),
+            "id_ricorrenza": id_ricorrenza,
+            "_righe_extra": [
+                ("Tipo", str(tipo_voce)),
+                ("Durata", f"{n_volte} volte"),
+                ("Saldate", str(volte_passate)),
+                ("Inizio", str(data_inizio_str)),
+                ("Fine", str(data_fine)),
+                ("Importo totale", f"€ {_fmt_it(importo_totale)}"),
+                ("Contabilizzato", f"€ {_fmt_it(importo_gia_pagato)}"),
+                ("Residuo", f"€ {_fmt_it(importo_rimasto)}"),
+            ],
+        }
         if ric_periodo.lower() == "ogni mese":
             bilancio_mensile += imp if tipo_voce == "Entrata" else -imp
     tree.bind("<Double-1>", self.on_ricorrenza_double_click)
+    self._bind_tooltip_metodo(tree, col_desc=0)
     summary_frame = ttk.Frame(main_frame, padding=(0, 10))
     summary_frame.pack(fill="x", expand=False)
     img_mouse = self.icone_gui.get("mouse")
@@ -295,6 +315,7 @@ def on_ricorrenza_double_click(self, event):
         else:
                 w = 100
         tree_movimenti.column(col, width=w, anchor="center")
+    tree_movimenti._metodo_lookup = {}
     tree_movimenti.tag_configure("verde", foreground="green")
     tree_movimenti.tag_configure("rosso", foreground="red")
     tree_movimenti.tag_configure("grigio", foreground="gray")
@@ -305,12 +326,14 @@ def on_ricorrenza_double_click(self, event):
             data_movimento = datetime.datetime.strptime(data_str, "%d-%m-%Y").date()
         except: continue
         voce_trovata = False
+        voce_ref = None
         importo_effettivo = importo_ricorrenza
         if data_movimento in self.spese:
             for voce in self.spese[data_movimento]:
                 if str(campo(voce, "id_ricorrenza", None)) == str(item_id):
                     importo_effettivo = campo(voce, "importo", importo_ricorrenza)
                     voce_trovata = True
+                    voce_ref = voce
                     break
         if data_movimento <= oggi:
             if voce_trovata:
@@ -323,9 +346,28 @@ def on_ricorrenza_double_click(self, event):
             icona_p, icona_dp = "", "❌"
             tag = "verde" if tipo_std == "Entrata" else "rosso"
 
-        tree_movimenti.insert("", "end", values=(
+        _iid_mov = tree_movimenti.insert("", "end", values=(
             data_str, descrizione_ricorrenza, conto_ricorrenza, metodo_ricorrenza, tag_ricorrenza_str, f"{_fmt_it(importo_effettivo)} €", icona_p, icona_dp
         ), tags=(tag,))
+        if voce_trovata:
+            _stato_mov = "Registrata"
+        elif data_movimento <= oggi:
+            _stato_mov = "Non registrata"
+        else:
+            _stato_mov = "Prevista"
+        tree_movimenti._metodo_lookup[_iid_mov] = {
+            "metodo": metodo_ricorrenza,
+            "conto": conto_ricorrenza,
+            "ora": campo(voce_ref, "ora", "") if voce_ref is not None else "",
+            "hashtag": list(campo(voce_ref, "hashtag", []) if voce_ref is not None else (ricorrenza_dati.get("hashtag", []) or [])),
+            "id_ricorrenza": item_id,
+            "id_spesa": campo(voce_ref, "id_spesa", "") if voce_ref is not None else "",
+            "data": data_str,
+            "categoria": descrizione_ricorrenza,
+            "importo": importo_effettivo,
+            "tipo": tipo_std,
+            "_righe_extra": [("Stato", _stato_mov)],
+        }
     info_frame = ttk.Frame(popup_movimenti, padding=(10, 5))
     info_frame.pack(fill="x", expand=False)
     
@@ -373,6 +415,7 @@ def on_ricorrenza_double_click(self, event):
             self.reset_ricorrenza_popup(),
             popup_movimenti.destroy()
     ))
+    self._bind_tooltip_metodo(tree_movimenti, col_desc=1)
     tree_movimenti.bind("<Double-1>", lambda e: (
             self.on_scadenza_doppio_click(e),
             self.reset_ricorrenza_popup(),

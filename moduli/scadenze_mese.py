@@ -108,6 +108,8 @@ def scadenze_mese(self):
     tree_mensile = ttk.Treeview(popup_mensile, columns=colonne, show="headings")
     tree_mensile.pack(fill="both", expand=True, padx=10, pady=(10, 0))
     tree_mensile.bind("<Double-1>", self.on_scadenza_doppio_click)
+    tree_mensile._metodo_lookup = {}
+    self._bind_tooltip_metodo(tree_mensile, col_desc=2)
     for col in colonne:
         tree_mensile.heading(col, text=col.replace("_", " ").capitalize(), command=(lambda c=col: lambda: ordina_colonna(tree_mensile, c, False))())
     tree_mensile.column("data", width=80, anchor="center", stretch=False)
@@ -174,7 +176,7 @@ def scadenze_mese(self):
                 tag_val = " ".join(campo(entry_trovata, "hashtag", [])) if entry_trovata else ""
                 tag = "rosso" if tipo_voce == "Uscita" else "verde" if voce_trovata else "grigio"
                 data_scadenza = data_fine_serie
-                tree_mensile.insert(
+                _iid_sc = tree_mensile.insert(
                     "",
                     "end",
                     values=(
@@ -192,6 +194,25 @@ def scadenze_mese(self):
                     ),
                     tags=(tag,)
                 )
+                _info_sc = {
+                    "metodo": metodo_val,
+                    "conto": conto_val,
+                    "ora": campo(entry_trovata, "ora", "") if entry_trovata else "",
+                    "hashtag": campo(entry_trovata, "hashtag", []) if entry_trovata else [],
+                    "id_ricorrenza": item_id,
+                    "data": data_movimento.strftime("%d-%m-%Y"),
+                    "categoria": categoria,
+                    "tipo": tipo_voce,
+                    "id_spesa": campo(entry_trovata, "id_spesa", "") if entry_trovata else "",
+                }
+                if voce_trovata:
+                    _info_sc["importo"] = importo_effettivo
+                else:
+                    _info_sc["_righe_extra"] = [
+                        ("Importo previsto", "€ " + f"{importo_base:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")),
+                        ("Stato", "Non ancora registrata"),
+                    ]
+                tree_mensile._metodo_lookup[_iid_sc] = _info_sc
         except Exception as e:
             print(f"Errore nella ricorrenza con ID {item_id}: {e}")
             continue
@@ -215,7 +236,7 @@ def scadenze_mese(self):
                         metodo_val = campo(voce, "metodo_pagamento", "")
                         tag_val = " ".join(campo(voce, "hashtag", []))
                         tag = "rosso" if tipo_voce == "Uscita" else "verde"
-                        tree_mensile.insert(
+                        _iid_vn = tree_mensile.insert(
                             "",
                             "end",
                             values=(
@@ -233,6 +254,18 @@ def scadenze_mese(self):
                             ),
                             tags=(tag,)
                         )
+                        tree_mensile._metodo_lookup[_iid_vn] = {
+                            "metodo": metodo_val,
+                            "conto": conto_val,
+                            "ora": campo(voce, "ora", ""),
+                            "hashtag": campo(voce, "hashtag", []),
+                            "id_ricorrenza": campo(voce, "id_ricorrenza", ""),
+                            "data": data_voce.strftime("%d-%m-%Y"),
+                            "categoria": categoria,
+                            "importo": importo,
+                            "tipo": tipo_voce,
+                            "id_spesa": campo(voce, "id_spesa", ""),
+                        }
                     except Exception as e:
                         print(f"Errore nella voce normale del {data_voce}: {e}")
                         continue
@@ -279,6 +312,8 @@ def on_scadenza_doppio_click(self, event):
         giorno = datetime.datetime.strptime(data_str, "%d-%m-%Y").date()
     except Exception:
         return
+    _id_sp = (getattr(tree, "_metodo_lookup", {}).get(item_id) or {}).get("id_spesa", "")
+    _desc_sel = str(valori[2])[:20] if len(valori) > 2 else ""
     self.set_stats_mode("giorno")
     if hasattr(self, "cal"):
         self.cal.selection_set(giorno)
@@ -300,3 +335,4 @@ def on_scadenza_doppio_click(self, event):
           self._scadenze_popup = None
        except:
           pass
+    self.after(400, lambda: self.seleziona_spesa_in_lista(giorno, _desc_sel, _id_sp))

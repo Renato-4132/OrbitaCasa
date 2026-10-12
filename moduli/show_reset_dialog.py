@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import json
 import shutil
 import subprocess
 import sys
@@ -9,12 +10,56 @@ import sys
 import tkinter as tk
 from tkinter import ttk
 
+FS_PARTECIPANTI = "#fairshare-partecipanti"
+FS_PAGAMENTI = "#fairshare-pagamenti"
+PIANI = "#pianificate"
+
+def _leggi_db_fairshare(db_file):
+    with open(db_file, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def _conta_fairshare(percorso):
+    db_file = percorso.split("#", 1)[0]
+    try:
+        dati = _leggi_db_fairshare(db_file)
+    except Exception:
+        return None
+    if percorso.endswith(PIANI):
+        return len((dati.get("pianificate") or {}).get("piani", []))
+    if percorso.endswith(FS_PARTECIPANTI):
+        return len((dati.get("fairshare") or {}).get("partecipanti", []))
+    return sum(1 for g in dati.get("spese", []) if isinstance(g, dict)
+               for e in g.get("entries", []) if isinstance(e, dict) and e.get("fairshare"))
+
+def _azzera_fairshare(percorso):
+    db_file = percorso.split("#", 1)[0]
+    if not os.path.exists(db_file):
+        return
+    dati = _leggi_db_fairshare(db_file)
+    if percorso.endswith(PIANI):
+        dati["pianificate"] = {"piani": []}
+    elif percorso.endswith(FS_PARTECIPANTI):
+        gestore = (dati.get("fairshare") or {}).get("gestore_partecipa", True)
+        dati["fairshare"] = {"gestore_partecipa": gestore, "partecipanti": []}
+    else:
+        for g in dati.get("spese", []):
+            if isinstance(g, dict):
+                for e in g.get("entries", []):
+                    if isinstance(e, dict):
+                        e.pop("fairshare", None)
+    tmp = db_file + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(dati, f, indent=2, ensure_ascii=False)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, db_file)
+
 def _elenco_file_variabili(_app):
 
     def g(nome):
         return getattr(_app, nome, None)
     voci_raw = [
-        ("Movimenti, Categorie e Ricorrenze", "Spese, entrate, categorie personalizzate, ricorrenze e budget (spese_db.json)", "DB_FILE", False),
+        ("Movimenti, Categorie e Ricorrenze", "Spese, entrate, categorie personalizzate, ricorrenze, budget e FairShare (partecipanti e pagamenti) (spese_db.json)", "DB_FILE", False),
         ("Rubrica Contatti",                  "Contatti salvati in rubrica (rubrica.json)", "DATI_FILE", False),
         ("Utenze e Bollette",                 "Utenze domestiche e relative bollette (utenze_db.json)", "UTENZE_DB", False),
         ("Archivio Documenti (indice)",       "Indice dei documenti PDF/immagini archiviati (documenti_archiviati.json)", "REGISTRY_FILE", False),
@@ -30,11 +75,8 @@ def _elenco_file_variabili(_app):
         ("Aggiornamenti Rimandati",           "Notifiche di aggiornamento posticipate (update.json)", "RIMANDA_FILE", False),
         ("Chiave API Salvata",                "Chiave API (Gemini) salvata in locale (api.json)", "DEFAULT_API", False),
         ("Controllo Fine Mese",               "Stato dei controlli automatici di fine mese (controllo_fm.json)", "CONTROLLO_F_M", False),
-        ("FairShare - Partecipanti",          "Elenco partecipanti alle spese condivise (fairshare.json)", "PARTECIPANTI", False),
-        ("FairShare - Stato Condiviso",       "Saldi e stato delle spese condivise (fairshare_state.json)", "FAIRSHARE_STATE", False),
         ("Fondo Risparmio",                   "Obiettivi e progressi del fondo risparmio (fondo_risparmio.json)", "FR_FILE", False),
         ("Fondo Pensione",                    "Dati anagrafica, versamenti, valorizzazioni e riscatti del fondo pensione (fondo_pensione.json)", "PENSIONE_FILE", False),
-        ("Spese Pianificate",                 "Piani di accantonamento per spese future (spese_pianificate.json)", "PIANIFICA_FILE", False),
         ("Piano Dieta",                       "Piano alimentare impostato (dieta_piano.json)", "DIETA_FILE", False),
         ("Alimenti Personalizzati",           "Alimenti custom aggiunti al database dieta (alimenti_custom.json)", "CUSTOM_FILE", False),
         ("Storico Peso",                      "Storico del peso corporeo registrato (peso_storico.json)", "PESO_FILE", False),
@@ -51,6 +93,7 @@ def _elenco_file_variabili(_app):
         ("AutoPark",                          "Veicoli, scadenze e registro movimenti (veicoli.json)", "VEICOLI_FILE", False),
         ("Pet Care",                          "Anagrafica animali, spese e scadenze (animali.json)", "ANIMALI_FILE", False),
         ("StockBox",                          "Articoli, scorte e movimenti del magazzino (magazzino.json)", "MAGAZZINO_FILE", False),
+        ("Scanner",                           "Impostazioni della finestra di scansione: ultimo scanner, scanner di rete salvati, risoluzione, colore, sorgente", "SCANNER_FILE", False),
         ("Casa Care",                         "Manutenzione e Risparmio Casa (manutenzione_casa.json)", "MANUTENZIONE_CASA_FILE", False),
         ("Schedulatore Email",                "Regole dello schedulatore email (schedule.json)", "SCHEDULE_FILE", False),
         ("Password di Accesso",               "Password impostata per l'accesso all'app (password.json)", "PW_FILE", False),
@@ -69,6 +112,16 @@ def _elenco_file_variabili(_app):
         percorso = g(nome_costante)
         if percorso:
             voci.append((etichetta, descrizione, percorso, is_dir))
+            if nome_costante == "DB_FILE":
+                voci.append(("FairShare - Partecipanti",
+                             "Elenco partecipanti e opzione gestore (dentro spese_db.json). Movimenti e pagamenti restano",
+                             percorso + FS_PARTECIPANTI, False))
+                voci.append(("FairShare - Pagamenti",
+                             "Stato dei pagamenti segnati sulle spese condivise (dentro spese_db.json). Movimenti e partecipanti restano",
+                             percorso + FS_PAGAMENTI, False))
+                voci.append(("Spese Pianificate",
+                             "Piani di accantonamento per spese future (dentro spese_db.json). Movimenti e il resto restano",
+                             percorso + PIANI, False))
 
     DB_DIR = g("DB_DIR")
     BASE_DIR = g("BASE_DIR")
@@ -89,6 +142,11 @@ def _elenco_file_variabili(_app):
     return voci
 
 def _dimensione_leggibile(percorso, is_dir):
+    if percorso.endswith((FS_PARTECIPANTI, FS_PAGAMENTI, PIANI)):
+        n = _conta_fairshare(percorso)
+        if n is None:
+            return "—"
+        return f"{n} {'partecipanti' if percorso.endswith(FS_PARTECIPANTI) else ('piani' if percorso.endswith(PIANI) else 'spese con pagamenti')}"
     try:
         if is_dir:
             if not os.path.isdir(percorso):
@@ -293,7 +351,9 @@ def show_reset_dialog(self):
         errori = []
         for etichetta, percorso, is_dir in selezionati:
             try:
-                if is_dir:
+                if percorso.endswith((FS_PARTECIPANTI, FS_PAGAMENTI, PIANI)):
+                    _azzera_fairshare(percorso)
+                elif is_dir:
                     if os.path.isdir(percorso):
                         shutil.rmtree(percorso)
                 else:
