@@ -31,6 +31,13 @@
 
 **Orbita Casa** è un ecosistema progettato per chi vuole il controllo totale sulle proprie finanze senza rinunciare alla **Privacy**. Unisce la potenza di un software gestionale alla semplicità di un'app domestica.
 
+Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2) per proteggere la privacy dell'utente ed evitare i costi di sottoscrizione che renderebbero il progetto a pagamento. Crediamo in un software libero da canoni e da occhi indiscreti.
+
+* 🛡️ **Zero Cloud**: I tuoi dati risiedono solo sul tuo PC.
+* 💰 **Smart Saving**: Algoritmi per il confronto prezzi e risparmio.
+* 📱 **Mobile Ready**: Accesso rapido tramite QR Code.
+* 📑 **Paperless**: Archiviazione digitale di tutti i tuoi documenti PDF.
+
 
 **🏅 LICENZA VIVA — GRATIS, A PUNTI**
 
@@ -39,18 +46,11 @@
 
 Non paghi mai, ma la licenza non è "per sempre" a prescindere: **più usi l'app, più sali di livello, più si allunga**. Ogni traguardo raggiunto estende in automatico la scadenza.
 
-Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2) per proteggere la privacy dell'utente ed evitare i costi di sottoscrizione che renderebbero il progetto a pagamento. Crediamo in un software libero da canoni e da occhi indiscreti.
-
-* 🛡️ **Zero Cloud**: I tuoi dati risiedono solo sul tuo PC.
-* 💰 **Smart Saving**: Algoritmi per il confronto prezzi e risparmio.
-* 📱 **Mobile Ready**: Accesso rapido tramite QR Code.
-* 📑 **Paperless**: Archiviazione digitale di tutti i tuoi documenti PDF.
-
 </details>
 
 ---
 
-**🔥 POTENZA IN 50+ FUNZIONI**
+**🔥 POTENZA IN 70+ FUNZIONI**
 
 <details>
 <summary><b>Clicca per vedere tutte le funzioni</b></summary>
@@ -62,84 +62,95 @@ Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2
 1. **Importazione Estratti** — PDF e CSV da banca, stipendi, spese — il punto di ingresso di tutto
 2. **Sincronizzazione Gmail** — Fatture scaricate e archiviate in automatico dall'email
 3. **Archivio Documenti Contabili PDF** — Ogni movimento collegato al suo documento — tutto aggregato in un posto
-4. **SmartCat** — Categorizza da solo basandosi sullo storico — l'utente non ci pensa
-5. **Gestione Ricorrenze** — Inserisci una volta affitto, abbonamenti, stipendio — poi dimentica
-6. **Promemoria & QR Code** — Inserimento manuale rapido dei promemoria o tramite QR Code con un colpo d'occhio
+4. **Scansione Documenti da Scanner** — Acquisisci i fogli da scanner USB o di rete direttamente in un PDF, con Analisi AI opzionale
+5. **Scansiona e salva PDF** — Scansiona e salva il PDF dove vuoi, senza archiviarlo
+6. **SmartCat** — Categorizza da solo basandosi sullo storico — l'utente non ci pensa
+7. **Gestione Ricorrenze** — Inserisci una volta affitto, abbonamenti, stipendio — poi dimentica
+8. **Spese Pianificate** — Dilaziona una spesa in quote automatiche fino alla cifra prefissata
+9. **Promemoria & QR Code** — Inserimento manuale rapido dei promemoria o tramite QR Code con un colpo d'occhio
 
 ---
 
 **🟢 Fondamenta operative**
 
-7. **Saldo Bancario** — Riconciliazione immediata — quanto ho davvero sul conto
-8. **Calendario Heartbeat** — Vista globale degli impegni finanziari nel tempo
-9. **Ricerca Multi-Filtro** — Trova qualsiasi movimento in un istante
-10. **Sicurezza Password** — Accesso protetto — dati finanziari, non si scherza
-11. **Backup & Ripristino** — Salvataggio automatico, nessun dato perso
-12. **Backup Automatico** — Gestione copie database e documenti senza pensarci
-13. **Promemoria Categorie** — Avvisi su spese ricorrenti dimenticate rispetto ai mesi passati
-14. **Profili Multi-Utente** — Database separati per più persone o nuclei familiari
-15. **Esportazione TXT/PDF/Stampa** — I dati sempre esportabili nel formato che serve
-16. **Configurazione & Backup** — Tutto configurabile, dati sempre sicuri e portabili
+10. **Saldo Bancario** — Riconciliazione immediata — quanto ho davvero sul conto
+11. **Calendario Heartbeat** — Vista globale degli impegni finanziari nel tempo
+12. **Ricerca Multi-Filtro** — Trova qualsiasi movimento in un istante
+13. **Sicurezza Password** — Accesso protetto — dati finanziari, non si scherza
+14. **Backup & Ripristino** — Salvataggio automatico, nessun dato perso
+15. **Backup Automatico** — Gestione copie database e documenti senza pensarci
+16. **Promemoria Categorie** — Avvisi su spese ricorrenti dimenticate rispetto ai mesi passati
+17. **Profili Multi-Utente** — Database separati per più persone o nuclei familiari
+18. **Esportazione TXT/PDF/Stampa** — I dati sempre esportabili nel formato che serve
+19. **Configurazione & Backup** — Tutto configurabile, dati sempre sicuri e portabili
+20. **Azzeramento Dati Selettivo** — Resetta un singolo ambito senza toccare il resto del database
+21. **Vai al Movimento** — Doppio clic su una spesa e la raggiungi nella lista principale
 
 ---
 
 **🔵 Analisi e controllo**
 
-17. **Grafici Drill-Down** — Analisi visiva profonda — dove vanno davvero i soldi
-18. **Aggregazione Categorie** — Spese raggruppate per aree tematiche
-19. **Monitoraggio Budget per Categoria** — Avviso quando si supera la soglia di spesa
-20. **Fondo Risparmio** — Tracking risparmi accantonati e obiettivi
-21. **Simulatore Risparmio** — Calcola come e quando raggiungere un obiettivo
-22. **Proiezioni Finanziarie** — Rendite, spese e patrimonio nel futuro
-23. **Stampa Report** — Documentazione professionale pronta all'uso
-24. **Analisi Finanziaria OpenAI** — Analisi intelligente dell'andamento complessivo
-25. **Chiedi al Database con l'IA** — Domande in linguaggio naturale su spese, conti, veicoli, immobili e tutti i moduli
-26. **Calcolo Inflazione** — Tasso reale calcolato sullo storico personale
-27. **Invio Estratti Mail** — Distribuzione automatica dei report
+22. **Grafici Drill-Down** — Analisi visiva profonda — dove vanno davvero i soldi
+23. **Aggregazione Categorie** — Spese raggruppate per aree tematiche
+24. **Monitoraggio Budget per Categoria** — Avviso quando si supera la soglia di spesa
+25. **Fondo Risparmio** — Tracking risparmi accantonati e obiettivi
+26. **Simulatore Risparmio** — Calcola come e quando raggiungere un obiettivo
+27. **Proiezioni Finanziarie** — Rendite, spese e patrimonio nel futuro
+28. **Stampa Report** — Documentazione professionale pronta all'uso
+29. **Analisi Finanziaria con IA** — Analisi intelligente dell'andamento complessivo
+30. **Chiedi al Database con l'IA** — Domande in linguaggio naturale su spese, conti, veicoli, immobili e tutti i moduli
+31. **Calcolo Inflazione** — Tasso reale calcolato sullo storico personale
+32. **Invio Estratti Mail** — Distribuzione automatica dei report
+33. **Analisi Mese** — Cruscotto e Saldi conti del mese
+34. **Metodo 50/30/20** — Entrate divise in Bisogni 50%, Desideri 30%, Risparmio 20%
+35. **Classi 50/30/20 per Categoria** — Assegna a ogni categoria Bisogni, Desideri o Risparmio
 
 ---
 
 **🟡 Strumenti avanzati**
 
-28. **Gestione Immobili** — Entrate/uscite per immobile, estratto conto, riepilogo
-29. **Gestione Veicoli** — Scadenze bollo/assicurazione/revisione, consumi, costo al km, spese per veicolo
-30. **Gestione MyBusiness** — Agenda, preventivi, fatturazione, magazzino
-31. **Gestione Associativa e Multiconto** — Associazione tra entità contabili e conti bancari
-32. **Ammortamento Mutui** — Rate, interessi reali, piani di ammortamento completi
-33. **Algoritmo FairShare** — Ripartizione equa spese tra più persone
-34. **Conti Personali FairShare** — Conto individuale per tracciare spese nel gruppo
-35. **Mercati Finanziari** — Monitoraggio real-time indici e asset globali
-36. **Monitor Utenze** — Consumi di luce, gas e acqua sotto controllo
-37. **Manutenzione e Risparmio Casa** — Calendario manutenzioni periodiche per impianti ed elettrodomestici
-38. **Confronto Prezzi** — Ottimizza la spesa alimentare nel tempo
-39. **Analizzatore Semantico IA** — Analisi intelligente e confronto multi-documento
-40. **Webserver Remoto** — Consulta i dati da smartphone anche in remoto
-41. **Sistema di Backup Evoluto (PRG)** — Snapshot, backup incrementali e rollback integrato
-42. **Fondo Pensione** — Piano, versamenti per tipologia, valorizzazioni e riscatti/anticipazioni.
-43. **Portafoglio Bancario Multi-Conto** — Riepilogo di tutti i conti con distribuzione per categoria.
-44. **Trasferimenti tra Conti** — Pianifica trasferimenti singoli o in serie ricorrenti tra conti.
-45. **Notifiche Email Pianificate** — Report multipli programmabili con frequenza personalizzata.
-46. **StockBox (Magazzino)** — Magazzino generico per tutto ciò che vuoi tenere in scorta.
+36. **Gestione Immobili** — Entrate/uscite per immobile, estratto conto, riepilogo
+37. **Gestione Veicoli** — Scadenze bollo/assicurazione/revisione, consumi, costo al km, spese per veicolo
+38. **Gestione MyBusiness** — Agenda, preventivi, fatturazione, magazzino
+39. **Gestione Associativa e Multiconto** — Associazione tra entità contabili e conti bancari
+40. **Ammortamento Mutui** — Rate, interessi reali, piani di ammortamento completi
+41. **Algoritmo FairShare** — Ripartizione equa spese tra più persone, quote calcolate al centesimo
+42. **Conti Personali FairShare** — Conto individuale per tracciare spese nel gruppo
+43. **Estratto Analitico & Dare/Avere** — Chi deve cosa a chi, con filtri per stato e ordinamento
+44. **Mercati Finanziari** — Monitoraggio real-time indici e asset globali
+45. **Monitor Utenze** — Consumi di luce, gas e acqua sotto controllo
+46. **Manutenzione e Risparmio Casa** — Calendario manutenzioni periodiche per impianti ed elettrodomestici
+47. **Confronto Prezzi** — Ottimizza la spesa alimentare nel tempo
+48. **Analizzatore Semantico IA** — Analisi intelligente e confronto multi-documento
+49. **Webserver Remoto** — Consulta i dati da smartphone anche in remoto
+50. **Sistema di Backup Evoluto (PRG)** — Snapshot, backup incrementali e rollback integrato
+51. **Fondo Pensione** — Piano, versamenti per tipologia, valorizzazioni e riscatti/anticipazioni.
+52. **Portafoglio Bancario Multi-Conto** — Riepilogo di tutti i conti con distribuzione per categoria
+53. **Trasferimenti tra Conti** — Pianifica trasferimenti singoli o in serie ricorrenti tra conti.
+54. **Conto Risparmio Automatico** — Ogni uscita di una categoria Risparmio genera il trasferimento al conto risparmio
+55. **Notifiche Email Pianificate** — Report multipli programmabili con frequenza personalizzata.
+56. **StockBox (Magazzino)** — Magazzino generico per tutto ciò che vuoi tenere in scorta.
 ---
 
 **⚫ Specialistiche e comfort**
 
-47. **Archivio Documenti Personali** — Documenti sempre a portata di mano
-48. **Modulo Dieta** — Pasti, macronutrienti, peso e grafico BMI
-49. **Modulo Petcare** — Anagrafica animali, vaccinazioni e scadenze veterinarie, promemoria cura e peso sotto controllo
-50. **Rubrica Vcard/Android** — Esporta/importa contatti dallo smartphone
-51. **Retention Automatica** — Rimuove automaticamente i dati più vecchi
-52. **Tasti Shortcut Personali** — Funzioni rapide con combinazioni di tasti
-53. **Temi Personalizzabili** — Interfaccia adattata al proprio stile
-54. **Smart Info Point** — Popup rapido sui movimenti al passaggio del mouse
-55. **Carosello Grafici** — Tour automatico degli andamenti all'avvio
-56. **Auto-Iconizza** — Riduzione a icona per inattività
-57. **Notifiche Auto-chiudenti** — Avvisi che scompaiono dopo tempo prestabilito
-58. **Aggiornamento Librerie Python** — Manutenzione automatica delle dipendenze
-59. **Licenza a Punti (Gamification)** — Usa l'app, sali di livello, allunghi la licenza gratuita
-60. **Streak & Livelli** — Da Novizio a Leggenda (e oltre): mantieni la costanza giorno dopo giorno e scala i livelli a vita
-61. **Badge Mese & Anno** — Oltre al livello a vita, guadagni riconoscimenti dedicati al mese e all'anno in corso
-62. **Gestione Multi-Profilo** — Ogni utente ha il proprio database, movimenti, categorie e credenziali.
+57. **Archivio Documenti Personali** — Documenti sempre a portata di mano
+58. **Modulo Dieta** — Pasti, macronutrienti, peso e grafico BMI
+59. **Modulo Petcare** — Anagrafica animali, vaccinazioni e scadenze veterinarie, promemoria cura e peso sotto controllo
+60. **Rubrica Vcard/Android** — Esporta/importa contatti dallo smartphone
+61. **Retention Automatica** — Rimuove automaticamente i dati più vecchi
+62. **Tasti Shortcut Personali** — Funzioni rapide con combinazioni di tasti
+63. **Temi Personalizzabili** — Interfaccia adattata al proprio stile
+64. **Smart Info Point** — Tooltip ricchi su movimenti, tabelle e documenti con statistiche di spesa
+65. **Carosello Grafici** — Tour automatico degli andamenti all'avvio
+66. **Auto-Iconizza** — Riduzione a icona per inattività
+67. **Notifiche Auto-chiudenti** — Avvisi che scompaiono dopo tempo prestabilito
+68. **Aggiornamento Librerie Python** — Manutenzione automatica delle dipendenze
+69. **Licenza a Punti (Gamification)** — Usa l'app, sali di livello, allunghi la licenza gratuita
+70. **Streak & Livelli** — Da Novizio a Leggenda (e oltre): mantieni la costanza giorno dopo giorno e scala i livelli a vita
+71. **Badge Mese & Anno** — Oltre al livello a vita, guadagni riconoscimenti dedicati al mese e all'anno in corso
+72. **Gestione Multi-Profilo** — Ogni utente ha il proprio database, movimenti, categorie e credenziali.
+73. **Profilo Demo** — Prova l'app con dati di esempio
 
 </details>
 
@@ -175,7 +186,16 @@ Script `.command` che installa Python da solo (se manca) e scarica OrbitaCasa da
 
 **🐳 Docker & Accesso via Browser**
 
+<details>
+<summary><b>Clicca per vedere come usare OrbitaCasa con Docker</b></summary>
+
 Esegui OrbitaCasa sul tuo server o NAS tramite Docker e gestisci le tue finanze domestiche direttamente dal browser di qualsiasi PC o tablet remoto, senza installazioni locali.
+
+1. Scarica il pacchetto: [**orbitacasa-docker.zip**](https://github.com/Renato-4132/OrbitaCasa/raw/main/orbitacasa-docker.zip)
+2. Estrai lo zip e scegli la cartella giusta: `orbitacasa-docker-linux` per Linux/NAS, `orbitacasa-docker-win-mac` per Windows e macOS.
+3. Segui le istruzioni nel file `LEGGIMI.md` della cartella (contiene `Dockerfile` e `docker-compose.yml`).
+
+</details>
 
 **📺 [Guarda il Video](https://github.com/Renato-4132/OrbitaCasa/raw/main/screenshots/OrbitaCasa.mp4)**
 
@@ -219,14 +239,14 @@ Tra notti insonni, un saggio copia-incolla e un pizzico di IA, siamo arrivati a 
 **Cosa sa fare oggi**
 
 Nel frattempo siamo cresciuti.
-OrbitaCasa vanta ora quasi 60 funzioni diverse, un manuale di oltre 80 pagine e tante cose che altri software nemmeno si sognano.
+OrbitaCasa vanta ora oltre 70 funzioni diverse, un manuale di oltre 80 pagine e tante cose che altri software nemmeno si sognano.
 Serve a gestire:
 
 - Conti personali e famiglia.
 - Finanziamenti, immobili, parco auto e mezzi e micro-attività.
 - Fondi risparmio, gestione della manutenzione casa, gestione dei nostri cari animaletti domestici.
 - **Organizzazione chirurgica:** ogni spesa è puntualmente assegnata a uno specifico conto o a un tag dedicato, con in più la possibilità di dilazionare le spese in automatico fino al raggiungimento della quota prefissata.
-- **Importazione e archiviazione documentale:** potete importare gli estratti conto per i vostri movimenti, e archiviare in un unico posto documenti, fatture e bollette.
+- **Importazione e archiviazione documentale:** potete importare gli estratti conto per i vostri movimenti, e archiviare in un unico posto documenti, fatture e bollette, anche scansionandoli direttamente dallo scanner di casa.
 - **Report ed email automatiche:** l'app vi manda report ed estratti conto giornalieri, settimanali o mensili direttamente via email.
 - **Alert di budget:** ti avvisa in tempo reale se sfori la soglia impostata su una categoria.
 - **Il "Chi l'ha visto?" delle scadenze:** tiene traccia e avvisa per qualsiasi scadenza immaginabile (documenti, patenti, bollette, revisioni).
