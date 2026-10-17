@@ -126,7 +126,7 @@ def rubrica_app(self):
                 contatti.extend(dati)
                 ordina_contatti()
                 aggiorna_lista()
-            except:
+            except Exception:
                 self.show_custom_warning("Attenzione", "File rubrica non valido !")
     def seleziona_contatto(event):
         selected_items = tree_contatti.selection()

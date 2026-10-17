@@ -744,7 +744,7 @@ def mostra_riepilogo_fairshare_periodo(self):
         p_sel = cb_part.get(); a_sel = cb_anno.get()
         m_sel = cb_mese.get(); c_sel = cb_cat.get(); st_sel = cb_stato.get()
         sep = "═" * 105
-        header  = f"FAIRSHARE — ESTRATTO ANALITICO\n"
+        header  = "FAIRSHARE — ESTRATTO ANALITICO\n"
         header += f"Partecipante: {p_sel}  Anno: {a_sel}  Mese: {m_sel}  "
         header += f"Categoria: {c_sel}  Stato: {st_sel}\n{sep}\n"
         header += (f"{'DATA':<10} {'CATEGORIA':<15} {'DESCRIZIONE':<25} "
@@ -1600,7 +1600,7 @@ def get_fairshare_data_json(self, anno_sel, mese_sel, utente_sel):
                 imp  = float(campo(voce, "importo", 0.0))
                 tipo = campo(voce, "tipo", "")
                 desc_str = campo(voce, "descrizione", "")
-            except:
+            except Exception:
                 continue
             nome_trovato = next(
                 (n for n in indips_match if f"CTP·{n}" in desc_str), None

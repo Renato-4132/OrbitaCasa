@@ -7,7 +7,7 @@ import datetime
 import tkinter as tk
 from tkinter import ttk, filedialog
 
-from __main__ import PROMEMORIA_FILE, EXPORT_FILES
+import __main__ as _app
 
 # Gestione Promemoria
 def gestisci_promemoria(self):
@@ -21,16 +21,16 @@ def gestisci_promemoria(self):
         promemoria_text = promemoria_text_widget.get("1.0", tk.END).strip()
         data = {"promemoria": promemoria_text} 
         try:
-            with open(PROMEMORIA_FILE, "w", encoding="utf-8") as f:
+            with open(_app.PROMEMORIA_FILE, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=4)
             self.show_toast("Promemoria salvato.")
             chiudi_promemoria_popup()
         except Exception as e:
             self.show_custom_warning("Errore", f"Impossibile salvare il file: {e}")
     def carica_promemoria():
-        if os.path.exists(PROMEMORIA_FILE):
+        if os.path.exists(_app.PROMEMORIA_FILE):
             try:
-                with open(PROMEMORIA_FILE, "r", encoding="utf-8") as f:
+                with open(_app.PROMEMORIA_FILE, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 promemoria = data.get("promemoria", "")
                 promemoria_text_widget.delete("1.0", tk.END)
@@ -44,7 +44,7 @@ def gestisci_promemoria(self):
         file = filedialog.asksaveasfilename(
             defaultextension=".txt",
             filetypes=[("File di testo", "*.txt"), ("Tutti i file", "*.*")],
-            initialdir=EXPORT_FILES,
+            initialdir=_app.EXPORT_FILES,
             initialfile=filename,
             title="Esporta Promemoria",
             confirmoverwrite=False,

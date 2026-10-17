@@ -1,12 +1,27 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import os
+import re
 import json
 import datetime
 import tkinter as tk
 from tkinter import ttk
 from moduli.modello_spesa import campo, METODI_PAGAMENTO_EMOJI, NOME_DA_EMOJI, metodo_pagamento_pulito
 from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa
+
+MESI = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
+        "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
+TUTTI = ""
+
+def _data_libera(s):
+    s = str(s or "").strip().replace("/", "-").replace(".", "-")
+    if not s:
+        return None
+    try:
+        return datetime.datetime.strptime(s, "%d-%m-%Y").date()
+    except Exception:
+        return None
 
 def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
     import __main__ as _app
@@ -27,86 +42,164 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
     win.lift()
     win.focus_force()
     win.bind("<Escape>", lambda e: win.destroy())
-    toolbar = ttk.Frame(win, style="BlackFrame.TFrame")
-    toolbar.pack(fill=tk.X, padx=8, pady=(8, 4))
-    ttk.Label(toolbar, text="Metodo:", background=self.COLOR_WIDGET_BG,
-              foreground=self.TEXT_COLOR, font=("Arial", 9)).pack(side="left", padx=(0, 4))
-    var_metodo = tk.StringVar(value="")
-    combo = ttk.Combobox(toolbar, textvariable=var_metodo, values=metodi_lista,
-                         state="readonly", style="Border.TCombobox", width=18)
-    combo.pack(side="left", padx=4)
+    bg_f = self.COLOR_TOPLEVEL
     try:
         with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as _pf:
             _db_p_em = json.load(_pf)
-        _conti_em = [c.get("nome","?") for c in _db_p_em.get("conti",[])]
+        _conti_em = [c.get("nome", "?") for c in _db_p_em.get("conti", [])]
     except Exception:
         _conti_em = []
     _agganci_em = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
-    var_conto_em = tk.StringVar(value="Tutti")
-    if _conti_em:
-        ttk.Label(toolbar, text="Conto:", background=self.COLOR_WIDGET_BG,
-                  foreground=self.TEXT_COLOR, font=("Arial", 9)).pack(side="left", padx=(12, 4))
-        self._combo_conto_em = ttk.Combobox(toolbar, textvariable=var_conto_em,
-                     values=["Tutti"] + _conti_em,
-                     state="readonly", style="Border.TCombobox", width=14)
-        self._combo_conto_em.pack(side="left", padx=4)
-    ttk.Label(toolbar, text="Periodo:", background=self.COLOR_WIDGET_BG,
-              foreground=self.TEXT_COLOR, font=("Arial", 9)).pack(side="left", padx=(12, 4))
-    var_periodo = tk.StringVar(value="tutto")
-    for val, lbl in [("tutto", "Tutto"), ("anno", "Anno"), ("mese", "Mese"), ("giorno", "Giorno")]:
-        ttk.Radiobutton(toolbar, text=lbl, variable=var_periodo, value=val,
-                        style="Custom.TRadiobutton").pack(side="left", padx=3)
-    oggi = datetime.date.today()
-    frame_anno = ttk.Frame(toolbar, style="BlackFrame.TFrame")
-    frame_anno.pack(side="left", padx=4)
-    var_anno = tk.StringVar(value=str(oggi.year))
-    combo_anno = ttk.Combobox(frame_anno, textvariable=var_anno,
-                              values=[str(y) for y in range(oggi.year - 15, oggi.year + 2)],
-                              state="readonly", style="Border.TCombobox", width=6)
-    combo_anno.pack(side="left")
-    mesi = ["01","02","03","04","05","06","07","08","09","10","11","12"]
-    var_mese = tk.StringVar(value=f"{oggi.month:02d}")
-    combo_mese = ttk.Combobox(frame_anno, textvariable=var_mese, values=mesi,
-                              state="readonly", style="Border.TCombobox", width=4)
-    combo_mese.pack(side="left", padx=2)
-    var_giorno = tk.StringVar(value=f"{oggi.day:02d}")
-    combo_giorno = ttk.Combobox(frame_anno, textvariable=var_giorno,
-                                values=[f"{d:02d}" for d in range(1, 32)],
-                                state="readonly", style="Border.TCombobox", width=4)
-    combo_giorno.pack(side="left", padx=2)
-    frame_date = ttk.Frame(toolbar, style="BlackFrame.TFrame")
-    frame_date.pack(side="right", padx=(8, 0))
-    ttk.Label(frame_date, text="Da:", background=self.COLOR_WIDGET_BG,
-              foreground=self.TEXT_COLOR, font=("Arial", 9)).pack(side="left", padx=(0, 2))
+    _anni_f = sorted({str(d.year) for d in self.spese}, reverse=True)
+    _profilo_f = getattr(_app, "PROFILO_ATTIVO", "Principale")
+    _gestore_f = _profilo_f if _profilo_f != "Principale" else os.path.basename(os.getcwd())
+    _nomi_f = [(p.get("nome", "") if isinstance(p, dict) else p) for p in self.nomi_partecipanti] if getattr(self, "nomi_partecipanti", None) else []
+    _partec_f = [TUTTI]
+    if self._gestore_partecipa() and _gestore_f not in _nomi_f:
+        _partec_f.append(f"PER· {_gestore_f}")
+    if getattr(self, "nomi_partecipanti", None):
+        _partec_f += [
+            f"CTP· {p['nome']}" if p.get("tipo") == "personale" else
+            f"CNT· {p['nome']}" if p.get("tipo") == "contenitore" else
+            f"PER· {p['nome']}"
+            for p in sorted(self.nomi_partecipanti, key=lambda p: p["nome"].lower())
+        ]
+    var_tipo = tk.StringVar(value=TUTTI)
+    var_categoria = tk.StringVar(value=TUTTI)
+    var_anno = tk.StringVar(value=TUTTI)
+    var_mese = tk.StringVar(value=TUTTI)
+    var_partec = tk.StringVar(value=TUTTI)
+    var_conto_em = tk.StringVar(value=TUTTI)
+    var_metodo = tk.StringVar(value=TUTTI)
+    var_tag = tk.StringVar(value="")
+    var_testo = tk.StringVar(value="")
+    var_imp_da = tk.StringVar(value="")
+    var_imp_a = tk.StringVar(value="")
     var_da = tk.StringVar(value="")
-    entry_da = ttk.Entry(frame_date, textvariable=var_da, width=10, font=("Arial", 9))
-    entry_da.pack(side="left")
-    btn_cal_da = ttk.Label(frame_date, image=self.icone_gui.get("calendario"),
-                           cursor="hand2", background=self.COLOR_WIDGET_BG)
-    btn_cal_da.pack(side="left", padx=(2, 8))
-    btn_cal_da.bind("<Button-1>", lambda e: self.mostra_calendario_popup(entry_da, var_da))
-    ttk.Label(frame_date, text="A:", background=self.COLOR_WIDGET_BG,
-              foreground=self.TEXT_COLOR, font=("Arial", 9)).pack(side="left", padx=(0, 2))
     var_a = tk.StringVar(value="")
-    entry_a = ttk.Entry(frame_date, textvariable=var_a, width=10, font=("Arial", 9))
+    tutte_var = (var_tipo, var_categoria, var_anno, var_mese, var_partec, var_conto_em, var_metodo,
+                 var_tag, var_testo, var_imp_da, var_imp_a, var_da, var_a)
+    stato_f = {"aperta": False, "sosp": False}
+    head = tk.Frame(win, bg=bg_f)
+    head.pack(fill="x", padx=10, pady=(8, 2))
+    lbl_freccia = tk.Label(head, bg=bg_f, fg="#DC3545", cursor="hand2", font=("Arial", 11, "bold"), width=2)
+    lbl_freccia.pack(side="left")
+    lbl_head = tk.Label(head, bg=bg_f, fg=self.TEXT_COLOR, cursor="hand2", font=("Arial", 9, "bold"), anchor="w")
+    lbl_head.pack(side="left")
+    body = tk.Frame(win, bg=bg_f)
+    def _riga_f():
+        r = tk.Frame(body, bg=bg_f)
+        r.pack(fill="x", pady=2, padx=10)
+        return r
+    def _etichetta_f(r, testo, pad=(10, 4)):
+        tk.Label(r, text=testo, bg=bg_f, fg=self.TEXT_COLOR).pack(side="left", padx=pad)
+    def _combo_f(r, var, valori, w):
+        c = ttk.Combobox(r, values=valori, textvariable=var, style="Border.TCombobox",
+                         state="readonly", width=w)
+        c.pack(side="left")
+        return c
+    r1, r2 = _riga_f(), _riga_f()
+    _etichetta_f(r1, "Tipo:", (4, 4))
+    _combo_f(r1, var_tipo, [TUTTI, "Entrata", "Uscita"], 9)
+    _etichetta_f(r1, "Categoria:")
+    _combo_f(r1, var_categoria, [TUTTI] + sorted(self.categorie_tipi.keys()), 18)
+    _etichetta_f(r1, "Anno:")
+    _combo_f(r1, var_anno, [TUTTI] + _anni_f, 7)
+    _etichetta_f(r1, "Mese:")
+    _combo_f(r1, var_mese, [TUTTI] + MESI, 11)
+    _etichetta_f(r1, "Partecipanti:")
+    _combo_f(r1, var_partec, _partec_f, 18)
+    _etichetta_f(r1, "Conto:")
+    self._combo_conto_em = _combo_f(r1, var_conto_em, [TUTTI] + _conti_em, 16)
+    _etichetta_f(r1, "Metodo Pag.:")
+    _combo_f(r1, var_metodo, [TUTTI] + METODI_PAGAMENTO_EMOJI, 20)
+    _etichetta_f(r2, "Hashtag:", (4, 4))
+    ttk.Entry(r2, textvariable=var_tag, width=14).pack(side="left")
+    _etichetta_f(r2, "Descrizione contiene:")
+    ttk.Entry(r2, textvariable=var_testo, width=20).pack(side="left")
+    _etichetta_f(r2, "Importo da:")
+    ttk.Entry(r2, textvariable=var_imp_da, width=9).pack(side="left")
+    _etichetta_f(r2, "a:", (6, 4))
+    ttk.Entry(r2, textvariable=var_imp_a, width=9).pack(side="left")
+    def _cal_btn(entry, var):
+        def apri(_e=None):
+            self.mostra_calendario_popup(entry, var)
+            try:
+                pc = getattr(self, "popup_calendario", None)
+                if pc is not None and pc.winfo_exists():
+                    pc.attributes("-topmost", True)
+                    pc.lift()
+            except tk.TclError:
+                pass
+        img = self.icone_gui.get("calendario")
+        b = tk.Label(r2, image=img, bg=bg_f, cursor="hand2", padx=2)
+        if img is None:
+            b.config(text="📅")
+        else:
+            b.image = img
+        b.pack(side="left", padx=(2, 0))
+        b.bind("<Button-1>", apri)
+    _etichetta_f(r2, "Dal:")
+    entry_da = ttk.Entry(r2, textvariable=var_da, width=11)
+    entry_da.pack(side="left")
+    _cal_btn(entry_da, var_da)
+    _etichetta_f(r2, "Al:", (8, 4))
+    entry_a = ttk.Entry(r2, textvariable=var_a, width=11)
     entry_a.pack(side="left")
-    btn_cal_a = ttk.Label(frame_date, image=self.icone_gui.get("calendario"),
-                          cursor="hand2", background=self.COLOR_WIDGET_BG)
-    btn_cal_a.pack(side="left", padx=(2, 0))
-    btn_cal_a.bind("<Button-1>", lambda e: self.mostra_calendario_popup(entry_a, var_a))
-    btn_reset_date = ttk.Label(frame_date, image=self.icone_gui.get("reset"),
-                               cursor="hand2", background=self.COLOR_WIDGET_BG)
-    btn_reset_date.pack(side="left", padx=(6, 0))
-    btn_reset_date.bind("<Button-1>", lambda e: [var_da.set(""), var_a.set("")])
+    _cal_btn(entry_a, var_a)
+    tk.Label(r2, text="(GG-MM-AAAA)", bg=bg_f, fg="gray", font=("Arial", 8, "italic")).pack(side="left", padx=(4, 0))
+    def _num_f(x):
+        x = str(x or "").strip().replace("€", "").replace(" ", "")
+        if not x:
+            return None
+        if "," in x:
+            x = x.replace(".", "").replace(",", ".")
+        try:
+            return float(x)
+        except ValueError:
+            return None
+    def _descr_filtri():
+        out = []
+        for var, etich in ((var_tipo, ""), (var_categoria, "Categoria "), (var_anno, "Anno "), (var_mese, ""),
+                           (var_partec, ""), (var_conto_em, "Conto "), (var_metodo, "Metodo ")):
+            if var.get():
+                out.append(f"{etich}{var.get()}")
+        tags = [t for t in re.split(r"[\s,;]+", var_tag.get().strip()) if t.lstrip("#")]
+        if tags:
+            out.append(" ".join(f"#{t.lstrip('#')}" for t in tags))
+        if var_testo.get().strip():
+            out.append(f"«{var_testo.get().strip()}»")
+        ida, ia = _num_f(var_imp_da.get()), _num_f(var_imp_a.get())
+        if ida is not None or ia is not None:
+            out.append(f"Importo {_app._fmt_it(ida) if ida is not None else '…'} → {_app._fmt_it(ia) if ia is not None else '…'}")
+        da, a = _data_libera(var_da.get()), _data_libera(var_a.get())
+        if da or a:
+            out.append(f"{da.strftime('%d-%m-%Y') if da else '…'} → {a.strftime('%d-%m-%Y') if a else '…'}")
+        return out
+    def aggiorna_testata():
+        d = _descr_filtri()
+        stato_txt = ("filtri attivi: " + ", ".join(d)) if d else "nessun filtro attivo"
+        lbl_freccia.config(text="▾" if stato_f["aperta"] else "▸")
+        lbl_head.config(text=f"Filtri avanzati  ({stato_txt})",
+                        fg=getattr(self, "COLOR_HIGHLIGHT", self.TEXT_COLOR) if d else self.TEXT_COLOR)
+    def apri_chiudi_filtri(*_):
+        stato_f["aperta"] = not stato_f["aperta"]
+        if stato_f["aperta"]:
+            body.pack(fill="x", before=frame_tot)
+        else:
+            body.pack_forget()
+        aggiorna_testata()
+    for _w in (lbl_freccia, lbl_head):
+        _w.bind("<Button-1>", apri_chiudi_filtri)
     frame_tot = ttk.Frame(win, style="BlackFrame.TFrame")
     frame_tot.pack(fill=tk.X, padx=8, pady=2)
-    lbl_entrate = ttk.Label(frame_tot, text="Entrate: —", foreground="lightgreen",
+    lbl_entrate = ttk.Label(frame_tot, text="Entrate:", foreground="lightgreen",
                             background=self.COLOR_WIDGET_BG, font=("Arial", 9, "bold"))
     lbl_entrate.pack(side="left", padx=8)
-    lbl_uscite = ttk.Label(frame_tot, text="Uscite: —", foreground="lightcoral",
+    lbl_uscite = ttk.Label(frame_tot, text="Uscite:", foreground="lightcoral",
                            background=self.COLOR_WIDGET_BG, font=("Arial", 9, "bold"))
     lbl_uscite.pack(side="left", padx=8)
-    lbl_saldo = ttk.Label(frame_tot, text="Saldo: —", foreground="khaki",
+    lbl_saldo = ttk.Label(frame_tot, text="Saldo:", foreground="khaki",
                           background=self.COLOR_WIDGET_BG, font=("Arial", 9, "bold"))
     lbl_saldo.pack(side="left", padx=8)
     lbl_count = ttk.Label(frame_tot, text="Movimenti: 0", foreground=self.TEXT_COLOR,
@@ -224,32 +317,35 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
         metodo_sel = var_metodo.get()
         _nome_metodo_sel = metodo_pagamento_pulito(metodo_sel)
         _emoji_a_nome = NOME_DA_EMOJI
-        periodo = var_periodo.get()
+        anno_f = var_anno.get()
+        mese_f = MESI.index(var_mese.get()) + 1 if var_mese.get() in MESI else None
         conto_f = var_conto_em.get()
+        tipo_f = var_tipo.get().lower()
+        cat_f = var_categoria.get().lower()
+        testo_f = var_testo.get().strip().lower()
+        tag_f = [t.lstrip("#").lower() for t in re.split(r"[\s,;]+", var_tag.get().strip()) if t.lstrip("#")]
+        imp_da_f = _num_f(var_imp_da.get())
+        imp_a_f = _num_f(var_imp_a.get())
+        partec_f = var_partec.get()
+        for _pref in ("CTP· ", "CNT· ", "PER· "):
+            if partec_f.startswith(_pref):
+                partec_f = partec_f[len(_pref):]
+                break
+        _candidati_owner = list(self.nomi_partecipanti) if getattr(self, "nomi_partecipanti", None) else []
+        if self._gestore_partecipa() and not any(
+                (p.get("nome", "") if isinstance(p, dict) else p) == _gestore_f for p in _candidati_owner):
+            _candidati_owner.append({"nome": _gestore_f})
+        da = _data_libera(var_da.get())
+        a = _data_libera(var_a.get())
         tot_e = 0.0
         tot_u = 0.0
         righe = []
         _uso_ordinale_em = {}
         for data_obj, voci in sorted(self.spese.items()):
-            if periodo == "anno":
-                if str(data_obj.year) != var_anno.get():
-                    continue
-            elif periodo == "mese":
-                if str(data_obj.year) != var_anno.get() or f"{data_obj.month:02d}" != var_mese.get():
-                    continue
-            elif periodo == "giorno":
-                if (str(data_obj.year) != var_anno.get() or
-                    f"{data_obj.month:02d}" != var_mese.get() or
-                    f"{data_obj.day:02d}" != var_giorno.get()):
-                    continue
-            try:
-                da = datetime.datetime.strptime(var_da.get(), "%d-%m-%Y").date() if var_da.get() else None
-            except:
-                da = None
-            try:
-                a = datetime.datetime.strptime(var_a.get(), "%d-%m-%Y").date() if var_a.get() else None
-            except:
-                a = None
+            if anno_f and str(data_obj.year) != anno_f:
+                continue
+            if mese_f and data_obj.month != mese_f:
+                continue
             if da and data_obj < da:
                 continue
             if a and data_obj > a:
@@ -267,12 +363,33 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
                             break
                 if _nome_metodo_sel and metodo_voce != _nome_metodo_sel:
                     continue
-                _conto_espl_em = campo(voce, "conto", "")
+                if tipo_f and tipo.lower() != tipo_f:
+                    continue
+                if cat_f and cat.lower() != cat_f:
+                    continue
+                if testo_f and testo_f not in desc.lower():
+                    continue
+                _tag_txt = " ".join(campo(voce, "hashtag", []) or []).lower()
+                if tag_f and not all(t in _tag_txt for t in tag_f):
+                    continue
+                if imp_da_f is not None and importo < imp_da_f:
+                    continue
+                if imp_a_f is not None and importo > imp_a_f:
+                    continue
+                if partec_f:
+                    _dl = desc.lower()
+                    _owner = next((p["nome"] if isinstance(p, dict) else p for p in _candidati_owner
+                                   if any(f"{ico}{(p['nome'] if isinstance(p, dict) else p)}".lower() in _dl
+                                          or f"{ico} {(p['nome'] if isinstance(p, dict) else p)}".lower() in _dl
+                                          for ico in ("PER·", "CTP·", "CNT·"))), "")
+                    if partec_f.lower() != _owner.lower():
+                        continue
+                _conto_espl_em = self._conto_effettivo(voce)
                 if _conto_espl_em:
                     nome_conto_em = _conto_espl_em
                 else:
                     nome_conto_em = conto_da_mappa(_agganci_em, _uso_ordinale_em, data_obj.strftime("%d-%m-%Y"), importo, tipo)
-                if conto_f != "Tutti" and nome_conto_em != conto_f:
+                if conto_f and nome_conto_em != conto_f:
                     continue
                 data_str = data_obj.strftime("%d-%m-%Y")
                 ora_voce = campo(voce, "ora", "")
@@ -316,46 +433,36 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
         lbl_saldo.config(text=f"Saldo: {_app._fmt_it(saldo, spec='+,.2f')} €",
                          foreground="lightgreen" if saldo >= 0 else "lightcoral")
         lbl_count.config(text=f"Movimenti: {len(righe)}")
-    def on_periodo(*_):
-        p = var_periodo.get()
-        combo_anno.config(state="readonly" if p in ("anno","mese","giorno") else "disabled")
-        combo_mese.config(state="readonly" if p in ("mese","giorno") else "disabled")
-        combo_giorno.config(state="readonly" if p == "giorno" else "disabled")
-        if p == "tutto":
-            frame_anno.pack_forget()
-        elif p == "anno":
-            frame_anno.pack(side="left", padx=4)
-            combo_anno.pack(side="left")
-            combo_mese.pack_forget()
-            combo_giorno.pack_forget()
-        elif p == "mese":
-            frame_anno.pack(side="left", padx=4)
-            combo_anno.pack(side="left")
-            combo_mese.pack(side="left", padx=2)
-            combo_giorno.pack_forget()
-        elif p == "giorno":
-            frame_anno.pack(side="left", padx=4)
-            combo_anno.pack(side="left")
-            combo_mese.pack(side="left", padx=2)
-            combo_giorno.pack(side="left", padx=2)
+    def applica_filtri(*_):
+        if stato_f["sosp"]:
+            return
+        for e, v in ((entry_da, var_da), (entry_a, var_a)):
+            sbagliata = bool(v.get().strip()) and _data_libera(v.get()) is None
+            try:
+                e.configure(foreground="#DC3545" if sbagliata else self.TEXT_COLOR)
+            except tk.TclError:
+                pass
+        aggiorna_testata()
         aggiorna()
-    var_periodo.trace_add("write", on_periodo)
-    var_metodo.trace_add("write", aggiorna)
-    var_conto_em.trace_add("write", aggiorna)
-    var_anno.trace_add("write", aggiorna)
-    var_mese.trace_add("write", aggiorna)
-    var_giorno.trace_add("write", aggiorna)
-    var_da.trace_add("write", aggiorna)
-    var_a.trace_add("write", aggiorna)
+    def resetta_filtri(*_):
+        stato_f["sosp"] = True
+        try:
+            for v in tutte_var:
+                v.set("")
+        finally:
+            stato_f["sosp"] = False
+        applica_filtri()
+    for _v in tutte_var:
+        _v.trace_add("write", applica_filtri)
     if metodo:
         var_metodo.set(metodo)
     if anno:
         var_anno.set(str(anno))
-        if not mese:
-            var_periodo.set("anno")
     if mese:
-        var_mese.set(f"{int(mese):02d}")
-        var_periodo.set("mese")
+        try:
+            var_mese.set(MESI[int(mese) - 1])
+        except (ValueError, IndexError):
+            pass
     if conto:
         _conto_norm_em = conto.strip().lower()
         _match_conto_em = next((c for c in _conti_em if c.strip().lower() == _conto_norm_em), None)
@@ -369,7 +476,8 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
     bot_f = tk.Frame(win, bg=self.COLOR_TOPLEVEL)
     bot_f.pack(fill=tk.X, side=tk.BOTTOM, pady=10)
     for testo, ico, cmd, side in [
-        ("  Esporta ", "salva",  lambda: self._esporta_estratti_metodo(tree, var_metodo, var_periodo, var_anno, var_mese, var_giorno), tk.LEFT),
+        ("  Esporta ", "salva",  lambda: self._esporta_estratti_metodo(tree, var_metodo, _descr_filtri), tk.LEFT),
+        ("  Reset ",   "reset",  resetta_filtri, tk.LEFT),
         ("  Chiudi ",  "chiudi", win.destroy, tk.RIGHT),
     ]:
         b = tk.Label(bot_f, image=self.icone_gui.get(ico), text=testo,
@@ -377,20 +485,13 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
                      cursor="hand2", font=("Arial", 10, "bold"))
         b.pack(side=side, padx=20)
         b.bind("<Button-1>", lambda e, c=cmd: c())
-    on_periodo()
+    aggiorna_testata()
+    aggiorna()
 
-def _esporta_estratti_metodo(self, tree, var_metodo, var_periodo, var_anno, var_mese, var_giorno):
+def _esporta_estratti_metodo(self, tree, var_metodo, descr_filtri):
     import __main__ as _app
     metodo = var_metodo.get() or "Tutti i metodi"
-    periodo = var_periodo.get()
-    if periodo == "tutto":
-        periodo_str = "Tutto il periodo"
-    elif periodo == "anno":
-        periodo_str = f"Anno {var_anno.get()}"
-    elif periodo == "mese":
-        periodo_str = f"{var_mese.get()}-{var_anno.get()}"
-    else:
-        periodo_str = f"{var_giorno.get()}-{var_mese.get()}-{var_anno.get()}"
+    periodo_str = ", ".join(descr_filtri()) or "Tutto il periodo"
     C_DATA  = 12
     C_CAT   = 20
     C_DESC  = 28
@@ -424,7 +525,7 @@ def _esporta_estratti_metodo(self, tree, var_metodo, var_periodo, var_anno, var_
         try:
             tot_e += abs(_app._parse_it_float(e_str)) if e_str else 0
             tot_u += abs(_app._parse_it_float(u_str)) if u_str else 0
-        except:
+        except Exception:
             pass
     saldo = tot_e - tot_u
     righe.append(SEP)

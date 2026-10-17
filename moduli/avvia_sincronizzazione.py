@@ -168,7 +168,7 @@ def avvia_sincronizzazione(self, manuale=False):
                             try:
                                 raw = part.get_payload(decode=True).decode(errors='ignore')
                                 corpo += re.sub(r'<[^<]+?>', ' ', raw)
-                            except: pass
+                            except Exception: pass
                         elif "pdf" in part.get_content_type():
                             pdf_data = part.get_payload(decode=True)
                     try:
@@ -224,7 +224,7 @@ def avvia_sincronizzazione(self, manuale=False):
                                     print(f"Movimento estratto scartato (dati incompleti): {_e_mov}")
                                     continue
                             mail.store(m_id, '+FLAGS', '\\Seen')
-                            aggiorna_UI(f"📊 Estratto acquisito", percentuale, self.operazioni_scaricate_sessione)
+                            aggiorna_UI("📊 Estratto acquisito", percentuale, self.operazioni_scaricate_sessione)
                             time.sleep(5)
                             continue
                         prompt = f"""Analizza questa mail/bolletta. 
@@ -314,7 +314,7 @@ def avvia_sincronizzazione(self, manuale=False):
                             self.save_db()
                             if 'mail' in locals():
                                 try: mail.logout()
-                                except: pass
+                                except Exception: pass
                             time.sleep(2)
                             if popup: popup.destroy()
                             self.after(0, lambda: self.show_toast("Limite giornaliero AI raggiunto."))
@@ -326,7 +326,7 @@ def avvia_sincronizzazione(self, manuale=False):
                             self.save_db()
                             if 'mail' in locals():
                                 try: mail.logout()
-                                except: pass
+                                except Exception: pass
                             time.sleep(2)
                             if popup: popup.destroy()
                             self.after(0, lambda: self.show_toast("Gemini sovraccarico (503). Riprova tra poco."))

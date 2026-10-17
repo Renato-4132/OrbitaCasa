@@ -8,7 +8,8 @@ import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
 
-from __main__ import NAME, VERSION, DB_DIR, NOME_PROFILO_DEMO
+import __main__ as _app
+from __main__ import NAME, NOME_PROFILO_DEMO
 
 def _avvia_tutorial(self):
     num_mov = sum(len(v) for v in self.spese.values()) if hasattr(self, 'spese') else 0
@@ -130,7 +131,7 @@ def _avvia_tutorial(self):
                 "Dieta & Benessere — calorie, peso, passi",
                 "Movimenti Ricorrenti — bollette automatiche",
                 "Fondo Risparmio — proiezioni e obiettivi",
-                "Time Machine — quanto risparmieresti senza X?",
+                "Analisi Categorie — dettaglio, trend, Time Machine",
                 "Confronta Periodi — analizza & confronta",
                 "Gestione Utenze — acqua, luce, gas, Storico",
                 "Lista Spesa Intelligente — confronto supermercati",
@@ -170,7 +171,7 @@ def _avvia_tutorial(self):
     ]
     stato = {"passo": 0, "imgs": {}}
     try:
-        path_logo = os.path.join(DB_DIR, "resources", "info_image.png")
+        path_logo = os.path.join(_app.DB_DIR, "resources", "info_image.png")
         img_logo = Image.open(path_logo)
         img_logo.thumbnail((IMG_W, IMG_H), Image.LANCZOS)
         stato["imgs"][0] = ImageTk.PhotoImage(img_logo)

@@ -5,6 +5,31 @@ import datetime
 from moduli.modello_spesa import SpesaEntry
 
 
+CLASSI_503020 = ("Bisogni", "Desideri", "Risparmio")
+
+
+def _salva_classe_conto_web(self, nome, params, chiave_classe, chiave_conto):
+    classe = params.get(chiave_classe, ["Nessuna"])[0]
+    conto = params.get(chiave_conto, [""])[0].strip()
+    classi = self._classi_categorie()
+    if classe in CLASSI_503020:
+        classi[nome] = classe
+    else:
+        classi.pop(nome, None)
+    mappa = self._conti_risparmio_cat()
+    cid = None
+    if classe == "Risparmio" and conto and conto != "(nessuno)":
+        try:
+            from moduli.risparmio_auto import _carica_portafoglio
+            cid = next((c.get("id") for c in _carica_portafoglio().get("conti", []) if c.get("nome") == conto), None)
+        except Exception:
+            cid = None
+    if cid:
+        mappa[nome] = cid
+    else:
+        mappa.pop(nome, None)
+
+
 # Html Gestione Categorie Web
 def add_categoria_web(self, params):
     nome = params.get("nome_categoria", [""])[0].strip()
@@ -33,6 +58,7 @@ def add_categoria_web(self, params):
         self.budget_annuale_categorie[nome] = budget_anno_val
     elif nome in self.budget_annuale_categorie:
         del self.budget_annuale_categorie[nome]
+    self._salva_classe_conto_web(nome, params, "classe_categoria", "conto_risp_categoria")
     self.save_db()
     self.refresh_categorie_web()
     
@@ -54,6 +80,12 @@ def modifica_categoria_web(self, params):
         self.categorie[idx] = new_nome
         self.categorie_tipi[new_nome] = nuovo_tipo
         self.categorie_tipi.pop(old_nome, None)
+        _classi = self._classi_categorie()
+        if old_nome in _classi:
+            _classi[new_nome] = _classi.pop(old_nome)
+        _cr = self._conti_risparmio_cat()
+        if old_nome in _cr:
+            _cr[new_nome] = _cr.pop(old_nome)
         for d in self.spese:
             new_entries = []
             for entry in self.spese[d]:
@@ -85,6 +117,7 @@ def modifica_categoria_web(self, params):
         del self.budget_annuale_categorie[nome_finale]
     if new_nome != old_nome and old_nome in self.budget_annuale_categorie:
         del self.budget_annuale_categorie[old_nome]
+    self._salva_classe_conto_web(nome_finale, params, "nuova_classe", "nuovo_conto_risp")
     self.save_db()
     self.refresh_categorie_web()
 
@@ -96,6 +129,8 @@ def cancella_categoria_web(self, params):
     self.categorie_tipi.pop(cat_da_cancellare, None)
     self.budget_categorie.pop(cat_da_cancellare, None)
     self.budget_annuale_categorie.pop(cat_da_cancellare, None)
+    self._classi_categorie().pop(cat_da_cancellare, None)
+    self._conti_risparmio_cat().pop(cat_da_cancellare, None)
     for d in self.spese:
         new_entries = []
         for entry in self.spese[d]:
@@ -114,8 +149,25 @@ def refresh_categorie_web(self):
 def html_gestione_categorie(self):
     import datetime
     categorie_tipi_js = str(self.categorie_tipi).replace("'", '"')
+    import html as _h
+    _classi = self._classi_categorie()
+    _cr = self._conti_risparmio_cat()
+    try:
+        from moduli.risparmio_auto import _carica_portafoglio
+        _id_nome = {c.get("id"): c.get("nome", "") for c in _carica_portafoglio().get("conti", [])}
+    except Exception:
+        _id_nome = {}
+    _nomi_conti = list(self._nomi_conti_portafoglio(solo_risparmio=True))
+    for _cid in _cr.values():
+        _n = _id_nome.get(_cid)
+        if _n and _n not in _nomi_conti:
+            _nomi_conti.append(_n)
+    conti_options = "<option value=''>(nessuno)</option>" + "".join(
+        f"<option value='{_h.escape(n, quote=True)}'>{_h.escape(n)}</option>" for n in _nomi_conti)
+    classe_options = "".join(
+        f"<option value='{c}'>{c}</option>" for c in ("Nessuna",) + CLASSI_503020)
     categorie_options = "".join(
-        f"<option value='{cat}' data-budget='{self.budget_categorie.get(cat, 0):.2f}' data-budget-annuo='{self.budget_annuale_categorie.get(cat, 0):.2f}'>{cat}</option>"
+        f"<option value='{cat}' data-budget='{self.budget_categorie.get(cat, 0):.2f}' data-budget-annuo='{self.budget_annuale_categorie.get(cat, 0):.2f}' data-classe='{_classi.get(cat, 'Nessuna')}' data-conto='{_h.escape(_id_nome.get(_cr.get(cat), ''), quote=True)}'>{cat}</option>"
         for cat in sorted(self.categorie, key=lambda x: x.strip().lower())
     )
     anno_corrente = datetime.datetime.now().year
@@ -311,9 +363,27 @@ def html_gestione_categorie(self):
             const ba = parseFloat(opt.getAttribute("data-budget-annuo")) || 0;
             budgetAnnoField.value = ba > 0 ? ba.toFixed(2) : "";
         }}
+        const cl = document.getElementById("nuova_classe");
+        if (cl && opt) cl.value = opt.getAttribute("data-classe") || "Nessuna";
+        const co = document.getElementById("nuovo_conto_risp");
+        if (co && opt) co.value = opt.getAttribute("data-conto") || "";
+        aggiornaContoRisp("nuova_classe", "nuovo_conto_risp");
+    }}
+    function aggiornaContoRisp(idClasse, idConto) {{
+        const cl = document.getElementById(idClasse);
+        const co = document.getElementById(idConto);
+        if (!cl || !co) return;
+        const ok = cl.value === "Risparmio";
+        co.disabled = !ok;
+        if (!ok) co.value = "";
     }}
     document.addEventListener("DOMContentLoaded", function() {{
         applyTheme(localStorage.getItem('theme') || 'dark');
+        [["classe_categoria", "conto_risp_categoria"], ["nuova_classe", "nuovo_conto_risp"]].forEach(function(p) {{
+            const c = document.getElementById(p[0]);
+            if (c) c.addEventListener("change", function() {{ aggiornaContoRisp(p[0], p[1]); }});
+            aggiornaContoRisp(p[0], p[1]);
+        }});
         const cm = document.getElementById("categoria_modifica");
         if (cm) {{
             cm.addEventListener("change", aggiornaTipoCategoria);
@@ -399,6 +469,18 @@ def html_gestione_categorie(self):
                         </select>
                     </div>
                     <div class="form-group">
+                        <label>Classe 50/30/20</label>
+                        <select name="classe_categoria" id="classe_categoria">
+                            {classe_options}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Conto risparmio (solo classe Risparmio)</label>
+                        <select name="conto_risp_categoria" id="conto_risp_categoria">
+                            {conti_options}
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label>Budget €/mese (opzionale)</label>
                         <input type="text" name="budget_categoria" placeholder="es: 500.00" inputmode="decimal">
                     </div>
@@ -436,6 +518,18 @@ def html_gestione_categorie(self):
                         <select name="nuovo_tipo" id="nuovo_tipo">
                             <option value="Uscita">Uscita</option>
                             <option value="Entrata">Entrata</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Classe 50/30/20</label>
+                        <select name="nuova_classe" id="nuova_classe">
+                            {classe_options}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Conto risparmio (solo classe Risparmio)</label>
+                        <select name="nuovo_conto_risp" id="nuovo_conto_risp">
+                            {conti_options}
                         </select>
                     </div>
                     <div class="form-group">

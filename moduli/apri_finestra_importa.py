@@ -287,7 +287,7 @@ def apri_finestra_importa(self, path=None):
                             "importo":     float(str(d["importo"]).replace(",", ".")),
                             "categoria":   d.get("categoria", "Generica")
                         })
-                    except Exception as _e_r:
+                    except Exception:
                         righe_scartate += 1
                         continue
                 _n_tot = len(movimenti)
@@ -417,7 +417,7 @@ def apri_finestra_importa(self, path=None):
                             "importo":     float(str(d["importo"]).replace(",", ".")),
                             "categoria":   d.get("categoria", "Generica")
                         })
-                    except Exception as _e_r:
+                    except Exception:
                         righe_scartate_estratto += 1
                         continue
                 _n_tot_e = len(movimenti)

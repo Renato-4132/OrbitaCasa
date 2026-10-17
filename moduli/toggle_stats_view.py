@@ -10,7 +10,7 @@ def toggle_stats_view(self, tipo="grafico"):
     try:
         if hasattr(self, 'vsb_stats'): self.vsb_stats.config(command="")
         if hasattr(self, 'hsb_stats'): self.hsb_stats.config(command="")
-    except: pass
+    except Exception: pass
     if hasattr(self, 'stats_table') and self.stats_table and self.stats_table.winfo_exists():
         self.stats_table.destroy()
     if hasattr(self, 'stats_canvas') and self.stats_canvas and self.stats_canvas.winfo_exists():

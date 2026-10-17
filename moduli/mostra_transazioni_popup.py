@@ -76,7 +76,7 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
         if giorno and giorno != "Tutti":
             try:
                 if data.day != int(giorno): continue
-            except: continue
+            except Exception: continue
         for entry in voci:
             try:
                 cat_originale, desc, imp_str, entry_tipo = entry[:4]
@@ -90,7 +90,7 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
                 continue
             if tipo_filtro and entry_tipo != tipo_filtro.capitalize():
                 continue
-            if conto_filtro and campo(entry, "conto", "") != conto_filtro:
+            if conto_filtro and self._conto_effettivo(entry) != conto_filtro:
                 continue
             if filtro_metodo:
                 entry_metodo = campo(entry, "metodo_pagamento", "")
@@ -111,7 +111,7 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
                 _chiave_voce = (data.strftime("%d-%m-%Y"), round(float(entry_imp), 2), entry_tipo)
                 if _chiave_voce not in chiavi_filtro:
                     continue
-            entry_conto_diretto = campo(entry, "conto", "")
+            entry_conto_diretto = self._conto_effettivo(entry)
             entry_metodo_diretto = campo(entry, "metodo_pagamento", "")
             entry_tag_diretto = " ".join(campo(entry, "hashtag", []) or [])
             spese_filtrate.append((data, cat_normalized_display, desc, entry_imp, entry_tipo, entry_conto_diretto, entry_metodo_diretto, entry_tag_diretto, _extra_voce(entry)))
@@ -139,7 +139,7 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
                 if giorno and giorno != "Tutti":
                     try:
                         if data_t.day != int(giorno): continue
-                    except: continue
+                    except Exception: continue
                 try:
                     imp_t = round(float(t.get("importo", 0)), 2)
                 except Exception:
@@ -279,13 +279,13 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
         if caller and caller.winfo_exists():
             try:
                 caller.destroy()
-            except:
+            except Exception:
                 pass
         for w in self.winfo_children():
             if isinstance(w, tk.Toplevel) and w.winfo_exists():
                 try:
                     w.destroy()
-                except:
+                except Exception:
                     pass
     def treeview_sort_column(tv, col, reverse):
         try:
@@ -391,7 +391,6 @@ def mostra_transazioni_popup(self, data_filter, title, filtro_desc=None, chiavi_
     tree.tag_configure("red_row",    foreground="red")
     tree.tag_configure("yellow_row", foreground="#E5C07B", font=("Arial", 9, "italic"))
     tree.tag_configure("sforato",    foreground="#C08081", font=("Arial", 9, "bold"))
-    saldo = tot_entrate - tot_uscite
     includi_futuri_var = tk.BooleanVar(value=True)
     lbl_frame = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
     lbl_frame.pack(fill=tk.X, pady=(7, 0))

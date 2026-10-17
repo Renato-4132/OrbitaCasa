@@ -3,7 +3,6 @@
 #testa
 import time
 import tkinter as tk
-import tkinter.font as tkfont
 
 class MenuPersonalizzato(tk.Frame):
     def __init__(self, master, bg, fg, active_bg, border_color, font=("Arial", 9)):
@@ -83,7 +82,6 @@ class MenuPersonalizzato(tk.Frame):
 
 def setup_sidebar(self):
     import __main__ as _app
-    ANIMAZIONI = _app.ANIMAZIONI
     self.menu_aperto = None 
     self.sidebar_espansa = False
     if not hasattr(self, 'icone_gui'): self.icone_gui = {} 
@@ -106,7 +104,6 @@ def setup_sidebar(self):
         self.lbl_logo.configure(image=self._logo_img)
         self.lbl_logo.image = self._logo_img
     self.lbl_logo.pack(side="left", pady=12, padx=(13, 4))
-    self.lbl_logo.bind("<Button-1>", lambda e: self.mostra_piramide())
     self.lbl_logo_container.bind("<Button-1>", lambda e: self.mostra_piramide())
     VERSION = getattr(_app, 'VERSION', '')
     self.lbl_logo_testo = tk.Label(
@@ -283,9 +280,6 @@ def pop_analisi(self):
     self._add_m_item(m, "Confronta Periodi", "report", self.open_compare_window, "Ctrl+N")
     self._add_m_item(m, "FairShare Partecipanti", "utenti", self.mostra_dare_avere, "Ctrl+D")
     m.add_separator() 
-    self._add_m_item(m, "Time Machine", "timer_sync", self.time_machine, "Ctrl+W") 
-    self._add_m_item(m, "Aggrega Categorie", "filtri", self.gruppo_categorie, "Ctrl+G")
-    m.add_separator()  
     self._add_m_item(m, "Proiezione - Fondo Risparmio", "ccv", self.apri_fondo_risparmio, "Ctrl+A")
     self._add_m_item(m, "Grafici Interattivi", "grafico_linea", self.mostra_analisi_grafici, "Alt+H")
     self._add_m_item(m, "Andamento Risparmio", "grafico_linea", self.apri_andamento_risparmio)
@@ -369,10 +363,9 @@ def pop_categorie(self):
         active_bg=self.MENU_ACT_BG_COLOR, border_color=self.COLOR_HIGHLIGHT,
         font=("Arial", 9)
     )
-    self._add_m_item(m, "Analisi Categorie", "timer", self.open_analisi_categoria, "Ctrl+K")
-    self._add_m_item(m, "Suggerisci Categorie", "descrizione", self.apri_categorie_suggerite, "Ctrl+Shift+K")
+    self._add_m_item(m, "Analisi Categorie", "timer", self.analisi_categorie, "Ctrl+K")
     self._add_m_item(m, "Gestione Categorie", "filtri", self.mostra_categorie_popup, "Ctrl+Shift+T")
-    self._add_m_item(m, "Gestione Categorie Bulk", "delete", self.apri_cancella_multiplo, "Ctrl+Shift+S")
+    self._add_m_item(m, "Editor Categorie", "documenti", self.apri_gestione_categorie, "Ctrl+Shift+S")
     self._add_m_item(m, "Editor Categorie Estratti", "filtri", self.mostra_editor_memoria_categorie)
     self._mostra_popup(m, 220)
 
@@ -410,7 +403,7 @@ def _mostra_popup(self, menu, y_offset):
     if self.menu_aperto == menu: return 
     if self.menu_aperto: 
         try: self.menu_aperto.unpost() 
-        except: pass 
+        except Exception: pass 
     self.menu_aperto = menu 
     self._menu_opened_at = time.monotonic()
     x = self.sidebar.winfo_rootx() + self.sidebar.winfo_width() 
@@ -430,7 +423,7 @@ def _chiudi_menu_orfano(self, event=None):
     if self.menu_aperto:
         try:
             self.menu_aperto.unpost()
-        except:
+        except Exception:
             pass
         self.menu_aperto = None
         self.unbind_all("<Button-1>") 
@@ -449,7 +442,7 @@ def _verifica_chiusura_menu(self, event):
         except Exception:
             pass
         try: self.menu_aperto.unpost() 
-        except: pass
+        except Exception: pass
         self.menu_aperto = None
         self.unbind_all("<Button-1>")
         self.unbind_all("<FocusIn>")
@@ -476,7 +469,7 @@ def _add_m_item(self, target, label, icon_key, command, acc=""):
     def wrapped(c=command):
         if self.menu_aperto:
             try: self.menu_aperto.unpost()
-            except: pass
+            except Exception: pass
             self.menu_aperto = None
             self.unbind_all("<Button-1>")
             self.unbind_all("<FocusIn>")
@@ -520,8 +513,6 @@ def _filtra_sidebar(self, *_):
         ("Gestione Tag #",                        self.apri_gestione_tag),
         ("Confronta Periodi",                     self.open_compare_window),
         ("FairShare Dare & Avere",                self.mostra_dare_avere),
-        ("Time Machine",                          self.time_machine),
-        ("Aggrega Categorie",                     self.gruppo_categorie),
         ("Fondo Risparmio",                       self.apri_fondo_risparmio),
         ("Grafici Interattivi",                   self.mostra_analisi_grafici),
         ("Andamento Risparmio",                   self.apri_andamento_risparmio),
@@ -544,10 +535,9 @@ def _filtra_sidebar(self, *_):
         ("Scadenze Mese",                         self.scadenze_mese),
         ("Pianifica",                             self.apri_gestione_spese_pianificate),
         ("Controlla Ricorrenti",                  self.controlla_ricorrenti_manual),
-        ("Analisi Categorie",                     self.open_analisi_categoria),
-        ("Suggerisci Categorie",                  self.apri_categorie_suggerite),
+        ("Analisi Categorie",                     self.analisi_categorie),
         ("Gestione Categorie",                    self.mostra_categorie_popup),
-        ("Cancella Categorie Bulk",               self.apri_cancella_multiplo),
+        ("Editor Categorie",                       self.apri_gestione_categorie),
         ("Editor Memoria Categorie",              lambda: self.mostra_editor_memoria_categorie()),
         ("Impostazioni App",                      self.gestisci_configurazione),
         ("Cambia Password",                       self.apri_cambio_password),

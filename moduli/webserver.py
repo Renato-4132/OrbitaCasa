@@ -639,7 +639,8 @@ def start_web_server(self):
         self.genera_certificati_auto()
     logging.getLogger("werkzeug").setLevel(logging.ERROR)
     flask_app = self._crea_flask_app()
-    while getattr(self, "_server_running", True):
+    gen = getattr(self, "_web_gen", 0)
+    while getattr(self, "_server_running", True) and getattr(self, "_web_gen", 0) == gen:
         self.server = None
         try:
             while not _porta_libera(_app.PORTA):
@@ -663,6 +664,9 @@ def start_web_server(self):
             srv.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
             srv.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 10)
             srv.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3)
+            if getattr(self, "_web_gen", 0) != gen:
+                srv.server_close()
+                break
             self.server = srv
             if hasattr(self, "lbl_webport"):
                 self.after(0, lambda p=protocollo: self.lbl_webport.config(
@@ -686,8 +690,9 @@ def start_web_server(self):
             except Exception:
                 pass
         finally:
-            self.server = None
-        if not getattr(self, "_server_running", True):
+            if getattr(self, "_web_gen", 0) == gen:
+                self.server = None
+        if not getattr(self, "_server_running", True) or getattr(self, "_web_gen", 0) != gen:
             break
         time.sleep(5)
 
@@ -705,7 +710,7 @@ def manda_push(self, titolo, messaggio):
         from email.mime.multipart import MIMEMultipart
         if not EMAIL_USER or not APP_PASSWORD:
             self.show_toast("Email o AppPassword non configurate.", duration=2000)
-            print(f"Email o password non configurate.")
+            print("Email o password non configurate.")
             return False
         prot = "https" if USA_SSL and os.path.exists(os.path.join(DB_DIR, "cert.pem")) else "http"
         ip_reale = self.get_ip_locale_reale()
@@ -728,7 +733,7 @@ def manda_push(self, titolo, messaggio):
             server.sendmail(EMAIL_USER, EMAIL_USER, msg.as_string())
         self.show_toast("Indirizzo IP notificato con successo su Gmail.", duration=2000)
         print("-" * 50)
-        print(f"📧 EMAIL INVIATA!")
+        print("📧 EMAIL INVIATA!")
         print(f"📬 A: {EMAIL_USER}")
         print(f"📌 OGGETTO: {titolo}")
         print(f"💬 MESSAGGIO: {messaggio}")
@@ -769,7 +774,7 @@ def html_login(self, path):
                   data["web_user"] = {"count": 0, "ban_until": 0, "last_attempt": 0}
                   with open(BAN_FILE, "w") as f:
                       json.dump(data, f, indent=4)
-        except:
+        except Exception:
                   pass
     SESSION_ID = self.SESSION_ID
     ultimo_login = "Benvenuto nel tuo spazio sicuro"
@@ -781,7 +786,7 @@ def html_login(self, path):
                     ultimo_login = f"Ultimo accesso: {logs[1]['data_ora']}"
                 elif len(logs) == 1:
                     ultimo_login = f"Ultimo accesso: {logs[0]['data_ora']}"
-        except: pass
+        except Exception: pass
     PROFILO_ATTIVO = _app.PROFILO_ATTIVO
     folder = (PROFILO_ATTIVO if PROFILO_ATTIVO != "Principale" else os.path.basename(os.getcwd()))
     if is_banned:
@@ -1141,33 +1146,33 @@ def html_login(self, path):
 
 # Html cambia password
 def html_cambia_pw_web(self):
-    return f"""<!DOCTYPE html>
+    return """<!DOCTYPE html>
 <html lang="it">
 <head>
 <meta charset="utf-8">
 <title>🔑 Cambia Password</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>
-    (function() {{
+    (function() {
         if (localStorage.getItem('theme') === 'light')
             document.documentElement.classList.add('light');
-    }})();
+    })();
 </script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700;800&display=swap" rel="stylesheet">
 <style>
-    :root {{
+    :root {
         --bg: #050505; --surface: #0f0f0f; --surface2: #161616; --surface3: #1e1e1e;
         --border: rgba(255,255,255,0.07); --gold: #c9a84c; --blue: #63a0f0;
         --green: #4caf82; --red: #e05a5a; --text: #e8e8e8;
         --text-dim: #555; --text-mid: #888; --radius-lg: 18px;
-    }}
-    :root.light {{
+    }
+    :root.light {
         --bg: #f5f5f0; --surface: #ffffff; --surface2: #f0efe8; --surface3: #e8e7df;
         --border: rgba(0,0,0,0.09); --gold: #b8902a; --blue: #3d7fd4;
         --green: #3a9068; --red: #cc3333; --text: #1a1a1a; --text-dim: #999; --text-mid: #555;
-    }}
-    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-    body {{
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
         font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text);
         min-height: 100vh; min-height: 100dvh;
         display: flex; flex-direction: column; align-items: center;
@@ -1175,74 +1180,74 @@ def html_cambia_pw_web(self):
         background-image:
             radial-gradient(ellipse 60% 50% at 50% -5%, rgba(99,160,240,0.09) 0%, transparent 70%),
             radial-gradient(ellipse 40% 30% at 80% 90%, rgba(201,168,76,0.05) 0%, transparent 60%);
-    }}
-    .main-container {{
+    }
+    .main-container {
         width: 100%; max-width: 400px;
         background: var(--surface); border: 1px solid var(--border);
         border-radius: var(--radius-lg); overflow: hidden; position: relative;
         box-shadow: 0 20px 60px rgba(0,0,0,0.6); animation: fadeIn 0.3s ease;
-    }}
-    :root.light .main-container {{ box-shadow: 0 8px 40px rgba(0,0,0,0.12); }}
-    .main-container::before {{
+    }
+    :root.light .main-container { box-shadow: 0 8px 40px rgba(0,0,0,0.12); }
+    .main-container::before {
         content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
         background: linear-gradient(90deg, transparent, var(--gold), var(--blue), transparent);
-    }}
-    @keyframes fadeIn {{ from {{ opacity:0; transform:translateY(10px); }} to {{ opacity:1; transform:translateY(0); }} }}
-    .brand-header {{
+    }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    .brand-header {
         padding: 16px 20px 14px; border-bottom: 1px solid var(--border);
         display: flex; align-items: center; justify-content: space-between;
-    }}
-    .brand-title {{ font-size: 1.1em; font-weight: 800; color: var(--gold); }}
-    .theme-toggle {{
+    }
+    .brand-title { font-size: 1.1em; font-weight: 800; color: var(--gold); }
+    .theme-toggle {
         background: var(--surface2); border: 1px solid var(--border);
         border-radius: 8px; width: 34px; height: 34px;
         display: flex; align-items: center; justify-content: center;
         cursor: pointer; font-size: 1em; transition: all 0.2s;
-    }}
-    .theme-toggle:hover {{ border-color: var(--gold); }}
-    .form-body {{ padding: 20px; }}
-    .field-label {{
+    }
+    .theme-toggle:hover { border-color: var(--gold); }
+    .form-body { padding: 20px; }
+    .field-label {
         font-size: 0.65em; font-weight: 600; color: var(--text-dim);
         letter-spacing: 2px; text-transform: uppercase; margin-bottom: 5px; margin-top: 14px;
-    }}
-    .field-label:first-child {{ margin-top: 0; }}
-    .input-wrap {{
+    }
+    .field-label:first-child { margin-top: 0; }
+    .input-wrap {
         position: relative; border-bottom: 1px solid var(--border); transition: border-color 0.2s;
-    }}
-    .input-wrap:focus-within {{ border-bottom-color: var(--gold); }}
-    input[type="password"], input[type="text"] {{
+    }
+    .input-wrap:focus-within { border-bottom-color: var(--gold); }
+    input[type="password"], input[type="text"] {
         width: calc(100% - 36px); background: transparent; border: none; outline: none;
         padding: 10px 0; font-family: 'DM Sans', sans-serif; font-size: 1em;
         color: var(--text); letter-spacing: 2px;
-    }}
-    input::placeholder {{ color: var(--text-dim); letter-spacing: 1px; font-size: 0.9em; }}
-    .toggle-pass {{
+    }
+    input::placeholder { color: var(--text-dim); letter-spacing: 1px; font-size: 0.9em; }
+    .toggle-pass {
         position: absolute; right: 0; top: 50%; transform: translateY(-50%);
         cursor: pointer; font-size: 1em; opacity: 0.5; transition: opacity 0.15s;
-    }}
-    .toggle-pass:hover {{ opacity: 1; }}
-    .btn-submit {{
+    }
+    .toggle-pass:hover { opacity: 1; }
+    .btn-submit {
         width: 100%; padding: 13px; margin-top: 22px;
         background: linear-gradient(135deg, var(--gold) 0%, #8a6820 100%);
         color: #000; border: none; border-radius: 10px;
         font-family: 'DM Sans', sans-serif; font-size: 0.95em; font-weight: 700;
         letter-spacing: 0.5px; cursor: pointer; transition: all 0.2s;
-    }}
-    .btn-submit:hover {{ transform: translateY(-1px); box-shadow: 0 6px 18px rgba(201,168,76,0.25); }}
-    .msg {{ text-align: center; font-size: 0.82em; padding: 10px 0 0; display: none; }}
-    .msg-ok {{ color: var(--green); }}
-    .msg-err {{ color: var(--red); }}
-    .footer {{ padding: 14px 20px; border-top: 1px solid var(--border); text-align: center; }}
-    .back-link {{ font-size: 0.75em; color: var(--text-dim); text-decoration: none; transition: color 0.2s; }}
-    .back-link:hover {{ color: var(--blue); }}
-    .btn-home {{
+    }
+    .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(201,168,76,0.25); }
+    .msg { text-align: center; font-size: 0.82em; padding: 10px 0 0; display: none; }
+    .msg-ok { color: var(--green); }
+    .msg-err { color: var(--red); }
+    .footer { padding: 14px 20px; border-top: 1px solid var(--border); text-align: center; }
+    .back-link { font-size: 0.75em; color: var(--text-dim); text-decoration: none; transition: color 0.2s; }
+    .back-link:hover { color: var(--blue); }
+    .btn-home {
         display: block; text-align: center; padding: 14px;
         background: linear-gradient(135deg, var(--gold) 0%, #8a6820 100%);
         color: #000; border-radius: 10px; text-decoration: none;
         font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 0.9em;
         line-height: 1.5; letter-spacing: 0.5px; margin-top: 4px; transition: all 0.2s;
-    }}
-    .btn-home:hover {{ transform: translateY(-1px); box-shadow: 0 6px 20px rgba(201,168,76,0.25); }}
+    }
+    .btn-home:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(201,168,76,0.25); }
 </style>
 </head>
 <body>
@@ -1278,39 +1283,39 @@ def html_cambia_pw_web(self):
     </div>
 </div>
 <script>
-    function toggleVis(id) {{
+    function toggleVis(id) {
         const el = document.getElementById(id);
         el.type = el.type === 'password' ? 'text' : 'password';
-    }}
-    function applyTheme(t) {{
+    }
+    function applyTheme(t) {
         const root = document.documentElement;
         const btn  = document.getElementById('themeBtn');
-        if (t === 'light') {{ root.classList.add('light'); if (btn) btn.textContent = '🌙'; }}
-        else               {{ root.classList.remove('light'); if (btn) btn.textContent = '☀️'; }}
-    }}
-    function toggleTheme() {{
+        if (t === 'light') { root.classList.add('light'); if (btn) btn.textContent = '🌙'; }
+        else               { root.classList.remove('light'); if (btn) btn.textContent = '☀️'; }
+    }
+    function toggleTheme() {
         const next = (localStorage.getItem('theme') || 'dark') === 'dark' ? 'light' : 'dark';
         localStorage.setItem('theme', next);
         applyTheme(next);
-    }}
+    }
     applyTheme(localStorage.getItem('theme') || 'dark');
     const p = new URLSearchParams(window.location.search);
-    if (p.get('error') === '1') {{
+    if (p.get('error') === '1') {
         const el = document.getElementById('msg_err');
         el.textContent = '❌ Password attuale errata!';
         el.style.display = 'block';
-    }}
-    if (p.get('error') === '2') {{
+    }
+    if (p.get('error') === '2') {
         const el = document.getElementById('msg_err');
         el.textContent = '❌ Le password non corrispondono!';
         el.style.display = 'block';
-    }}
-    if (p.get('ok') === '1') {{
+    }
+    if (p.get('ok') === '1') {
         const el = document.getElementById('msg_ok');
         el.textContent = '✅ Password aggiornata con successo!';
         el.style.display = 'block';
-        setTimeout(() => {{ window.location.href = '/info_sys_web'; }}, 2000);
-    }}
+        setTimeout(() => { window.location.href = '/info_sys_web'; }, 2000);
+    }
 </script>
 </body>
 </html>"""
@@ -1328,7 +1333,7 @@ def html_log_web(self):
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     return json.load(f)
-            except:
+            except Exception:
                 pass
         return []
     def carica_access_control():
@@ -1336,7 +1341,7 @@ def html_log_web(self):
             try:
                 with open(ACCESS_CONTROL_WEB, "r", encoding="utf-8") as f:
                     return json.load(f)
-            except:
+            except Exception:
                 pass
         return {}
     web_ok = [r for r in carica_json(LOGIN_WEB) if isinstance(r, dict)]
@@ -1683,7 +1688,6 @@ def html_info_sys(self):
     arch = platform.machine()
     nome_pc = platform.node().upper()
     python_v = platform.python_version()
-    ora_server = datetime.datetime.now().strftime("%H:%M - %d/%m/%Y")
     anno_corrente = datetime.datetime.now().year
     ram_info = "N/D"
     try:
@@ -1703,24 +1707,24 @@ def html_info_sys(self):
             with open('/proc/meminfo', 'r') as f:
                 m = {l.split(':')[0]: int(l.split()[1]) for l in f.readlines()[:3]}
             ram_info = f"{round(m.get('MemAvailable', m.get('MemFree'))/1024**2, 1)}GB liberi / {round(m['MemTotal']/1024**2, 1)}GB"
-    except: pass
+    except Exception: pass
     try:
         t, u, f = shutil.disk_usage("/")
         disco = f"{f // (2**30)}GB liberi ({(u/t)*100:.0f}% uso)"
         peso_db = f"{os.path.getsize(DB_FILE) / (1024**2):.1f}MB" if os.path.exists(DB_FILE) else "0MB"
-    except: disco = peso_db = "N/D"
+    except Exception: disco = peso_db = "N/D"
     ultimo_log = "Primo accesso"
     if os.path.exists(LOGIN_WEB):
         try:
             with open(LOGIN_WEB, "r", encoding="utf-8") as f:
                 logs = json.load(f)
                 ultimo_log = logs[1]['data_ora'] if len(logs) > 1 else ultimo_log
-        except: pass
+        except Exception: pass
     import socket
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.connect(('10.254.254.254', 1))
         ip = s.getsockname()[0]; s.close()
-    except: ip = "127.0.0.1"
+    except Exception: ip = "127.0.0.1"
     porta = getattr(_app, 'PORTA', "8080")
     return f"""<!DOCTYPE html>
 <html>

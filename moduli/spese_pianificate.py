@@ -214,7 +214,6 @@ def _refresh_dashboard_pianificazione(self):
 
 def apri_spalma_spesa(self, entry, data_spesa):
     from moduli.modello_spesa import campo
-    import __main__ as _app
 
     id_spesa = campo(entry, "id_spesa", None)
     dati_esistenti = _carica_sp(self)
@@ -238,7 +237,7 @@ def apri_spalma_spesa(self, entry, data_spesa):
 
     nome = campo(entry, "descrizione", "").strip() or campo(entry, "categoria", "Spesa")
     categoria = campo(entry, "categoria", "")
-    conto = campo(entry, "conto", "")
+    conto = self._conto_effettivo(entry)
     hashtag = campo(entry, "hashtag", []) or []
     metodo_pagamento = campo(entry, "metodo_pagamento", "")
     importo = float(campo(entry, "importo", 0.0))
@@ -636,7 +635,7 @@ def apri_gestione_spese_pianificate(self):
             if spesa_viva is not None:
                 categoria_v = campo(spesa_viva, "categoria", "") or (p.get("categoria") or p.get("nome", ""))
                 descrizione_v = campo(spesa_viva, "descrizione", "") or p.get("descrizione", "")
-                conto_v = campo(spesa_viva, "conto", "") or p.get("conto", "")
+                conto_v = self._conto_effettivo(spesa_viva) or p.get("conto", "")
                 metodo_v = campo(spesa_viva, "metodo_pagamento", "") or p.get("metodo_pagamento", "")
                 tag_v = " ".join(campo(spesa_viva, "hashtag", []) or p.get("hashtag", []) or [])
                 riga_tags = ()

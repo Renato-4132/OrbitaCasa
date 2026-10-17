@@ -164,7 +164,7 @@ def mostra_dare_avere(self):
         _row_map = {}
         try:
             _aggiorna_tree_impl()
-        except Exception as _ex:
+        except Exception:
             import traceback; traceback.print_exc()
     def _aggiorna_tree_impl():
         tree.delete(*tree.get_children())

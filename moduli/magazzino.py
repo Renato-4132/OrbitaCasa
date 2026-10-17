@@ -230,7 +230,6 @@ def _mostra(win, parent, w, h):
 
 def magazzino_app(self):
     import __main__ as _app
-    DB_DIR       = _app.DB_DIR
     MAG_FILE     = _app.MAGAZZINO_FILE
     EXP_DB       = _app.EXP_DB
     EXPORT_FILES = _app.EXPORT_FILES

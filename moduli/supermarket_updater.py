@@ -21,7 +21,6 @@ def _ottieni_sha_remoto_supermarket(repo_owner, repo_name, branch, path):
 # Aggiornamenti Github Supermarket.pyw
 def check_supermarket_update(self):
     import datetime
-    from datetime import timedelta
     nome_file_locale = NOME_EDITOR_LOCALE
     try:
         url_parts = GITHUB_SUPERMARKET.split('/')
@@ -29,12 +28,11 @@ def check_supermarket_update(self):
         REPO_NAME = url_parts[4]
         BRANCH = url_parts[5]
         PATH_REMOTO = "/".join(url_parts[6:])
-        titolo_popup = "🔄 Aggiornamento Disponibile"
     except IndexError:
-        print(f"Errore nel parsing dell'URL GITHUB_SUPERMARKET.")
+        print("Errore nel parsing dell'URL GITHUB_SUPERMARKET.")
         return
     except NameError:
-        print(f"Errore: Costanti GITHUB_SUPERMARKET o NOME_EDITOR_LOCALE non definite.")
+        print("Errore: Costanti GITHUB_SUPERMARKET o NOME_EDITOR_LOCALE non definite.")
         return
     try:
         api_url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/commits"
@@ -242,7 +240,6 @@ def check_supermarket_update(self):
 
 def check_supermarket_update_manuale(self):
     import datetime
-    from datetime import timedelta
     nome_file_locale = NOME_EDITOR_LOCALE
     try:
         url_parts = GITHUB_SUPERMARKET.split('/')
@@ -250,7 +247,6 @@ def check_supermarket_update_manuale(self):
         REPO_NAME = url_parts[4]
         BRANCH = url_parts[5]
         PATH_REMOTO = "/".join(url_parts[6:])
-        titolo_popup = "🔄 Aggiornamento Disponibile"
     except IndexError:
         print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Errore nel parsing dell'URL GITHUB_SUPERMARKET.")
         return

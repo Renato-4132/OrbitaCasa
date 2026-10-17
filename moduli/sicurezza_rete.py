@@ -21,7 +21,6 @@ def hash_pw(pw):
 # Cambio Password Manuale
 def apri_cambio_password(self):
     import __main__ as _app
-    PW_FILE = _app.PW_FILE
     NAME = _app.NAME
     VERSION = _app.VERSION
     def crea_campo_password_moderno(parent, etichetta=""):
@@ -77,7 +76,6 @@ def apri_cambio_password(self):
     entry_attuale  = crea_campo_password_moderno(win, "Password Vecchia")
     entry_nuova    = crea_campo_password_moderno(win, "Nuova Password (vuota per disattivare.)")
     entry_conferma = crea_campo_password_moderno(win, "Conferma Nuova")
-    win.update_idletasks()
     win.after(200, lambda: entry_attuale.focus_force())
     mess.pack(pady=0)
     def esegui_conferma_cambio(event=None):
@@ -394,17 +392,18 @@ def start_watchdog_server(self):
     USA_SSL = _app.USA_SSL
     PORTA = _app.PORTA
     import urllib.request, ssl as ssl_mod
+    gen = getattr(self, "_web_gen", 0)
     time.sleep(15)
     consecutive_failures = 0
-    while getattr(self, "_server_running", True):
+    while getattr(self, "_server_running", True) and getattr(self, "_web_gen", 0) == gen:
         try:
             proto = "https" if USA_SSL else "http"
             ctx   = ssl_mod._create_unverified_context() if USA_SSL else None
             urllib.request.urlopen(f"{proto}://localhost:{PORTA}/ping",
                            timeout=10, context=ctx)
             consecutive_failures = 0
-        except Exception as e:
-            if not getattr(self, "_server_running", True):
+        except Exception:
+            if not getattr(self, "_server_running", True) or getattr(self, "_web_gen", 0) != gen:
                 break
             consecutive_failures += 1
             if consecutive_failures >= 3:
@@ -432,7 +431,7 @@ def genera_certificati_auto(self):
     if os.path.exists(cert_path) and os.path.exists(key_path):
         return True
     try:
-        print(f"Generazione certificati SSL di sicurezza...")
+        print("Generazione certificati SSL di sicurezza...")
         key = rsa.generate_private_key(public_exponent=65537, key_size=2048)            
         subject = issuer = x509.Name([
             x509.NameAttribute(NameOID.COMMON_NAME, f"{NAME} Local Server"),
@@ -477,7 +476,7 @@ def leggi_hash(self):
     try:
         with open(PW_FILE, "r", encoding="utf-8") as f:
             return json.load(f).get("hash")
-    except:
+    except Exception:
         return None
 
 
@@ -498,7 +497,7 @@ def verifica_password(self, password):
         try:
             with open(ACCESS_CONTROL_WEB, "r") as f:
                 data = json.load(f)
-        except: pass
+        except Exception: pass
     user = data.get("web_user", {"count": 0, "ban_until": 0, "last_attempt": 0})
     if ora < user.get("ban_until", 0):
         return False
@@ -537,7 +536,7 @@ def registra_accesso(self, ip="sconosciuto", user_agent="sconosciuto"):
         try:
             with open(LOGIN_WEB, "r", encoding="utf-8") as f:
                 logs = json.load(f)
-        except:
+        except Exception:
             logs = []
     logs.insert(0, nuovo_log)
     logs = logs[:10]
@@ -560,7 +559,7 @@ def registra_accesso_fallito(self, ip="sconosciuto", pwd_tentata="", user_agent=
         try:
             with open(LOGIN_WEB_FAIL, "r", encoding="utf-8") as f:
                 logs = json.load(f)
-        except:
+        except Exception:
             logs = []
     logs.insert(0, nuovo_log)
     logs = logs[:20]
@@ -578,7 +577,7 @@ def registra_accesso_fallito(self, ip="sconosciuto", pwd_tentata="", user_agent=
                 data["web_user"] = web_user
                 with open(ACCESS_CONTROL_WEB, "w") as f:
                     json.dump(data, f)
-    except:
+    except Exception:
         pass
 
 def invia_notifica_fallimento(self, ip="sconosciuto", pwd_tentata="", user_agent="sconosciuto"):
@@ -639,7 +638,7 @@ def get_dominio_ssl(self):
         nomi = san.value.get_values_for_type(x509.DNSName)
         nomi_validi = [n for n in nomi if n != "localhost" and "." in n]
         return nomi_validi[0] if nomi_validi else ""
-    except:
+    except Exception:
         return ""
 
 # Popup gestione certificati SSL: elenca i file .pem/.crt/.key presenti, permette generazione self-signed, importazione ed eliminazione
@@ -827,7 +826,6 @@ def mostra_log_accessi(self):
     LOGIN_WEB_FAIL = _app.LOGIN_WEB_FAIL
     LOGIN_LCL = _app.LOGIN_LCL
     ACCESS_CONTROL_WEB = _app.ACCESS_CONTROL_WEB
-    from datetime import datetime
     popup = tk.Toplevel(self)
     self._log_accessi_popup = popup
     popup.bind("<Destroy>", lambda e: setattr(self, '_log_accessi_popup', None)
@@ -860,7 +858,7 @@ def mostra_log_accessi(self):
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     return json.load(f)
-            except:
+            except Exception:
                 pass
         return []
     def carica_access_control():
@@ -868,7 +866,7 @@ def mostra_log_accessi(self):
             try:
                 with open(ACCESS_CONTROL_WEB, "r", encoding="utf-8") as f:
                     return json.load(f)
-            except:
+            except Exception:
                 pass
         return {}
     def crea_tab_lista(parent, dati, colonne, larghezze=None):

@@ -80,8 +80,12 @@ def registra_tutti_i_moduli(GestioneSpese):
     _registra(configura_menu_contestuale_globale, _esegui_comando_menu, _mostra_menu_globale, _chiudi_menu_sicuro, 
     _avvia_timer_chiusura, _annulla_timer_chiusura, _global_select_all)
 
-    from moduli.temi import applica_temi
-    _registra(applica_temi)
+    from moduli.temi import applica_temi, cambia_tema_a_caldo
+    _registra(applica_temi, cambia_tema_a_caldo)
+
+    from moduli.applica_configurazione import (
+        applica_configurazione_a_caldo, _avvia_udp_rete, _riavvia_webserver_a_caldo,)
+    _registra(applica_configurazione_a_caldo, _avvia_udp_rete, _riavvia_webserver_a_caldo)
 
     from moduli.profili import (
         mostra_selettore_profilo, elenco_profili, cambia_profilo,
@@ -168,16 +172,17 @@ def registra_tutti_i_moduli(GestioneSpese):
         mostra_categorie_popup, on_categoria_modifica_changed_popup, on_categoria_modifica_changed, reset_campi_categoria,
         aggiorna_categoria_automatica, aggiorna_combobox_categorie, on_categoria_changed, mostra_tutte_le_categorie,
         add_categoria, modifica_categoria, conferma_cancella_categoria, cancella_categoria, draw_top_categorie, mostra_storico_categoria,
-        suggerisci_tipo_categoria, open_analisi_categoria, _ottieni_categorie_ricorrenti_mancanti, gruppo_categorie, cancella_categorie_checkbox,
-        apri_categorie_suggerite, get_dati_categorie_storiche_json, get_dati_categorie_json, mostra_editor_memoria_categorie,
-        _aggiorna_stile_pulsante_tipo_popup, _salva_budget_annuo_categoria,)
+        suggerisci_tipo_categoria, _ottieni_categorie_ricorrenti_mancanti, cancella_categorie_checkbox,
+        apri_categorie_suggerite, apri_gestione_categorie, get_dati_categorie_storiche_json, get_dati_categorie_json, mostra_editor_memoria_categorie,
+        _aggiorna_stile_pulsante_tipo_popup, _salva_budget_annuo_categoria,
+        _salva_classe_categoria, _classi_categorie, _etichetta_classe_conto,)
     _registra(mostra_categorie_popup, on_categoria_modifica_changed_popup, on_categoria_modifica_changed, 
     reset_campi_categoria, aggiorna_categoria_automatica, aggiorna_combobox_categorie, on_categoria_changed, 
     mostra_tutte_le_categorie, add_categoria, modifica_categoria, conferma_cancella_categoria, cancella_categoria, 
-    draw_top_categorie, mostra_storico_categoria, suggerisci_tipo_categoria, open_analisi_categoria, 
-    _ottieni_categorie_ricorrenti_mancanti, gruppo_categorie, cancella_categorie_checkbox, apri_categorie_suggerite, 
+    draw_top_categorie, mostra_storico_categoria, suggerisci_tipo_categoria, 
+    _ottieni_categorie_ricorrenti_mancanti, cancella_categorie_checkbox, apri_categorie_suggerite, apri_gestione_categorie, 
     get_dati_categorie_storiche_json, get_dati_categorie_json, mostra_editor_memoria_categorie, _aggiorna_stile_pulsante_tipo_popup,
-    _salva_budget_annuo_categoria)
+    _salva_budget_annuo_categoria, _salva_classe_categoria, _classi_categorie, _etichetta_classe_conto)
 
     from moduli.open_compare_window import open_compare_window, crea_grafico_confronto
     _registra(open_compare_window, crea_grafico_confronto)
@@ -316,8 +321,8 @@ def registra_tutti_i_moduli(GestioneSpese):
     from moduli.apri_finestra_revisione_universale import apri_finestra_revisione_universale
     _registra(apri_finestra_revisione_universale)
     
-    from moduli.time_machine import time_machine
-    _registra(time_machine)
+    from moduli.analisi_categorie import analisi_categorie
+    _registra(analisi_categorie)
     
     from moduli.scadenze_mese import scadenze_mese, on_scadenza_doppio_click
     _registra(scadenze_mese, on_scadenza_doppio_click)
@@ -339,6 +344,14 @@ def registra_tutti_i_moduli(GestioneSpese):
     
     from moduli.mostra_piramide import mostra_piramide
     _registra(mostra_piramide)
+
+    from moduli.risparmio_auto import (_conti_risparmio_cat, _nomi_conti_portafoglio, _nome_conto_risparmio_cat,
+        _salva_conto_risparmio_categoria, _sincronizza_risparmio, _mappa_conti_risparmio_auto, _conto_effettivo)
+    _registra(_conti_risparmio_cat, _nomi_conti_portafoglio, _nome_conto_risparmio_cat,
+        _salva_conto_risparmio_categoria, _sincronizza_risparmio, _mappa_conti_risparmio_auto, _conto_effettivo)
+
+    from moduli.metodo_503020 import mostra_metodo_503020, crea_barra_503020, aggiorna_barre_503020
+    _registra(mostra_metodo_503020, crea_barra_503020, aggiorna_barre_503020)
     
     from moduli.apri_calcolatrice import apri_calcolatrice
     _registra(apri_calcolatrice)
@@ -351,9 +364,6 @@ def registra_tutti_i_moduli(GestioneSpese):
     
     from moduli.show_info_app import show_info_app
     _registra(show_info_app)
-    
-    from moduli.apri_cancella_multiplo import apri_cancella_multiplo
-    _registra(apri_cancella_multiplo)
     
     from moduli.stampa import anteprima_e_stampa_txt, _stampa_lista_diretta, stampa_pdf
     _registra(anteprima_e_stampa_txt, _stampa_lista_diretta, stampa_pdf)
@@ -419,7 +429,7 @@ def registra_tutti_i_moduli(GestioneSpese):
         notifica_modifica_web, pianifica_sincro_web,)
     from moduli.web_categorie import (
         add_categoria_web, modifica_categoria_web, cancella_categoria_web,
-        refresh_categorie_web, html_gestione_categorie,)
+        refresh_categorie_web, html_gestione_categorie, _salva_classe_conto_web,)
     from moduli.web_portafoglio import (
         get_dati_entrate_uscite_tutti_gli_anni_json, get_dati_saldo_annuale_json,
         get_dati_entrate_uscite_json, get_dati_saldo_json,
@@ -441,7 +451,7 @@ def registra_tutti_i_moduli(GestioneSpese):
     _registra(apri_webserver, _crea_flask_app, start_web_server, html_login, 
     html_cambia_pw_web, html_log_web, pagina_risultati_avanzati, html_info_sys, 
     html_form, html_saluto, html_fairshare_web, documenti_pdf_web, documenti_personali_web, 
-    genera_html_utenze, genera_html_consultazione, pagina_menu_esplora, add_categoria_web, 
+    genera_html_utenze, genera_html_consultazione, pagina_menu_esplora, _salva_classe_conto_web, add_categoria_web, 
     modifica_categoria_web, cancella_categoria_web, refresh_categorie_web, html_gestione_categorie, 
     pagina_fondo_risparmio_web, pagina_grafici_web, html_lista_spese_mensili, html_scadenze_mese, stats_mensili_html, 
     modifica_voce_form, cancella_voce_web, aggiungi_voce_web, carica_db_web, analizza_pdf_web, 

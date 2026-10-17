@@ -70,6 +70,41 @@ def _nascondi_tip_safe(self):
     if self.tooltip_win and self.tooltip_win.winfo_exists():
         self.tooltip_win.withdraw()
 
+def _classe_tip(self, cat):
+    try:
+        return self._classi_categorie().get(cat, "")
+    except Exception:
+        return ""
+
+def _riga_voce_tip(self, d_v, imp_v, tipo_v, cat_v, w_l, w_v):
+    p = "-" if tipo_v == "Uscita" else "+"
+    s = "»" if tipo_v == "Uscita" else "«"
+    sinistra = f"{s} {d_v.strftime('%d/%m')}"
+    if cat_v:
+        sinistra += f" {str(cat_v)[:16]}"
+        _cl = _classe_tip(self, cat_v)
+        if _cl:
+            sinistra += f" [{_cl}]"
+    destra = f"{p + f'{_fmt_it(imp_v)}':>{w_v}}€"
+    gap = w_l + w_v + 2 - len(sinistra) - len(destra)
+    return sinistra + " " * max(gap, 1) + destra
+
+def _blocco_classi_tip(self, voci, col_w):
+    per_classe = {}
+    for _d, _imp, _tipo, _cat in voci:
+        if _tipo != "Uscita":
+            continue
+        _cl = _classe_tip(self, _cat)
+        if _cl:
+            per_classe[_cl] = per_classe.get(_cl, 0.0) + _imp
+    if not per_classe:
+        return []
+    righe = ["Uscite per classe:"]
+    for _cl, _v in sorted(per_classe.items(), key=lambda kv: -kv[1]):
+        _vs = f"-{_fmt_it(_v)}€"
+        righe.append(f"  {_cl}".ljust(max(col_w - len(_vs), len(_cl) + 4)) + _vs)
+    return righe
+
 def draw_estratto_metodo(self):
     import __main__ as _app
     PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
@@ -110,7 +145,7 @@ def draw_estratto_metodo(self):
                         continue
                     nome_metodo_pulito = _simboli_metodo[simbolo_trovato]
                 nome_base = f"{simbolo_trovato} {nome_metodo_pulito}" if simbolo_trovato else nome_metodo_pulito
-                _conto_espl = campo(entry, "conto", "")
+                _conto_espl = self._conto_effettivo(entry)
                 if _conto_espl:
                     sotto_nome = _conto_espl
                 else:
@@ -118,7 +153,7 @@ def draw_estratto_metodo(self):
                 nome_metodo = f"{nome_base} {sotto_nome}" if sotto_nome else nome_base
                 segno = 1 if tipo == "Entrata" else -1
                 totali[nome_metodo] = totali.get(nome_metodo, 0) + imp * segno
-                dettagli.setdefault(nome_metodo, []).append((d, imp, tipo))
+                dettagli.setdefault(nome_metodo, []).append((d, imp, tipo, cat))
     if not totali:
         c.create_text(w // 2, h // 2, text="Nessun movimento con metodo di pagamento questo mese",
                       fill=self.TEXT_COLOR, font=("Arial", 10))
@@ -144,7 +179,7 @@ def draw_estratto_metodo(self):
         sotto_nome = metodo[len(nome_base):].strip()
         c.create_text(pad_l, y, text=metodo[:24], anchor="w",
                           fill=self.TEXT_COLOR, font=("Arial", 9), tags=tag_riga)
-        rect_id = c.create_rectangle(
+        c.create_rectangle(
                 bx, y - 10, bx + max(bar_w, 4), y + 10,
                 fill=fill, outline="", tags=tag_riga
         )
@@ -156,8 +191,8 @@ def draw_estratto_metodo(self):
                     c.create_text(x_fine_barra + 5, y, text=f"{_fmt_it(val)}€", anchor="w",
                                   fill=self.TEXT_COLOR, font=("Arial", 8, "bold"), tags=tag_riga)
         voci = sorted(dettagli.get(metodo, []), key=lambda x: x[0], reverse=True)
-        tot_usc = sum(iv for _, iv, tv in voci if tv == "Uscita")
-        tot_ent = sum(iv for _, iv, tv in voci if tv == "Entrata")
+        tot_usc = sum(iv for _, iv, tv, _c in voci if tv == "Uscita")
+        tot_ent = sum(iv for _, iv, tv, _c in voci if tv == "Entrata")
         w_l = 13
         w_v = 12
         righe_dati = [
@@ -166,14 +201,8 @@ def draw_estratto_metodo(self):
                     f"{'[=] NETTO:':<{w_l}} {('+' if tot_ent-tot_usc >= 0 else '') + f'{_fmt_it(tot_ent-tot_usc)}':>{w_v}}€",
         ]
         voci_righe = []
-        for d_v, imp_v, tipo_v in voci[:15]:
-                    p = "-" if tipo_v == "Uscita" else "+"
-                    s = "»" if tipo_v == "Uscita" else "«"
-                    dt = d_v.strftime('%d/%m')
-                    sinistra = f"{s} {dt}"
-                    destra = f"{p + f'{_fmt_it(imp_v)}':>{w_v}}€"
-                    gap = w_l + w_v + 2 - len(sinistra) - len(destra)
-                    voci_righe.append(sinistra + " " * max(gap, 1) + destra)
+        for d_v, imp_v, tipo_v, cat_v in voci[:15]:
+                    voci_righe.append(_riga_voce_tip(self, d_v, imp_v, tipo_v, cat_v, w_l, w_v))
         col_w = max(len(r) for r in righe_dati + voci_righe) if (righe_dati + voci_righe) else 28
         sep = "─" * col_w
         righe = [
@@ -183,6 +212,8 @@ def draw_estratto_metodo(self):
                 sep,
                 righe_dati[2],
                 sep,
+                *_blocco_classi_tip(self, voci, col_w),
+                *([sep] if _blocco_classi_tip(self, voci, col_w) else []),
                 *voci_righe,
         ]
         if len(voci) > 15:
@@ -254,7 +285,7 @@ def draw_estratto_conto(self):
             for entry in entries:
                 cat, desc, imp, tipo = entry[:4]
                 _key_conto = (d.strftime("%d-%m-%Y"), round(float(imp), 2), str(tipo).capitalize())
-                _conto_espl2 = campo(entry, "conto", "")
+                _conto_espl2 = self._conto_effettivo(entry)
                 if _conto_espl2:
                     nome_conto = _conto_espl2
                 else:
@@ -263,7 +294,7 @@ def draw_estratto_conto(self):
                     continue
                 segno = 1 if tipo == "Entrata" else -1
                 totali[nome_conto] = totali.get(nome_conto, 0) + imp * segno
-                dettagli.setdefault(nome_conto, []).append((d, imp, tipo))
+                dettagli.setdefault(nome_conto, []).append((d, imp, tipo, cat))
                 chiavi_per_conto.setdefault(nome_conto, set()).add(_key_conto)
     for _t in _db_p.get("trasferimenti", []):
         if e_trasferimento_virtuale(_t):
@@ -284,10 +315,10 @@ def draw_estratto_conto(self):
         _nome_a_tr  = _id_a_nome.get(_t.get("a"), "")
         if _nome_da_tr:
             totali[_nome_da_tr] = totali.get(_nome_da_tr, 0) - _imp_tr
-            dettagli.setdefault(_nome_da_tr, []).append((_data_tr, _imp_tr, "Uscita"))
+            dettagli.setdefault(_nome_da_tr, []).append((_data_tr, _imp_tr, "Uscita", "Trasferimento"))
         if _nome_a_tr:
             totali[_nome_a_tr] = totali.get(_nome_a_tr, 0) + _imp_tr
-            dettagli.setdefault(_nome_a_tr, []).append((_data_tr, _imp_tr, "Entrata"))
+            dettagli.setdefault(_nome_a_tr, []).append((_data_tr, _imp_tr, "Entrata", "Trasferimento"))
     if not totali:
         c.create_text(w // 2, h // 2, text="Nessun movimento agganciato a un conto questo mese",
                       fill=self.TEXT_COLOR, font=("Arial", 10))
@@ -309,7 +340,7 @@ def draw_estratto_conto(self):
         tag_riga = f"riga_conto_{i}"
         c.create_text(pad_l, y, text=conto[:24], anchor="w",
                           fill=self.TEXT_COLOR, font=("Arial", 9), tags=tag_riga)
-        rect_id = c.create_rectangle(
+        c.create_rectangle(
                 bx, y - 10, bx + max(bar_w, 4), y + 10,
                 fill=fill, outline="", tags=tag_riga
         )
@@ -321,8 +352,8 @@ def draw_estratto_conto(self):
                     c.create_text(x_fine_barra + 5, y, text=f"{_fmt_it(val)}€", anchor="w",
                                   fill=self.TEXT_COLOR, font=("Arial", 8, "bold"), tags=tag_riga)
         voci = sorted(dettagli.get(conto, []), key=lambda x: x[0], reverse=True)
-        tot_usc = sum(iv for _, iv, tv in voci if tv == "Uscita")
-        tot_ent = sum(iv for _, iv, tv in voci if tv == "Entrata")
+        tot_usc = sum(iv for _, iv, tv, _c in voci if tv == "Uscita")
+        tot_ent = sum(iv for _, iv, tv, _c in voci if tv == "Entrata")
         w_l = 13
         w_v = 12
         righe_dati = [
@@ -331,14 +362,8 @@ def draw_estratto_conto(self):
                     f"{'[=] NETTO:':<{w_l}} {('+' if tot_ent-tot_usc >= 0 else '') + f'{_fmt_it(tot_ent-tot_usc)}':>{w_v}}€",
         ]
         voci_righe = []
-        for d_v, imp_v, tipo_v in voci[:15]:
-                    p = "-" if tipo_v == "Uscita" else "+"
-                    s = "»" if tipo_v == "Uscita" else "«"
-                    dt = d_v.strftime('%d/%m')
-                    sinistra = f"{s} {dt}"
-                    destra = f"{p + f'{_fmt_it(imp_v)}':>{w_v}}€"
-                    gap = w_l + w_v + 2 - len(sinistra) - len(destra)
-                    voci_righe.append(sinistra + " " * max(gap, 1) + destra)
+        for d_v, imp_v, tipo_v, cat_v in voci[:15]:
+                    voci_righe.append(_riga_voce_tip(self, d_v, imp_v, tipo_v, cat_v, w_l, w_v))
         col_w = max(len(r) for r in righe_dati + voci_righe) if (righe_dati + voci_righe) else 28
         sep = "─" * col_w
         righe = [
@@ -348,6 +373,8 @@ def draw_estratto_conto(self):
                 sep,
                 righe_dati[2],
                 sep,
+                *_blocco_classi_tip(self, voci, col_w),
+                *([sep] if _blocco_classi_tip(self, voci, col_w) else []),
                 *voci_righe,
         ]
         if len(voci) > 15:

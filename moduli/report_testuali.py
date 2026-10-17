@@ -109,7 +109,7 @@ def export_stats(self):
             desc = campo(entry, "descrizione", "")
             imp = campo(entry, "importo", 0.0)
             tipo = campo(entry, "tipo", "")
-            _conto_espl_st = campo(entry, "conto", "")
+            _conto_espl_st = self._conto_effettivo(entry)
             if _conto_espl_st:
                 nome_conto = _conto_espl_st
             else:
@@ -174,7 +174,7 @@ def export_month_detail(self):
             tipo = campo(entry, "tipo", "")
             categoria = str(cat) if cat else "Varie"
             importo_v = float(imp)
-            _conto_espl_st = campo(entry, "conto", "")
+            _conto_espl_st = self._conto_effettivo(entry)
             if _conto_espl_st:
                 nome_conto = _conto_espl_st
             else:
@@ -299,7 +299,7 @@ def export_anno_dettagliato(self):
                 imp = campo(entry, "importo", 0.0)
                 tipo = campo(entry, "tipo", "")
                 if conto_filtro != HOUSEHOLD_LABEL:
-                    _conto_espl_an = campo(entry, "conto", "")
+                    _conto_espl_an = self._conto_effettivo(entry)
                     if _conto_espl_an:
                         nome_conto = _conto_espl_an
                     else:
@@ -424,7 +424,7 @@ def export_storico_totale(self):
                 tipo = campo(entry, "tipo", "")
                 if conto_filtro != HOUSEHOLD_LABEL:
                     d2 = d if isinstance(d, datetime.date) else datetime.datetime.strptime(d, "%d-%m-%Y").date()
-                    _conto_espl_stor = campo(entry, "conto", "")
+                    _conto_espl_stor = self._conto_effettivo(entry)
                     if _conto_espl_stor:
                         nome_conto = _conto_espl_stor
                     else:

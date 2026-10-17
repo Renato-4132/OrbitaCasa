@@ -41,6 +41,20 @@ def carica_costanti(path_locale):
     g['app_config_globale'] = app_config_globale
     DB_CONDIVISO = app_config_globale.get("shared_db", False)
     PATH_RETE = app_config_globale.get("shared_db_path", path_locale)
+    condivisione_spenta = False
+    if DB_CONDIVISO and not os.path.exists(PATH_RETE):
+        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] ⚠️ Cartella condivisa non trovata ({PATH_RETE}): condivisione disattivata")
+        DB_CONDIVISO = False
+        condivisione_spenta = True
+        app_config_globale["shared_db"] = False
+        try:
+            c_file = os.path.join(path_locale, "db", "config.json")
+            cfg_boot = leggi_configurazione_globale(path_locale)
+            cfg_boot["shared_db"] = False
+            with open(c_file, 'w', encoding='utf-8') as f:
+                json.dump(cfg_boot, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
     g['DB_CONDIVISO'] = DB_CONDIVISO
     g['PATH_RETE'] = PATH_RETE
     if DB_CONDIVISO and os.path.exists(PATH_RETE):
@@ -99,6 +113,16 @@ def carica_costanti(path_locale):
     g['PW_FILE'] = os.path.join(DB_DIR, "password.json")
     g['MEM_CAT'] = os.path.join(DB_DIR, "memoria_categorie.json")
     g['CONFIG_FILE'] = os.path.join(DB_DIR, "config.json")
+    if condivisione_spenta:
+        try:
+            with open(g['CONFIG_FILE'], 'r', encoding='utf-8') as f:
+                cfg_loc = json.load(f)
+            if cfg_loc.get("shared_db"):
+                cfg_loc["shared_db"] = False
+                with open(g['CONFIG_FILE'], 'w', encoding='utf-8') as f:
+                    json.dump(cfg_loc, f, indent=4)
+        except Exception:
+            pass
     g['RIMANDA_FILE'] = os.path.join(DB_DIR, "update.json")
     g['MESSAGGI_SERVIZIO_URL'] = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/main/resources/messaggi_servizio.json"
     g['MESSAGGI_VISTI_FILE'] = os.path.join(DB_DIR, "messaggi_servizio_visti.json")
@@ -162,7 +186,7 @@ def carica_costanti(path_locale):
     g['WARN_TIMEOUT'] = 20000                       # Timeout Messaggi Popup (ms)
     g['USE_WAIT_WINDOW'] = False                    # Timeout chiusura self.show_custom_warning
     g['TOLL'] = 15                                  # Tolleranza Movimenti simili (SmartCat) - Euro
-    g['VERSION'] = "2.5.3"
+    g['VERSION'] = "2.5.4"
     g['ICONIZZA_INATTIVITA'] = True                 # Attiva/disattiva Timer Minimizza
     g['TIMEOUT_INATTIVITA_MS'] = 1200000            # 20 minuti in ms - Timer Minimizza
     g['ANNI_DA_MANTENERE'] = 10                     # Anni conservati nel db
@@ -229,6 +253,7 @@ def carica_costanti(path_locale):
         "pianificate_anno_attivo": False,
         "includi_futuri_totali": True,
         "includi_futuri_saldo": True,
+        "includi_futuri_analisi": True,
         "stats_mode_avanzato": "giorno",
         "stats_dettaglio_mese": False,
         "analisi_mese_tab": 0,

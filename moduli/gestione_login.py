@@ -23,14 +23,14 @@ def gestione_login(self):
     LOGIN_LCL = _app.LOGIN_LCL
     AUTO_ICONIZE_STARTUP = getattr(_app, "AUTO_ICONIZE_STARTUP", False)
     ABILITA_WEBSERVER = getattr(_app, "ABILITA_WEBSERVER", False)
-    current_folder = os.path.basename(os.getcwd())
+    current_folder = os.path.basename(os.path.normpath(_app.RADICE_DATI))
 
     TEMI = {
-        "CHIARO":   {"BG": "#FFFFFF",  "BG_W": "white",    "FG": "black",    "ACCENT": "#007ACC", "FG_ERR": "red",     "FG_OK": "green",    "FG_DIM": "#555555", "FG_WARN": "#D19A66"},
-        "MATERIAL": {"BG": "#20232A",  "BG_W": "#2A273F",  "FG": "white",    "ACCENT": "#61AFEF", "FG_ERR": "#E06C75", "FG_OK": "#98C379",  "FG_DIM": "#555555", "FG_WARN": "#D19A66"},
-        "BLU":      {"BG": "#B3E5FC",  "BG_W": "#B3E5FC",  "FG": "#002F6C",  "ACCENT": "#0091EA", "FG_ERR": "red",     "FG_OK": "#2ed573",  "FG_DIM": "#004B8D", "FG_WARN": "#D19A66"},
-        "OBSIDIAN": {"BG": "#000000",  "BG_W": "#000000",  "FG": "white",    "ACCENT": "#61AFEF", "FG_ERR": "#E06C75", "FG_OK": "#98C379",  "FG_DIM": "#555555", "FG_WARN": "#D19A66"},
-        "GOLD":     {"BG": "#0A0800",  "BG_W": "#0D0A00",  "FG": "#F5E6C8",  "ACCENT": "#C9A84C", "FG_ERR": "#E06C75", "FG_OK": "#98C379",  "FG_DIM": "#555555", "FG_WARN": "#D19A66"},
+        "CHIARO":   {"BG": "#FFFFFF",  "BG_W": "white",    "FG": "black",    "ACCENT": "#007ACC", "FG_ERR": "red",     "FG_OK": "green",    "FG_DIM": "#555555", "FG_WARN": "#9A5B00"},
+        "MATERIAL": {"BG": "#20232A",  "BG_W": "#2A273F",  "FG": "white",    "ACCENT": "#61AFEF", "FG_ERR": "#E06C75", "FG_OK": "#98C379",  "FG_DIM": "#8A8F9A", "FG_WARN": "#D19A66"},
+        "BLU":      {"BG": "#08121F",  "BG_W": "#0B1B30",  "FG": "white",    "ACCENT": "#61AFEF", "FG_ERR": "#E06C75", "FG_OK": "#98C379",  "FG_DIM": "#8A9BB5", "FG_WARN": "#D19A66"},
+        "OBSIDIAN": {"BG": "#000000",  "BG_W": "#000000",  "FG": "white",    "ACCENT": "#61AFEF", "FG_ERR": "#E06C75", "FG_OK": "#98C379",  "FG_DIM": "#8A8F9A", "FG_WARN": "#D19A66"},
+        "GOLD":     {"BG": "#0A0800",  "BG_W": "#0D0A00",  "FG": "#F5E6C8",  "ACCENT": "#C9A84C", "FG_ERR": "#E06C75", "FG_OK": "#98C379",  "FG_DIM": "#A09882", "FG_WARN": "#D19A66"},
     }
     t = TEMI.get(THEMA, TEMI["OBSIDIAN"])
     BG      = t["BG"]
@@ -42,7 +42,6 @@ def gestione_login(self):
     FG_DIM  = t["FG_DIM"]
     FG_WARN = t["FG_WARN"]
     login_riuscito = [False]
-    salvata = self.leggi_hash()
     def crea_campo_password_moderno(parent, etichetta=""):
         if etichetta:
             tk.Label(parent, text=etichetta, bg=BG, fg=FG,
@@ -52,8 +51,8 @@ def gestione_login(self):
         frame_container = tk.Frame(frame_border, bg=BG_W, bd=0)
         frame_container.pack(padx=1, pady=1, fill="both", expand=True)
         visibile = tk.BooleanVar(value=False)
-        entry_pw = tk.Entry(frame_container, show="*", bg=BG_W, fg="white" if THEMA != "CHIARO" else "black",
-                            insertbackground="white" if THEMA != "CHIARO" else "black",
+        entry_pw = tk.Entry(frame_container, show="*", bg=BG_W, fg=FG,
+                            insertbackground=FG,
                             font=("Arial", 11), relief="flat", bd=0, highlightthickness=0)
         entry_pw.pack(side="left", padx=10, pady=6, fill="x", expand=True)
         def toggle_visibilita():
@@ -222,7 +221,7 @@ def gestione_login(self):
                 bf = dati.get("bloccato_fino")
                 if bf:
                     bloccato_fino = datetime.datetime.strptime(bf, "%Y-%m-%d %H:%M:%S")
-            except: pass
+            except Exception: pass
         login = tk.Toplevel(self)
         self.set_app_icon()
         login.title(f"Accesso {NAME} v.{VERSION}")
@@ -356,24 +355,24 @@ def gestione_login(self):
                 self.salva_hash(inserita)
                 try:
                     with open(LOGIN_LCL, "r") as f: log = json.load(f)
-                except: log = {}
+                except Exception: log = {}
                 log_eventi = log.get("eventi", []) if isinstance(log, dict) else []
                 log_eventi.append({"timestamp": adesso, "tipo": "PRIMO_ACCESSO", "utente": current_folder, "session_id": getattr(self, "SESSION_ID", "N/D")})
                 try:
                     with open(LOGIN_LCL, "w") as f: json.dump({"ultimo_login": adesso, "eventi": log_eventi[-20:]}, f, indent=2)
-                except: pass
+                except Exception: pass
                 login_riuscito[0] = True
                 login.destroy()
                 return
             if hash_pw(inserita) == salvata:
                 try:
                     with open(LOGIN_LCL, "r") as f: log = json.load(f)
-                except: log = []
+                except Exception: log = []
                 log_eventi = log.get("eventi", []) if isinstance(log, dict) else []
                 log_eventi.append({"timestamp": adesso, "tipo": "LOGIN_OK", "utente": current_folder, "session_id": getattr(self, "SESSION_ID", "N/D")})
                 try:
                     with open(LOGIN_LCL, "w") as f: json.dump({"ultimo_login": adesso, "eventi": log_eventi[-20:]}, f, indent=2)
-                except: pass
+                except Exception: pass
                 login_riuscito[0] = True
                 login.destroy()
             else:
@@ -381,23 +380,23 @@ def gestione_login(self):
                 entry_pw.delete(0, tk.END)
                 try:
                     with open(LOGIN_LCL, "r") as f: log = json.load(f)
-                except: log = {}
+                except Exception: log = {}
                 log_eventi = log.get("eventi", []) if isinstance(log, dict) else []
                 log_eventi.append({"timestamp": adesso, "tipo": "LOGIN_FAIL", "tentativo": f"{tentativi_falliti}/{MAX_TENTATIVI}", "utente": current_folder, "session_id": getattr(self, "SESSION_ID", "N/D"), "password_tentata": inserita})
                 try:
                     with open(LOGIN_LCL, "w") as f: json.dump({"ultimo_login": adesso, "eventi": log_eventi[-20:]}, f, indent=2)
-                except: pass
+                except Exception: pass
                 if tentativi_falliti >= MAX_TENTATIVI:
                     messaggio_errore.config(text=f"Password Errata ({tentativi_falliti}/{MAX_TENTATIVI})")
                     login.update()
                     self.invia_notifica_fallimento("Login Locale")
                     try:
                         with open(LOGIN_LCL, "r") as f: log = json.load(f)
-                    except: log = {}
+                    except Exception: log = {}
                     log["bloccato_fino"] = (datetime.datetime.now() + datetime.timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
                     try:
                         with open(LOGIN_LCL, "w") as f: json.dump(log, f, indent=2)
-                    except: pass
+                    except Exception: pass
                     chiusura()
                 else:
                     messaggio_errore.config(text=f"Password Errata ({tentativi_falliti}/{MAX_TENTATIVI})")

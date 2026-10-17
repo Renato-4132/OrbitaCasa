@@ -1023,7 +1023,6 @@ def apri_portafoglio(self):
                     frm_ticker = tk.Frame(dlg, bg=self.COLOR_BACKGROUND)
                     frm_ticker.pack(fill="x", padx=16)
                     ttk.Entry(frm_ticker, textvariable=v, font=("Segoe UI", 10)).pack(side="left", fill="x", expand=True)
-                    img_cerca = self.icone_gui.get("search") or self.icone_gui.get("lente") or self.icone_gui.get("cerca")
                     btn_cerca = tk.Label(frm_ticker, text=" 🔍", bg=self.COLOR_WIDGET_BG,
                                          fg=self.TEXT_COLOR, cursor="hand2", padx=6, pady=2,
                                          font=("Segoe UI", 10))
@@ -2240,7 +2239,7 @@ def _porta_save(self, dati):
 def _porta_prezzo_live(self, ticker):
     try:
         import yfinance as yf
-        import logging, os, io, contextlib
+        import logging, io, contextlib
         logging.getLogger("yfinance").setLevel(logging.CRITICAL)
         t = yf.Ticker(ticker)
         with contextlib.redirect_stdout(io.StringIO()), \

@@ -133,7 +133,6 @@ def open_saldo_conto(self, tab_iniziale=None):
             while f"{prefisso}{i}" in ids:
                 i += 1
             return f"{prefisso}{i}"
-        db = carica_db()
         def _btn(parent, ico, testo, cmd, side="left", padx=6):
             img = self.icone_gui.get(ico)
             b = tk.Label(parent, image=img, text=f" {testo}",
@@ -148,9 +147,10 @@ def open_saldo_conto(self, tab_iniziale=None):
             "personale": "#4A90D9",
             "comune":    "#50C878",
             "figli":     "#C45E00",
+            "risparmio": "#20B2AA",
             "altro":     "#A78BFA",
         }
-        TIPI = ["personale", "comune", "figli", "altro"]
+        TIPI = ["personale", "comune", "figli", "risparmio", "altro"]
         nb = ttk.Notebook(popup)
         nb.pack(fill=tk.BOTH, expand=True, padx=8, pady=(8, 0))
         tab_riepilogo     = tk.Frame(nb, bg=bg)
@@ -441,7 +441,6 @@ def open_saldo_conto(self, tab_iniziale=None):
             for w in tab_conti.winfo_children():
                 w.destroy()
             db_now   = carica_db()
-            conti    = db_now.get("conti", [])
             sel_id   = [None]
             paned = tk.Frame(tab_conti, bg=bg)
             paned.pack(fill=tk.BOTH, expand=True, padx=10, pady=8)
@@ -489,7 +488,6 @@ def open_saldo_conto(self, tab_iniziale=None):
                 tk.Label(parent, text=testo, font=("Arial", 9, "bold"),
                          bg=bg, fg=fg, anchor="w").grid(row=row, column=0,
                          sticky="w", padx=(0, 6), pady=3)
-                st = "readonly" if readonly else "normal"
                 e = ttk.Entry(parent, textvariable=var, width=entry_w)
                 if maxchar:
                     vcmd = (parent.register(lambda s, n=maxchar: len(s) <= n), "%P")
@@ -927,8 +925,7 @@ def open_saldo_conto(self, tab_iniziale=None):
                 frm_d.entry = e
                 return frm_d
 
-            frm_data = _row(lf_form, "Data:", _campo_data, 0)
-            data_e = frm_data.entry
+            _row(lf_form, "Data:", _campo_data, 0)
             _row(lf_form, "Da conto:", lambda p: ttk.Combobox(p, textvariable=v_da,
                  values=nomi_conti, state="readonly", width=16, style="Border.TCombobox"), 1)
             _row(lf_form, "A conto:",  lambda p: ttk.Combobox(p, textvariable=v_a,
@@ -1280,7 +1277,7 @@ def open_saldo_conto(self, tab_iniziale=None):
                             continue
                         if tipo_f != "Tutti" and tipo != tipo_f: continue
                         if cat_f != "Tutte" and cat != cat_f: continue
-                        _conto_espl_sc = campo(v, "conto", "")
+                        _conto_espl_sc = self._conto_effettivo(v)
                         if _conto_espl_sc:
                             nome_conto_sp = _conto_espl_sc
                         else:

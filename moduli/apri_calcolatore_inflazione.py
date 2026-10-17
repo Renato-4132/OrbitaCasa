@@ -64,10 +64,10 @@ def apri_calcolatore_inflazione(self):
         self.unbind("<Unmap>", _funcid_unmap)
         if _job_calcola_iniziale[0]:
             try: win.after_cancel(_job_calcola_iniziale[0])
-            except: pass
+            except Exception: pass
         if _job_grafico[0]:
             try: win.after_cancel(_job_grafico[0])
-            except: pass
+            except Exception: pass
         win.destroy()
     win.bind("<Escape>", lambda e: _chiudi())
     win.protocol("WM_DELETE_WINDOW", _chiudi)

@@ -6,7 +6,7 @@ import threading
 import tkinter as tk
 from tkinter import ttk
 
-from __main__ import API_KEY, GEMINI, PATH_LOCALE, genai_client, _fmt_it
+from __main__ import PATH_LOCALE, genai_client, _fmt_it
 from moduli.modello_spesa import campo
 from moduli.spinner_animato import crea_spinner_animato
 
@@ -15,7 +15,9 @@ def analizza_andamento_ia(self):
     if getattr(self, '_analisi_ia_in_corso', False):
         self.show_toast("Analisi AI già in corso, attendi il risultato...", duration=2000)
         return
-    api_key_check = API_KEY
+    import __main__ as _app
+    api_key_check = _app.API_KEY
+    modello_gemini = _app.GEMINI
     if not api_key_check:
         self.show_custom_warning("Configurazione AI Necessaria",
             "L'Analisi Smart richiede una chiave API Gemini (gratuita).\n\n"
@@ -33,7 +35,7 @@ def analizza_andamento_ia(self):
         if isinstance(data_op, str):
             try:
                 d_obj = datetime.strptime(data_op, "%d-%m-%Y").date()
-            except: continue
+            except Exception: continue
         elif isinstance(data_op, (datetime, dt_mod.date)):
             d_obj = data_op if isinstance(data_op, dt_mod.date) else data_op.date()
         else: continue
@@ -158,7 +160,7 @@ def analizza_andamento_ia(self):
     def run_analysis():
         try:
             client = genai_client.Client(api_key=api_key_check)
-            response = client.models.generate_content(model=GEMINI, contents=prompt)
+            response = client.models.generate_content(model=modello_gemini, contents=prompt)
             testo = response.text if response.text else "Nessun testo generato."
         except Exception as err:
             testo = f"ERRORE API:\n{str(err)}"

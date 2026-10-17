@@ -456,8 +456,8 @@ def _blocco_trasferimenti(trasferimenti_raw, id_a_nome, _fmt_it):
     for (anno_m, mese_m), v in sorted(per_mese_t.items(), reverse=True):
         righe.append(f"      - {NOMI_MESI_IT[mese_m - 1]} {anno_m}: {_fmt_it(v['totale'])}€ "
                      f"({v['conteggio']} trasferimenti)")
-    righe.append(f"   Elenco dettagliato (dal più recente, max 60 mostrati - per i totali oltre questo "
-                 f"limite usa i riepiloghi sopra):")
+    righe.append("   Elenco dettagliato (dal più recente, max 60 mostrati - per i totali oltre questo "
+                 "limite usa i riepiloghi sopra):")
     for r in reali[:60]:
         nota = f" - nota: {r['note']}" if r.get("note") else ""
         righe.append(f"      - {r['data'].strftime('%d/%m/%Y')}: {r['da']} \u2192 {r['a']}, "
@@ -595,7 +595,7 @@ def _costruisci_contesto_database(self, _app, _fmt_it):
                 importo = float(campo(mov, "importo", 0.0))
                 tipo = campo(mov, "tipo", "")
                 metodo = campo(mov, "metodo_pagamento", "") or "Non specificato"
-                conto = campo(mov, "conto", "") or "Non assegnato"
+                conto = self._conto_effettivo(mov) or "Non assegnato"
                 n_movimenti += 1
                 per_conto.setdefault(conto, {"entrate": 0.0, "uscite": 0.0})
                 if tipo == "Entrata":
@@ -647,7 +647,7 @@ def _costruisci_contesto_database(self, _app, _fmt_it):
     for nome_p, (ini, fine) in periodi.items():
         dati = per_periodo[nome_p]
         intervallo = ini.strftime('%d/%m/%Y') if ini == fine else f"{ini.strftime('%d/%m/%Y')} - {fine.strftime('%d/%m/%Y')}"
-        righe.append(f"")
+        righe.append("")
         righe.append(f"{nome_p} ({intervallo}):")
         righe.append(f"   Entrate: {_fmt_it(dati['entrate'])}€   Uscite: {_fmt_it(dati['uscite'])}€")
         cat_top = dict(sorted(dati["categorie"].items(), key=lambda kv: kv[1], reverse=True)[:5])
@@ -779,7 +779,6 @@ def chiedi_ia_database(self):
     GEMINI = _app.GEMINI
     genai_client = _app.genai_client
     PATH_LOCALE = _app.PATH_LOCALE
-    PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
     EXPORT_FILES = getattr(_app, 'EXPORT_FILES', None)
     _fmt_it = _app._fmt_it
     nome_app = os.path.basename(PATH_LOCALE)

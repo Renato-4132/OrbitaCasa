@@ -418,7 +418,6 @@ def apri_studio(self):
             H_plot = ch - margin_b - margin_t
             mesi = []
             for i in range(5, -1, -1):
-                d = oggi.replace(day=1) - datetime.timedelta(days=1) * 0
                 m_num = ((oggi.month - 1 - i) % 12) + 1
                 y_num = oggi.year + ((oggi.month - 1 - i) // 12)
                 mesi.append((y_num, m_num))
@@ -545,7 +544,7 @@ def apri_studio(self):
                              if x.get("cliente_nome","").strip() == nome_cli],
                             key=lambda x: x.get("data","")):
                 try: df = datetime.date.fromisoformat(a["data"]).strftime("%d/%m/%Y")
-                except: df = a.get("data","")
+                except Exception: df = a.get("data","")
                 tv_a.insert("", "end",
                             values=(df, a.get("ora",""), a.get("prestazione",""),
                                     a.get("stato",""), a.get("note","")))
@@ -559,7 +558,7 @@ def apri_studio(self):
                             key=lambda x: x.get("data",""), reverse=True):
                 tot = sum(r.get("qty",1)*r.get("prezzo",0) for r in f.get("righe",[]))
                 try: df = datetime.date.fromisoformat(f["data"]).strftime("%d/%m/%Y")
-                except: df = f.get("data","")
+                except Exception: df = f.get("data","")
                 tv_f.insert("", "end",
                             values=(f.get("numero",""), df,
                                     f.get("tipo_doc","Fattura"),
@@ -1012,7 +1011,6 @@ def apri_studio(self):
                 self.show_toast("Eliminato.")
         tv_det.bind("<Double-1>", lambda e: _modifica_app())
         def _genera_scadenze_fiscali():
-            nonlocal appuntamenti
             anno = oggi.year
             regime = emittente.get("regime_fiscale", "Ordinario")
             if regime == "Forfettario":
@@ -1131,11 +1129,11 @@ def apri_studio(self):
                 if not nome:
                     self.show_toast("Nome obbligatorio."); return
                 try:    prezzo = _parse_it_float(e_prez.get())
-                except: self.show_toast("Prezzo non valido."); return
+                except Exception: self.show_toast("Prezzo non valido."); return
                 try:    durata = int(e_dur.get() or 0)
-                except: durata = 0
+                except Exception: durata = 0
                 try:    iva = int(e_iva.get() or 22)
-                except: iva = 22
+                except Exception: iva = 22
                 record = {
                     "id":        prefill["id"] if prefill else _new_id(),
                     "nome":      nome,
@@ -1230,7 +1228,7 @@ def apri_studio(self):
                 tag   = "verde" if stato=="Pagata" else \
                         ("rosso" if stato in ("Scaduta","Annullata") else "")
                 try: df = datetime.date.fromisoformat(f["data"]).strftime("%d/%m/%Y")
-                except: df = f.get("data","")
+                except Exception: df = f.get("data","")
                 tv.insert("", "end", iid=f["id"], tags=(tag,),
                           values=(f.get("numero",""), f.get("tipo_doc","Fattura"),
                                   df, f.get("cliente_nome",""),
@@ -1358,11 +1356,6 @@ def apri_studio(self):
                 rv = (dv, qv, pv, iv)
                 righe_vars.append(rv)
                 _upd_subtot(dv, qv, pv, iv, sv)
-                def _rimuovi():
-                    if rv in righe_vars: righe_vars.remove(rv)
-                    for widget in rig_frame.grid_slaves(row=r):
-                        widget.destroy()
-                lbl_d.bind("<Button-1>", lambda e: _rimuovi())
                 _upd_subtot(dv, qv, pv, iv, sv)
                 _ac_popup = [None]
                 def _chiudi_ac():
@@ -1547,11 +1540,11 @@ def apri_studio(self):
                     desc = dv.get().strip()
                     if not desc: continue
                     try: q = _parse_it_float(qv.get(), 1)
-                    except: q = 1
+                    except Exception: q = 1
                     try: p = _parse_it_float(pv.get(), 0)
-                    except: p = 0
+                    except Exception: p = 0
                     try: i = int(iv.get() or 22)
-                    except: i = 22
+                    except Exception: i = 22
                     righe.append({"desc": desc, "qty": q, "prezzo": p, "iva": i})
                     if not prefill:
                         for prod in magazzino:
@@ -1559,14 +1552,14 @@ def apri_studio(self):
                                 try:
                                     attuale = float(prod.get("quantita", 0))
                                     prod["quantita"] = attuale - q
-                                except: pass
+                                except Exception: pass
                                 break
                 if not prefill:
                     _save(STUDIO_MAGAZZINO, magazzino)
                     if hasattr(self, '_refresh_magazzino'): self._refresh_magazzino()
                 def _p(s):
                     try: return datetime.datetime.strptime(s.strip(), "%d/%m/%Y").strftime("%Y-%m-%d")
-                    except: return s.strip()
+                    except Exception: return s.strip()
                 record = {
                     "id":           prefill["id"] if prefill else _new_id(),
                     "tipo_doc":     tipo_var.get() or "Fattura",
@@ -1822,7 +1815,6 @@ def apri_studio(self):
                 tot_iva_tot = sum(tot_iva_map.values())
                 tot_totale  = tot_imponibile + tot_iva_tot
                 BOX_X  = COL_R - 190
-                BOX_LW = 190
                 def _riepilogo_row(pg, yy, label, valore, highlight=False):
                     if highlight:
                         _rect(pg, BOX_X-4, yy-2, COL_R, yy+13, fill=BLU)
@@ -2435,7 +2427,7 @@ def apri_studio(self):
                     continue
                 tag = "verde" if tipo=="Entrata" else "rosso"
                 try: df = datetime.date.fromisoformat(m["data"]).strftime("%d/%m/%Y")
-                except: df = m.get("data","")
+                except Exception: df = m.get("data","")
                 tv.insert("", "end", iid=m["id"], tags=(tag,),
                           values=(df, tipo, _fmt_eur(imp),
                                   m.get("categoria",""),
@@ -2502,7 +2494,7 @@ def apri_studio(self):
                 except ValueError:
                     self.show_toast("Data non valida (GG/MM/AAAA)."); return
                 try: imp = _parse_it_float(e_imp.get())
-                except: self.show_toast("Importo non valido."); return
+                except Exception: self.show_toast("Importo non valido."); return
                 record = {
                     "id":        prefill["id"] if prefill else _new_id(),
                     "data":      data,
@@ -2615,11 +2607,11 @@ def apri_studio(self):
                 nome = e_nome.get().strip()
                 if not nome: self.show_toast("Nome obbligatorio."); return
                 try:    qty    = _parse_it_float(e_qty.get())
-                except: self.show_toast("Quantità non valida."); return
+                except Exception: self.show_toast("Quantità non valida."); return
                 try:    soglia = _parse_it_float(e_sog.get())
-                except: soglia = 0
+                except Exception: soglia = 0
                 try:    pu     = _parse_it_float(e_pu.get())
-                except: pu     = 0
+                except Exception: pu     = 0
                 record = {
                     "id":          prefill["id"] if prefill else _new_id(),
                     "nome":        nome,
@@ -2693,7 +2685,6 @@ def apri_studio(self):
                 BLACK  = (0.10, 0.10, 0.12)
                 WHITE  = (1.00, 1.00, 1.00)
                 RED    = (0.72, 0.10, 0.10)
-                GREEN  = (0.08, 0.50, 0.22)
                 pdoc = fitz.open()
                 def _new_page():
                     pg = pdoc.new_page(width=W, height=H)

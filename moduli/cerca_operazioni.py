@@ -2,12 +2,26 @@
 # -*- coding: utf-8 -*-
 
 import os
+import re
 import json
 import datetime
 import tkinter as tk
 from tkinter import ttk, filedialog
-from moduli.modello_spesa import campo, METODI_PAGAMENTO, METODI_PAGAMENTO_EMOJI
+from moduli.modello_spesa import campo, METODI_PAGAMENTO_EMOJI, metodo_pagamento_pulito
 from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa
+
+MESI = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
+        "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
+TUTTI = ""
+
+def _data_libera(s):
+    s = str(s or "").strip().replace("/", "-").replace(".", "-")
+    if not s:
+        return None
+    try:
+        return datetime.datetime.strptime(s, "%d-%m-%Y").date()
+    except Exception:
+        return None
 
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
@@ -45,24 +59,6 @@ def cerca_operazioni(self):
     campo_input.focus_set()
     mostra_futuro_var = tk.BooleanVar(value=True)
     ttk.Checkbutton(frame_superiore, text="Includi Futuri", variable=mostra_futuro_var).pack(side="left", padx=(0, 8))
-    tk.Label(frame_superiore, text="Dal:", bg=self.COLOR_TOPLEVEL,
-             fg=self.TEXT_COLOR, font=("Arial", 9)).pack(side="left", padx=(4, 2))
-    da_data_var = tk.StringVar(value="")
-    da_data_entry = ttk.Entry(frame_superiore, textvariable=da_data_var, width=11)
-    da_data_entry.pack(side="left")
-    btn_cal_da = ttk.Label(frame_superiore, text="📅", cursor="hand2",
-                           background=self.COLOR_WIDGET_BG, padding=(3, 2))
-    btn_cal_da.pack(side="left", padx=(2, 8))
-    btn_cal_da.bind("<Button-1>", lambda e: self.mostra_calendario_popup_semplice(da_data_entry, da_data_var))
-    tk.Label(frame_superiore, text="Al:", bg=self.COLOR_TOPLEVEL,
-             fg=self.TEXT_COLOR, font=("Arial", 9)).pack(side="left", padx=(0, 2))
-    a_data_var = tk.StringVar(value="")
-    a_data_entry = ttk.Entry(frame_superiore, textvariable=a_data_var, width=11)
-    a_data_entry.pack(side="left")
-    btn_cal_a = ttk.Label(frame_superiore, text="📅", cursor="hand2",
-                          background=self.COLOR_WIDGET_BG, padding=(3, 2))
-    btn_cal_a.pack(side="left", padx=(2, 8))
-    btn_cal_a.bind("<Button-1>", lambda e: self.mostra_calendario_popup_semplice(a_data_entry, a_data_var))
     img_mouse = self.icone_gui.get("mouse")
     lbl_hint = ttk.Label(
         frame_superiore,
@@ -75,7 +71,197 @@ def cerca_operazioni(self):
     if img_mouse:
         lbl_hint.image = img_mouse
     lbl_hint.pack(side=tk.RIGHT, padx=(10, 0))
-    frame_risultati = tk.Frame(finestra)
+    # --- Pannello filtri richiudibile (stessa logica di Analisi Categorie) ---
+    bg_f = self.COLOR_TOPLEVEL
+    _conti_f = [TUTTI]
+    try:
+        with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as _pf:
+            _conti_f += [c.get("nome", "?") for c in json.load(_pf).get("conti", [])]
+    except Exception:
+        pass
+    _profilo_f = getattr(_app, "PROFILO_ATTIVO", "Principale")
+    _gestore_f = _profilo_f if _profilo_f != "Principale" else os.path.basename(os.getcwd())
+    _nomi_f = [(p.get("nome", "") if isinstance(p, dict) else p) for p in self.nomi_partecipanti] if getattr(self, "nomi_partecipanti", None) else []
+    _partec_f = [TUTTI]
+    if self._gestore_partecipa() and _gestore_f not in _nomi_f:
+        _partec_f.append(f"PER· {_gestore_f}")
+    if getattr(self, "nomi_partecipanti", None):
+        _partec_f += [
+            f"CTP· {p['nome']}" if p.get("tipo") == "personale" else
+            f"CNT· {p['nome']}" if p.get("tipo") == "contenitore" else
+            f"PER· {p['nome']}"
+            for p in sorted(self.nomi_partecipanti, key=lambda p: p["nome"].lower())
+        ]
+    _anni_f = sorted({str(d.year if isinstance(d, datetime.date) else datetime.datetime.strptime(d, "%d-%m-%Y").year)
+                      for d in self.spese}, reverse=True)
+    f = {"tipo": tk.StringVar(value=TUTTI), "categoria": tk.StringVar(value=TUTTI),
+         "anno": tk.StringVar(value=TUTTI), "mese": tk.StringVar(value=TUTTI),
+         "partecipanti": tk.StringVar(value=TUTTI), "conto": tk.StringVar(value=TUTTI),
+         "metodo": tk.StringVar(value=TUTTI), "tag": tk.StringVar(value=""),
+         "testo": tk.StringVar(value=""), "imp_da": tk.StringVar(value=""), "imp_a": tk.StringVar(value=""),
+         "da": tk.StringVar(value=""), "a": tk.StringVar(value="")}
+    stato_f = {"aperta": False, "sosp": False, "job": None}
+    head = tk.Frame(finestra, bg=bg_f)
+    head.pack(fill="x", padx=10, pady=(0, 2))
+    lbl_freccia = tk.Label(head, bg=bg_f, fg="#DC3545", cursor="hand2", font=("Arial", 11, "bold"), width=2)
+    lbl_freccia.pack(side="left")
+    lbl_head = tk.Label(head, bg=bg_f, fg=self.TEXT_COLOR, cursor="hand2", font=("Arial", 9, "bold"), anchor="w")
+    lbl_head.pack(side="left")
+    body = tk.Frame(finestra, bg=bg_f)
+    def _riga_f():
+        r = tk.Frame(body, bg=bg_f)
+        r.pack(fill="x", pady=2, padx=10)
+        return r
+    def _etichetta_f(r, testo, pad=(10, 4)):
+        tk.Label(r, text=testo, bg=bg_f, fg=self.TEXT_COLOR).pack(side="left", padx=pad)
+    def _combo_f(r, chiave, valori, w):
+        ttk.Combobox(r, values=valori, textvariable=f[chiave], style="Border.TCombobox",
+                     state="readonly", width=w).pack(side="left")
+    r1, r2 = _riga_f(), _riga_f()
+    _etichetta_f(r1, "Tipo:", (4, 4))
+    _combo_f(r1, "tipo", [TUTTI, "Entrata", "Uscita"], 9)
+    _etichetta_f(r1, "Categoria:")
+    _combo_f(r1, "categoria", [TUTTI] + sorted(self.categorie_tipi.keys()), 18)
+    _etichetta_f(r1, "Anno:")
+    _combo_f(r1, "anno", [TUTTI] + _anni_f, 7)
+    _etichetta_f(r1, "Mese:")
+    _combo_f(r1, "mese", [TUTTI] + MESI, 11)
+    _etichetta_f(r1, "Partecipanti:")
+    _combo_f(r1, "partecipanti", _partec_f, 18)
+    _etichetta_f(r1, "Conto:")
+    _combo_f(r1, "conto", _conti_f, 16)
+    _etichetta_f(r1, "Metodo Pag.:")
+    _combo_f(r1, "metodo", [TUTTI] + METODI_PAGAMENTO_EMOJI, 20)
+    _etichetta_f(r2, "Hashtag:", (4, 4))
+    ttk.Entry(r2, textvariable=f["tag"], width=14).pack(side="left")
+    _etichetta_f(r2, "Descrizione contiene:")
+    ttk.Entry(r2, textvariable=f["testo"], width=20).pack(side="left")
+    _etichetta_f(r2, "Importo da:")
+    ttk.Entry(r2, textvariable=f["imp_da"], width=9).pack(side="left")
+    _etichetta_f(r2, "a:", (6, 4))
+    ttk.Entry(r2, textvariable=f["imp_a"], width=9).pack(side="left")
+    def _cal_btn(entry, var):
+        def apri(_e=None):
+            self.mostra_calendario_popup(entry, var)
+            try:
+                pc = getattr(self, "popup_calendario", None)
+                if pc is not None and pc.winfo_exists():
+                    pc.attributes("-topmost", True)
+                    pc.lift()
+            except tk.TclError:
+                pass
+        img = self.icone_gui.get("calendario")
+        b = tk.Label(r2, image=img, bg=bg_f, cursor="hand2", padx=2)
+        if img is None:
+            b.config(text="📅")
+        else:
+            b.image = img
+        b.pack(side="left", padx=(2, 0))
+        b.bind("<Button-1>", apri)
+    _etichetta_f(r2, "Dal:")
+    e_da = ttk.Entry(r2, textvariable=f["da"], width=11)
+    e_da.pack(side="left")
+    _cal_btn(e_da, f["da"])
+    _etichetta_f(r2, "Al:", (8, 4))
+    e_a = ttk.Entry(r2, textvariable=f["a"], width=11)
+    e_a.pack(side="left")
+    _cal_btn(e_a, f["a"])
+    tk.Label(r2, text="(GG-MM-AAAA)", bg=bg_f, fg="gray", font=("Arial", 8, "italic")).pack(side="left", padx=(4, 0))
+    def _num_f(s):
+        s = str(s or "").strip().replace("€", "").replace(" ", "")
+        if not s:
+            return None
+        if "," in s:
+            s = s.replace(".", "").replace(",", ".")
+        try:
+            return float(s)
+        except ValueError:
+            return None
+    def _spec_filtri():
+        try:
+            spec = {k: v.get() for k, v in f.items()}
+        except Exception:
+            return None
+        spec["metodo"] = metodo_pagamento_pulito(spec["metodo"]) if spec["metodo"] != TUTTI else TUTTI
+        spec["tag"] = [t.lstrip("#").lower() for t in re.split(r"[\s,;]+", spec["tag"].strip()) if t.lstrip("#")]
+        spec["testo"] = spec["testo"].strip().lower()
+        spec["imp_da"] = _num_f(spec["imp_da"])
+        spec["imp_a"] = _num_f(spec["imp_a"])
+        spec["da"] = _data_libera(spec["da"])
+        spec["a"] = _data_libera(spec["a"])
+        attivo = (any(spec[k] != TUTTI for k in ("tipo", "categoria", "anno", "mese", "partecipanti", "conto", "metodo"))
+                  or spec["tag"] or spec["testo"] or spec["imp_da"] is not None or spec["imp_a"] is not None
+                  or spec["da"] or spec["a"])
+        return spec if attivo else None
+    def _descr_filtri(spec):
+        out = []
+        for k, etich in (("tipo", ""), ("categoria", "Categoria "), ("anno", "Anno "), ("mese", ""),
+                         ("partecipanti", ""), ("conto", "Conto "), ("metodo", "Metodo ")):
+            if spec[k] != TUTTI:
+                out.append(f"{etich}{spec[k]}")
+        if spec["tag"]:
+            out.append(" ".join(f"#{t}" for t in spec["tag"]))
+        if spec["testo"]:
+            out.append(f"«{spec['testo']}»")
+        if spec["imp_da"] is not None or spec["imp_a"] is not None:
+            ida = _fmt_it(spec["imp_da"]) if spec["imp_da"] is not None else "…"
+            ia = _fmt_it(spec["imp_a"]) if spec["imp_a"] is not None else "…"
+            out.append(f"Importo {ida} → {ia}")
+        if spec["da"] or spec["a"]:
+            da = spec["da"].strftime("%d-%m-%Y") if spec["da"] else "…"
+            a = spec["a"].strftime("%d-%m-%Y") if spec["a"] else "…"
+            out.append(f"{da} → {a}")
+        return out
+    def aggiorna_testata():
+        spec = _spec_filtri()
+        stato_txt = ("filtri attivi: " + ", ".join(_descr_filtri(spec))) if spec else "nessun filtro attivo"
+        lbl_freccia.config(text="▾" if stato_f["aperta"] else "▸")
+        lbl_head.config(text=f"Filtri avanzati  ({stato_txt})",
+                        fg=getattr(self, "COLOR_HIGHLIGHT", self.TEXT_COLOR) if spec else self.TEXT_COLOR)
+    def applica_filtri(*_):
+        if stato_f["sosp"]:
+            return
+        stato_f["job"] = None
+        try:
+            if not finestra.winfo_exists():
+                return
+        except tk.TclError:
+            return
+        for e, k in ((e_da, "da"), (e_a, "a")):
+            sbagliata = bool(f[k].get().strip()) and _data_libera(f[k].get()) is None
+            try:
+                e.configure(foreground="#DC3545" if sbagliata else self.TEXT_COLOR)
+            except tk.TclError:
+                pass
+        aggiorna_testata()
+        esegui_ricerca()
+    def rinvia_filtri(*_):
+        if stato_f["job"]:
+            finestra.after_cancel(stato_f["job"])
+        stato_f["job"] = finestra.after(400, applica_filtri)
+    def azzera_filtri(*_):
+        stato_f["sosp"] = True
+        try:
+            for k, v in f.items():
+                v.set("" if k in ("tag", "testo", "imp_da", "imp_a", "da", "a") else TUTTI)
+        finally:
+            stato_f["sosp"] = False
+        applica_filtri()
+    def apri_chiudi_filtri(*_):
+        stato_f["aperta"] = not stato_f["aperta"]
+        if stato_f["aperta"]:
+            body.pack(fill="x", before=frame_risultati)
+        else:
+            body.pack_forget()
+        aggiorna_testata()
+    for k in ("tipo", "categoria", "anno", "mese", "partecipanti", "conto", "metodo"):
+        f[k].trace_add("write", applica_filtri)
+    for k in ("tag", "testo", "imp_da", "imp_a", "da", "a"):
+        f[k].trace_add("write", rinvia_filtri)
+    for _w in (lbl_freccia, lbl_head):
+        _w.bind("<Button-1>", apri_chiudi_filtri)
+    aggiorna_testata()
+    frame_risultati = tk.Frame(finestra, bg=self.COLOR_TOPLEVEL)
     frame_risultati.pack(fill="both", expand=True, padx=10)
     columns = ("Data", "Categoria", "Descrizione", "Tipo", "Importo", "Conto", "Ora", "Hashtag", "Metodo")
     tree = ttk.Treeview(frame_risultati, columns=columns, show="headings", selectmode='browse')
@@ -173,7 +359,7 @@ def cerca_operazioni(self):
     tree.tag_configure("neutro_tag",  foreground="gray")
     tree.tag_configure("futuro_tag",  foreground="#E5C07B", font=("Arial", 9, "italic"))
     tree.tag_configure("sforato_tag", foreground="#C08081", font=("Arial", 9, "bold"))
-    frame_totali = tk.Frame(finestra)
+    frame_totali = tk.Frame(finestra, bg=self.COLOR_TOPLEVEL)
     frame_totali.pack(fill="x", pady=10, padx=10)
     lbl_risultati = tk.Label(frame_totali, text="", anchor="w", font=("Arial", 10))
     lbl_risultati.pack(fill="x")
@@ -181,27 +367,15 @@ def cerca_operazioni(self):
     lbl_totali.pack(fill="x")
     def esegui_ricerca(event=None):
         parola = campo_input.get().strip().lower()
-        filtri = getattr(self, "filtri_avanzati", {})
-        if parola:
-            filtri = {}
+        spec = _spec_filtri()
         for item in tree.get_children():
             tree.delete(item)
         tree._metodo_lookup = {}
         risultati = []
         oggi = datetime.date.today()
         mostra_futuro = mostra_futuro_var.get()
-        da_data = None
-        a_data  = None
-        try:
-            if da_data_var.get().strip():
-                da_data = datetime.datetime.strptime(da_data_var.get().strip(), "%d-%m-%Y").date()
-        except ValueError:
-            pass
-        try:
-            if a_data_var.get().strip():
-                a_data = datetime.datetime.strptime(a_data_var.get().strip(), "%d-%m-%Y").date()
-        except ValueError:
-            pass
+        da_data = _data_libera(f["da"].get())
+        a_data  = _data_libera(f["a"].get())
         _agganci_cerca = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
         _uso_ordinale_cerca = {}
         _profilo_attivo_co = getattr(_app, "PROFILO_ATTIVO", "Principale")
@@ -230,7 +404,7 @@ def cerca_operazioni(self):
                 owner = next((p["nome"] for p in _candidati_owner
                               if any(f"{ico}{p['nome']}".lower() in descrizione or f"{ico} {p['nome']}".lower() in descrizione
                                      for ico in ("PER·", "CTP·", "CNT·"))), "")
-                _conto_espl_cerca = campo(voce, "conto", "")
+                _conto_espl_cerca = self._conto_effettivo(voce)
                 if _conto_espl_cerca:
                     nome_conto_cerca = _conto_espl_cerca
                 else:
@@ -243,45 +417,35 @@ def cerca_operazioni(self):
                 if parola:
                     if not any(parola in str(campo_v).lower() for campo_v in [categoria, descrizione, tipo, str(importo_voce), nome_conto_cerca.lower(), metodo_cerca.lower(), hashtag_txt.lower()]):
                         matches = False
-                elif filtri:
-                    if filtri.get("descrizione") and filtri["descrizione"].lower() not in descrizione:
+                if spec:
+                    if spec["testo"] and spec["testo"] not in descrizione:
                         matches = False
-                    if filtri.get("categoria") not in ["", "—"] and categoria != filtri["categoria"].lower():
+                    if spec["categoria"] != TUTTI and categoria != spec["categoria"].lower():
                         matches = False
-                    if filtri.get("tipo") not in ["", "—"] and tipo != filtri["tipo"].lower():
+                    if spec["tipo"] != TUTTI and tipo != spec["tipo"].lower():
                         matches = False
-                    if filtri.get("icona") not in ["", "—"]:
-                       simbolo = filtri["icona"].split(" ")[0]
-                       if simbolo not in descrizione:
-                          matches = False
-                    if filtri.get("anno") not in ["", "—"] and str(d.year) != filtri["anno"]:
+                    if spec["anno"] != TUTTI and str(d.year) != spec["anno"]:
                         matches = False
-                    if filtri.get("mese") not in ["", "—"]:
-                        mesi_nomi = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
-                                     "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
-                        mesi_map = {m: i+1 for i, m in enumerate(mesi_nomi)}
-                        if d.month != mesi_map.get(filtri["mese"], 0):
-                            matches = False
-                    if filtri.get("partecipanti") not in ["", "—"]:
-                        nome_filtro = filtri["partecipanti"]
+                    if spec["mese"] != TUTTI and d.month != MESI.index(spec["mese"]) + 1:
+                        matches = False
+                    if spec["partecipanti"] != TUTTI:
+                        nome_filtro = spec["partecipanti"]
                         for prefisso in ("CTP· ", "CNT· ", "PER· "):
                             if nome_filtro.startswith(prefisso):
                                 nome_filtro = nome_filtro[len(prefisso):]
                                 break
                         if nome_filtro.lower() != owner.lower():
                             matches = False
-                    if filtri.get("conto") not in ["", "—"] and nome_conto_cerca != filtri["conto"]:
+                    if spec["conto"] != TUTTI and nome_conto_cerca != spec["conto"]:
                         matches = False
-                    if filtri.get("metodo") not in ["", "—"] and metodo_cerca != filtri["metodo"]:
+                    if spec["metodo"] != TUTTI and metodo_cerca != spec["metodo"]:
                         matches = False
-                    if filtri.get("hashtag") and filtri["hashtag"].lower().lstrip("#") not in hashtag_txt.lower():
+                    if spec["tag"] and not all(t in hashtag_txt.lower() for t in spec["tag"]):
                         matches = False
                     try:
-                        da_val = converti_importo(filtri.get("da", "0"))
-                        a_val  = converti_importo(filtri.get("a", "999999999"))
-                        da_f   = da_val if da_val != float('-inf') else 0.0
-                        a_f    = a_val  if a_val  != float('-inf') else 999999999.0
-                        if not (da_f <= float(importo_voce) <= a_f):
+                        if spec["imp_da"] is not None and float(importo_voce) < spec["imp_da"]:
+                            matches = False
+                        if spec["imp_a"] is not None and float(importo_voce) > spec["imp_a"]:
                             matches = False
                     except (ValueError, TypeError):
                         pass
@@ -304,14 +468,10 @@ def cerca_operazioni(self):
         tot_entrate = sum(r['importo'] for r in risultati if r['tipo'] == "Entrata")
         tot_uscite  = sum(r['importo'] for r in risultati if r['tipo'] == "Uscita")
         netto       = tot_entrate - tot_uscite
-        testo_filtri = ""
+        _desc = _descr_filtri(spec) if spec else []
         if parola:
-            testo_filtri = f"Parola chiave: '{parola}'"
-        elif filtri:
-            testo_filtri = ", ".join([f"{k.capitalize()}: {v}" for k, v in filtri.items() if v not in ["", "—"]])
-        if da_data or a_data:
-            periodo = f"Dal {da_data_var.get() or '…'} al {a_data_var.get() or '…'}"
-            testo_filtri = f"{testo_filtri} | {periodo}".strip(" | ")
+            _desc.insert(0, f"Parola chiave: '{parola}'")
+        testo_filtri = ", ".join(_desc)
         if not risultati:
             lbl_risultati.config(
                 text=" Nessuna corrispondenza per la ricerca attuale.",
@@ -400,18 +560,9 @@ def cerca_operazioni(self):
                 }
     campo_input.bind("<KeyRelease>", esegui_ricerca)
     mostra_futuro_var.trace_add("write", lambda *_: esegui_ricerca())
-    da_data_var.trace_add("write", lambda *_: esegui_ricerca())
-    a_data_var.trace_add("write",  lambda *_: esegui_ricerca())
     def resetta_campo():
         campo_input.delete(0, tk.END)
-        da_data_var.set("")
-        a_data_var.set("")
-        self.filtri_avanzati = {}
-        for item in tree.get_children():
-            tree.delete(item)
-        lbl_risultati.config(text="Nessuna corrispondenza per la ricerca attuale.", fg="gray")
-        lbl_totali.config(text="")
-        self.after(100, esegui_ricerca)
+        azzera_filtri()
     img_indietro = self.icone_gui.get("reset")
     btn_reset_superiore = ttk.Label(frame_superiore, compound="left", image=img_indietro,
                                     text=" 🔙" if not img_indietro else "",
@@ -419,121 +570,6 @@ def cerca_operazioni(self):
                                     cursor="hand2", padding=(5, 5))
     btn_reset_superiore.pack(side="left", padx=5)
     btn_reset_superiore.bind("<Button-1>", lambda e: resetta_campo())
-    def apri_filtri_avanzati():
-        self.filtri_avanzati = getattr(self, "filtri_avanzati", {})
-        parola_chiave = campo_input.get().strip()
-        campo_input.delete(0, tk.END)
-        if parola_chiave:
-            self.filtri_avanzati = {}
-        filtro_win = tk.Toplevel(finestra, bg=self.COLOR_TOPLEVEL)
-        filtro_win.withdraw()
-        filtro_win.title("Filtri avanzati")
-        lw, lh = 400, 490
-        fx = finestra.winfo_rootx() + (finestra.winfo_width()  // 2) - (lw // 2)
-        fy = finestra.winfo_rooty() + (finestra.winfo_height() // 2) - (lh // 2)
-        filtro_win.geometry(f"{lw}x{lh}+{fx}+{fy}")
-        filtro_win.resizable(False, False)
-        filtro_win.transient(finestra)
-        filtro_win.update_idletasks()
-        filtro_win.bind("<Escape>", lambda e: filtro_win.destroy())
-        descrizione_var  = tk.StringVar(value=self.filtri_avanzati.get("descrizione",  ""))
-        categoria_var    = tk.StringVar(value=self.filtri_avanzati.get("categoria",    "—"))
-        tipo_var         = tk.StringVar(value=self.filtri_avanzati.get("tipo",         "—"))
-        anno_var         = tk.StringVar(value=self.filtri_avanzati.get("anno",         "—"))
-        mese_var         = tk.StringVar(value=self.filtri_avanzati.get("mese",         "—"))
-        da_var           = tk.StringVar(value=self.filtri_avanzati.get("da",           ""))
-        a_var            = tk.StringVar(value=self.filtri_avanzati.get("a",            ""))
-        icona_var        = tk.StringVar(value=self.filtri_avanzati.get("icona",        "—"))
-        partecipanti_var = tk.StringVar(value=self.filtri_avanzati.get("partecipanti", "—"))
-        conto_var        = tk.StringVar(value=self.filtri_avanzati.get("conto",        "—"))
-        metodo_var       = tk.StringVar(value=self.filtri_avanzati.get("metodo",       "—"))
-        hashtag_var      = tk.StringVar(value=self.filtri_avanzati.get("hashtag",      ""))
-        def crea_riga(testo, var, values=None):
-            f = tk.Frame(filtro_win, bg=self.COLOR_TOPLEVEL)
-            f.pack(fill="x", padx=12, pady=5)
-            tk.Label(f, text=testo, fg=self.TEXT_COLOR, bg=self.COLOR_TOPLEVEL,
-                     width=14, anchor="w").pack(side="left")
-            if values:
-                ttk.Combobox(f, textvariable=var, values=values,
-                             style="Border.TCombobox", state="readonly", width=22).pack(side="left")
-            else:
-                ttk.Entry(f, textvariable=var, width=24).pack(side="left")
-        tutte_cat = sorted(list(self.categorie_tipi.keys()))
-        anni = sorted(set(
-            str(d.year if isinstance(d, datetime.date)
-                else datetime.datetime.strptime(d, "%d-%m-%Y").year)
-            for d in self.spese if self.spese
-        ), reverse=True)
-        mesi_nomi = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
-                     "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
-        _profilo_attivo_co2 = getattr(_app, "PROFILO_ATTIVO", "Principale")
-        _gestore_nome_cerca = _profilo_attivo_co2 if _profilo_attivo_co2 != "Principale" else os.path.basename(os.getcwd())
-        _nomi_esistenti_cerca = [(p.get("nome", "") if isinstance(p, dict) else p) for p in self.nomi_partecipanti] if hasattr(self, "nomi_partecipanti") else []
-        lista_partecipanti = ["—"]
-        if self._gestore_partecipa() and _gestore_nome_cerca not in _nomi_esistenti_cerca:
-            lista_partecipanti.append(f"PER· {_gestore_nome_cerca}")
-        lista_partecipanti += [
-            f"CTP· {p['nome']}" if p.get("tipo") == "personale" else
-            f"CNT· {p['nome']}" if p.get("tipo") == "contenitore" else
-            f"PER· {p['nome']}"
-            for p in sorted(self.nomi_partecipanti, key=lambda p: p["nome"].lower())
-        ] if hasattr(self, "nomi_partecipanti") and self.nomi_partecipanti else []
-        try:
-            with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as _pf:
-                _conti_filt = ["—"] + [c.get("nome","?") for c in json.load(_pf).get("conti",[])]
-        except Exception:
-            _conti_filt = ["—"]
-        crea_riga("Descrizione:",  descrizione_var)
-        crea_riga("Categoria:",    categoria_var,    ["—"] + tutte_cat)
-        crea_riga("Tipo voce:",    tipo_var,         ["—", "Entrata", "Uscita"])
-        crea_riga("Anno:",         anno_var,         ["—"] + anni)
-        crea_riga("Mese:",         mese_var,         ["—"] + mesi_nomi)
-        crea_riga("Pagamento:",    icona_var,        ["—"] + METODI_PAGAMENTO_EMOJI)
-        crea_riga("Importo da:",   da_var)
-        crea_riga("Importo a:",    a_var)
-        crea_riga("Partecipanti:", partecipanti_var, lista_partecipanti)
-        crea_riga("Conto:",        conto_var,        _conti_filt)
-        crea_riga("Metodo Pag.:",  metodo_var,       ["—"] + METODI_PAGAMENTO)
-        crea_riga("Hashtag:",      hashtag_var)
-        def applica():
-            self.filtri_avanzati = {
-                "descrizione":  descrizione_var.get(),
-                "categoria":    categoria_var.get(),
-                "tipo":         tipo_var.get(),
-                "anno":         anno_var.get(),
-                "mese":         mese_var.get(),
-                "da":           da_var.get(),
-                "a":            a_var.get(),
-                "icona":        icona_var.get(),
-                "partecipanti": partecipanti_var.get(),
-                "conto":        conto_var.get(),
-                "metodo":       metodo_var.get(),
-                "hashtag":      hashtag_var.get()
-            }
-            filtro_win.destroy()
-            esegui_ricerca()
-        def cancella():
-            self.filtri_avanzati = {}
-            filtro_win.destroy()
-            esegui_ricerca()
-        f_btn = tk.Frame(filtro_win, bg=self.COLOR_TOPLEVEL)
-        f_btn.pack(pady=10)
-        img_applica = self.icone_gui.get("salva")
-        btn_applica = ttk.Label(f_btn, compound="left", image=img_applica,
-                                text=" Applica" if img_applica else "✓ Applica",
-                                background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
-                                cursor="hand2", padding=(10, 5))
-        btn_applica.pack(side="left", padx=10)
-        btn_applica.bind("<Button-1>", lambda e: applica())
-        img_cancella = self.icone_gui.get("reset")
-        btn_cancella = ttk.Label(f_btn, compound="left", image=img_cancella,
-                                 text=" Cancella filtri" if img_cancella else "Cancella filtri",
-                                 background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
-                                 cursor="hand2", padding=(10, 5))
-        btn_cancella.pack(side="right", padx=10)
-        btn_cancella.bind("<Button-1>", lambda e: cancella())
-        filtro_win.deiconify()
-        filtro_win.grab_set()
     def esporta_risultato():
         dati_tree   = []
         tot_entrate = 0.0
@@ -564,7 +600,7 @@ def cerca_operazioni(self):
         contenuto_preview  = f"─── RISULTATI RICERCA ({datetime.date.today():%d/%m/%Y}) ───────────────────────────────────────────────\n"
         contenuto_preview += f" Filtri: {testo_filtri_attivi}\n"
         contenuto_preview += f" Operazioni Trovate: {len(dati_tree)}\n\n"
-        contenuto_preview += f"─── RIEPILOGO FINANZIARIO ───────────────────────────────────────────────────────────────────────────\n"
+        contenuto_preview += "─── RIEPILOGO FINANZIARIO ───────────────────────────────────────────────────────────────────────────\n"
         contenuto_preview += f" • Entrate Totali: {formatta_italiano(tot_entrate)} €\n"
         contenuto_preview += f" • Uscite Totali:  {formatta_italiano(tot_uscite)} €\n"
         contenuto_preview += f" • Saldo Netto:    {formatta_italiano(netto)} €\n\n"
@@ -699,7 +735,6 @@ def cerca_operazioni(self):
     for testo, ico, cmd in [
         (" Cerca",          "search",  lambda e: esegui_ricerca()),
         (" Esporta",        "stampa",  lambda e: esporta_risultato()),
-        (" Filtri avanzati","filtri",  lambda e: apri_filtri_avanzati()),
         (" Reset",          "reset",   lambda e: resetta_campo()),
         (" Chiudi",         "chiudi",  lambda e: finestra.destroy()),
     ]:

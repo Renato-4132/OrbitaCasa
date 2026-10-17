@@ -36,13 +36,13 @@ def _pct_segno(x):
 def _pct(x):
     return f"{x:.1f}%".replace(".", ",")
 
-def _voce_std(entry):
+def _voce_std(entry, self=None):
     try:
         if isinstance(entry, dict):
             return (entry.get("categoria", "Altro"), entry.get("descrizione", ""),
                     abs(float(entry.get("importo", 0) or 0)), entry.get("tipo", ""),
                     entry.get("conto", "") or "")
-        return (entry[0], entry[1], abs(float(entry[2])), entry[3], campo(entry, "conto", "") or "")
+        return (entry[0], entry[1], abs(float(entry[2])), entry[3], (self._conto_effettivo(entry) if self is not None else campo(entry, "conto", "")) or "")
     except Exception:
         return None
 
@@ -79,7 +79,7 @@ def _raccogli_stat_periodo(self, conto_sel, modo, anno_corrente):
         if not con_futuri and giorno > oggi:
             continue
         for entry in entries:
-            v = _voce_std(entry)
+            v = _voce_std(entry, self)
             if not v:
                 continue
             cat, desc, imp, tipo, conto = v
@@ -90,6 +90,15 @@ def _raccogli_stat_periodo(self, conto_sel, modo, anno_corrente):
             st = stat.setdefault((chiave, tipo), _nuova_stat())
             _aggiorna_stat(st, giorno, str(cat).strip() or "Altro", desc, imp, conto.strip() or "(Nessun conto)")
     return stat
+
+def _per_classe_dict(self, cat_dict):
+    classi = self._classi_categorie()
+    r = defaultdict(float)
+    for k, v in cat_dict.items():
+        c = classi.get(k)
+        if c:
+            r[c] += v
+    return r
 
 def _blocco_top(d, n=5):
     voci = sorted([(k, v) for k, v in d.items() if v > 0], key=lambda kv: kv[1], reverse=True)
@@ -128,8 +137,11 @@ def _componi_tooltip(intestazione, righe, blocchi=(), hint="Doppio clic → dett
         testo += "\n" + hint
     return testo
 
-def _tooltip_categoria(label, tipo, val, st, tot_tipo, n_barre, periodo_str, budget, sfora, conto_filtrato):
+def _tooltip_categoria(label, tipo, val, st, tot_tipo, n_barre, periodo_str, budget, sfora, conto_filtrato, classe="", nome_conto=""):
     righe = _righe_stat(st, val)
+    if tipo == "Uscita":
+        righe.insert(0, ("Classe", classe or "nessuna"))
+    righe.insert(0, ("Conto", nome_conto or "Tutti"))
     if tot_tipo > 0 and n_barre > 1:
         righe.append(("Quota", f"{_pct(val / tot_tipo * 100)} di {formatta_italiano(tot_tipo)} €"))
     if st and len(st["mesi"]) > 1:
@@ -197,13 +209,13 @@ def draw_bar_chart(self, event=None):
                             cat, imp, tipo = entry[0], entry[2], entry[3]
                         else:
                             continue
-                        if conto_sel is not None and campo(entry, "conto", "") != conto_sel.get("nome", ""):
+                        if conto_sel is not None and self._conto_effettivo(entry) != conto_sel.get("nome", ""):
                             continue
                         if not self.considera_ricorrenze_var.get() and giorno > datetime.date.today():
                             continue
                         try: imp = float(str(imp).replace(",", ".").replace("€", "").strip())
-                        except: imp = 0
-                        _v = _voce_std(entry)
+                        except Exception: imp = 0
+                        _v = _voce_std(entry, self)
                         _desc_v, _conto_v = (_v[1], _v[4]) if _v else ("", "")
                         if str(tipo).lower() == "uscita" and imp > 0:
                             category_totals[cat] += imp
@@ -280,7 +292,6 @@ def draw_bar_chart(self, event=None):
         t_in, t_out = sum(x['value'] for x in data_in), sum(x['value'] for x in data_out)
         saldo = t_in - t_out
         col_saldo = "#28a745" if saldo >= 0 else "#dc3545"
-        text_y_tot = c_height - 10
         font_tot = ("Arial", 10, "bold")
         if self.stats_step < 2:
             self.win_totale = (canvas.create_text(0, 0, text=f"Totale Uscite: € {formatta_italiano(t_out)}",
@@ -309,11 +320,13 @@ def draw_bar_chart(self, event=None):
             )
             canvas.create_text(x, CHART_BOTTOM + 5, text=label, anchor="ne", angle=45, font=("Arial", 7, "bold"), fill=color)
             canvas.create_text(x, CHART_BOTTOM-h_barra-5, text=f"€ {formatta_italiano(val, decimali=0)}", anchor="s", font=("Arial", 7, "bold"), fill=self.TEXT_COLOR)
+            classe_cat = self._classi_categorie().get(label, "")
             tooltip_txt = _tooltip_categoria(
                 label, tipo, val, stat_cat.get((tipo, label)),
                 t_out if tipo == "Uscita" else t_in,
                 len(data_out) if tipo == "Uscita" else len(data_in),
-                periodo_str, budget, sfora, conto_sel is not None)
+                periodo_str, budget, sfora, conto_sel is not None,
+                classe_cat, conto_sel.get("nome", "") if conto_sel is not None else "")
             canvas.tag_bind(tag, "<Enter>", lambda e, t=tooltip_txt: self.show_tooltip(e, t))
             canvas.tag_bind(tag, "<Leave>", lambda e: self.hide_tooltip())
             conto_bar_attivo = None if self.bar_grafico_conto_filtro == HOUSEHOLD_LABEL else self.bar_grafico_conto_filtro
@@ -398,7 +411,7 @@ def draw_mensile_chart(self, event=None):
                     if anno not in aggregati:
                         aggregati[anno] = {"label": str(anno), "entrata": 0.0, "uscita": 0.0}
                     for entry in entries:
-                        if conto_sel is not None and campo(entry, "conto", "") != conto_sel.get("nome", ""):
+                        if conto_sel is not None and self._conto_effettivo(entry) != conto_sel.get("nome", ""):
                             continue
                         tipo = entry[3] if not isinstance(entry, dict) else entry.get("tipo", "")
                         importo = float(entry[2]) if not isinstance(entry, dict) else float(entry.get("importo", 0))
@@ -437,7 +450,7 @@ def draw_mensile_chart(self, event=None):
                 if hasattr(giorno, "year") and giorno.year == anno_corrente:
                     mese_index = giorno.month - 1
                     for entry in entries:
-                        if conto_sel is not None and campo(entry, "conto", "") != conto_sel.get("nome", ""):
+                        if conto_sel is not None and self._conto_effettivo(entry) != conto_sel.get("nome", ""):
                             continue
                         tipo = entry[3] if not isinstance(entry, dict) else entry.get("tipo", "")
                         importo = float(entry[2]) if not isinstance(entry, dict) else float(entry.get("importo", 0))
@@ -499,6 +512,9 @@ def draw_mensile_chart(self, event=None):
             blocchi = []
             if st:
                 blocchi.append(("Per Categoria", _blocco_top(st["cat"], 5)))
+                _pc = _per_classe_dict(self, st["cat"])
+                if _pc:
+                    blocchi.append(("Per Classe", _blocco_top(_pc, 3)))
                 if conto_sel is None and len(st["conti"]) > 1:
                     blocchi.append(("Per Conto", _blocco_top(st["conti"], 3)))
             return _componi_tooltip(f"{p_text}  ·  {'Entrate' if tipo == 'Entrata' else 'Uscite'}", righe, blocchi)
@@ -583,9 +599,9 @@ def draw_mensile_chart(self, event=None):
             h_e = max((item["entrata"] / max_value) * CHART_HEIGHT, 4 if item["entrata"] > 0 else 0)
             h_u = max((item["uscita"] / max_value) * CHART_HEIGHT, 4 if item["uscita"] > 0 else 0)         
             tag_e, tag_u = f"e_{i}", f"u_{i}"
-            rect_e = canvas.create_rectangle(x_center-bar_width, CHART_BOTTOM-h_e, x_center, CHART_BOTTOM, 
+            canvas.create_rectangle(x_center-bar_width, CHART_BOTTOM-h_e, x_center, CHART_BOTTOM, 
                                              fill="green", outline="black", tags=tag_e)
-            rect_u = canvas.create_rectangle(x_center, CHART_BOTTOM-h_u, x_center+bar_width, CHART_BOTTOM, 
+            canvas.create_rectangle(x_center, CHART_BOTTOM-h_u, x_center+bar_width, CHART_BOTTOM, 
                                              fill="red", outline="black", tags=tag_u)
             canvas.create_text(x_center, CHART_BOTTOM + 5, text=item["label"], anchor="ne", angle=45, font=("Arial", 8), fill=self.TEXT_COLOR)
             if item['entrata'] > 0:
@@ -772,7 +788,7 @@ def draw_saldo_chart(self, event=None):
             for giorno, entries in self.spese.items():
                 if hasattr(giorno, "year") and giorno >= limite_10anni:
                     for entry in entries:
-                        if conto_sel is not None and campo(entry, "conto", "") != conto_sel.get("nome", ""):
+                        if conto_sel is not None and self._conto_effettivo(entry) != conto_sel.get("nome", ""):
                             continue
                         importo = float(entry[2]) if not isinstance(entry, dict) else float(entry.get("importo", 0))
                         tipo = entry[3] if not isinstance(entry, dict) else entry.get("tipo", "")
@@ -829,7 +845,7 @@ def draw_saldo_chart(self, event=None):
                     if anno not in aggregati_anno:
                         aggregati_anno[anno] = 0.0
                     for entry in entries:
-                        if conto_sel is not None and campo(entry, "conto", "") != conto_sel.get("nome", ""):
+                        if conto_sel is not None and self._conto_effettivo(entry) != conto_sel.get("nome", ""):
                             continue
                         tipo = entry[3] if not isinstance(entry, dict) else entry.get("tipo", "")
                         importo = float(entry[2]) if not isinstance(entry, dict) else float(entry.get("importo", 0))
@@ -869,7 +885,7 @@ def draw_saldo_chart(self, event=None):
                 if hasattr(giorno, "year") and giorno.year == anno_corrente:
                     mese_index = giorno.month - 1
                     for entry in entries:
-                        if conto_sel is not None and campo(entry, "conto", "") != conto_sel.get("nome", ""):
+                        if conto_sel is not None and self._conto_effettivo(entry) != conto_sel.get("nome", ""):
                             continue
                         tipo = entry[3] if not isinstance(entry, dict) else entry.get("tipo", "")
                         importo = float(entry[2]) if not isinstance(entry, dict) else float(entry.get("importo", 0))
@@ -947,6 +963,9 @@ def draw_saldo_chart(self, event=None):
             blocchi = []
             if su:
                 blocchi.append(("Uscite principali", _blocco_top(su["cat"], 3)))
+                _pc = _per_classe_dict(self, su["cat"])
+                if _pc:
+                    blocchi.append(("Uscite per classe", _blocco_top(_pc, 3)))
             if se:
                 blocchi.append(("Entrate principali", _blocco_top(se["cat"], 3)))
             return _componi_tooltip(titolo, righe, blocchi)
@@ -1070,8 +1089,6 @@ def draw_saldo_chart(self, event=None):
         total_entrata = 0.0
         total_uscita = 0.0
         anni_da_includere = set()
-        data_min_vis = None
-        data_max_vis = None
         if self.visualizza_saldo_10_anni and self.data_for_chart:
               total_entrata = tot_entrata_precalc
               total_uscita = tot_uscita_precalc
@@ -1084,7 +1101,7 @@ def draw_saldo_chart(self, event=None):
                 include_entry = hasattr(giorno, "year") and giorno.year in anni_da_includere
                 if include_entry:
                     for entry in entries:
-                        if conto_sel is not None and campo(entry, "conto", "") != conto_sel.get("nome", ""):
+                        if conto_sel is not None and self._conto_effettivo(entry) != conto_sel.get("nome", ""):
                             continue
                         tipo = entry[3] if not isinstance(entry, dict) else entry.get("tipo", "")
                         importo = float(entry[2]) if not isinstance(entry, dict) else float(entry.get("importo", 0))

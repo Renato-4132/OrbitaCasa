@@ -10,10 +10,10 @@ def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
     return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
 
-def _info_tooltip_voce(d, voce):
+def _info_tooltip_voce(d, voce, self=None):
     return {
         "metodo": metodo_pagamento_pulito(campo(voce, "metodo_pagamento", "")),
-        "conto": campo(voce, "conto", ""),
+        "conto": self._conto_effettivo(voce) if self is not None else campo(voce, "conto", ""),
         "ora": campo(voce, "ora", ""),
         "hashtag": list(campo(voce, "hashtag", []) or []),
         "id_ricorrenza": campo(voce, "id_ricorrenza", "") or "",
@@ -108,7 +108,7 @@ def mostra_spese_simili(self):
                 descrizione = campo(voce, "descrizione", "")
                 importo = campo(voce, "importo", 0.0)
                 tipo = campo(voce, "tipo", "")
-                conto_v = campo(voce, "conto", "")
+                conto_v = self._conto_effettivo(voce)
                 metodo_v = campo(voce, "metodo_pagamento", "")
                 tag_v = " ".join(campo(voce, "hashtag", []))
                 oggi_ms = datetime.date.today()
@@ -131,7 +131,7 @@ def mostra_spese_simili(self):
                     metodo_v,
                     tag_v
                 ), tags=(tag,))
-                tree._metodo_lookup[_iid] = _info_tooltip_voce(d, voce)
+                tree._metodo_lookup[_iid] = _info_tooltip_voce(d, voce, self)
             except Exception:
                 continue
     spin_tolleranza_popup = ttk.Spinbox(
@@ -191,7 +191,7 @@ def mostra_spese_simili(self):
             descrizione = campo(voce, "descrizione", "")
             importo = campo(voce, "importo", 0.0)
             tipo = campo(voce, "tipo", "")
-            conto_v = campo(voce, "conto", "")
+            conto_v = self._conto_effettivo(voce)
             metodo_v = campo(voce, "metodo_pagamento", "")
             tag_v = " ".join(campo(voce, "hashtag", []))
             oggi_ms0 = datetime.date.today()
@@ -214,7 +214,7 @@ def mostra_spese_simili(self):
                 metodo_v,
                 tag_v
             ), tags=(tag,))
-            tree._metodo_lookup[_iid0] = _info_tooltip_voce(d, voce)
+            tree._metodo_lookup[_iid0] = _info_tooltip_voce(d, voce, self)
         except Exception as e:
             print(f"[Voce malformata]: {voce} → {e}")
             continue

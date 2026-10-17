@@ -133,7 +133,7 @@ def mostra_ricorrenza_popup(self):
                             
                                 chiave = (cat, round(float(imp), 2))
                                 mappa_ricorrenti[chiave] = mappa_ricorrenti.get(chiave, 0) + 1
-                        except:
+                        except Exception:
                                 continue
         for (categoria, importo_storico), freq in mappa_ricorrenti.items():
             diff = abs(importo_storico - imp_corrente)
@@ -463,7 +463,7 @@ def mostra_ricorrenza_popup(self):
             self.ricorrenza_n.set(1) 
             return True
         try:
-            n = int(valore)
+            int(valore)
             return True
         except ValueError:
             self.ricorrenza_n.set(1)

@@ -8,6 +8,17 @@ import tkinter as tk
 from tkinter import ttk, Toplevel
 
 def gestisci_configurazione(self):
+    esistente = getattr(self, "_config_popup", None)
+    if esistente is not None:
+        try:
+            if esistente.winfo_exists():
+                esistente.deiconify()
+                esistente.lift()
+                esistente.focus_force()
+                return
+        except tk.TclError:
+            pass
+        self._config_popup = None
     import __main__ as _app
     CONFIG_FILE    = _app.CONFIG_FILE
     DEFAULT_CONFIG = _app.DEFAULT_CONFIG
@@ -16,7 +27,7 @@ def gestisci_configurazione(self):
     DB_CONDIVISO   = _app.DB_CONDIVISO
     if hasattr(self, 'ferma_scorrimento_automatico'):
         try: self.ferma_scorrimento_automatico()
-        except: pass
+        except Exception: pass
     if hasattr(self, 'btn_ciclico_carosello'):
         self.btn_ciclico_carosello.state(['!active', '!selected', '!alternate'])
         self.btn_ciclico_carosello.update_idletasks()
@@ -79,6 +90,12 @@ def gestisci_configurazione(self):
     sync_intervallo_iniziale = config.get("sync_intervallo_min", DEFAULT_CONFIG.get("sync_intervallo_min", 720))
     
     config_window = Toplevel(self)
+    self._config_popup = config_window
+
+    def _alla_chiusura_config(e):
+        if e.widget is config_window:
+            self._config_popup = None
+    config_window.bind("<Destroy>", _alla_chiusura_config)
     config_window.configure(bg=self.COLOR_TOPLEVEL)
     config_window.withdraw()
     config_window.transient(self)
@@ -233,6 +250,10 @@ def gestisci_configurazione(self):
             udp_2 = self.var_udp_port_2.get()
             if udp_1 < 1024 or udp_1 > 65535 or udp_2 < 1024 or udp_2 > 65535:
                 raise ValueError("Le porte UDP devono essere comprese tra 1024 e 65535.")
+            if _app.PROFILO_ATTIVO == _app.NOME_PROFILO_DEMO and (
+                    bool(self.var_shared_db.get()) != bool(config.get("shared_db", False))
+                    or self.var_shared_db_path.get() != config.get("shared_db_path", DEFAULT_CONFIG.get("shared_db_path", PATH_LOCALE))):
+                raise ValueError("Esci dalla modalità Demo prima di cambiare la condivisione del database.")
             carosello_intervallo_sec = round(self.var_carosello_intervallo_sec.get())
             if carosello_intervallo_sec < 5 or carosello_intervallo_sec > 30:
                 raise ValueError("L'intervallo Carosello deve essere tra 5 e 30 secondi.")
@@ -329,7 +350,7 @@ def gestisci_configurazione(self):
                     _cfg_precedente = json.load(f)
                 if "profilo_attivo" in _cfg_precedente:
                     nuova_config["profilo_attivo"] = _cfg_precedente["profilo_attivo"]
-                for _k in ("pianificate_mese_attivo", "pianificate_anno_attivo", "includi_futuri_totali", "includi_futuri_saldo", "stats_mode_avanzato", "stats_dettaglio_mese", "analisi_mese_tab", "analisi_mese_vista"):
+                for _k in ("pianificate_mese_attivo", "pianificate_anno_attivo", "includi_futuri_totali", "includi_futuri_saldo", "includi_futuri_analisi", "stats_mode_avanzato", "stats_dettaglio_mese", "analisi_mese_tab", "analisi_mese_vista"):
                     if _k in _cfg_precedente:
                         nuova_config[_k] = _cfg_precedente[_k]
             except Exception:
@@ -339,44 +360,27 @@ def gestisci_configurazione(self):
                 os.makedirs(DB_DIR)
             with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
                 json.dump(nuova_config, f, indent=4)
-            try:
-                global ANNI_DA_MANTENERE
-                ANNI_DA_MANTENERE = int(nuova_config.get("anni_da_mantenere", 10))
-                self.save_db()
-                self.load_db()
-                self.refresh_gui()
-                if DB_CONDIVISO:
-                    self.notifica_modifica_web()
-                    print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] 📡 Notifica di aggiornamento inviata .")    
-            except Exception as e:
-                print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] ⚠️ Errore durante la pulizia database pre-riavvio: {e}")    
-            self.suggerimenti_attivi = self.var_smartcat_enabled.get()
             if config_window.winfo_exists():
                 config_window.destroy()
-            riavvia_subito = self.show_custom_askyesno(
-                title="Riavvio Necessario",
-                message=nota_modello + "Per applicare completamente alcune modifiche\n(es. porta WebServer, timeout, pulizia database, tema)\nè necessario riavviare l'applicazione.\n\nRiavviare ora?"
-            )
-            if riavvia_subito:
-                riavvia_app_definitivo()
+            try:
+                esito_applica = self.applica_configurazione_a_caldo()
+            except Exception as e:
+                print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] ⚠️ Applicazione configurazione: {e}")
+                self.show_custom_warning("Configurazione salvata",
+                    "Le impostazioni sono state salvate, ma alcune non sono state applicate subito:\n\n" + str(e))
+                return
+            if nota_modello:
+                self.show_custom_info("Modello Gemini", nota_modello.strip())
+            if esito_applica == "riavvio":
+                return
+            if esito_applica == "percorso_non_cambiato":
+                self.show_toast("Database condiviso non modificato.", duration=2500)
             else:
-                self.show_custom_warning("Riavvio in Sospeso", "Riavvio posticipato. Le modifiche saranno applicate al prossimo avvio manuale.")
+                self.show_toast("Configurazione salvata e applicata.", duration=2500)
         except ValueError as e:
             self.show_custom_info("Errore di Validazione", str(e))
         except Exception as e:
             self.show_custom_info("Errore di Salvataggio", f"Impossibile salvare la configurazione: {e}")                
-    def riavvia_app_definitivo():
-        import subprocess, sys, os
-        if self.winfo_exists():
-            self.destroy()
-        script_path = os.path.abspath(sys.argv[0])
-        args = [sys.executable, script_path] + sys.argv[1:]
-        if os.name == 'nt':
-            subprocess.Popen(args, creationflags=0x00000008, shell=False, close_fds=True)
-        else:
-            subprocess.Popen(args, start_new_session=True, close_fds=True)
-        os._exit(0)
-        
     def mostra_help_configurazione():
         fixed_width = 1000
         fixed_height = 600
@@ -675,7 +679,7 @@ def gestisci_configurazione(self):
                     val = float(str(sb.get()).replace(",", "."))
                     var.set(val)
                     sb.set(f"{val:.2f}")
-            except:
+            except Exception:
                     var.set(0.0)
                     sb.set("0.00")
 
@@ -692,14 +696,14 @@ def gestisci_configurazione(self):
     f_target_m = ttk.Frame(tab_dati)
     f_target_m.grid(row=row_dati, column=0, sticky="we", padx=10, pady=2)
     ttk.Label(f_target_m, text="Target Mese (€):", width=16, anchor="e").pack(side="left", padx=(0,4))
-    sb_m = ttk.Spinbox(f_target_m, from_=0, to=9999, increment=50, width=7, textvariable=self.var_target_mese, justify="center", style="Custom.TSpinbox")
+    sb_m = ttk.Spinbox(f_target_m, from_=0, to=9999, increment=50, width=10, textvariable=self.var_target_mese, justify="center", style="Custom.TSpinbox")
     sb_m.pack(side="left")
     sb_m.set(f"{self.var_target_mese.get():.2f}")
     sb_m.bind("<FocusOut>", lambda e: formatta_target(sb_m, self.var_target_mese))
     f_target_a = ttk.Frame(tab_dati)
     f_target_a.grid(row=row_dati, column=1, sticky="we", padx=10, pady=2)
     ttk.Label(f_target_a, text="Target Anno (€):", width=16, anchor="e").pack(side="left", padx=(0,4))
-    sb_a = ttk.Spinbox(f_target_a, from_=0, to=99999, increment=500, width=7, textvariable=self.var_target_anno, justify="center", style="Custom.TSpinbox")
+    sb_a = ttk.Spinbox(f_target_a, from_=0, to=99999, increment=500, width=10, textvariable=self.var_target_anno, justify="center", style="Custom.TSpinbox")
     sb_a.pack(side="left")
     sb_a.set(f"{self.var_target_anno.get():.2f}")
     sb_a.bind("<FocusOut>", lambda e: formatta_target(sb_a, self.var_target_anno))

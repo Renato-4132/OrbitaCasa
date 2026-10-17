@@ -5,7 +5,7 @@ import os
 import json
 import datetime
 
-from __main__ import CHECK_MESE, SOGLIA_GIORNI_RICORRENTI, CONTROLLO_F_M
+import __main__ as _app
 
 # Analisi e Promemoria Categorie di Spesa Ricorrenti Mancanti Manuale
 def controlla_ricorrenti_manual(self):
@@ -15,7 +15,7 @@ def controlla_ricorrenti_manual(self):
         if isinstance(d, str):
             try:
                 return datetime.strptime(d, "%d-%m-%Y").date()
-            except:
+            except Exception:
                 return None
         elif isinstance(d, datetime):
             return d.date()
@@ -65,24 +65,26 @@ def controlla_ricorrenti_manual(self):
 # Analisi e Promemoria Categorie di Spesa Ricorrenti Mancanti Automatico
 def controlla_ricorrenti_a_fine_mese(self):
     from datetime import datetime, timedelta
+    if not _app.CHECK_MESE:
+        return
     if hasattr(self, 'changelog_window') and \
        self.changelog_window is not None and \
        self.changelog_window.winfo_exists():
-        self.after(5000, self.controlla_ricorrenti_a_fine_mese)
+        self._job_ricorrenti = self.after(5000, self.controlla_ricorrenti_a_fine_mese)
         return
     try:
         oggi = datetime.today().date()
         prossimo_mese = oggi.replace(day=28) + timedelta(days=4)
         ultimo_giorno_mese = prossimo_mese - timedelta(days=prossimo_mese.day)
         giorni_alla_fine = (ultimo_giorno_mese - oggi).days
-        if giorni_alla_fine > SOGLIA_GIORNI_RICORRENTI or giorni_alla_fine < 0:
+        if giorni_alla_fine > _app.SOGLIA_GIORNI_RICORRENTI or giorni_alla_fine < 0:
             return
         if self._last_dismiss_date and self._last_dismiss_date.year == oggi.year and self._last_dismiss_date.month == oggi.month:
             return
         def converti_data(d):
             if isinstance(d, str):
                 try: return datetime.strptime(d, "%d-%m-%Y").date()
-                except: return None
+                except Exception: return None
             elif isinstance(d, datetime): return d.date()
             return d
         categorie_base = {cat.title() for cat in self.categorie if cat}
@@ -129,15 +131,15 @@ def controlla_ricorrenti_a_fine_mese(self):
                 self._last_dismiss_date = oggi
                 self._salva_dismiss_fm(oggi)
     finally:
-        if CHECK_MESE:
+        if _app.CHECK_MESE:
             self._job_ricorrenti = self.after(3600000, self.controlla_ricorrenti_a_fine_mese)
 
 # Persistenza e Gestione della Data di "Dismiss" Promemoria Ricorrenti
 def _carica_dismiss_fm(self):
-    if not os.path.exists(CONTROLLO_F_M):
+    if not os.path.exists(_app.CONTROLLO_F_M):
         return None
     try:
-        with open(CONTROLLO_F_M, 'r') as f:
+        with open(_app.CONTROLLO_F_M, 'r') as f:
             data = json.load(f)
             data_str = data.get('last_recurring_dismiss')
             if data_str:
@@ -151,16 +153,16 @@ def _salva_dismiss_fm(self, data_da_salvare):
     try:
         data_str = data_da_salvare.strftime("%Y-%m-%d")
         dati = {'last_recurring_dismiss': data_str}
-        dir_path = os.path.dirname(CONTROLLO_F_M)
+        dir_path = os.path.dirname(_app.CONTROLLO_F_M)
         if dir_path and not os.path.exists(dir_path):
             os.makedirs(dir_path)
-        with open(CONTROLLO_F_M, 'w') as f:
+        with open(_app.CONTROLLO_F_M, 'w') as f:
             json.dump(dati, f, indent=4)
         return True
     except Exception as e:
         errore_messaggio = (
             f"Errore critico durante il salvataggio della data di 'dismiss' "
-            f"nel file di controllo ({os.path.basename(CONTROLLO_F_M)}).\n"
+            f"nel file di controllo ({os.path.basename(_app.CONTROLLO_F_M)}).\n"
             f"L'avviso delle ricorrenti ricomparirà al prossimo avvio.\n"
             f"Dettagli: {e}"
         )

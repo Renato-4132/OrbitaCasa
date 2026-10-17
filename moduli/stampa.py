@@ -5,16 +5,14 @@ import os
 import platform
 import subprocess
 import tempfile
-import datetime
 import tkinter as tk
 from tkinter import ttk, filedialog
 
-from __main__ import EXPORT_FILES
+import __main__ as _app
 
 # Anteprima e Stampa Diretta File Testo (.txt)
 def anteprima_e_stampa_txt(self):
-    now = datetime.date.today()
-    default_dir = EXPORT_FILES
+    default_dir = _app.EXPORT_FILES
     default_filename = ""
     path = filedialog.askopenfilename(
            filetypes=[("File txt", "*.txt")],
@@ -176,7 +174,7 @@ def _stampa_lista_diretta(self, testo_da_stampare, show_warning_func):
             pdc.EndPage()
             pdc.EndDoc()
             pdc.DeleteDC()
-            show_warning_func("Stampa Avviata", f"Inviato alla stampante predefinita (Windows).")
+            show_warning_func("Stampa Avviata", "Inviato alla stampante predefinita (Windows).")
         elif sistema in ["Linux", "Darwin"]:
             subprocess.run([
                 "lp",

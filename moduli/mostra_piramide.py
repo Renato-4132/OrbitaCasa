@@ -44,7 +44,7 @@ def mostra_piramide(self):
                     ("Banca",            "Conti, saldi, trasferimenti",   _g("open_saldo_conto")),
                     ("Invest.",          "yfinance, P&L, AI Gemini",      _g("apri_portafoglio")),
                     ("Risparmi",         "Proiezioni stagionali",         _g("apri_fondo_risparmio")),
-                    ("Pianifica",         "Spese pianificate/accantonate", _g("apri_gestione_spese_pianificate")),
+                    ("Pianifica",        "Spese pianificate/accantonate", _g("apri_gestione_spese_pianificate")),
                     ("Punti",            "Gamification",                  _g("mostra_dettaglio_gamification")),
                 ],
             },
@@ -119,7 +119,6 @@ def mostra_piramide(self):
                     ("Ricerca",      "Cerca tra tutte le operazioni", _g("cerca_operazioni")),
                     ("Tag",          "Tag delle operazioni",          _g("apri_gestione_tag")),
                     ("Confronta",    "Analisi comparativa",           _g("open_compare_window")),
-                    ("Aggrega",      "Raggruppa categorie",           _g("gruppo_categorie")),
                 ],
             },
             {
@@ -136,7 +135,6 @@ def mostra_piramide(self):
                 "label": "Analisi extra",
                 "fill": "#EDE9FE", "outline": "#8B5CF6", "fg": "#2E1065",
                 "moduli": [
-                    ("Time Machine",  "Stato storico dati",  _g("time_machine")),
                     ("Andamento",     "Grafico proiezioni",  _g("apri_andamento_risparmio")),
                     ("Fairshare",     "Dare e avere",        _g("mostra_dare_avere")),
                     ("Ricorrenze",    "Crea/modifica",       _g("mostra_ricorrenza_popup")),
@@ -159,7 +157,7 @@ def mostra_piramide(self):
                     ("Scadenze",        "Riepilogo scadenze",         _g("scadenze_mese")),
                     ("Controlla",       "Check manuale",              _g("controlla_ricorrenti_manual")),
                     ("Editor",          "Regole di categorizzazione", _g("mostra_editor_memoria_categorie")),
-                    ("Categorie",       "Spesa per categoria",        _g("open_analisi_categoria")),
+                    ("Analisi Cat.",    "Dettaglio, trend, simulazione", _g("analisi_categorie")),
                 ],
             },
         ],
@@ -219,9 +217,8 @@ def mostra_piramide(self):
                 "label": "Categorie avanzate",
                 "fill": "#F3F4F6", "outline": "#9CA3AF", "fg": "#111827",
                 "moduli": [
-                    ("Suggerisci Categorie",     "Suggerimenti automatici categorie",  _g("apri_categorie_suggerite")),
                     ("Categorie",                "CRUD categorie",                     _g("mostra_categorie_popup")),
-                    ("Cancella Multiplo",        "Eliminazione multipli movimenti",    _g("apri_cancella_multiplo")),
+                    ("Editor Categorie",         "Dettagli, cancella multiplo, suggerite", _g("apri_gestione_categorie")),
                     ("Apri Manuale",             "Guida utente",                       _g("scarica_manuale")),
                 ],
             },
@@ -438,11 +435,11 @@ def mostra_piramide(self):
     def _tooltip_show(x, y, widget, txt):
         if _tip_win[0]:
             try: _tip_win[0].destroy()
-            except: pass
+            except Exception: pass
             _tip_win[0] = None
         if _tip_win[1]:
             try: widget.after_cancel(_tip_win[1])
-            except: pass
+            except Exception: pass
             _tip_win[1] = None
         def _mostra():
             tw = tk.Toplevel(widget)
@@ -478,11 +475,11 @@ def mostra_piramide(self):
     def _tooltip_hide(event=None):
         if _tip_win[1]:
             try: canvas.after_cancel(_tip_win[1])
-            except: pass
+            except Exception: pass
             _tip_win[1] = None
         if _tip_win[0]:
             try: _tip_win[0].destroy()
-            except: pass
+            except Exception: pass
             _tip_win[0] = None
 
     _hit_tiles = []
@@ -491,7 +488,6 @@ def mostra_piramide(self):
 
     def _point_in_poly(px, py, pts):
         dentro = False
-        n = len(pts)
         x1, y1 = pts[-1]
         for x2, y2 in pts:
             if ((y1 > py) != (y2 > py)) and (px < (x2 - x1) * (py - y1) / (y2 - y1) + x1):
@@ -604,7 +600,7 @@ def mostra_piramide(self):
         _auto["on"] = False
         if _auto["resume_id"]:
             try: win.after_cancel(_auto["resume_id"])
-            except: pass
+            except Exception: pass
             _auto["resume_id"] = None
 
     def _riprendi_auto_tra_poco():

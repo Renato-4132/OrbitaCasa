@@ -65,16 +65,16 @@ def open_compare_window(self):
                 for voce in self.spese[d_raw]:
                     try:
                         if len(voce) >= 4:
-                            cat, desc, imp, tipo = voce[0], voce[1], voce[2], voce[3]
+                            cat, imp, tipo = voce[0], voce[2], voce[3]
                             if conto_sel != "Tutti i conti":
-                                conto_voce = campo(voce, "conto", "")
+                                conto_voce = self._conto_effettivo(voce)
                                 if conto_voce != conto_sel:
                                     continue
                             data_pagamento = d.strftime("%d-%m-%Y")
                             entrata = imp if tipo == "Entrata" else 0
                             uscita = imp if tipo == "Uscita" else 0
                             rows.append((cat, data_pagamento, entrata, uscita))
-                    except Exception as e:
+                    except Exception:
                         continue
         return rows
     def aggregate_rows_by_category(raw_rows, date_placeholder="Totale"):
@@ -249,7 +249,7 @@ def open_compare_window(self):
                 if hasattr(self, 'on_stats_table_double_click'):
                     self.on_stats_table_double_click(event)
                 else:
-                    print(f"Errore: Funzione di dettaglio (on_stats_table_double_click) non trovata.")
+                    print("Errore: Funzione di dettaglio (on_stats_table_double_click) non trovata.")
             except Exception as e:
                 print(f"Errore critico durante l'esecuzione del wrapper: {e}") 
             if original_stats_table is not None:
@@ -385,7 +385,7 @@ def open_compare_window(self):
         for cat, _, ent, usc in rows2_raw:
             data2[cat][0] += ent
             data2[cat][1] += usc
-        tutte_le_categorie = sorted(set(data1.keys()) | set(data2.keys()))
+        tutte_le_categorie = sorted(set(data1.keys()) | set(data2.keys()), key=lambda x: x.lower())
         for cat in tutte_le_categorie:
             ent1, usc1 = data1[cat]
             ent2, usc2 = data2[cat]
@@ -534,7 +534,7 @@ def crea_grafico_confronto(self, m1_str, a1_str, m2_str, a2_str, per_anno, categ
         categories_list_raw = getattr(self, "_saved_info", {}).get("categorie", [])
         if not categories_list_raw and getattr(self, "categorie", None):
             categories_list_raw = getattr(self, "categorie", [])
-        categories_list = sorted([c for c in categories_list_raw if isinstance(c, str) and c])
+        categories_list = sorted([c for c in categories_list_raw if isinstance(c, str) and c], key=lambda x: x.lower())
         if "Tutte le Categorie" not in categories_list:
             categories_list.insert(0, "Tutte le Categorie")
         initial_categoria = categoria_sel if categoria_sel and categoria_sel in categories_list else "Tutte le Categorie"
@@ -621,9 +621,11 @@ def crea_grafico_confronto(self, m1_str, a1_str, m2_str, a2_str, per_anno, categ
         keys_all = []
         data1_raw_cache = {}
         data2_raw_cache = {}
+        classi1_cache = {}
+        classi2_cache = {}
         month_abbr_it = {'01': 'Gen', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'Mag', '06': 'Giu',
                          '07': 'Lug', '08': 'Ago', '09': 'Set', '10': 'Ott', '11': 'Nov', '12': 'Dic'}
-        def get_rows_confronto(mese, anno_param, per_anno_mode, categoria_filter):
+        def get_rows_confronto(mese, anno_param, per_anno_mode, categoria_filter, classi_out=None):
             def parse_date_obj(d):
                 if isinstance(d, datetime.date): return d
                 if d is None: return None
@@ -641,7 +643,6 @@ def crea_grafico_confronto(self, m1_str, a1_str, m2_str, a2_str, per_anno, categ
             categories_list_raw = getattr(self, "_saved_info", {}).get("categorie", [])
             if not categories_list_raw:
                 categories_list_raw = getattr(self, "categorie", [])
-            categorie_known = [c.strip().lower() for c in categories_list_raw if isinstance(c, str)]
             for d_raw, entries in getattr(self, "spese", {}).items():
                 d = d_raw if isinstance(d_raw, datetime.date) else parse_date_obj(d_raw)
                 if not d: continue
@@ -682,11 +683,17 @@ def crea_grafico_confronto(self, m1_str, a1_str, m2_str, a2_str, per_anno, categ
                         if categoria_filter and categoria_filter != "Tutte le Categorie":
                             if categoria_val is None or str(categoria_val).strip().lower() != str(categoria_filter).strip().lower(): continue
                         if conto_sel and conto_sel != "Tutti i conti":
-                            conto_val = campo(entry, "conto", "")
+                            conto_val = self._conto_effettivo(entry)
                             if conto_val != conto_sel: continue
                         importo_f = parse_amount(imp)
                         if str(tipo).strip().lower() == "entrata": rows_grouped[key][0] += importo_f
-                        else: rows_grouped[key][1] += importo_f
+                        else:
+                            rows_grouped[key][1] += importo_f
+                            if classi_out is not None:
+                                _cl_g = self._classi_categorie().get(categoria_val, "")
+                                if _cl_g:
+                                    classi_out.setdefault(key, {})
+                                    classi_out[key][_cl_g] = classi_out[key].get(_cl_g, 0.0) + importo_f
                     except Exception: continue
             return rows_grouped
         def update_totals_display(d1, d2):
@@ -698,9 +705,10 @@ def crea_grafico_confronto(self, m1_str, a1_str, m2_str, a2_str, per_anno, categ
             fg = "#2ca02c" if delta > 0 else ("#d62728" if delta < 0 else text_color)
             delta_lbl.config(text=f"Variazione Saldo (P2 vs P1): {format_euro(delta,2)}", fg=fg)
         def update_data(categoria_choice):
-            nonlocal saldos1, saldos2, labels_x, keys_all, data1_raw_cache, data2_raw_cache
-            data1_raw_cache = get_rows_confronto(m1, a1, per_anno, categoria_choice)
-            data2_raw_cache = get_rows_confronto(m2, a2, per_anno, categoria_choice)
+            nonlocal saldos1, saldos2, labels_x, keys_all, data1_raw_cache, data2_raw_cache, classi1_cache, classi2_cache
+            classi1_cache = {}; classi2_cache = {}
+            data1_raw_cache = get_rows_confronto(m1, a1, per_anno, categoria_choice, classi1_cache)
+            data2_raw_cache = get_rows_confronto(m2, a2, per_anno, categoria_choice, classi2_cache)
             keys_all = sorted(set(data1_raw_cache.keys()) | set(data2_raw_cache.keys()))
             saldos1 = []; saldos2 = []; labels_x = []
             for key in keys_all:
@@ -803,7 +811,7 @@ def crea_grafico_confronto(self, m1_str, a1_str, m2_str, a2_str, per_anno, categ
                             canvas.create_text(x_center, y_base_tic, anchor="n", text=labels_x[i], font=small_font, fill=text_color)
                 _fissa_asse()
             except Exception as e:
-                print(f"Errore draw_chart:", e)
+                print("Errore draw_chart:", e)
         def on_bar_double_click(event):
             item_id = canvas.find_closest(canvas.canvasx(event.x), canvas.canvasy(event.y))[0]
             tags = canvas.gettags(item_id)
@@ -904,6 +912,15 @@ def crea_grafico_confronto(self, m1_str, a1_str, m2_str, a2_str, per_anno, categ
                 (f"Saldo {lab_o}", f"€ {format_euro(ent_o - usc_o, 2)}  ({periodo_o})"),
                 (f"Δ vs {lab_o}", f"€ {format_euro((ent - usc) - (ent_o - usc_o), 2)}"),
             ]
+            _cat_sel = categoria_var.get()
+            if _cat_sel and _cat_sel != "Tutte le Categorie":
+                _cl_sel = self._classi_categorie().get(_cat_sel, "")
+                if _cl_sel:
+                    righe.insert(3, ("Classe", _cl_sel))
+            _cl_barra = (classi1_cache if period == 1 else classi2_cache).get(key, {})
+            if not (_cat_sel and _cat_sel != "Tutte le Categorie"):
+                for _cl, _v_cl in sorted(_cl_barra.items(), key=lambda kv: -kv[1]):
+                    righe.append((f"Uscite {_cl}", f"€ {format_euro(_v_cl, 2)}"))
             w_et = max(len(e) for e, _ in righe) + 3
             testo = "\n".join(f"{(e + ':').ljust(w_et)}{v}" for e, v in righe)
             tw = tk.Toplevel(popup_grafico)

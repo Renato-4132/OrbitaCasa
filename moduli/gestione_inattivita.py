@@ -11,6 +11,9 @@ def _attiva_timer_inattivita(self):
     if hasattr(self, '_timer_inattivita') and self._timer_inattivita:
         self.after_cancel(self._timer_inattivita)
         self._timer_inattivita = None
+    import __main__ as _app
+    if not getattr(_app, 'ICONIZZA_INATTIVITA', True):
+        return
     timeout = getattr(self, '_timeout_inattivita', 1200000)
     self._timer_inattivita = self.after(timeout, self._iconizza_finestra)
 
@@ -21,7 +24,7 @@ def _reset_inattivita(self, cancel_countdown=False):
             self._countdown_timer_id = None
         if getattr(self, '_countdown_splash', None):
             try: self._countdown_splash.destroy()
-            except: pass
+            except Exception: pass
             self._countdown_splash = None
         self._attiva_timer_inattivita() 
         return 
@@ -52,13 +55,13 @@ def _finalizza_iconizzazione(self):
     if getattr(self, '_win_reg', None) and self._win_reg.winfo_exists():
             if getattr(self, '_countdown_splash', None):
                     try: self._countdown_splash.destroy()
-                    except: pass
+                    except Exception: pass
                     self._countdown_splash = None
             self._attiva_timer_inattivita()
             return
     if getattr(self, '_countdown_splash', None):
         try: self._countdown_splash.destroy()
-        except: pass
+        except Exception: pass
         self._countdown_splash = None
     self.iconify()
     self.mostra_avviso_iconizzata()
@@ -148,7 +151,7 @@ def _aggiorna_countdown(self, remaining_ms):
     if getattr(self, '_win_reg', None) and self._win_reg.winfo_exists():
             if self._countdown_splash:
                     try: self._countdown_splash.destroy()
-                    except: pass
+                    except Exception: pass
                     self._countdown_splash = None
             self._attiva_timer_inattivita()
             return
@@ -192,13 +195,13 @@ def _iconizza_finestra_x(self):
     if CLOSE and stato == "normal":
         try:
             self.save_db()
-        except:
+        except Exception:
             pass
         if hasattr(self, "_splash_reg"):
             try:
                 if self._splash_reg.winfo_exists():
                     self._splash_reg.withdraw()
-            except:
+            except Exception:
                 pass
         self.mostra_avviso_x()
         self.iconify()

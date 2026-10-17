@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import json
 import calendar
 import datetime
 from moduli.modello_spesa import campo
@@ -13,7 +12,7 @@ def goto_dettaglio_mese(self, salva=False):
     self.mostra_treeview_statistiche()
     try:
         data_sel = self.cal.selection_get()
-    except:
+    except Exception:
         data_sel = datetime.date.today()
     anno = getattr(self, '_view_year', data_sel.year)
     mese = getattr(self, '_view_month', data_sel.month)
@@ -68,7 +67,7 @@ def goto_dettaglio_mese(self, salva=False):
     for g in range(1, num_giorni + 1):
         try:
             giorno = datetime.date(anno, mese, g)
-        except:
+        except Exception:
             continue
         spese_giorno = self.spese.get(giorno, [])
         if not spese_giorno:
@@ -79,8 +78,7 @@ def goto_dettaglio_mese(self, salva=False):
                 desc = campo(sp, "descrizione", "")
                 imp  = float(campo(sp, "importo", 0.0))
                 tipo = campo(sp, "tipo", "")
-                _key  = (giorno.strftime("%d-%m-%Y"), round(imp, 2), tipo)
-                conto = campo(sp, "conto", "")
+                conto = self._conto_effettivo(sp)
                 if not conto:
                     conto = conto_da_mappa(_agganci, _agganci_uso, giorno.strftime("%d-%m-%Y"), imp, tipo)
                 imp_str = f"{imp:.2f}".replace(".", ",")
@@ -106,7 +104,7 @@ def goto_dettaglio_mese(self, salva=False):
                     "importo": imp,
                 }
                 righe_inserite += 1
-            except:
+            except Exception:
                 continue
 
     if hasattr(self, "ottieni_promemoria_mese"):

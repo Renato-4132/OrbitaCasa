@@ -97,6 +97,9 @@ def mostra_grafici_fairshare(self, anno_sel="Tutti", mese_sel="Tutti"):
     cv1 = _crea_canvas_scroll(tab1)
     cv2 = _crea_canvas_scroll(tab2)
     cv3 = _crea_canvas_scroll(tab3)
+    def _suf_classe(cat):
+        cl = self._classi_categorie().get(cat, "")
+        return f"  [{cl}]" if cl else ""
     def _dati_filtrati():
         a_sel = anno_var.get()
         m_num = mesi_nomi.index(mese_var.get())
@@ -175,7 +178,7 @@ def mostra_grafici_fairshare(self, anno_sel="Tutti", mese_sel="Tutti"):
     def _hide_tip(*_):
         if _tip_state["win"]:
             try: _tip_state["win"].destroy()
-            except: pass
+            except Exception: pass
             _tip_state["win"] = None
             _tip_state["tag"] = None
     def disegna_tab1(event=None):
@@ -227,7 +230,7 @@ def mostra_grafici_fairshare(self, anno_sel="Tutti", mese_sel="Tutti"):
                                   key=lambda x: x[1], reverse=True)
             if _cats_items:
                 _larg_cat = max(len(c) for c, _ in _cats_items) + 1
-                cats_txt = "\n".join(f"  {(c + ':').ljust(_larg_cat + 2)}{_fmt_it(v)} €"
+                cats_txt = "\n".join(f"  {(c + ':').ljust(_larg_cat + 2)}{_fmt_it(v)} €{_suf_classe(c)}"
                                       for c, v in _cats_items)
             else:
                 cats_txt = ""
@@ -308,13 +311,14 @@ def mostra_grafici_fairshare(self, anno_sel="Tutti", mese_sel="Tutti"):
             deb_txt = "\n".join(f"  {n}: {_fmt_it(v)} €"
                 for n, v in sorted(cat_debitori.get(cat, {}).items(),
                                    key=lambda x: x[1], reverse=True))
-            tip_a = f"{cat}\nAperto (da saldare): {_fmt_it(ap)} €"
+            _cl_cat = self._classi_categorie().get(cat, "")
+            tip_a = f"{cat}\n" + (f"Classe: {_cl_cat}\n" if _cl_cat else "") + f"Aperto (da saldare): {_fmt_it(ap)} €"
             if deb_txt:
                 tip_a += f"\nIn attesa da:\n{deb_txt}"
             cred_txt = "\n".join(f"  {n}: {_fmt_it(v)} €"
                 for n, v in sorted(cat_creditori.get(cat, {}).items(),
                                    key=lambda x: x[1], reverse=True))
-            tip_c = f"{cat}\nChiuso (saldato): {_fmt_it(cl)} €"
+            tip_c = f"{cat}\n" + (f"Classe: {_cl_cat}\n" if _cl_cat else "") + f"Chiuso (saldato): {_fmt_it(cl)} €"
             if cred_txt:
                 tip_c += f"\nSaldato da:\n{cred_txt}"
             ay1 = base_y - ap * scala
@@ -392,13 +396,13 @@ def mostra_grafici_fairshare(self, anno_sel="Tutti", mese_sel="Tutti"):
             dov = mensile_dov.get(mkey, 0.0); ver = mensile_ver.get(mkey, 0.0)
             etichetta = f"{mesi_nomi[mkey[1]][:3]} {str(mkey[0])[2:]}"
             tag_d = f"md_{i}"; tag_v = f"mv_{i}"
-            cat_dov_txt = "\n".join(f"  {c}: {_fmt_it(v)} €"
+            cat_dov_txt = "\n".join(f"  {c}: {_fmt_it(v)} €{_suf_classe(c)}"
                 for c, v in sorted(mensile_cat_dov.get(mkey, {}).items(),
                                    key=lambda x: x[1], reverse=True))
             tip_d = f"{etichetta}\nDovuto:     {_fmt_it(dov)} €\nDa versare: {_fmt_it(dov-ver)} €"
             if cat_dov_txt:
                 tip_d += f"\nPer categoria:\n{cat_dov_txt}"
-            cat_ver_txt = "\n".join(f"  {c}: {_fmt_it(v)} €"
+            cat_ver_txt = "\n".join(f"  {c}: {_fmt_it(v)} €{_suf_classe(c)}"
                 for c, v in sorted(mensile_cat_ver.get(mkey, {}).items(),
                                    key=lambda x: x[1], reverse=True))
             tip_v = f"{etichetta}\nVersato: {_fmt_it(ver)} €"

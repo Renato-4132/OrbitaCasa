@@ -6,7 +6,6 @@ import calendar
 import datetime
 import tkinter as tk
 from tkinter import ttk
-from moduli.modello_spesa import campo
 
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
@@ -20,7 +19,6 @@ def crea_grafico_categorie(self, id_righe_selezionate):
     entrate_count = 0
     uscite_count = 0
     tipo_transazione_ricercato = "saldo"
-    colore_barra_base = None
     tooltip_window = None 
     stats_mode = getattr(self, 'stats_mode', tk.StringVar(value="totali")).get() 
     stats_refdate = getattr(self, 'stats_refdate', None) 
@@ -35,7 +33,7 @@ def crea_grafico_categorie(self, id_righe_selezionate):
                 categorie_da_elaborare.append(cat_name)
             if len(_vals_it) > 2 and str(_vals_it[2]).strip() == "Pianificata" and cat_name not in categorie_pianificate:
                 categorie_pianificate.append(cat_name)
-        except:
+        except Exception:
             continue
     _flag_pian_graf = bool(
         (stats_mode == "mese" and self.considera_pianificate_var.get())
@@ -79,10 +77,8 @@ def crea_grafico_categorie(self, id_righe_selezionate):
         tipo_transazione_ricercato = "misto"
     elif entrate_count > 0:
         tipo_transazione_ricercato = "entrata"
-        colore_barra_base = "#28A745"
     else:
         tipo_transazione_ricercato = "uscita"
-        colore_barra_base = "#DC3545"
     spese_combinate = defaultdict(lambda: {
         'Entrata': 0.0, 
         'Uscita': 0.0,
@@ -99,7 +95,7 @@ def crea_grafico_categorie(self, id_righe_selezionate):
             data_anno_str = str(data_objeto.year)
             data_mese_pad = str(data_objeto.month).zfill(2)
             data_giorno_pad = str(data_objeto.day).zfill(2)
-        except:
+        except Exception:
             continue
         if anno_filtro and data_anno_str != anno_filtro: continue
         if mese_filtro and data_mese_pad != mese_filtro: continue
@@ -117,7 +113,7 @@ def crea_grafico_categorie(self, id_righe_selezionate):
             if cat in categorie_da_elaborare:
                 try:
                     importo_numerico = float(imp)
-                    nome_conto = campo(entry, "conto", "").strip() or "(Nessun conto)"
+                    nome_conto = self._conto_effettivo(entry).strip() or "(Nessun conto)"
                     _lato = "Entrata" if "entrata" in tipo_lower else ("Uscita" if "uscita" in tipo_lower else None)
                     if _lato and (tipo_transazione_ricercato == "misto" or _lato.lower() == tipo_transazione_ricercato):
                         _sc = spese_combinate[chiave_aggregazione]
@@ -466,6 +462,16 @@ def crea_grafico_categorie(self, id_righe_selezionate):
                     f"{(_e + ':').ljust(_larghezza_etichetta + 2)}{_fmt_it(_v)} €"
                     for _e, _v in righe
                 ]
+            _classi_tt = self._classi_categorie()
+            _per_classe = {}
+            for _e, _v in righe:
+                _k = _classi_tt.get(_e)
+                if _k:
+                    _per_classe[_k] = _per_classe.get(_k, 0.0) + _v
+            if _per_classe:
+                dettaglio_lines.append("— Per Classe —")
+                for _k, _v in sorted(_per_classe.items(), key=lambda kv: -kv[1]):
+                    dettaglio_lines.append(f"{(_k + ':').ljust(_larghezza_etichetta + 2)}{_fmt_it(_v)} €  ({(_v / _tot_righe * 100):.1f}%)")
             return "\n".join(dettaglio_lines)
         def formatta_dettaglio_conto(dettagli_dict):
             if not dettagli_dict:

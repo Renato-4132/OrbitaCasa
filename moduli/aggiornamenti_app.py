@@ -431,7 +431,6 @@ def _mostra_popup_aggiornamento(self, remote_time, local_time, changelog_text):
     REPO_NAME = _app.REPO_NAME
     NOME_FILE = _app.NOME_FILE
     RIMANDA_FILE = _app.RIMANDA_FILE
-    VERSION = _app.VERSION
     MODULI_DIR = _app.MODULI_DIR
     MODULI_BAK_DIR = _app.MODULI_BAK_DIR
     BRANCH_PRINCIPALE = _app.BRANCH_PRINCIPALE
@@ -778,7 +777,6 @@ def _mostra_popup_forza_aggiornamento(self, remote_time, local_time, changelog_t
     REPO_NAME = _app.REPO_NAME
     NOME_FILE = _app.NOME_FILE
     RIMANDA_FILE = _app.RIMANDA_FILE
-    VERSION = _app.VERSION
     BRANCH_PRINCIPALE = _app.BRANCH_PRINCIPALE
     import os
     from datetime import datetime, timedelta
@@ -1524,6 +1522,7 @@ def verifica_moduli_git(self):
         lbl_stato.pack(side=tk.LEFT)
         righe_stato[nome] = (lbl_stato, lbl_data, lbl_size)
     elenco_remoto_cache = []
+    orfani_set = set()
     pyw_allineato_ref = {"ok": True}
     def _carica_elenco():
         if not _boot_pyw_allineato():
@@ -1577,6 +1576,20 @@ def verifica_moduli_git(self):
                 else:
                     _aggiungi_riga(parent, nome, "⟳ da aggiornare", "#E65100", data_mod, size_testo, da_aggiornare=True)
                     diversi += 1
+            nomi_remoti = {v.get("name") for v in elenco_ord}
+            orfani = sorted(n for n in os.listdir(MODULI_DIR)
+                            if n.endswith(".py") and not n.startswith("__")
+                            and n not in nomi_remoti
+                            and os.path.isfile(os.path.join(MODULI_DIR, n)))
+            orfani_set.clear()
+            if elenco_ord:
+                orfani_set.update(orfani)
+            for nome in sorted(orfani_set):
+                p_orf = os.path.join(MODULI_DIR, nome)
+                _aggiungi_riga(col_dx, nome, "🗑 orfano (non più su GitHub)", "#C62828",
+                               datetime.datetime.fromtimestamp(os.path.getmtime(p_orf)).strftime("%d/%m/%Y"),
+                               f"{os.path.getsize(p_orf) / 1024:.1f} KB", da_aggiornare=True)
+                diversi += 1
             lbl_check_stato.config(text="✓ Elenco verificato")
             _log(f"Verifica completata: {len(elenco_ord)} moduli controllati, {diversi} da aggiornare.")
         self.after(0, _popola)
@@ -1672,7 +1685,32 @@ def verifica_moduli_git(self):
                         pass
                 errori += 1
                 self.after(0, lambda n=nome, err=e: _log(f"❌ {n}: {err}"))
-        msg = f"\n✅ Completato. {aggiornati} moduli aggiornati, {errori} errori." if (aggiornati or errori) else "\n✅ I moduli selezionati erano già aggiornati."
+        eliminati = 0
+        for nome in sorted(selezionati & orfani_set):
+            try:
+                os.remove(os.path.join(MODULI_DIR, nome))
+                eliminati += 1
+                orfani_set.discard(nome)
+                self.after(0, lambda n=nome: _log(f"✓ {n} eliminato (orfano)"))
+                def _riga_eliminata(n=nome):
+                    if n in righe_stato:
+                        righe_stato[n][0].config(text="✓ eliminato", fg="#2E7D32")
+                    for nm, v in vars_moduli:
+                        if nm == n:
+                            v.set(False)
+                            break
+                self.after(0, _riga_eliminata)
+            except Exception as e:
+                errori += 1
+                self.after(0, lambda n=nome, err=e: _log(f"❌ {n}: {err}"))
+        parti = []
+        if aggiornati:
+            parti.append(f"{aggiornati} moduli aggiornati")
+        if eliminati:
+            parti.append(f"{eliminati} orfani eliminati")
+        if errori:
+            parti.append(f"{errori} errori")
+        msg = ("\n✅ Completato. " + ", ".join(parti) + ".") if parti else "\n✅ I moduli selezionati erano già aggiornati."
         self.after(0, lambda: _log(msg))
         if aggiornati:
             self.after(0, _abilita_riavvia)
@@ -1710,6 +1748,11 @@ def verifica_moduli_git(self):
         btn_riavvia.bind("<Button-1>", _riavvia)
         self.btn_verifica_moduli.pack_forget()
     def _avvia_click(e=None):
+        orf_sel = [n for n, v in vars_moduli if v.get() and n in orfani_set]
+        if orf_sel and not self.show_custom_askyesno(
+                title="Elimina orfani",
+                message=f"Eliminare definitivamente {len(orf_sel)} file non più presenti su GitHub?\n\n" + "\n".join(orf_sel[:10])):
+            return
         btn_avvia.config(cursor="X_cursor")
         btn_avvia.unbind("<Button-1>")
         threading.Thread(target=_esegui, daemon=True).start()

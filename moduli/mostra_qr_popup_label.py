@@ -6,22 +6,25 @@ import os
 import tkinter as tk
 from tkinter import ttk
 
-from __main__ import DB_DIR, NAME, USA_SSL, PORTA, requests, segno, Image, ImageTk
+from __main__ import NAME, requests, segno, Image, ImageTk
 
 def mostra_qr_popup_label(self):
     import webbrowser
+    import __main__ as _app
+    USA_SSL = _app.USA_SSL
+    PORTA = _app.PORTA
     if hasattr(self, '_qr_popup') and self._qr_popup and self._qr_popup.winfo_exists():
         self._qr_popup.lift()
         self._qr_popup.focus_force()
         return
-    cert_file = os.path.join(DB_DIR, "cert.pem")
-    key_file = os.path.join(DB_DIR, "key.pem")
+    cert_file = os.path.join(_app.DB_DIR, "cert.pem")
+    key_file = os.path.join(_app.DB_DIR, "key.pem")
     prot = "https" if USA_SSL and os.path.exists(cert_file) and os.path.exists(key_file) else "http"
     ip_locale = self.get_ip_locale_reale()
     try:
         r = requests.get('https://api.myip.com', timeout=2).json()
         ip_remoto = r.get('ip', "N/A")
-    except:
+    except Exception:
         ip_remoto = "N/A"
     dominio = self.get_dominio_ssl() if USA_SSL else ""
     if USA_SSL and dominio:

@@ -20,22 +20,23 @@ def apri_cancella_spese_treeview_unica(self):
     if not hasattr(self, 'spese') or not isinstance(self.spese, dict):
         self.spese = {} 
     self.filtri_cancellazione = {
-        "partecipante": "—",
+        "partecipante": "",
         "descrizione": "",
-        "categoria": "—",
-        "tipo": "—",
-        "anno": "—",
-        "mese": "—",
+        "categoria": "",
+        "tipo": "",
+        "anno": "",
+        "mese": "",
         "da": "",
         "a": "",
-        "conto": "—",
-        "metodo": "—",
+        "conto": "",
+        "metodo": "",
         "hashtag": "",
         "mostra_futuro": True,
         "data_da": "",
         "data_a": "",
         "ricerca_rapida": ""
     }
+    stato_f = {"aperta": False, "sosp": False}
     if not hasattr(self, 'selezionate_iid'):
         self.selezionate_iid = set()
     self.selezionate_iid.clear() 
@@ -57,7 +58,7 @@ def apri_cancella_spese_treeview_unica(self):
                     elif data_type == 'date':
                         return datetime.datetime.strptime(value, '%d/%m/%Y')
                     return value.lower()
-                except: return value
+                except Exception: return value
             items_to_sort.sort(key=get_sort_key, reverse=reverse)
             for index, (val, k) in enumerate(items_to_sort):
                 tree.move(k, '', index)
@@ -133,7 +134,7 @@ def apri_cancella_spese_treeview_unica(self):
         if not self.spese:
             self.spese_treeview.insert("", "end", iid="FILTER_MSG",
                                        text="",
-                                       values=("—", "Nessuna spesa presente.", "", "", "", "", "", "", ""),
+                                       values=("", "Nessuna spesa presente.", "", "", "", "", "", "", ""),
                                        tags=('empty',))
             return
         filtri = self.filtri_cancellazione
@@ -209,7 +210,7 @@ def apri_cancella_spese_treeview_unica(self):
                     ora_sp      = campo(voce, "ora", "")
                     hashtag_sp  = campo(voce, "hashtag", [])
                     hashtag_txt_sp = " ".join(hashtag_sp)
-                    nome_conto_sp = campo(voce, "conto", "") or (
+                    nome_conto_sp = self._conto_effettivo(voce) or (
                         conto_da_mappa(_agganci_cs, _uso_ordinale_cs, d.strftime("%d-%m-%Y"), float(importo), tipo)
                         if d else ""
                     )
@@ -287,180 +288,30 @@ def apri_cancella_spese_treeview_unica(self):
         if items_inserted == 0 and self.spese:
             self.spese_treeview.insert("", "end", iid="FILTER_MSG", 
                                        text="", 
-                                       values=("—", "Nessun risultato.", "", "", "", "", "", "", ""),
+                                       values=("", "Nessun risultato.", "", "", "", "", "", "", ""),
                                        tags=('empty',))
     def aggiorna_stato_filtri():
-        chiavi_escluse = ("mostra_futuro", "data_da", "data_a", "ricerca_rapida")
-        attivi = {k: v for k, v in self.filtri_cancellazione.items()
-                  if k not in chiavi_escluse and v and v != "—"}
-        ricerca_attiva = self.filtri_cancellazione.get("ricerca_rapida", "").strip()
-        if not attivi and not ricerca_attiva:
-            lbl_filtri_attivi.config(text="Nessun filtro attivo. Attiva un Filtro Avanzato.", fg="gray")
-        else:
-            testo_formattato = []
-            if ricerca_attiva:
-                testo_formattato.append(f"Ricerca rapida: '{ricerca_attiva}'")
-            for k, v in attivi.items():
-                if k == 'descrizione':
-                    testo_formattato.append(f"Testo Globale: {v}")
-                elif k == 'partecipante':
-                    testo_formattato.append(f"Partecipante: {v}")
-                else:
-                    testo_formattato.append(f"{k.capitalize()}: {v}")
-            testo = ", ".join(testo_formattato)
-            lbl_filtri_attivi.config(text=f"Filtri attivi: {testo}", fg="dodgerblue")
-    def apri_filtri_avanzati():
-        filtro_win = tk.Toplevel(popup, bg=self.COLOR_TOPLEVEL)
-        filtro_win.title("⚙️ Filtri Avanzati di Cancellazione")
-        larghezza_finestra = 400
-        altezza_finestra = 460
-        x = popup.winfo_rootx() + (popup.winfo_width() // 2) - (larghezza_finestra // 2)
-        y = popup.winfo_rooty() + (popup.winfo_height() // 2) - (altezza_finestra // 2)
-        filtro_win.geometry(f"{larghezza_finestra}x{altezza_finestra}+{x}+{y}")
-        filtro_win.resizable(False, False)
-        filtro_win.transient(popup)
-        filtro_win.update_idletasks()
-        filtro_win.grab_set()
-        filtro_win.bind("<Escape>", lambda e: filtro_win.destroy())
-        _profilo_attivo_ac = getattr(_app, "PROFILO_ATTIVO", "Principale")
-        _gestore_nome_canc = _profilo_attivo_ac if _profilo_attivo_ac != "Principale" else os.path.basename(os.getcwd())
-        _nomi_reg_canc = [(p.get("nome", "") if isinstance(p, dict) else p) for p in self.nomi_partecipanti]
-        nomi_p = ["—"]
-        if self._gestore_partecipa() and _gestore_nome_canc not in _nomi_reg_canc:
-            nomi_p.append(f"PER· {_gestore_nome_canc}")
-        nomi_p += [
-                   f"CNT· {p['nome']}" if p.get("tipo") == "contenitore" else
-                   f"CTP· {p['nome']}" if p.get("tipo") == "personale" else
-                   f"PER· {p['nome']}"
-                   for p in sorted(self.nomi_partecipanti, key=lambda p: (p.get("nome", "") if isinstance(p, dict) else p).lower())
-        ]
-        p_salvato = self.filtri_cancellazione.get("partecipante", "—")
-        p_con_icona = "—"
-        if p_salvato != "—":
-            for voce in nomi_p:
-                if voce.endswith(p_salvato):
-                    p_con_icona = voce
-                    break
-        descrizione_var = tk.StringVar(value=self.filtri_cancellazione.get("descrizione", ""))
-        partecipante_var = tk.StringVar(value=p_con_icona)
-        categoria_var = tk.StringVar(value=self.filtri_cancellazione.get("categoria", "—"))
-        tipo_var = tk.StringVar(value=self.filtri_cancellazione.get("tipo", "—"))
-        anno_var = tk.StringVar(value=self.filtri_cancellazione.get("anno", "—"))
-        mese_var = tk.StringVar(value=self.filtri_cancellazione.get("mese", "—"))
-        da_var = tk.StringVar(value=self.filtri_cancellazione.get("da", ""))
-        a_var = tk.StringVar(value=self.filtri_cancellazione.get("a", ""))
-        conto_var = tk.StringVar(value=self.filtri_cancellazione.get("conto", "—"))
-        metodo_var = tk.StringVar(value=self.filtri_cancellazione.get("metodo", "—"))
-        hashtag_var = tk.StringVar(value=self.filtri_cancellazione.get("hashtag", ""))
-        try:
-            with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as _f:
-                conti_nomi = ["—"] + [c.get("nome","") for c in json.load(_f).get("conti",[])]
-        except Exception:
-            conti_nomi = ["—"]
-        def crea_riga(testo, var, values=None):
-            f = tk.Frame(filtro_win, bg=self.COLOR_TOPLEVEL)
-            f.pack(fill="x", padx=12, pady=5)
-            tk.Label(f, text=testo, fg=self.TEXT_COLOR, bg=self.COLOR_TOPLEVEL, width=16, anchor="w").pack(side="left")
-            if values:
-                ttk.Combobox(f, textvariable=var, values=values, style="Border.TCombobox", state="readonly", width=20).pack(side="left")
-            else:
-                ttk.Entry(f, textvariable=var, width=22).pack(side="left")
-        nomi_p = ["—"]
-        if self._gestore_partecipa() and _gestore_nome_canc not in _nomi_reg_canc:
-            nomi_p.append(f"PER· {_gestore_nome_canc}")
-        nomi_p += [
-           f"CNT· {p['nome']}" if p.get("tipo") == "contenitore" else
-           f"CTP· {p['nome']}" if p.get("tipo") == "personale" else
-           f"PER· {p['nome']}"
-           for p in sorted(self.nomi_partecipanti, key=lambda p: (p.get("nome", "") if isinstance(p, dict) else p).lower())
-        ]
-        tutte_cat = ["—"] + sorted(list(self.categorie_tipi.keys()))
-        anni = ["—"]
-        for giorno_obj in self.spese.keys():
-            try:
-                d = giorno_obj if isinstance(giorno_obj, datetime.date) else datetime.datetime.strptime(str(giorno_obj), "%Y-%m-%d").date()
-                anni.append(str(d.year))
-            except Exception:
-                continue
-        anni = sorted(list(set(anni)), reverse=True)
-        nomi_mesi_dropdown = ["—"] + NOMI_MESI_ITALIANO
-        crea_riga("Testo Globale:", descrizione_var)
-        crea_riga("Partecipante:", partecipante_var, nomi_p)
-        crea_riga("Categoria:", categoria_var, tutte_cat)
-        crea_riga("Tipo voce:", tipo_var, ["—", "Entrata", "Uscita"])
-        crea_riga("Anno:", anno_var, anni)
-        crea_riga("Mese:", mese_var, nomi_mesi_dropdown)
-        crea_riga("Importo da (€):", da_var)
-        crea_riga("Importo a (€):", a_var)
-        crea_riga("Conto:", conto_var, conti_nomi)
-        crea_riga("Metodo Pag.:", metodo_var, ["—"] + METODI_PAGAMENTO)
-        crea_riga("Hashtag:", hashtag_var)
-        def applica():
-            p_selezionato = partecipante_var.get()
-            if p_selezionato and p_selezionato != "—":
-                p_pulito = p_selezionato.strip()
-                for _ico in ("CNT· ", "PER· ", "CTP· ", "CNT·", "PER·", "CTP·"):
-                    if p_pulito.startswith(_ico):
-                        p_pulito = p_pulito[len(_ico):].strip()
-                        break
-            else:
-                p_pulito = p_selezionato
-            self.filtri_cancellazione = {
-                "descrizione": descrizione_var.get(),
-                "partecipante": p_pulito,
-                "categoria": categoria_var.get(),
-                "tipo": tipo_var.get(),
-                "anno": anno_var.get(),
-                "mese": mese_var.get(),
-                "da": da_var.get(),
-                "a": a_var.get(),
-                "conto": conto_var.get(),
-                "metodo": metodo_var.get(),
-                "hashtag": hashtag_var.get()
-            }
-            self.selezionate_iid.clear()
-            aggiorna_stato_filtri()
-            popola_treeview_spese()
-            filtro_win.destroy()
-        def cancella_filtri():
-            descrizione_var.set("")
-            partecipante_var.set("—")
-            categoria_var.set("—")
-            tipo_var.set("—")
-            anno_var.set("—")
-            mese_var.set("—")
-            da_var.set("")
-            a_var.set("")
-            conto_var.set("—")
-            metodo_var.set("—")
-            hashtag_var.set("")
-            self.filtri_cancellazione = {
-                "partecipante": "—",
-                "descrizione": "",
-                "categoria": "—",
-                "tipo": "—",
-                "anno": "—",
-                "mese": "—",
-                "da": "",
-                "a": "",
-                "conto": "—",
-                "metodo": "—",
-                "hashtag": ""
-            }
-            self.selezionate_iid.clear()
-            aggiorna_stato_filtri()
-            popola_treeview_spese()
-            filtro_win.destroy()
-        f_btn = tk.Frame(filtro_win, bg=self.COLOR_TOPLEVEL)
-        f_btn.pack(pady=10)
-        img_applica_f = self.icone_gui.get("salva")
-        btn_applica_f = ttk.Label(f_btn, compound="left", image=img_applica_f, text=" Applica Filtri" if img_applica_f else "Applica Filtri", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
-        btn_applica_f.pack(side="left", padx=10)
-        btn_applica_f.bind("<Button-1>", lambda e: applica())
-        img_cancella_f = self.icone_gui.get("reset")
-        btn_cancella_f = ttk.Label(f_btn, compound="left", image=img_cancella_f, text=" Cancella Filtri" if img_cancella_f else "Cancella Filtri", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
-        btn_cancella_f.pack(side="right", padx=10)
-        btn_cancella_f.bind("<Button-1>", lambda e: cancella_filtri())
+        f = self.filtri_cancellazione
+        parti = []
+        if f.get("ricerca_rapida", "").strip():
+            parti.append(f"Ricerca '{f['ricerca_rapida'].strip()}'")
+        for k, etich in (("partecipante", "Partecipante "), ("categoria", "Categoria "), ("tipo", ""),
+                         ("anno", "Anno "), ("mese", ""), ("conto", "Conto "), ("metodo", "Metodo ")):
+            v = f.get(k)
+            if v and v != "—":
+                parti.append(f"{etich}{v}")
+        if f.get("hashtag"):
+            parti.append("#" + f["hashtag"].lstrip("#"))
+        if f.get("descrizione"):
+            parti.append(f"«{f['descrizione']}»")
+        if f.get("da") or f.get("a"):
+            parti.append(f"Importo {f.get('da') or '…'} → {f.get('a') or '…'}")
+        if f.get("data_da") or f.get("data_a"):
+            parti.append(f"{f.get('data_da') or '…'} → {f.get('data_a') or '…'}")
+        lbl_freccia.config(text="▾" if stato_f["aperta"] else "▸")
+        lbl_filtri_attivi.config(
+            text="Filtri avanzati  (" + (("filtri attivi: " + ", ".join(parti)) if parti else "nessun filtro attivo") + ")",
+            fg="dodgerblue" if parti else self.TEXT_COLOR)
     def seleziona_tutto_azione():
         all_children = self.spese_treeview.get_children()
         self.selezionate_iid.clear()
@@ -475,7 +326,7 @@ def apri_cancella_spese_treeview_unica(self):
     self._cancella_spese_popup = popup
     popup.transient(self)
     popup.title("Cancella Movimenti Multipli")
-    larg, alt = 1300, 600
+    larg, alt = 1366, 660
     x = self.winfo_x() + (self.winfo_width() // 2) - (larg // 2)
     y = self.winfo_y() + (self.winfo_height() // 2) - (alt // 2)
     popup.geometry(f"{larg}x{alt}+{x}+{y}")
@@ -508,40 +359,18 @@ def apri_cancella_spese_treeview_unica(self):
     ricerca_var.trace_add("write", _aggiorna_ricerca_rapida)
     mostra_futuro_var = tk.BooleanVar(value=self.filtri_cancellazione.get("mostra_futuro", True))
     ttk.Checkbutton(top_controls_frame, text="Includi Futuri", variable=mostra_futuro_var).pack(side="left", padx=(0, 8))
-    tk.Label(top_controls_frame, text="Dal:", bg=self.COLOR_TOPLEVEL,
-             fg=self.TEXT_COLOR, font=("Arial", 9)).pack(side="left", padx=(4, 2))
-    data_da_var = tk.StringVar(value=self.filtri_cancellazione.get("data_da", ""))
-    data_da_entry = ttk.Entry(top_controls_frame, textvariable=data_da_var, width=11)
-    data_da_entry.pack(side="left")
-    btn_cal_da_cf = ttk.Label(top_controls_frame, text="📅", cursor="hand2",
-                              background=self.COLOR_WIDGET_BG, padding=(3, 2))
-    btn_cal_da_cf.pack(side="left", padx=(2, 8))
-    btn_cal_da_cf.bind("<Button-1>", lambda e: self.mostra_calendario_popup_semplice(data_da_entry, data_da_var))
-    tk.Label(top_controls_frame, text="Al:", bg=self.COLOR_TOPLEVEL,
-             fg=self.TEXT_COLOR, font=("Arial", 9)).pack(side="left", padx=(0, 2))
-    data_a_var = tk.StringVar(value=self.filtri_cancellazione.get("data_a", ""))
-    data_a_entry = ttk.Entry(top_controls_frame, textvariable=data_a_var, width=11)
-    data_a_entry.pack(side="left")
-    btn_cal_a_cf = ttk.Label(top_controls_frame, text="📅", cursor="hand2",
-                             background=self.COLOR_WIDGET_BG, padding=(3, 2))
-    btn_cal_a_cf.pack(side="left", padx=(2, 8))
-    btn_cal_a_cf.bind("<Button-1>", lambda e: self.mostra_calendario_popup_semplice(data_a_entry, data_a_var))
-    def _aggiorna_filtro_date(*_a):
+    def _aggiorna_futuro(*_a):
         self.filtri_cancellazione["mostra_futuro"] = mostra_futuro_var.get()
-        self.filtri_cancellazione["data_da"] = data_da_var.get()
-        self.filtri_cancellazione["data_a"] = data_a_var.get()
         popola_treeview_spese()
-    mostra_futuro_var.trace_add("write", _aggiorna_filtro_date)
-    data_da_var.trace_add("write", _aggiorna_filtro_date)
-    data_a_var.trace_add("write", _aggiorna_filtro_date)
+    mostra_futuro_var.trace_add("write", _aggiorna_futuro)
     filter_control_frame = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
     filter_control_frame.pack(fill='x', padx=10, pady=5)
-    lbl_filtri_attivi = tk.Label(filter_control_frame, bg=self.COLOR_TOPLEVEL, text="", fg="gray")
+    lbl_freccia = tk.Label(filter_control_frame, bg=self.COLOR_TOPLEVEL, fg="#DC3545", cursor="hand2",
+                           font=("Arial", 11, "bold"), width=2)
+    lbl_freccia.pack(side="left")
+    lbl_filtri_attivi = tk.Label(filter_control_frame, bg=self.COLOR_TOPLEVEL, text="", fg=self.TEXT_COLOR,
+                                 cursor="hand2", font=("Arial", 9, "bold"), anchor="w")
     lbl_filtri_attivi.pack(side="left", fill='x', expand=True)
-    img_filtri_av = self.icone_gui.get("filtri")
-    btn_filtri_av = ttk.Label(filter_control_frame, compound="left", image=img_filtri_av, text=" Filtri Avanzati" if img_filtri_av else "Filtri Avanzati", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
-    btn_filtri_av.pack(side="right")
-    btn_filtri_av.bind("<Button-1>", lambda e: apri_filtri_avanzati())
     img_reset_veloce = self.icone_gui.get("reset")
     btn_reset_veloce = ttk.Label(
             filter_control_frame, 
@@ -556,22 +385,23 @@ def apri_cancella_spese_treeview_unica(self):
     btn_reset_veloce.pack(side="right", padx=(10, 0))
     def esegui_reset_totale(e):
             self.filtri_cancellazione = {
-                    "partecipante": "—",
+                    "partecipante": "",
                     "descrizione": "",
-                    "categoria": "—",
-                    "tipo": "—",
-                    "anno": "—",
-                    "mese": "—",
+                    "categoria": "",
+                    "tipo": "",
+                    "anno": "",
+                    "mese": "",
                     "da": "",
                     "a": "",
-                    "conto": "—",
-                    "metodo": "—",
+                    "conto": "",
+                    "metodo": "",
                     "hashtag": "",
                     "mostra_futuro": True,
                     "data_da": "",
                     "data_a": "",
                     "ricerca_rapida": ""
             }
+            _reset_pannello()
             mostra_futuro_var.set(True)
             data_da_var.set("")
             data_a_var.set("")
@@ -580,7 +410,157 @@ def apri_cancella_spese_treeview_unica(self):
             aggiorna_stato_filtri()
             popola_treeview_spese()
     btn_reset_veloce.bind("<Button-1>", esegui_reset_totale)
-    tree_frame = tk.Frame(popup)
+    bg_f = self.COLOR_TOPLEVEL
+    _profilo_ac = getattr(_app, "PROFILO_ATTIVO", "Principale")
+    _gestore_ac = _profilo_ac if _profilo_ac != "Principale" else os.path.basename(os.getcwd())
+    _nomi_reg_ac = [(p.get("nome", "") if isinstance(p, dict) else p) for p in self.nomi_partecipanti]
+    _partec_f = [""]
+    if self._gestore_partecipa() and _gestore_ac not in _nomi_reg_ac:
+        _partec_f.append(f"PER· {_gestore_ac}")
+    _partec_f += [
+        f"CNT· {p['nome']}" if p.get("tipo") == "contenitore" else
+        f"CTP· {p['nome']}" if p.get("tipo") == "personale" else
+        f"PER· {p['nome']}"
+        for p in sorted(self.nomi_partecipanti, key=lambda p: (p.get("nome", "") if isinstance(p, dict) else p).lower())
+    ]
+    try:
+        with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as _fp:
+            _conti_f = [""] + [c.get("nome", "") for c in json.load(_fp).get("conti", [])]
+    except Exception:
+        _conti_f = [""]
+    _anni_f = set()
+    for _g in self.spese.keys():
+        try:
+            _dd = _g if isinstance(_g, datetime.date) else datetime.datetime.strptime(str(_g), "%Y-%m-%d").date()
+            _anni_f.add(str(_dd.year))
+        except Exception:
+            continue
+    _anni_f = [""] + sorted(_anni_f, reverse=True)
+    var_f_desc = tk.StringVar(value="")
+    var_f_partec = tk.StringVar(value="")
+    var_f_cat = tk.StringVar(value="")
+    var_f_tipo = tk.StringVar(value="")
+    var_f_anno = tk.StringVar(value="")
+    var_f_mese = tk.StringVar(value="")
+    var_f_da = tk.StringVar(value="")
+    var_f_a = tk.StringVar(value="")
+    var_f_conto = tk.StringVar(value="")
+    var_f_metodo = tk.StringVar(value="")
+    var_f_hashtag = tk.StringVar(value="")
+    data_da_var = tk.StringVar(value="")
+    data_a_var = tk.StringVar(value="")
+    _vars_pannello = (var_f_desc, var_f_partec, var_f_cat, var_f_tipo, var_f_anno, var_f_mese,
+                      var_f_da, var_f_a, var_f_conto, var_f_metodo, var_f_hashtag,
+                      data_da_var, data_a_var)
+    body_f = tk.Frame(popup, bg=bg_f)
+    def _riga_f():
+        r = tk.Frame(body_f, bg=bg_f)
+        r.pack(fill="x", pady=2, padx=10)
+        return r
+    def _etichetta_f(r, testo, pad=(10, 4)):
+        tk.Label(r, text=testo, bg=bg_f, fg=self.TEXT_COLOR).pack(side="left", padx=pad)
+    def _combo_f(r, var, valori, w):
+        ttk.Combobox(r, values=valori, textvariable=var, style="Border.TCombobox",
+                     state="readonly", width=w).pack(side="left")
+    def _entry_f(r, var, w):
+        ttk.Entry(r, textvariable=var, width=w).pack(side="left")
+    r1_f, r2_f = _riga_f(), _riga_f()
+    _etichetta_f(r1_f, "Tipo:", (4, 4))
+    _combo_f(r1_f, var_f_tipo, ["", "Entrata", "Uscita"], 9)
+    _etichetta_f(r1_f, "Categoria:")
+    _combo_f(r1_f, var_f_cat, [""] + sorted(self.categorie_tipi.keys()), 18)
+    _etichetta_f(r1_f, "Anno:")
+    _combo_f(r1_f, var_f_anno, _anni_f, 7)
+    _etichetta_f(r1_f, "Mese:")
+    _combo_f(r1_f, var_f_mese, [""] + NOMI_MESI_ITALIANO, 11)
+    _etichetta_f(r1_f, "Partecipanti:")
+    _combo_f(r1_f, var_f_partec, _partec_f, 18)
+    _etichetta_f(r1_f, "Conto:")
+    _combo_f(r1_f, var_f_conto, _conti_f, 14)
+    _etichetta_f(r1_f, "Metodo Pag.:")
+    _combo_f(r1_f, var_f_metodo, [""] + METODI_PAGAMENTO, 18)
+    _etichetta_f(r2_f, "Testo Globale:", (4, 4))
+    _entry_f(r2_f, var_f_desc, 24)
+    _etichetta_f(r2_f, "Hashtag:")
+    _entry_f(r2_f, var_f_hashtag, 14)
+    _etichetta_f(r2_f, "Importo da (€):")
+    _entry_f(r2_f, var_f_da, 9)
+    _etichetta_f(r2_f, "a:", (6, 4))
+    _entry_f(r2_f, var_f_a, 9)
+    img_cal_f = self.icone_gui.get("calendario")
+    def _cal_btn_f(entry, var):
+        b = tk.Label(r2_f, image=img_cal_f, bg=bg_f, cursor="hand2", padx=2,
+                     text="" if img_cal_f else "📅", fg=self.TEXT_COLOR)
+        b.image = img_cal_f
+        b.pack(side="left", padx=(2, 0))
+        b.bind("<Button-1>", lambda e: self.mostra_calendario_popup_semplice(entry, var))
+    _etichetta_f(r2_f, "Dal:")
+    data_da_entry = ttk.Entry(r2_f, textvariable=data_da_var, width=11)
+    data_da_entry.pack(side="left")
+    _cal_btn_f(data_da_entry, data_da_var)
+    _etichetta_f(r2_f, "Al:", (8, 4))
+    data_a_entry = ttk.Entry(r2_f, textvariable=data_a_var, width=11)
+    data_a_entry.pack(side="left")
+    _cal_btn_f(data_a_entry, data_a_var)
+    tk.Label(r2_f, text="(GG-MM-AAAA)", bg=bg_f, fg="gray", font=("Arial", 8, "italic")).pack(side="left", padx=(4, 0))
+    def _partec_pulito(v):
+        v = (v or "").strip()
+        for _ico in ("CNT· ", "PER· ", "CTP· ", "CNT·", "PER·", "CTP·"):
+            if v.startswith(_ico):
+                return v[len(_ico):].strip()
+        return v
+    def _applica_pannello(*_):
+        if stato_f["sosp"]:
+            return
+        self.filtri_cancellazione.update({
+            "descrizione": var_f_desc.get(),
+            "partecipante": _partec_pulito(var_f_partec.get()),
+            "categoria": var_f_cat.get(),
+            "tipo": var_f_tipo.get(),
+            "anno": var_f_anno.get(),
+            "mese": var_f_mese.get(),
+            "da": var_f_da.get(),
+            "a": var_f_a.get(),
+            "conto": var_f_conto.get(),
+            "metodo": var_f_metodo.get(),
+            "hashtag": var_f_hashtag.get(),
+            "data_da": data_da_var.get(),
+            "data_a": data_a_var.get(),
+        })
+        for _e, _v in ((data_da_entry, data_da_var), (data_a_entry, data_a_var)):
+            _txt = _v.get().strip()
+            _ko = False
+            if _txt:
+                try:
+                    datetime.datetime.strptime(_txt, "%d-%m-%Y")
+                except ValueError:
+                    _ko = True
+            try:
+                _e.configure(foreground="#DC3545" if _ko else self.TEXT_COLOR)
+            except tk.TclError:
+                pass
+        self.selezionate_iid.clear()
+        aggiorna_stato_filtri()
+        popola_treeview_spese()
+    def _reset_pannello():
+        stato_f["sosp"] = True
+        try:
+            for v in _vars_pannello:
+                v.set("")
+        finally:
+            stato_f["sosp"] = False
+    for _v in _vars_pannello:
+        _v.trace_add("write", _applica_pannello)
+    def _apri_chiudi_f(*_):
+        stato_f["aperta"] = not stato_f["aperta"]
+        if stato_f["aperta"]:
+            body_f.pack(fill="x", before=tree_frame)
+        else:
+            body_f.pack_forget()
+        aggiorna_stato_filtri()
+    for _w in (lbl_freccia, lbl_filtri_attivi):
+        _w.bind("<Button-1>", _apri_chiudi_f)
+    tree_frame = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
     tree_frame.pack(fill='both', expand=True, padx=10, pady=5) 
     scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", style="Vertical.TScrollbar")
     scrollbar.pack(side="right", fill="y")
@@ -622,7 +602,7 @@ def apri_cancella_spese_treeview_unica(self):
     self.spese_treeview.column("Metodo", width=100, anchor="center", stretch=False)
     self.spese_treeview.column("Ora", width=50, anchor="center", stretch=False)
     self.spese_treeview.column("Hashtag", width=120, anchor="center", stretch=False)
-    self.spese_treeview.tag_configure('selezionata', background='#FFEBCC') 
+    self.spese_treeview.tag_configure('selezionata') 
     self.spese_treeview.tag_configure('entrata', foreground='green')
     self.spese_treeview.tag_configure('uscita', foreground='red') 
     self.spese_treeview.tag_configure('futuro', foreground='#E5C07B', font=('Arial', 9, 'italic'))

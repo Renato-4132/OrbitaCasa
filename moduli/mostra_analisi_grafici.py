@@ -39,7 +39,7 @@ def mostra_analisi_grafici(self):
     _agganci_analisi = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
 
     def _risolvi_conto_voce(voce, data, agganci, contatori_ordinale):
-        nome_conto_voce = campo(voce, "conto", "").strip()
+        nome_conto_voce = self._conto_effettivo(voce).strip()
         if nome_conto_voce:
             return nome_conto_voce
         tipo_voce = campo(voce, "tipo", "").strip()
@@ -281,6 +281,9 @@ def mostra_analisi_grafici(self):
                 ("Quota", f"{percentuale:.1f}% del totale ({_eur(totale)})"),
                 ("Posizione", f"{i + 1}° di {len(dati)}"),
             ]
+            _cl_tt = self._classi_categorie().get(categoria, "")
+            if _cl_tt:
+                _righe_tt.append(("Classe", _cl_tt))
             _n_mov = getattr(canvas, "conteggi", {}).get(categoria)
             if _n_mov:
                 _righe_tt.append(("Movimenti", str(_n_mov)))
@@ -297,7 +300,7 @@ def mostra_analisi_grafici(self):
                 _righe_tt.append(("Conto", str(self.analisi_tab2_conto_filtro)))
             _tt_registra(canvas, rect, _righe_tt)
         lbl_totale = tk.Label(canvas, text=f"Totale uscite: € {_fmt_it(totale)}", font=("Arial", 10, "bold"), bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR, padx=5)
-        win_totale = canvas.create_window(10, altezza - 25, window=lbl_totale, anchor="w", tags="fissato")
+        canvas.create_window(10, altezza - 25, window=lbl_totale, anchor="w", tags="fissato")
         def fissa_elementi(event=None):
             x_visibile = canvas.canvasx(10)
             canvas.coords("fissato", x_visibile, altezza - 25)
@@ -367,9 +370,12 @@ def mostra_analisi_grafici(self):
             if _n_mov:
                 _righe_tt.append(("Movimenti", str(_n_mov)))
                 _righe_tt.append(("Media", _eur(valore / _n_mov)))
+            _cl_conto = getattr(canvas, "classi", {}).get(conto, {})
+            for _cl, _v_cl in sorted(_cl_conto.items(), key=lambda kv: -kv[1]):
+                _righe_tt.append((f"Classe {_cl}", f"{_eur(_v_cl)} ({_v_cl / valore * 100:.1f}%)" if valore else _eur(_v_cl)))
             _tt_registra(canvas, rect, _righe_tt)
         lbl_totale = tk.Label(canvas, text=f"Totale uscite: € {_fmt_it(totale)}", font=("Arial", 10, "bold"), bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR, padx=5)
-        win_totale = canvas.create_window(10, altezza - 25, window=lbl_totale, anchor="w", tags="fissato")
+        canvas.create_window(10, altezza - 25, window=lbl_totale, anchor="w", tags="fissato")
         def fissa_elementi(event=None):
             x_visibile = canvas.canvasx(10)
             canvas.coords("fissato", x_visibile, altezza - 25)
@@ -614,6 +620,8 @@ def mostra_analisi_grafici(self):
         canvas4.anno_corrente = anno
         conti = defaultdict(float)
         conteggi_t4 = defaultdict(int)
+        classi_t4 = defaultdict(lambda: defaultdict(float))
+        _classi_cat_t4 = self._classi_categorie()
         _uso_ordinale_t4 = {}
         for data, voci in self.spese.items():
             if anno == "Tutti" or str(data.year) == anno:
@@ -624,6 +632,9 @@ def mostra_analisi_grafici(self):
                         nome_conto = _risolvi_conto_voce(voce, data, _agganci_analisi, _uso_ordinale_t4) or "(Nessun conto)"
                         conti[nome_conto] += float(campo(voce, "importo", 0.0))
                         conteggi_t4[nome_conto] += 1
+                        _cl_t4 = _classi_cat_t4.get(campo(voce, "categoria", ""), "")
+                        if _cl_t4:
+                            classi_t4[nome_conto][_cl_t4] += float(campo(voce, "importo", 0.0))
         tutti_conti = sorted(conti.items(), key=lambda x: x[1], reverse=True)
         if not hasattr(self, '_colori_conti'):
             self._colori_conti = {}
@@ -632,6 +643,7 @@ def mostra_analisi_grafici(self):
                 self._colori_conti[conto] = f'#{random.randint(50,200):02x}{random.randint(50,200):02x}{random.randint(50,200):02x}'
         colore = self._colori_conti
         canvas4.conteggi = dict(conteggi_t4)
+        canvas4.classi = {k: dict(v) for k, v in classi_t4.items()}
         canvas4.dati_cache = tutti_conti
         canvas4.colori_cache = colore
         ridisegna_tab4()
@@ -745,7 +757,6 @@ def mostra_analisi_grafici(self):
         else:
             notebook.add(frame, text=f" {testo} ")
     anni = sorted({d.year for d in self.spese.keys()}, reverse=True)
-    anno_corrente = str(datetime.date.today().year)
     tab1 = ttk.Frame(notebook)
     _add_tab(tab1, "grafico_linea", "Entrate/Uscite")
     frame_totali = ttk.Frame(tab1)

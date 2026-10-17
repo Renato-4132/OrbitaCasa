@@ -12,7 +12,6 @@ def documenti_pdf_web(self):
     from datetime import datetime as dt
     import os
     import __main__ as _app
-    DB_DIR = _app.DB_DIR
     DOC_DIR = _app.DOC_DIR
     REGISTRY_FILE = _app.REGISTRY_FILE
     oggi = datetime.date.today()
@@ -29,7 +28,7 @@ def documenti_pdf_web(self):
         try:
             with open(registry_file_path, "r", encoding="utf-8") as f:
                 dati_json = json.load(f)
-        except:
+        except Exception:
             dati_json = {}
     archivi_dati_strutturati = []
     categorie_set = set()
@@ -40,7 +39,7 @@ def documenti_pdf_web(self):
         try:
             data_raw = dettagli.get("data_raw")
             data_obj = dt.strptime(data_raw, "%d%m%Y").date() if data_raw else datetime.date.today()
-        except:
+        except Exception:
             data_obj = datetime.date.today()
         cat = dettagli.get('categoria_esatta', 'Generico')
         categorie_set.add(cat)
@@ -49,7 +48,7 @@ def documenti_pdf_web(self):
         segno_doc = "+" if tipo_doc == "Entrata" else "-"
         try:
             importo_val = float(importo_raw) / 100 if isinstance(importo_raw, (int, float)) else 0.0
-        except:
+        except Exception:
             importo_val = 0.0
         archivi_dati_strutturati.append({
             "nome_file": nome_file,
@@ -976,8 +975,6 @@ def documenti_personali_web(self):
 
 # Html Visualizza Utenze Web
 def genera_html_utenze(self, percorso_db, anno):
-    import __main__ as _app
-    UTENZE_DB = _app.UTENZE_DB
     from datetime import datetime
     utenze = ["Acqua", "Luce", "Gas"]
     if not os.path.exists(percorso_db):
@@ -1343,13 +1340,13 @@ def genera_html_consultazione(self, file_selezionato=None):
         directory_esportazione = EXPORT_FILES
         if not os.path.isdir(directory_esportazione):
             try: os.makedirs(directory_esportazione)
-            except: pass
+            except Exception: pass
             return []
         list_files = os.listdir(directory_esportazione)
         lista_spesa_files = [f for f in list_files if f.startswith("Lista_Spesa_") and f.endswith(".txt")]
         try:
             lista_spesa_files.sort(key=lambda f: os.path.getmtime(os.path.join(directory_esportazione, f)), reverse=True)
-        except: pass
+        except Exception: pass
         return lista_spesa_files
     def leggi_lista_spesa_internal(nome_file):
         file_path = os.path.join(EXPORT_FILES, nome_file)
@@ -1396,10 +1393,10 @@ def genera_html_consultazione(self, file_selezionato=None):
                     desc = art.get("descrizione","N/D")
                     cat  = art.get("categoria","Varie")
                     try: pn = f"{_fmt_it(float(art.get('prezzo','0')))}"
-                    except: pn = art.get("prezzo","N/D")
+                    except Exception: pn = art.get("prezzo","N/D")
                     promo_attiva = art.get("promo", False)
                     try: pp = float(art.get("prezzo_promo","0"))
-                    except: pp = 0
+                    except Exception: pp = 0
                     promo_cell = f"<span class='promo'>€ {_fmt_it(pp)}</span>" if promo_attiva and pp > 0 else "—"
                     rows += f"<tr><td>{nome}</td><td class='td-desc'>{desc}</td><td>{cat}</td><td class='td-price'>€ {pn}</td><td class='td-price'>{promo_cell}</td></tr>"
                 table = f"<table><thead><tr><th>Articolo</th><th>Descrizione</th><th>Categoria</th><th>Prezzo</th><th>Promo</th></tr></thead><tbody>{rows}</tbody></table>"

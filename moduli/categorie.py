@@ -10,13 +10,18 @@ from tkinter import ttk, filedialog
 import datetime
 
 import __main__ as _app
-from moduli.modello_spesa import SpesaEntry, campo
+from moduli.modello_spesa import campo
 from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa
 
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
     return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
 
+
+def _aggiorna_cat_ricorrenze(self, vecchio, nuovo):
+    for r in getattr(self, "ricorrenze", {}).values():
+        if isinstance(r, dict) and r.get("cat") == vecchio:
+            r["cat"] = nuovo
 
 def _salva_budget_annuo_categoria(self, nome):
     val = self.var_budget_annuo_cat.get().strip().replace(",", ".")
@@ -32,7 +37,6 @@ def _salva_budget_annuo_categoria(self, nome):
 
 
 def mostra_categorie_popup(self):
-    import datetime
     if hasattr(self, 'categorie_popup') and self.categorie_popup.winfo_exists():
         self.categorie_popup.deiconify()
         self.categorie_popup.lift()
@@ -46,8 +50,8 @@ def mostra_categorie_popup(self):
     self.categorie_popup.transient(self)
     self.categorie_popup.title("Gestione Categorie")
     self.categorie_popup.resizable(False, False)
-    window_width = 750
-    window_height = 200
+    window_width = 600
+    window_height = 300
     screen_width = self.winfo_screenwidth()
     screen_height = self.winfo_screenheight()
     center_x = int(screen_width / 2 - window_width / 2)
@@ -59,6 +63,10 @@ def mostra_categorie_popup(self):
     aggiungi_cat_frame = ttk.LabelFrame(main_frame, text="✓ Configurazione Categorie", style="RedBold.TLabelframe")
     aggiungi_cat_frame.pack(padx=5, pady=5, fill="both", expand=True)
     aggiungi_cat_frame.columnconfigure(1, weight=0)
+    if not hasattr(self, 'classe_categoria'):
+        self.classe_categoria = tk.StringVar(value="Nessuna")
+    if not hasattr(self, 'conto_risp_cat'):
+        self.conto_risp_cat = tk.StringVar(value="(nessuno)")
     if not hasattr(self, 'nuova_cat'):
         self.nuova_cat = tk.StringVar()
         self.cat_mod_sel = tk.StringVar(value=self.categorie[0] if self.categorie else "")
@@ -95,7 +103,7 @@ def mostra_categorie_popup(self):
         font=("Arial", 9, "bold")
     )
     self.lbl_tipo_cat.image = self.icone_gui.get("documenti")
-    self.lbl_tipo_cat.grid(row=0, column=2, sticky="e", padx=4, pady=2)
+    self.lbl_tipo_cat.grid(row=0, column=2, sticky="e", padx=(28, 4), pady=2)
     def toggle_tipo_spesa_popup_cat():
         tipo_corrente = self.tipo_categoria.get()
         nuovo_tipo = "Entrata" if tipo_corrente == "Uscita" else "Uscita"
@@ -112,6 +120,84 @@ def mostra_categorie_popup(self):
     self.btn_gestisci_tipo.grid(row=0, column=3, sticky="w", padx=2, pady=2)
     self.btn_gestisci_tipo.config(cursor="hand2")
     self._aggiorna_stile_pulsante_tipo_popup()
+    ttk.Label(aggiungi_cat_frame,
+              text=" Classe 50/30/20:",
+              background=self.COLOR_WIDGET_BG,
+              font=("Arial", 9, "bold")).grid(row=1, column=2, sticky="e", padx=(28, 4), pady=2)
+    self.cb_classe_cat = ttk.Combobox(
+        aggiungi_cat_frame,
+        textvariable=self.classe_categoria,
+        values=["Nessuna", "Bisogni", "Desideri", "Risparmio"],
+        style="Border.TCombobox",
+        state="readonly",
+        width=16
+    )
+    self.cb_classe_cat.grid(row=1, column=3, sticky="w", padx=2, pady=2)
+    ttk.Label(aggiungi_cat_frame,
+              text=" Conto:",
+              font=("Arial", 9, "bold")).grid(row=2, column=2, sticky="e", padx=(28, 4), pady=2)
+    _stl = ttk.Style()
+    try:
+        _base_cb = _stl.lookup("Border.TCombobox", "fieldbackground", ["readonly"]) or self.COLOR_WIDGET_BG
+        _fg_cb = _stl.lookup("Border.TCombobox", "foreground", ["readonly"]) or self.TEXT_COLOR
+        _btn_cb = _stl.lookup("Border.TCombobox", "background") or self.COLOR_WIDGET_BG
+        _arr_cb = _stl.lookup("Border.TCombobox", "arrowcolor", ["!disabled"]) or self.TEXT_COLOR
+    except tk.TclError:
+        _base_cb, _fg_cb = self.COLOR_WIDGET_BG, self.TEXT_COLOR
+        _btn_cb, _arr_cb = self.COLOR_WIDGET_BG, self.TEXT_COLOR
+    _stl.configure("ContoRisp.Border.TCombobox")
+    _stl.map("ContoRisp.Border.TCombobox",
+             fieldbackground=[("disabled", _base_cb), ("readonly", _base_cb), ("!disabled", _base_cb)],
+             foreground=[("disabled", _fg_cb), ("readonly", _fg_cb), ("!disabled", _fg_cb)],
+             background=[("disabled", _btn_cb), ("!disabled", _btn_cb)],
+             arrowcolor=[("disabled", _btn_cb), ("!disabled", _arr_cb)])
+    self.cb_conto_risp_cat = ttk.Combobox(
+        aggiungi_cat_frame,
+        textvariable=self.conto_risp_cat,
+        values=["(nessuno)"] + self._nomi_conti_portafoglio(
+            solo_risparmio=True, includi=self.conto_risp_cat.get()),
+        style="ContoRisp.Border.TCombobox",
+        state="readonly",
+        width=16
+    )
+    self.cb_conto_risp_cat.grid(row=2, column=3, sticky="w", padx=2, pady=2)
+    def _aggiorna_stato_conto_risp(*_):
+        try:
+            if self.classe_categoria.get() == "Risparmio":
+                self.cb_conto_risp_cat.config(state="readonly")
+            else:
+                self.conto_risp_cat.set("(nessuno)")
+                self.cb_conto_risp_cat.config(state="disabled")
+        except tk.TclError:
+            pass
+    self.classe_categoria.trace_add("write", _aggiorna_stato_conto_risp)
+    _aggiorna_stato_conto_risp()
+    def _tt_cat(widget, testo):
+        import textwrap
+        testo_w = textwrap.fill(testo, width=48)
+        stato = {"job": None}
+        def _chiudi(e=None):
+            if stato["job"]:
+                try:
+                    widget.after_cancel(stato["job"])
+                except tk.TclError:
+                    pass
+                stato["job"] = None
+            self.hide_tooltip()
+        def _entra(e):
+            _chiudi()
+            stato["job"] = widget.after(500, lambda ev=e: (stato.update(job=None), self.show_tooltip(ev, testo_w)))
+        widget.bind("<Enter>", _entra, add="+")
+        widget.bind("<Leave>", _chiudi, add="+")
+        widget.bind("<Button-1>", _chiudi, add="+")
+        widget.bind("<Destroy>", _chiudi, add="+")
+    _tt_cat(self.cb_classe_cat,
+            "Classe 50/30/20 della categoria: Bisogni (max 50%), Desideri (max 30%), "
+            "Risparmio (min 20%). Decide in quale gruppo contano le uscite di questa categoria nel Metodo 50/30/20.")
+    _tt_cat(self.cb_conto_risp_cat,
+            "Attivo solo con classe Risparmio. Ogni uscita in questa categoria, registrata con un conto "
+            "(es. Luca), diventa un trasferimento da quel conto al conto risparmio scelto qui. "
+            "Premi Aggiungi o Modifica per salvare.")
     ttk.Label(aggiungi_cat_frame,
      image=self.icone_gui.get("filtri"),
      text=" Modifica:",
@@ -132,7 +218,7 @@ def mostra_categorie_popup(self):
     ))
     ttk.Label(aggiungi_cat_frame,
               text=" Budget €/mese:",
-              font=("Arial", 9, "bold")).grid(row=1, column=2, sticky="w", padx=4, pady=2)
+              font=("Arial", 9, "bold")).grid(row=2, column=0, sticky="e", padx=4, pady=2)
     def convalida_budget(valore):
         if valore == "" or valore == ".":
             return True
@@ -159,11 +245,11 @@ def mostra_categorie_popup(self):
         self.var_budget_cat.set(f"{float(self.var_budget_cat.get().strip().replace(',', '.')):.2f}".replace(".", ","))
         if self.var_budget_cat.get().strip() else None
     ])
-    self.entry_budget_cat.grid(row=1, column=3, sticky="w", padx=2, pady=2)
+    self.entry_budget_cat.grid(row=2, column=1, sticky="w", padx=2, pady=2)
 
     ttk.Label(aggiungi_cat_frame,
               text=" Budget €/anno:",
-              font=("Arial", 9, "bold")).grid(row=1, column=4, sticky="e", padx=4, pady=2)
+              font=("Arial", 9, "bold")).grid(row=3, column=0, sticky="e", padx=4, pady=2)
     self.entry_budget_annuo_cat = ttk.Entry(
         aggiungi_cat_frame,
         textvariable=self.var_budget_annuo_cat,
@@ -175,59 +261,61 @@ def mostra_categorie_popup(self):
         self.var_budget_annuo_cat.set(f"{float(self.var_budget_annuo_cat.get().strip().replace(',', '.')):.2f}".replace(".", ","))
         if self.var_budget_annuo_cat.get().strip() else None
     ])
-    self.entry_budget_annuo_cat.grid(row=1, column=5, sticky="w", padx=2, pady=2)
+    self.entry_budget_annuo_cat.grid(row=3, column=1, sticky="w", padx=2, pady=2)
 
+    def _crea_btn_cat(parent, attr, icona, testo, comando):
+        btn = ttk.Label(
+            parent, image=self.icone_gui.get(icona),
+            text=testo, compound="left", cursor="hand2",
+            background=self.COLOR_WIDGET_BG, font=("Arial", 9, "bold")
+        )
+        btn.image = self.icone_gui.get(icona)
+        btn.pack(side="left", padx=6)
+        btn.bind("<Button-1>", lambda e: comando())
+        setattr(self, attr, btn)
+        return btn
     btn_frame_cat = ttk.Frame(aggiungi_cat_frame)
-    btn_frame_cat.grid(row=2, column=0, columnspan=6, pady=(25, 10), sticky="")
-    self.btn_add_cat = ttk.Label(
-        btn_frame_cat, image=self.icone_gui.get("check"),
-        text=" Aggiungi", compound="left", cursor="hand2", background=self.COLOR_WIDGET_BG, font=("Arial", 9, "bold")
+    btn_frame_cat.grid(row=4, column=0, columnspan=4, pady=(18, 4), sticky="")
+    _crea_btn_cat(btn_frame_cat, "btn_add_cat", "check", " Aggiungi", lambda: self.add_categoria())
+    _crea_btn_cat(btn_frame_cat, "btn_modifica_cat", "descrizione", " Salva", lambda: self.modifica_categoria())
+    _crea_btn_cat(btn_frame_cat, "btn_cancella_cat", "delete", " Cancella", lambda: self.cancella_categoria())
+    _crea_btn_cat(btn_frame_cat, "btn_reset_cat", "reset", " Reset", lambda: self.reset_campi_categoria())
+    fr_strumenti = ttk.Frame(aggiungi_cat_frame)
+    fr_strumenti.grid(row=6, column=0, columnspan=4, pady=(4, 8), sticky="")
+    _crea_btn_cat(fr_strumenti, "btn_cat_avanzate", "documenti", " Editor", lambda: apri_gestione_categorie(self))
+    _crea_btn_cat(fr_strumenti, "btn_analisi_cat", "timer", " Analisi",
+                  lambda: self.analisi_categorie(self.cat_mod_sel.get() or None))
+    fr_strumenti.grid_remove()
+    fr_toggle = ttk.Frame(aggiungi_cat_frame)
+    fr_toggle.grid(row=5, column=0, columnspan=4, pady=(2, 0), sticky="")
+    stato_strumenti = {"aperto": False}
+    def _ridimensiona_popup():
+        self.categorie_popup.update_idletasks()
+        w = max(self.categorie_popup.winfo_width(), self.categorie_popup.winfo_reqwidth())
+        h = self.categorie_popup.winfo_reqheight()
+        self.categorie_popup.geometry(f"{w}x{h}")
+    def _toggle_strumenti(event=None):
+        stato_strumenti["aperto"] = not stato_strumenti["aperto"]
+        if stato_strumenti["aperto"]:
+            fr_strumenti.grid()
+        else:
+            fr_strumenti.grid_remove()
+        lbl_freccia_str.config(text="▼" if stato_strumenti["aperto"] else "▶")
+        _ridimensiona_popup()
+    lbl_freccia_str = tk.Label(
+        fr_toggle, text="▶", font=("Arial", 9, "bold"),
+        bg=self.COLOR_WIDGET_BG, fg="red", cursor="hand2"
     )
-    self.btn_add_cat.image = self.icone_gui.get("check")
-    self.btn_add_cat.pack(side="left", padx=2)
-    self.btn_add_cat.bind("<Button-1>", lambda e: self.add_categoria())
-    self.btn_modifica_cat = ttk.Label(
-        btn_frame_cat, image=self.icone_gui.get("descrizione"),
-        text=" Modifica", compound="left", cursor="hand2", background=self.COLOR_WIDGET_BG, font=("Arial", 9, "bold")
+    lbl_freccia_str.pack(side="left")
+    lbl_testo_str = ttk.Label(
+        fr_toggle, text=" Strumenti", cursor="hand2",
+        background=self.COLOR_WIDGET_BG, font=("Arial", 9, "bold")
     )
-    self.btn_modifica_cat.image = self.icone_gui.get("descrizione")
-    self.btn_modifica_cat.pack(side="left", padx=2)
-    self.btn_modifica_cat.bind("<Button-1>", lambda e: self.modifica_categoria())
-    self.btn_cancella_cat = ttk.Label(
-        btn_frame_cat, image=self.icone_gui.get("delete"),
-        text=" Cancella", compound="left", cursor="hand2", background=self.COLOR_WIDGET_BG, font=("Arial", 9, "bold")
-    )
-    self.btn_cancella_cat.image = self.icone_gui.get("delete")
-    self.btn_cancella_cat.pack(side="left", padx=2)
-    self.btn_cancella_cat.bind("<Button-1>", lambda e: self.cancella_categoria())
-    self.btn_suggerite = ttk.Label(
-        btn_frame_cat, image=self.icone_gui.get("help"), 
-        cursor="hand2", background=self.COLOR_WIDGET_BG
-    )
-    self.btn_suggerite.image = self.icone_gui.get("help")
-    self.btn_suggerite.pack(side="left", padx=2)
-    self.btn_suggerite.bind("<Button-1>", lambda e: self.apri_categorie_suggerite())
-    self.btn_multi_del = ttk.Label(
-        btn_frame_cat, image=self.icone_gui.get("documenti"),
-        cursor="hand2", background=self.COLOR_WIDGET_BG
-    )
-    self.btn_multi_del.image = self.icone_gui.get("documenti")
-    self.btn_multi_del.pack(side="left", padx=2)
-    self.btn_multi_del.bind("<Button-1>", lambda e: self.apri_cancella_multiplo())
-    self.btn_elenco_cat = ttk.Label(
-        btn_frame_cat, image=self.icone_gui.get("report"),
-        text=" Elenco", compound="left", cursor="hand2", background=self.COLOR_WIDGET_BG, font=("Arial", 9, "bold")
-    )
-    self.btn_elenco_cat.image = self.icone_gui.get("report")
-    self.btn_elenco_cat.pack(side="left", padx=2)
-    self.btn_elenco_cat.bind("<Button-1>", lambda e: self.mostra_tutte_le_categorie())
-    self.btn_reset_cat = ttk.Label(
-        btn_frame_cat, image=self.icone_gui.get("reset"),
-        cursor="hand2", background=self.COLOR_WIDGET_BG
-    )
-    self.btn_reset_cat.image = self.icone_gui.get("reset")
-    self.btn_reset_cat.pack(side="left", padx=2)
-    self.btn_reset_cat.bind("<Button-1>", lambda e: self.reset_campi_categoria())
+    lbl_testo_str.pack(side="left")
+    for _w_str in (lbl_freccia_str, lbl_testo_str):
+        _w_str.bind("<Button-1>", _toggle_strumenti)
+        _tt_cat(_w_str, "Clic: mostra o nascondi gli strumenti delle categorie "
+                        "(editor categorie: elenco, dettagli, cancellazione multipla, suggerite; analisi).")
     self.btn_chiudi_popup_cat = ttk.Label(
         main_frame, image=self.icone_gui.get("chiudi"),
         text=" Chiudi", compound="left", cursor="hand2", background=self.COLOR_WIDGET_BG, font=("Arial", 9, "bold")
@@ -235,19 +323,56 @@ def mostra_categorie_popup(self):
     self.btn_chiudi_popup_cat.image = self.icone_gui.get("chiudi")
     self.btn_chiudi_popup_cat.pack(side="bottom", pady=(0, 10))
     self.btn_chiudi_popup_cat.bind("<Button-1>", lambda e: self.categorie_popup.withdraw())
+    for _w in aggiungi_cat_frame.winfo_children():
+        if _w.grid_info().get("row") in (0, 1, 2, 3):
+            _w.grid_configure(pady=5)
     self.aggiorna_combobox_categorie()
     self.reset_campi_categoria()
     if not self.categorie:
         self.cat_mod_menu['state'] = 'disabled'
+    self.categorie_popup.update_idletasks()
+    window_width = max(560, self.categorie_popup.winfo_reqwidth())
+    window_height = self.categorie_popup.winfo_reqheight()
+    center_x = int(screen_width / 2 - window_width / 2)
+    center_y = int(screen_height / 2 - window_height / 2)
+    self.categorie_popup.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
     self.categorie_popup.deiconify()
 
 def _aggiorna_stile_pulsante_tipo_popup(self):
     tipo = self.tipo_categoria.get()
     btn_style = 'GreenOutline.TButton' if tipo == "Entrata" else 'RedOutline.TButton'
-    self.btn_gestisci_tipo.config(
-        text=tipo,
-        style=btn_style
-    )
+    for nome_b in ("btn_gestisci_tipo", "ed_btn_tipo"):
+        b = getattr(self, nome_b, None)
+        if b is not None:
+            try:
+                b.config(text=tipo, style=btn_style)
+            except tk.TclError:
+                pass
+
+def _classi_categorie(self):
+    if not hasattr(self, "categorie_classi"):
+        self.categorie_classi = dict(getattr(self, "db", {}).get("categorie_classi", {}))
+    return self.categorie_classi
+
+def _etichetta_classe_conto(self, entry):
+    classe = self._classi_categorie().get(campo(entry, "categoria", ""), "")
+    conto = self._conto_effettivo(entry)
+    return " · ".join(p for p in (classe, conto) if p)
+
+def _suffisso_conto_risp(self, nome):
+    if self._classi_categorie().get(nome) != "Risparmio":
+        return ""
+    n = self._nome_conto_risparmio_cat(nome)
+    return f" Conto risparmio: {n}." if n and n != "(nessuno)" else ""
+
+def _salva_classe_categoria(self, nome):
+    classi = self._classi_categorie()
+    classe = self.classe_categoria.get()
+    if classe in ("Bisogni", "Desideri", "Risparmio"):
+        classi[nome] = classe
+    else:
+        classi.pop(nome, None)
+    self._salva_conto_risparmio_categoria(nome)
 
 def on_categoria_modifica_changed_popup(self):
     nome = self.cat_mod_sel.get()
@@ -255,6 +380,15 @@ def on_categoria_modifica_changed_popup(self):
     self.nuova_cat.set(nome)
     self.tipo_categoria.set(tipo)
     self._aggiorna_stile_pulsante_tipo_popup()
+    self.classe_categoria.set(self._classi_categorie().get(nome, "Nessuna"))
+    _cb_conto = getattr(self, 'cb_conto_risp_cat', None)
+    try:
+        if _cb_conto is not None and _cb_conto.winfo_exists():
+            _cb_conto['values'] = ["(nessuno)"] + self._nomi_conti_portafoglio(
+                solo_risparmio=True, includi=self._nome_conto_risparmio_cat(nome))
+    except tk.TclError:
+        pass
+    self.conto_risp_cat.set(self._nome_conto_risparmio_cat(nome))
     budget = self.budget_categorie.get(self.cat_mod_sel.get(), 0)
     self.var_budget_cat.set(f"{budget:.2f}".replace(".", ",") if budget > 0 else "")
     budget_annuo = self.budget_annuale_categorie.get(self.cat_mod_sel.get(), 0)
@@ -267,14 +401,26 @@ def on_categoria_modifica_changed(self):
     self.tipo_categoria.set(tipo)
 
 def reset_campi_categoria(self):
+    try:
+        f_prima = self.focus_get()
+    except Exception:
+        f_prima = None
     self.nuova_cat.set("")                          
     self.cat_mod_sel.set("")                        
     self.tipo_categoria.set("Uscita")    
     self._aggiorna_stile_pulsante_tipo_popup()
+    if hasattr(self, 'classe_categoria'):
+        self.classe_categoria.set("Nessuna")
+    if hasattr(self, 'conto_risp_cat'):
+        self.conto_risp_cat.set("(nessuno)")
     self.var_budget_cat.set("")
     self.var_budget_annuo_cat.set("")
+    _aggiorna_albero_cat_avanz(self)
     if hasattr(self, 'entry_nuova_cat') and self.entry_nuova_cat.winfo_exists():
         self.entry_nuova_cat.focus_set()           
+    ed = getattr(self, 'ed_entry_nome', None)
+    if ed is not None and ed.winfo_exists() and f_prima is not None and str(f_prima).startswith(str(self.cat_av_popup)):
+        ed.focus_set()
 
 def aggiorna_categoria_automatica(self, event=None):
     if event is not None and getattr(event, "keysym", "") == "Tab":
@@ -321,7 +467,7 @@ def aggiorna_categoria_automatica(self, event=None):
                     continue
                 chiave = (cat, round(float(imp), 2))
                 mappa_ricorrenti[chiave] = mappa_ricorrenti.get(chiave, 0) + 1
-            except:
+            except Exception:
                 continue
     if not mappa_ricorrenti:
         return
@@ -364,7 +510,7 @@ def aggiorna_combobox_categorie(self):
                 self.cat_menu.current(self.categorie.index("Generica"))
             elif self.categorie:
                 self.cat_menu.current(0)
-        except: pass
+        except Exception: pass
     if hasattr(self, 'cat_mod_menu') and self.cat_mod_menu.winfo_exists():
         self.cat_mod_menu["values"] = self.categorie
         try:
@@ -373,7 +519,8 @@ def aggiorna_combobox_categorie(self):
                 self.cat_mod_menu.current(idx)
             elif self.categorie:
                 self.cat_mod_menu.current(0)
-        except: pass
+        except Exception: pass
+    _aggiorna_albero_cat_avanz(self)
 
 # Sincronizzazione Tipo Voce (Entrata/Uscita) e Aggiornamento Stile UI
 def on_categoria_changed(self, event=None, manuale=True):
@@ -398,66 +545,8 @@ def on_categoria_changed(self, event=None, manuale=True):
     self.label_smartcat.config(text="💡 SmartCat Off", foreground="green")
     self.aggiorna_bottone_spese_simili(visibile=False)
 
-# Popup Mostra Categorie Attive
 def mostra_tutte_le_categorie(self):
-    popup = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
-    popup.withdraw()
-    popup.title("📋 Elenco Categorie")
-    popup.resizable(False, False)
-    popup_width = 320
-    popup_height = 420
-    screen_width = self.winfo_screenwidth()
-    screen_height = self.winfo_screenheight()
-    center_x = int((screen_width / 2) - (popup_width / 2))
-    center_y = int((screen_height / 2) - (popup_height / 2))
-    popup.geometry(f"{popup_width}x{popup_height}+{center_x}+{center_y}")
-    popup.resizable(True, True)
-    popup.minsize(popup_width, popup_height)
-    popup.transient(self)
-    popup.bind("<Escape>", lambda e: popup.destroy())
-    frame = ttk.Frame(popup, padding=10)
-    frame.pack(fill="both", expand=True)
-    label = ttk.Label(frame, text="Categorie disponibili:", font=("Arial", 11, "bold"))
-    label.pack(pady=(0, 10))
-    text_frame = ttk.Frame(frame)
-    text_frame.pack(fill="both", expand=True)
-    vsb = ttk.Scrollbar(text_frame, orient="vertical", style="Vertical.TScrollbar")
-    vsb.pack(side="right", fill="y")
-    text = tk.Text( 
-        text_frame, 
-        font=("Arial", 10), 
-        height=18, 
-        wrap="none", 
-        state="normal",
-        bg=self.COLOR_TOPLEVEL,
-        fg=self.TEXT_COLOR,
-        insertbackground=self.TEXT_COLOR,
-        highlightthickness=0,
-        yscrollcommand=vsb.set
-    )
-    text.pack(side="left", fill="both", expand=True)
-    vsb.config(command=text.yview)
-    text.tag_configure("entrata", foreground="green")
-    text.tag_configure("uscita", foreground="red")
-    for nome in sorted(self.categorie, key=lambda x: x.lower()):
-        tipo = self.categorie_tipi.get(nome, "Uscita")
-        riga = f"• {nome}  ("
-        text.insert("end", riga)
-        if tipo == "Entrata":
-            text.insert("end", tipo, "entrata")
-        else:
-            text.insert("end", tipo, "uscita")
-        text.insert("end", ")\n")
-    text.config(state="disabled") 
-    btn_frame = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
-    btn_frame.pack(pady=10)
-    img_chiudi_pop = self.icone_gui.get("chiudi")
-    btn_chiudi_pop = tk.Label(btn_frame, compound="left", image=img_chiudi_pop, text=" Chiudi" if img_chiudi_pop else "❌ Chiudi", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padx=15, pady=8, font=("Arial", 9, "bold"))
-    btn_chiudi_pop.pack(pady=10)
-    btn_chiudi_pop.bind("<Button-1>", lambda e: popup.destroy())
-    popup.deiconify()
-    popup.lift()
-    popup.focus_force()
+    apri_gestione_categorie(self, tab="elenco")
 
 # Gestione Completa delle Categorie (Aggiunta, Modifica, Eliminazione e Controllo Spese)
 def add_categoria(self):
@@ -470,6 +559,7 @@ def add_categoria(self):
         
     self.categorie.append(nome)
     self.categorie_tipi[nome] = tipo
+    self._salva_classe_categoria(nome)
     self.aggiorna_combobox_categorie()
     try:
         budget_val = float(self.var_budget_cat.get().strip().replace(",", "."))
@@ -492,11 +582,11 @@ def add_categoria(self):
         if hasattr(self, 'ric_cat_menu'):
                 self.ric_cat_menu['values'] = sorted(self.categorie)
 
-    self.show_toast(
+    self.show_toast((
         f"Categoria '{nome}' ({tipo}) aggiunta. Budget Mese: € {_fmt_it(budget_val)} — Anno: € {_fmt_it(budget_anno_val)}"
         if (budget_val > 0 or budget_anno_val > 0)
         else f"Categoria '{nome}' ({tipo}) aggiunta."
-    )
+    ) + _suffisso_conto_risp(self, nome))
 
 def modifica_categoria(self):
     old_nome = self.cat_mod_sel.get()
@@ -511,9 +601,14 @@ def modifica_categoria(self):
     if not new_nome:
         self.show_toast("Inserisci il nuovo nome della categoria.")
         return
+    if old_nome == self.CATEGORIA_RIMOSSA and new_nome != old_nome:
+        self.show_toast(f"La categoria '{self.CATEGORIA_RIMOSSA}' non può essere rinominata.")
+        self.reset_campi_categoria()
+        return
     if new_nome == old_nome:
         tipo = self.tipo_categoria.get()
         self.categorie_tipi[new_nome] = tipo
+        self._salva_classe_categoria(new_nome)
         budget_val = self.var_budget_cat.get().strip().replace(",", ".")
         try:
             budget_val = float(budget_val)
@@ -527,11 +622,11 @@ def modifica_categoria(self):
         budget_anno_val = self.budget_annuale_categorie.get(new_nome, 0.0)
         self.save_db()
         self.refresh_gui()
-        self.show_toast(
+        self.show_toast((
                 f"Tipo '{new_nome}' aggiornato a '{tipo}'. Budget Mese: € {_fmt_it(budget_val)} — Anno: € {_fmt_it(budget_anno_val)}"
                 if (budget_val > 0 or budget_anno_val > 0)
                else f"Tipo '{new_nome}' aggiornato a '{tipo}'."
-        )
+        ) + _suffisso_conto_risp(self, new_nome))
         self.reset_campi_categoria()
         return
     if new_nome in self.categorie:
@@ -541,8 +636,12 @@ def modifica_categoria(self):
     self.categorie[idx] = new_nome
     nuovo_tipo = self.tipo_categoria.get()
     self.categorie_tipi[new_nome] = nuovo_tipo
+    self._salva_classe_categoria(new_nome)
     if new_nome != old_nome:
         self.categorie_tipi.pop(old_nome, None)
+        self._classi_categorie().pop(old_nome, None)
+        self._conti_risparmio_cat().pop(old_nome, None)
+        _aggiorna_cat_ricorrenze(self, old_nome, new_nome)
     for d in self.spese:
         new_entries = []
         for entry in self.spese[d]:
@@ -550,8 +649,12 @@ def modifica_categoria(self):
                 entry = entry.sostituisci(categoria=new_nome)
             new_entries.append(entry)
         self.spese[d] = new_entries
-    self.cat_menu["values"] = self.categorie
-    self.cat_mod_menu["values"] = self.categorie
+    for _cb in (getattr(self, 'cat_menu', None), getattr(self, 'cat_mod_menu', None)):
+        try:
+            if _cb is not None and _cb.winfo_exists():
+                _cb["values"] = self.categorie
+        except tk.TclError:
+            pass
     budget_val = self.var_budget_cat.get().strip().replace(",", ".")
     try:
         budget_val = float(budget_val)
@@ -568,7 +671,7 @@ def modifica_categoria(self):
         del self.budget_annuale_categorie[old_nome]
     self.save_db()
     self.refresh_gui()
-    self.show_toast(f"Categoria '{old_nome}' rinominata in '{new_nome}' ({nuovo_tipo}). Budget: € {_fmt_it(budget_val)}" if budget_val > 0 else f"Categoria '{old_nome}' rinominata in '{new_nome}' ({nuovo_tipo}).")
+    self.show_toast((f"Categoria '{old_nome}' rinominata in '{new_nome}' ({nuovo_tipo}). Budget: € {_fmt_it(budget_val)}" if budget_val > 0 else f"Categoria '{old_nome}' rinominata in '{new_nome}' ({nuovo_tipo}).") + _suffisso_conto_risp(self, new_nome))
     self.aggiorna_combobox_categorie()
     self.reset_campi_categoria() 
     if hasattr(self, 'ricorrenza_popup') and self.ricorrenza_popup.winfo_exists():
@@ -695,6 +798,9 @@ def cancella_categoria(self):
         del self.budget_categorie[cat]
     if cat in self.budget_annuale_categorie:
         del self.budget_annuale_categorie[cat]
+    self._classi_categorie().pop(cat, None)
+    self._conti_risparmio_cat().pop(cat, None)
+    _aggiorna_cat_ricorrenze(self, cat, self.CATEGORIA_RIMOSSA)
     for giorno in list(self.spese):
         nuove_spese = []
         for voce in self.spese[giorno]:
@@ -753,7 +859,6 @@ def draw_top_categorie(self):
         c.configure(scrollregion=(0, 0, w, h))
         return
 
-    # top10 = sorted(totali.items(), key=lambda x: x[1], reverse=True)[:10]
     top10 = sorted(totali.items(), key=lambda x: abs(x[1]), reverse=True)
     max_val = max(abs(v) for _, v in top10) or 1
 
@@ -775,7 +880,7 @@ def draw_top_categorie(self):
         if budget > 0 and abs(val) > budget:
             bar_w_ok  = int(bar_max_w * budget / max_val)
             bar_w_ovr = max(bar_w - bar_w_ok, 2)
-            rect_id = c.create_rectangle(
+            c.create_rectangle(
                     bx, y - 10, bx + max(bar_w_ok, 4), y + 10,
                     fill=fill, outline="", tags=tag_riga
             )
@@ -785,7 +890,7 @@ def draw_top_categorie(self):
                     fill="#E5A550", outline="", tags=tag_riga
             )
         else:
-            rect_id = c.create_rectangle(
+            c.create_rectangle(
                     bx, y - 10, bx + max(bar_w, 4), y + 10,
                     fill=fill, outline="", tags=tag_riga
             )
@@ -969,394 +1074,13 @@ def suggerisci_tipo_categoria(self, categoria):
     return (tipo_prevalente, perc_entrate, perc_uscite)
 
 # Finestra Interattiva per l'Analisi Dettagliata per Categoria e Periodo
-def open_analisi_categoria(self):
-    popup = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
-    popup.withdraw()
-    popup.title("Analisi Categoria")
-    popup.transient(self)
-    popup.bind("<Escape>", lambda e: popup.destroy())
-    self.update_idletasks()
-    w, h = 1200, 620
-    x = self.winfo_rootx() + (self.winfo_width() // 2) - (w // 2)
-    y = self.winfo_rooty() + (self.winfo_height() // 2) - (h // 2)
-    popup.geometry(f"{w}x{h}+{x}+{y}")
-    popup.resizable(True, True)
-    popup.minsize(w, h)
-    frame_top = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
-    frame_top.pack(padx=18, pady=10, fill=tk.X)
-    img_search = self.icone_gui.get("search")
-
-    lbl_modalita = tk.Label(
-            frame_top, 
-            text=" Seleziona modalità:", 
-            image=img_search,
-            compound="left",
-            bg=self.COLOR_TOPLEVEL, 
-            fg=self.TEXT_COLOR,
-            font=("Arial", 10, "bold")
-    )
-    lbl_modalita.image = img_search
-    lbl_modalita.pack(side=tk.LEFT, padx=(10, 5))
-    mode_var = tk.StringVar(value="Giorno")
-    mode_combo = ttk.Combobox(frame_top, values=["Giorno", "Mese", "Anno", "Totale"], style="Border.TCombobox", textvariable=mode_var, state="readonly", width=10)
-    mode_combo.pack(side=tk.LEFT, padx=10)
-    frame_period = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
-    frame_period.pack(padx=18, pady=2, fill=tk.X)
-    months = [
-        "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
-        "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"
-    ]
-    today = datetime.date.today()
-    anni_presenti = sorted({d.year for d in self.spese.keys()}, reverse=True)
-    if not anni_presenti:
-        anni_presenti = [today.year]
-    year_var_initial = str(anni_presenti[0]) if anni_presenti else str(today.year)
-    year_var = tk.StringVar(value=today.year)
-    day_var = tk.StringVar(value=str(today.day))
-    month_var = tk.StringVar(value=months[today.month - 1]) 
-    def get_years_presenti():
-        return [str(y) for y in anni_presenti]
-    year_combo = ttk.Combobox(frame_period, values=get_years_presenti(), textvariable=year_var, style="Border.TCombobox", state="readonly", width=8)
-    month_combo = ttk.Combobox(frame_period, values=months, textvariable=month_var, style="Border.TCombobox", state="readonly", width=16)
-    day_combo = ttk.Combobox(frame_period, values=[str(d) for d in range(1, 32)], textvariable=day_var, style="Border.TCombobox", state="readonly", width=4)
-    year_combo_only = ttk.Combobox(frame_period, values=get_years_presenti(), textvariable=year_var, style="Border.TCombobox", state="readonly", width=8)
-    def update_days(*_):
-        try:
-            m = months.index(month_var.get()) + 1
-            y = int(year_var.get())
-        except Exception:
-            m = today.month
-            y = today.year
-        n_days = calendar.monthrange(y, m)[1]
-        days = [str(d) for d in range(1, n_days+1)]
-        day_combo['values'] = days
-        if day_var.get() not in days:
-            day_var.set(days[-1])
-    month_var.trace_add("write", update_days)
-    year_var.trace_add("write", update_days)
-    def reset_period():
-        oggi = datetime.date.today()
-        day_var.set(str(oggi.day))
-        month_var.set(months[oggi.month - 1])
-        year_var.set(str(oggi.year))
-    def update_period_inputs(*_):
-        for widget in frame_period.winfo_children():
-            widget.pack_forget()
-        mode = mode_var.get()
-        img_reset = self.icone_gui.get("reset_campo")
-        reset_btn = ttk.Label(
-            frame_period,
-            compound="left",
-            image=img_reset,
-            text="🔙" if not img_reset else "",
-            background=self.COLOR_WIDGET_BG,
-            foreground=self.TEXT_COLOR,
-            cursor="hand2",
-            padding=(5, 5)
-        )
-        reset_btn.image = img_reset
-        reset_btn.bind("<Button-1>", lambda e: reset_period())
-        if mode == "Giorno":
-            day_combo.pack(side=tk.LEFT)
-            month_combo.pack(side=tk.LEFT, padx=(4,8))
-            year_combo.pack(side=tk.LEFT)
-            reset_btn.pack(side=tk.LEFT, padx=(10, 0))
-            update_days()
-        elif mode == "Mese":
-            month_combo.pack(side=tk.LEFT, padx=(0,8))
-            year_combo.pack(side=tk.LEFT)
-            reset_btn.pack(side=tk.LEFT, padx=(10, 0))
-        elif mode == "Anno":
-            year_combo_only.pack(side=tk.LEFT)
-            reset_btn.pack(side=tk.LEFT, padx=(10, 0))
-    mode_combo.bind("<<ComboboxSelected>>", update_period_inputs)
-    update_period_inputs()
-    frame_cat = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
-    frame_cat.pack(padx=18, pady=12, fill=tk.X)
-    tk.Label(frame_cat, bg=self.COLOR_TOPLEVEL ,fg=self.TEXT_COLOR, text="Categoria:").pack(side=tk.LEFT)
-    def get_catlist():
-        return ["Tutte le categorie"] + sorted(self.categorie, key=lambda c: c.lower())
-    cat_var = tk.StringVar(value="Tutte le categorie")
-    cat_combo = ttk.Combobox(frame_cat, values=get_catlist(), textvariable=cat_var, style="Border.TCombobox", state="readonly", width=25)
-    cat_combo.pack(side=tk.LEFT, padx=10)
-    main_result_frame = ttk.Frame(popup)
-    main_result_frame.pack(padx=18, fill=tk.BOTH, expand=True) 
-    main_result_frame.grid_rowconfigure(0, weight=1)
-    main_result_frame.grid_columnconfigure(0, weight=1)
-    scroll_y = ttk.Scrollbar(main_result_frame, orient=tk.VERTICAL, style="Vertical.TScrollbar")
-    scroll_y.grid(row=0, column=1, sticky="ns")
-    scroll_x = ttk.Scrollbar(main_result_frame, orient=tk.HORIZONTAL, style="Horizontal.TScrollbar")
-    scroll_x.grid(row=1, column=0, sticky="ew")
-    text_result = tk.Text(
-        main_result_frame, 
-        height=22, 
-        width=90, 
-        font=("Courier New", 10), 
-        wrap='none',
-        yscrollcommand=scroll_y.set, 
-        xscrollcommand=scroll_x.set,
-        bg=self.COLOR_TOPLEVEL, 
-        fg=self.TEXT_COLOR 
-    )
-    text_result.grid(row=0, column=0, sticky="nsew") 
-    scroll_y.config(command=text_result.yview)
-    scroll_x.config(command=text_result.xview)
-    text_result.config(state="disabled")
-    frame_buttons = ttk.Frame(popup)
-    frame_buttons.pack(fill=tk.X, padx=18, pady=8) 
-    img_chiudi_pop = self.icone_gui.get("chiudi")
-    close_btn = ttk.Label(
-            frame_buttons,
-            compound="left",
-            image=img_chiudi_pop,
-            text=" Chiudi" if img_chiudi_pop else "Chiudi",
-            background=self.COLOR_WIDGET_BG,
-            foreground=self.TEXT_COLOR,
-            cursor="hand2",
-            padding=(10, 5)
-    )
-    close_btn.image = img_chiudi_pop
-    close_btn.pack(side=tk.RIGHT, padx=4)
-    close_btn.bind("<Button-1>", lambda e: popup.destroy())
-    img_esporta = self.icone_gui.get("salva")
-    export_btn = ttk.Label(
-            frame_buttons,
-            compound="left",
-            image=img_esporta,
-            text=" Esporta" if img_esporta else "Esporta",
-            background=self.COLOR_WIDGET_BG,
-            foreground=self.TEXT_COLOR,
-            cursor="hand2",
-            padding=(10, 5)
-    )
-    export_btn.image = img_esporta
-    export_btn.pack(side=tk.LEFT, padx=4)
-    def aggiorna_cat_combo():
-        cat_combo['values'] = get_catlist()
-        if cat_var.get() not in cat_combo['values']:
-            cat_var.set("Tutte le categorie")
-    aggiorna_cat_combo()
-    def mostra_dettagli(*_):
-        cat = cat_var.get()
-        mode = mode_var.get()
-        result_lines = []
-        today = datetime.date.today()
-        def calcola_totali():
-            entrate = sum(e[2] for _, e in filtered if "entrata" in e[3].lower())
-            uscite = sum(e[2] for _, e in filtered if "entrata" not in e[3].lower())
-            return entrate, uscite, entrate - uscite
-        filtered = []
-        label_intestazione = ""
-        if mode == "Giorno":
-            try:
-                m = months.index(month_var.get()) + 1
-                d = int(day_var.get())
-                y = int(year_var.get())
-                giorno = datetime.date(y, m, d)
-            except Exception:
-                giorno = today
-            spese = self.spese.get(giorno, [])
-            filtered = [(giorno, e) for e in spese if cat == "Tutte le categorie" or e[0] == cat]
-            label_intestazione = f"{'Entrate/Uscite' if cat == 'Tutte le categorie' else 'Spese ' + cat} per il giorno {giorno.strftime('%d-%m-%Y')}"
-        elif mode == "Mese":
-            try:
-                m = months.index(month_var.get()) + 1
-                y = int(year_var.get())
-            except Exception:
-                m = today.month
-                y = today.year
-            for d, sp in self.spese.items():
-                if d.year == y and d.month == m:
-                    for e in sp:
-                        if cat == "Tutte le categorie" or e[0] == cat:
-                            filtered.append((d, e))
-            label_intestazione = f"{'Entrate/Uscite' if cat == 'Tutte le categorie' else 'Spese ' + cat} per {self.get_month_name(m)} {y}"
-        elif mode == "Anno":
-            try:
-                y = int(year_var.get())
-            except Exception:
-                y = today.year
-            for d, sp in self.spese.items():
-                if d.year == y:
-                    for e in sp:
-                        if cat == "Tutte le categorie" or e[0] == cat:
-                            filtered.append((d, e))
-            label_intestazione = f"{'Entrate/Uscite' if cat == 'Tutte le categorie' else 'Spese ' + cat} per l'anno {y}"
-        elif mode == "Totale":
-            for d, sp in self.spese.items():
-                for e in sp:
-                    if cat == "Tutte le categorie" or e[0] == cat:
-                        filtered.append((d, e))
-            label_intestazione = f"{'Entrate/Uscite' if cat == 'Tutte le categorie' else 'Spese ' + cat} totali"
-        text_result.configure(font=("Courier New", 10))
-        result_lines.clear()
-        if not filtered:
-            result_lines.append(f"Nessuna spesa per '{cat}'.")
-        else:
-            W_DATA, W_CAT, W_DESC, W_TIPO, W_IMP, W_CNT, W_MET, W_ORA, W_TAG = 10, 16, 20, 8, 12, 14, 12, 6, 16
-            larghezza_riga = W_DATA + W_CAT + W_DESC + W_TIPO + W_IMP + W_CNT + W_MET + W_ORA + W_TAG + 24
-            result_lines.append("═" * larghezza_riga)
-            result_lines.append(label_intestazione)
-            result_lines.append("─" * larghezza_riga)
-            result_lines.append(
-                f"{'Data':<{W_DATA}} │ {'Categoria':<{W_CAT}} │ {'Descrizione':<{W_DESC}} │ "
-                f"{'Tipo':<{W_TIPO}} │ {'Importo':>{W_IMP}} │ {'Conto':<{W_CNT}} │ "
-                f"{'Metodo':<{W_MET}} │ {'Ora':<{W_ORA}} │ {'Hashtag':<{W_TAG}}"
-            )
-            result_lines.append("─" * larghezza_riga)
-            _agganci_ac = costruisci_mappa_conti_da_trasferimenti(_app.PORTAFOGLIO_BANCARIO)
-            _uso_ordinale_ac = {}
-            for d, e in sorted(filtered, key=lambda x: x[0], reverse=True):
-                valore = abs(e[2])
-                categoria = e[0][:W_CAT-3] + '...' if len(e[0]) > W_CAT else e[0]
-                descrizione = e[1][:W_DESC-3] + '...' if len(e[1]) > W_DESC else e[1]
-                tipo_riga = str(e[3]).capitalize()
-                conto = campo(e, "conto", "")
-                if not conto:
-                    try:
-                        conto = conto_da_mappa(_agganci_ac, _uso_ordinale_ac, d.strftime("%d-%m-%Y"), float(e[2]), tipo_riga) or ""
-                    except Exception:
-                        conto = ""
-                metodo = campo(e, "metodo_pagamento", "")
-                ora = campo(e, "ora", "")
-                hashtag_txt = " ".join(campo(e, "hashtag", []))
-                conto_tr    = (conto[:W_CNT-3] + '...') if len(conto) > W_CNT else conto
-                metodo_tr   = (metodo[:W_MET-3] + '...') if len(metodo) > W_MET else metodo
-                hashtag_tr  = (hashtag_txt[:W_TAG-3] + '...') if len(hashtag_txt) > W_TAG else hashtag_txt
-                result_lines.append(
-                    f"{d.strftime('%d-%m-%Y'):<{W_DATA}} │ {categoria:<{W_CAT}} │ {descrizione:<{W_DESC}} │ "
-                    f"{tipo_riga:<{W_TIPO}} │ {_fmt_it(valore, f'>{W_IMP-2},.2f')} € │ {conto_tr:<{W_CNT}} │ "
-                    f"{metodo_tr:<{W_MET}} │ {ora:<{W_ORA}} │ {hashtag_tr:<{W_TAG}}"
-                )
-            result_lines.append("─" * larghezza_riga)
-            entrate, uscite, saldo = calcola_totali()
-            result_lines.append(f"{'Totale entrate':<54}  {_fmt_it(entrate, '>9,.2f')} €")
-            result_lines.append(f"{'Totale uscite':<54}  {_fmt_it(uscite, '>9,.2f')} €")
-            result_lines.append(f"{'Saldo finale':<54}  {_fmt_it(saldo, '+9,.2f')} €")
-            result_lines.append("═" * larghezza_riga)
-        text_result.config(state="normal")
-        text_result.delete("1.0", tk.END)
-        text_result.insert("end", "\n".join(result_lines))
-        text_result.config(state="disabled")
-    def esporta_analisi():
-        text_result.config(state="normal")
-        contenuto = text_result.get("1.0", tk.END).strip()
-        text_result.config(state="disabled")
-        if not contenuto:
-            self.show_toast("Nulla da esportare.")
-            return
-        preview = tk.Toplevel(popup, bg=self.COLOR_TOPLEVEL)
-        preview.title("Preview esportazione")
-        preview.withdraw()
-        larghezza_finestra = 1200
-        altezza_finestra = 620
-        x = popup.winfo_rootx() + (popup.winfo_width() // 2) - (larghezza_finestra // 2)
-        y = popup.winfo_rooty() + (popup.winfo_height() // 2) - (altezza_finestra // 2)
-        preview.geometry(f"{larghezza_finestra}x{altezza_finestra}+{x}+{y}")
-        preview.minsize(larghezza_finestra, altezza_finestra)
-        preview.transient(popup)
-        preview.resizable(True, True)
-        preview.update_idletasks()
-        preview.bind('<Escape>', lambda e: preview.destroy())
-        tx = tk.Text(preview, font=("Courier new", 10), wrap="none")
-        tx.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        contenuto_preview = "\n".join(" " + l for l in contenuto.splitlines())
-        tx.insert(tk.END, contenuto_preview)
-        tx.config(state="disabled")
-        frm = tk.Frame(preview, bg=self.COLOR_TOPLEVEL)
-        frm.pack(fill=tk.X, padx=10, pady=8)
-        def do_save():
-            now = datetime.date.today()
-            default_filename = f"Analisi_Export_{now.day:02d}-{now.month:02d}-{now.year}.txt"
-            file = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("File txt", "*.txt")], initialdir=_app.EXPORT_FILES, title="Esporta Analisi Categoria", initialfile=default_filename, confirmoverwrite=False, parent=preview)
-            if file:
-                if os.path.exists(file):
-                    conferma = self.show_custom_askyesno("Sovrascrivere file?", f"Il file '{os.path.basename(file)}' \nesiste già. Vuoi sovrascriverlo?")
-                    if not conferma: return  
-                try:
-                    with open(file, "w", encoding="utf-8") as f:
-                        f.write(contenuto_preview)
-                    self.show_custom_warning("Esporta", f"✓ Analisi esportata in:\n{file}")
-                    preview.destroy()
-                except Exception as e:
-                    self.show_custom_warning("Errore", f"❌ Salvataggio fallito:\n{e}")
-        def do_save_pdf():
-            import pymupdf as fitz
-            now = datetime.date.today()
-            default_filename = f"Analisi_Export_{now.day:02d}-{now.month:02d}-{now.year}.pdf"
-            file = filedialog.asksaveasfilename(
-                defaultextension=".pdf",
-                filetypes=[("Documento PDF", "*.pdf")],
-                initialdir=_app.EXPORT_FILES,
-                title="Esporta Analisi Categoria come PDF",
-                initialfile=default_filename,
-                confirmoverwrite=False,
-                parent=preview
-            )
-            if file:
-                if os.path.exists(file):
-                    conferma = self.show_custom_askyesno("Sovrascrivere file?", f"Il file '{os.path.basename(file)}' \nesiste già. Vuoi sovrascriverlo?")
-                    if not conferma: return
-                try:
-                    doc = fitz.open()
-                    lines = contenuto_preview.split('\n')
-                    page_w, page_h = 1000, 595
-                    margin = 30
-                    font_size = 6.5
-                    line_height = font_size + 2
-                    page = doc.new_page(width=page_w, height=page_h)
-                    y = margin
-                    for line in lines:
-                        if y > (page_h - margin):
-                            page = doc.new_page(width=page_w, height=page_h)
-                            y = margin
-                        page.insert_text((margin, y), line, fontname="cour", fontsize=font_size)
-                        y += line_height
-                    doc.save(file)
-                    doc.close()
-                    self.show_custom_warning("Esportazione completata", f"✓ PDF salvato:\n{file}")
-                    preview.destroy()
-                except Exception as e:
-                    self.show_custom_warning("Errore", f"❌ Creazione PDF fallita:\n{e}")
-        img_salva = self.icone_gui.get("salva")
-        btn_salva = ttk.Label(frm, compound="left", image=img_salva, text=" Esporta TXT" if img_salva else "💾 Esporta TXT", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
-        btn_salva.pack(side=tk.LEFT, padx=6)
-        btn_salva.bind("<Button-1>", lambda e: do_save())
-        img_esporta_pdf = self.icone_gui.get("salva")
-        btn_esporta_pdf = ttk.Label(frm, compound="left", image=img_esporta_pdf, text=" Esporta PDF" if img_esporta_pdf else "📕 Esporta PDF", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
-        btn_esporta_pdf.pack(side=tk.LEFT, padx=6)
-        btn_esporta_pdf.bind("<Button-1>", lambda e: do_save_pdf())
-        img_stampa = self.icone_gui.get("stampa")
-        btn_stampa = ttk.Label(frm, compound="left", image=img_stampa, text=" Stampa" if img_stampa else "📄 Stampa", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
-        btn_stampa.pack(side=tk.LEFT, padx=6)
-        btn_stampa.bind("<Button-1>", lambda e: self._stampa_lista_diretta(contenuto_preview.rstrip('\n'), self.show_custom_warning))
-        img_chiudi = self.icone_gui.get("chiudi")
-        btn_chiudi = ttk.Label(frm, compound="left", image=img_chiudi, text=" Chiudi" if img_chiudi else "❌ Chiudi", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
-        btn_chiudi.pack(side=tk.RIGHT, padx=6)
-        btn_chiudi.bind("<Button-1>", lambda e: preview.destroy())
-        preview.lift()
-        preview.attributes('-topmost', True)
-        preview.after(100, lambda: preview.attributes('-topmost', False))
-        preview.deiconify()
-        preview.focus_set()
-        preview.grab_set()
-        preview.bind("<Escape>", lambda e: preview.destroy())
-    export_btn.bind("<Button-1>", lambda e: esporta_analisi())
-    mode_var.trace_add("write", mostra_dettagli)
-    month_var.trace_add("write", mostra_dettagli)
-    year_var.trace_add("write", mostra_dettagli)
-    day_var.trace_add("write", mostra_dettagli)
-    cat_var.trace_add("write", mostra_dettagli)
-    mostra_dettagli()
-    popup.deiconify()
-
 def _ottieni_categorie_ricorrenti_mancanti(self):
     from datetime import datetime
     oggi = datetime.today().date()
     def converti_data(d):
         if isinstance(d, str):
             try: return datetime.strptime(d, "%d-%m-%Y").date()
-            except: return None
+            except Exception: return None
         elif isinstance(d, datetime): return d.date()
         return d
     categorie_base = {cat.title() for cat in self.categorie if cat}
@@ -1391,279 +1115,386 @@ def _ottieni_categorie_ricorrenti_mancanti(self):
             categorie_mancanti.append(cat)
     return sorted(categorie_mancanti)
 
-def gruppo_categorie(self):
-    popup = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL )
-    popup.title("Analisi per categorie selezionate")
-    popup.geometry("1200x650") 
-    popup.withdraw() 
-    self.update_idletasks()
-    main_x = self.winfo_x()
-    main_y = self.winfo_y()
-    main_width = self.winfo_width()
-    main_height = self.winfo_height()
-    popup_width = 1200
-    popup_height = 650
-    center_x = main_x + (main_width // 2) - (popup_width // 2)
-    center_y = main_y + (main_height // 2) - (popup_height // 2)
-    popup.geometry(f"{popup_width}x{popup_height}+{center_x}+{center_y}")
-    popup.minsize(popup_width, popup_height)
-    popup.transient(self)
-    popup.update_idletasks()
-    main_frame = ttk.Frame(popup, padding=10)
-    main_frame.pack(fill="both", expand=True)
-    today = datetime.date.today()
-    mesi = ["Tutti"] + ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
-                    "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
-    mese_var = tk.StringVar(value="Tutti")
-    anno_var = tk.StringVar(value=str(today.year))
-    mostra_future_var = tk.BooleanVar(value=True)
-    top_bar = ttk.Frame(main_frame)
-    top_bar.pack(fill="x", pady=(0, 10))
-    ttk.Label(top_bar, text="Mese:").pack(side="left", padx=(0, 5))
-    ttk.Combobox(top_bar, values=mesi, textvariable=mese_var, style="Border.TCombobox", state="readonly", width=12).pack(side="left")
-    anni = sorted({
-        d.year if not isinstance(d, str) else datetime.datetime.strptime(d, "%d-%m-%Y").year
-        for d in self.spese
-    }, reverse=True)
-    ttk.Label(top_bar, text="Anno:").pack(side="left", padx=(10, 5))
-    ttk.Combobox(top_bar, values=["Tutti"] + [str(a) for a in anni], textvariable=anno_var, style="Border.TCombobox", state="readonly", width=8).pack(side="left")
-    img_reset_filtri = self.icone_gui.get("reset")
-    btn_reset_filtri = tk.Label(top_bar, compound="left", image=img_reset_filtri, text=" Filtri correnti" if img_reset_filtri else " 🔙 Filtri correnti", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padx=10, pady=5, font=("Arial", 9, "bold"))
-    btn_reset_filtri.pack(side="left", padx=(10, 0))
-    btn_reset_filtri.bind("<Button-1>", lambda e: [mese_var.set("Tutti"), anno_var.set(str(today.year))])
-    ttk.Checkbutton(
-        top_bar,
-        text="Includi movimenti futuri nei totali",
-        variable=mostra_future_var
-    ).pack(side="left", padx=(20,0))
-    valori_combo = ["— Nessuna —"] + sorted(list(self.categorie_tipi.keys()))
-    selettori_box = ttk.LabelFrame(main_frame, text="Seleziona fino a 10 categorie da analizzare")
-    selettori_box.pack(fill="x", pady=(5, 15))
-    sx = ttk.Frame(selettori_box)
-    dx = ttk.Frame(selettori_box)
-    sx.pack(side="left", fill="both", expand=True, padx=(0, 10))
-    dx.pack(side="right", fill="both", expand=True)
-    combo_vars = []
-    for i in range(10):
-        var = tk.StringVar(value="— Nessuna —")
-        cb = ttk.Combobox(sx if i < 5 else dx, values=valori_combo, textvariable=var, style="Border.TCombobox", state="readonly", width=35, height=15)
-        cb.pack(anchor="w", pady=2)
-        combo_vars.append(var)
-    ttk.Label(main_frame, text="📊 Risultato:", font=("Arial", 10, "bold")).pack(anchor="w")
+def cancella_categorie_checkbox(self, popup=None):
+    cancella_categorie_selezionate(self)
 
-    text_output = tk.Text(main_frame, height=15, wrap="word", 
-                         font=("Courier New", 10),
-                         bg=self.COLOR_WIDGET_BG,
-                         fg=self.TEXT_COLOR,
-                         insertbackground=self.TEXT_COLOR,
-                         padx=10, pady=10,
-                         borderwidth=1,
-                         relief="flat",
-                         highlightthickness=1,
-                         highlightbackground=self.COLOR_BUTTON_BG)
-    scroll = ttk.Scrollbar(main_frame, command=text_output.yview, style="Vertical.TScrollbar")
-    text_output.config(yscrollcommand=scroll.set)
-    text_output.pack(side="left", fill="both", expand=True, pady=(5, 10))
-    scroll.pack(side="right", fill="y")
-    text_output.config(state="disabled")
-    def analizza():
-        text_output.config(state="normal")
-        text_output.delete("1.0", "end")
-        anno_sel = anno_var.get()
-        if anno_sel != "Tutti":
-            try:
-                anno = int(anno_sel)
-            except:
-                text_output.config(state="disabled")
-                self.show_custom_warning("Errore", "Anno non valido.")
-                return
-        else:
-            anno = None
-        selezionato = mese_var.get()
-        if selezionato not in mesi:
-            text_output.config(state="disabled")
-            self.show_custom_warning("Errore", "Mese non valido.")
-            return
-        scelte = {v.get().strip().title() for v in combo_vars if v.get() != "— Nessuna —"}
-        risultato = {}
-        oggi = datetime.date.today()
-        for d, sp in self.spese.items():
-            if isinstance(d, str):
-                d = datetime.datetime.strptime(d, "%d-%m-%Y").date()
-            if not mostra_future_var.get() and d > oggi:
-                continue
-            if (anno is None or d.year == anno) and (selezionato == "Tutti" or d.month == mesi.index(selezionato)):
-                for voce in sp:
-                    cat = campo(voce, "categoria", "").strip().title()
-                    imp = campo(voce, "importo", 0.0)
-                    tipo = campo(voce, "tipo", "")
-                    if cat in scelte:
-                            if cat not in risultato:
-                                risultato[cat] = {"num": 0, "uscite": 0.0, "entrate": 0.0}
-                            risultato[cat]["num"] += 1
-                            if tipo == "Uscita":
-                                risultato[cat]["uscite"] += imp
-                            elif tipo == "Entrata":
-                                risultato[cat]["entrate"] += imp
-        anno_label = "Tutti gli anni" if anno is None else str(anno)
-        righe = [f"Analisi categorie – {mese_var.get()} {anno_label}\n"]
-        righe.append(f"{'Categoria':<30} {'Num':>4}   {'Uscite (€)':>12}   {'Entrate (€)':>12}   {'Saldo (€)':>12}")
-        righe.append("─" * 80)
-        totale = 0.0
-        tot_entrate = 0.0
-        tot_uscite = 0.0
-        for cat, dati in sorted(risultato.items(), key=lambda x: -(x[1]["entrate"] - x[1]["uscite"])):
-            saldo = dati["entrate"] - dati["uscite"]
-            righe.append(f"{cat:<30} {dati['num']:>4}   {_fmt_it(dati['uscite'], '>12,.2f')}   {_fmt_it(dati['entrate'], '>12,.2f')}   {_fmt_it(saldo, '+12,.2f')}")
-            totale += saldo
-            tot_entrate += dati["entrate"]
-            tot_uscite += dati["uscite"]
-        righe.append("─" * 80)
-        _label_entrate = "Totale Entrate:"
-        _label_uscite = "Totale Uscite:"
-        _label_saldo = "Saldo Netto (Entrate - Uscite):"
-        _larg_label = max(len(_label_entrate), len(_label_uscite), len(_label_saldo)) + 1
-        righe.append(f"{_label_entrate:<{_larg_label}} {_fmt_it(tot_entrate, '>12,.2f')} €")
-        righe.append(f"{_label_uscite:<{_larg_label}} {_fmt_it(tot_uscite, '>12,.2f')} €")
-        righe.append(f"{_label_saldo:<{_larg_label}} {_fmt_it(totale, '+12,.2f')} €")
-        text_output.insert("1.0", "\n".join(righe))
-        text_output.config(state="disabled")
-    def reset_campi():
-        mese_var.set("Tutti")
-        anno_var.set(str(today.year))
-        mostra_future_var.set(True)
-        for var in combo_vars:
-            var.set("— Nessuna —")
-        text_output.config(state="normal")
-        text_output.delete("1.0", "end")
-        text_output.config(state="disabled")
-    def esporta_analisi():
-        contenuto = text_output.get("1.0", "end").strip()
-        if not contenuto:
-            self.show_toast("Nessun risultato da esportare.")
-            return
-        preview = tk.Toplevel(popup, bg=self.COLOR_TOPLEVEL)
-        preview.title("Preview esportazione")
-        preview.withdraw()
-        larghezza_finestra = 1200
-        altezza_finestra = 620
-        x = popup.winfo_rootx() + (popup.winfo_width() // 2) - (larghezza_finestra // 2)
-        y = popup.winfo_rooty() + (popup.winfo_height() // 2) - (altezza_finestra // 2)
-        preview.geometry(f"{larghezza_finestra}x{altezza_finestra}+{x}+{y}")
-        preview.minsize(larghezza_finestra, altezza_finestra)
-        preview.transient(popup)
-        preview.resizable(True, True)
-        preview.update_idletasks()
-        preview.bind('<Escape>', lambda e: preview.destroy())
-        tx = tk.Text(preview, font=("Courier new", 10), wrap="none")
-        tx.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        contenuto_preview = "\n".join(" " + l for l in contenuto.splitlines())
-        tx.insert(tk.END, contenuto_preview)
-        tx.config(state="disabled")
-        frm = tk.Frame(preview, bg=self.COLOR_TOPLEVEL)
-        frm.pack(fill=tk.X, padx=10, pady=8)
-        def do_save():
-            now = datetime.date.today()
-            default_filename = f"Analisi_Categorie_{now:%d_%m_%Y}.txt"
-            file = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("File txt", "*.txt")], initialdir=_app.EXPORT_FILES, title="Esporta Analisi Categorie", initialfile=default_filename, confirmoverwrite=False, parent=preview)
-            if file:
-                if os.path.exists(file):
-                    conferma = self.show_custom_askyesno("Sovrascrivere file?", f"Il file '{os.path.basename(file)}' \nesiste già. Vuoi sovrascriverlo?")
-                    if not conferma: return
-                try:
-                    with open(file, "w", encoding="utf-8") as f:
-                        f.write(contenuto_preview)
-                    self.show_custom_warning("Esporta", f"✓ Analisi esportata in:\n{file}")
-                    preview.destroy()
-                except Exception as e:
-                    self.show_custom_warning("Errore", f"❌ Salvataggio fallito:\n{e}")
-        def do_save_pdf():
-            import pymupdf as fitz
-            now = datetime.date.today()
-            default_filename = f"Analisi_Categorie_{now:%d_%m_%Y}.pdf"
-            file = filedialog.asksaveasfilename(
-                defaultextension=".pdf",
-                filetypes=[("Documento PDF", "*.pdf")],
-                initialdir=_app.EXPORT_FILES,
-                title="Esporta Analisi Categorie come PDF",
-                initialfile=default_filename,
-                confirmoverwrite=False,
-                parent=preview
-            )
-            if file:
-                if os.path.exists(file):
-                    conferma = self.show_custom_askyesno("Sovrascrivere file?", f"Il file '{os.path.basename(file)}' \nesiste già. Vuoi sovrascriverlo?")
-                    if not conferma: return
-                try:
-                    doc = fitz.open()
-                    lines = contenuto_preview.split('\n')
-                    page_w, page_h = 1000, 595
-                    margin = 30
-                    font_size = 6.5
-                    line_height = font_size + 2
-                    page = doc.new_page(width=page_w, height=page_h)
-                    y = margin
-                    for line in lines:
-                        if y > (page_h - margin):
-                            page = doc.new_page(width=page_w, height=page_h)
-                            y = margin
-                        page.insert_text((margin, y), line, fontname="cour", fontsize=font_size)
-                        y += line_height
-                    doc.save(file)
-                    doc.close()
-                    self.show_custom_warning("Esportazione completata", f"✓ PDF salvato:\n{file}")
-                    preview.destroy()
-                except Exception as e:
-                    self.show_custom_warning("Errore", f"❌ Creazione PDF fallita:\n{e}")
-        img_salva = self.icone_gui.get("salva")
-        btn_salva = ttk.Label(frm, compound="left", image=img_salva, text=" Esporta TXT" if img_salva else "💾 Esporta TXT", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
-        btn_salva.pack(side=tk.LEFT, padx=6)
-        btn_salva.bind("<Button-1>", lambda e: do_save())
-        img_esporta_pdf = self.icone_gui.get("salva")
-        btn_esporta_pdf = ttk.Label(frm, compound="left", image=img_esporta_pdf, text=" Esporta PDF" if img_esporta_pdf else "📕 Esporta PDF", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
-        btn_esporta_pdf.pack(side=tk.LEFT, padx=6)
-        btn_esporta_pdf.bind("<Button-1>", lambda e: do_save_pdf())
-        img_stampa = self.icone_gui.get("stampa")
-        btn_stampa = ttk.Label(frm, compound="left", image=img_stampa, text=" Stampa" if img_stampa else "📄 Stampa", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
-        btn_stampa.pack(side=tk.LEFT, padx=6)
-        btn_stampa.bind("<Button-1>", lambda e: self._stampa_lista_diretta(contenuto_preview.rstrip('\n'), self.show_custom_warning))
-        img_chiudi = self.icone_gui.get("chiudi")
-        btn_chiudi = ttk.Label(frm, compound="left", image=img_chiudi, text=" Chiudi" if img_chiudi else "❌ Chiudi", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
-        btn_chiudi.pack(side=tk.RIGHT, padx=6)
-        btn_chiudi.bind("<Button-1>", lambda e: preview.destroy())
-        preview.lift()
-        preview.attributes('-topmost', True)
-        preview.after(100, lambda: preview.attributes('-topmost', False))
-        preview.deiconify()
-        preview.focus_set()
-        preview.grab_set()
-    mostra_future_var.trace_add("write", lambda *a: analizza())
-    bottom_buttons = tk.Frame(popup, bg=self.COLOR_TOPLEVEL ) 
-    bottom_buttons.pack(fill="x", pady=10)
-    img_analizza = self.icone_gui.get("report")
-    btn_analizza = tk.Label(bottom_buttons, compound="left", image=img_analizza, text="Analizza" if img_analizza else "📥 Analizza", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padx=12, pady=6, font=("Arial", 9, "bold"))
-    btn_analizza.pack(side="left", padx=10)
-    btn_analizza.bind("<Button-1>", lambda e: analizza())
-    img_salva_an = self.icone_gui.get("salva")
-    btn_salva_an = tk.Label(bottom_buttons, compound="left", image=img_salva_an, text="Esporta" if img_salva_an else "💾 Esporta", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padx=12, pady=6, font=("Arial", 9, "bold"))
-    btn_salva_an.pack(side="left", padx=10)
-    btn_salva_an.bind("<Button-1>", lambda e: esporta_analisi())
-    img_reset_an = self.icone_gui.get("reset")
-    btn_reset_an = tk.Label(bottom_buttons, compound="left", image=img_reset_an, text="Reset campi" if img_reset_an else "🟨 Reset campi", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padx=12, pady=6, font=("Arial", 9, "bold"))
-    btn_reset_an.pack(side="left", padx=10)
-    btn_reset_an.bind("<Button-1>", lambda e: reset_campi())
-    img_chiudi_an = self.icone_gui.get("chiudi")
-    btn_chiudi_an = tk.Label(bottom_buttons, compound="left", image=img_chiudi_an, text="Chiudi" if img_chiudi_an else "❌ Chiudi", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padx=12, pady=6, font=("Arial", 9, "bold"))
-    btn_chiudi_an.pack(side="right", padx=10)
-    btn_chiudi_an.bind("<Button-1>", lambda e: popup.destroy())
-    popup.bind("<Escape>", lambda e: popup.destroy())
-    popup.deiconify()
+def apri_categorie_suggerite(self, parent=None):
+    apri_gestione_categorie(self, tab="suggerite")
 
-def cancella_categorie_checkbox(self, popup):
-    selezionate = [cat for cat, var in self.checkbox_vars.items() if var.get()]
-    if not selezionate:
-        self.show_custom_warning("Attenzione", "Seleziona almeno una categoria da cancellare.")
+def apri_gestione_categorie(self, event=None, tab=None):
+    if hasattr(self, 'cat_av_popup') and self.cat_av_popup.winfo_exists():
+        self.cat_av_popup.deiconify()
+        self.cat_av_popup.lift()
+        self.cat_av_popup.focus_force()
+        self.cat_av_elimina_var.set(False)
+        for v in self.cat_av_vars.values():
+            v.set(False)
+        self.reset_campi_categoria()
+        self.nb_cat_av.select(self.tab_cat_av_sugg if tab == "suggerite" else self.tab_cat_av_elenco)
         return
+    popup = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
+    self.cat_av_popup = popup
+    popup.withdraw()
+    popup.transient(self)
+    popup.title("Editor Categorie")
+    popup.resizable(True, True)
+    larghezza, altezza = 1180, 600
+    x = self.winfo_rootx() + (self.winfo_width() // 2) - (larghezza // 2)
+    y = self.winfo_rooty() + (self.winfo_height() // 2) - (altezza // 2)
+    popup.geometry(f"{larghezza}x{altezza}+{max(0, x)}+{max(0, y)}")
+    popup.minsize(larghezza, altezza)
+    popup.bind("<Escape>", lambda e: popup.destroy())
+    if not hasattr(self, 'classe_categoria'):
+        self.classe_categoria = tk.StringVar(value="Nessuna")
+    if not hasattr(self, 'conto_risp_cat'):
+        self.conto_risp_cat = tk.StringVar(value="(nessuno)")
+    if not hasattr(self, 'nuova_cat'):
+        self.nuova_cat = tk.StringVar()
+        self.cat_mod_sel = tk.StringVar(value=self.categorie[0] if self.categorie else "")
+        self.tipo_categoria = tk.StringVar(value="Uscita")
+    self.cat_av_elimina_var = tk.BooleanVar(value=False)
+    self.cat_av_vars = {}
+    self.cat_av_rows = {}
+    self.var_filtro_cat_av = tk.StringVar()
+    btn_chiudi = ttk.Label(popup, image=self.icone_gui.get("chiudi"), text=" Chiudi", compound="left",
+                           cursor="hand2", background=self.COLOR_WIDGET_BG, font=("Arial", 9, "bold"))
+    btn_chiudi.image = self.icone_gui.get("chiudi")
+    btn_chiudi.pack(side="bottom", pady=(4, 10))
+    btn_chiudi.bind("<Button-1>", lambda e: popup.destroy())
+    self.nb_cat_av = ttk.Notebook(popup)
+    self.nb_cat_av.pack(fill="both", expand=True, padx=10, pady=10)
+    self.tab_cat_av_elenco = ttk.Frame(self.nb_cat_av)
+    self.tab_cat_av_sugg = ttk.Frame(self.nb_cat_av)
+    self.nb_cat_av.add(self.tab_cat_av_elenco, text="  Categorie  ")
+    self.nb_cat_av.add(self.tab_cat_av_sugg, text="  Suggerite  ")
+    tab_e = self.tab_cat_av_elenco
+    tab_e.columnconfigure(0, weight=1)
+    tab_e.rowconfigure(0, weight=1)
+
+    def _btn(parent, icona, testo, comando):
+        b = ttk.Label(parent, image=self.icone_gui.get(icona), text=testo, compound="left", cursor="hand2",
+                      background=self.COLOR_WIDGET_BG, font=("Arial", 9, "bold"))
+        b.image = self.icone_gui.get(icona)
+        b.pack(side="left", padx=6)
+        b.bind("<Button-1>", lambda e: comando())
+        return b
+
+    def _tt_cat(widget, testo):
+        import textwrap
+        testo_w = textwrap.fill(testo, width=48)
+        stato = {"job": None}
+        def _chiudi(e=None):
+            if stato["job"]:
+                try:
+                    widget.after_cancel(stato["job"])
+                except tk.TclError:
+                    pass
+                stato["job"] = None
+            self.hide_tooltip()
+        def _entra(e):
+            _chiudi()
+            stato["job"] = widget.after(500, lambda ev=e: (stato.update(job=None), self.show_tooltip(ev, testo_w)))
+        widget.bind("<Enter>", _entra, add="+")
+        widget.bind("<Leave>", _chiudi, add="+")
+        widget.bind("<Button-1>", _chiudi, add="+")
+        widget.bind("<Destroy>", _chiudi, add="+")
+
+    fr_lista = ttk.Frame(tab_e)
+    fr_lista.grid(row=0, column=0, sticky="nsew", padx=(8, 4), pady=8)
+    fr_lista.columnconfigure(0, weight=1)
+    fr_lista.rowconfigure(1, weight=1)
+    fr_filtro = ttk.Frame(fr_lista)
+    fr_filtro.grid(row=0, column=0, sticky="ew", pady=(0, 4))
+    lbl_cerca = ttk.Label(fr_filtro, image=self.icone_gui.get("search"), text=" Cerca:", compound="left",
+                          background=self.COLOR_WIDGET_BG, font=("Arial", 9, "bold"))
+    lbl_cerca.image = self.icone_gui.get("search")
+    lbl_cerca.pack(side="left")
+    ttk.Entry(fr_filtro, textvariable=self.var_filtro_cat_av, width=24).pack(side="left", padx=6)
+    self.var_filtro_cat_av.trace_add("write", lambda *_: _aggiorna_albero_cat_avanz(self))
+    cont = tk.Frame(fr_lista, bg=self.COLOR_TOPLEVEL)
+    cont.grid(row=1, column=0, sticky="nsew")
+    canvas = tk.Canvas(cont, bg=self.COLOR_TOPLEVEL, highlightthickness=0)
+    scrollbar = ttk.Scrollbar(cont, orient="vertical", command=canvas.yview, style="Vertical.TScrollbar")
+    canvas.configure(yscrollcommand=scrollbar.set)
+    scrollbar.pack(side="right", fill="y")
+    canvas.pack(side="left", fill="both", expand=True)
+    scroll_frame = tk.Frame(canvas, bg=self.COLOR_TOPLEVEL)
+    canvas_window = canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
+    scroll_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+    canvas.bind("<Configure>", lambda e: canvas.itemconfig(canvas_window, width=e.width))
+    def _on_wheel_elenco(event):
+        try:
+            if self.nb_cat_av.select() != str(tab_e):
+                return
+            delta = getattr(event, 'delta', 0)
+            num = getattr(event, 'num', 0)
+            if num == 4 or delta > 0:
+                canvas.yview_scroll(-1, "units")
+            elif num == 5 or delta < 0:
+                canvas.yview_scroll(1, "units")
+        except (tk.TclError, AttributeError):
+            pass
+    popup.bind("<MouseWheel>", _on_wheel_elenco, add="+")
+    popup.bind("<Button-4>", _on_wheel_elenco, add="+")
+    popup.bind("<Button-5>", _on_wheel_elenco, add="+")
+    self.cat_av_toggle_var = tk.BooleanVar()
+    f_toggle = tk.Frame(scroll_frame, bg=self.COLOR_TOPLEVEL)
+    f_toggle.pack(anchor="w", padx=10, pady=(6, 6))
+    tk.Checkbutton(f_toggle, variable=self.cat_av_toggle_var, command=lambda: _toggle_tutte_cat_av(self),
+                   bg=self.COLOR_TOPLEVEL,
+                   fg=self.COLOR_BLACK,
+                   selectcolor=self.COLOR_WHITE,
+                   activebackground=self.COLOR_TOPLEVEL,
+                   highlightthickness=0,
+                   bd=0).pack(side="left")
+    tk.Label(f_toggle, text=" Seleziona Tutto/Nessuno",
+             bg=self.COLOR_TOPLEVEL,
+             fg=self.TEXT_COLOR,
+             font=("Arial", 10, "bold italic")).pack(side="left")
+    f_head = tk.Frame(scroll_frame, bg=self.COLOR_TOPLEVEL)
+    f_head.pack(fill="x", pady=(0, 2))
+    for titolo, w, anc in reversed(_COLONNE_CAT_AV):
+        tk.Label(f_head, text=titolo, width=w, anchor=anc, bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
+                 font=("Arial", 9, "bold")).pack(side="right", padx=(0, 6))
+    tk.Label(f_head, text="Categoria", anchor="w", bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
+             font=("Arial", 9, "bold")).pack(side="left", padx=(44, 0))
+    self.cat_av_righe = tk.Frame(scroll_frame, bg=self.COLOR_TOPLEVEL)
+    self.cat_av_righe.pack(fill="x")
+    fr_del = ttk.Frame(fr_lista)
+    fr_del.grid(row=2, column=0, sticky="ew", pady=(8, 0))
+    tk.Checkbutton(
+        fr_del,
+        text="Elimina anche Movimenti associati",
+        variable=self.cat_av_elimina_var,
+        anchor="w",
+        bg="yellow",
+        activebackground="gold"
+    ).pack(side="left", padx=(0, 6))
+    _btn(fr_del, "delete", " Cancella spuntate", lambda: cancella_categorie_selezionate(self))
+    self.lbl_cont_cat_av = ttk.Label(fr_del, text="", font=("Arial", 8))
+    self.lbl_cont_cat_av.pack(side="right")
+
+    form = ttk.LabelFrame(tab_e, text="✓ Dettagli Categoria", style="RedBold.TLabelframe")
+    form.grid(row=0, column=1, sticky="ns", padx=(4, 8), pady=8)
+    def convalida_categoria(valore):
+        return len(valore) <= 20
+    vcmd_cat = form.register(convalida_categoria)
+    lbl_n = ttk.Label(form, image=self.icone_gui.get("search"), text=" Nome:", compound="left",
+                      background=self.COLOR_WIDGET_BG, font=("Arial", 9, "bold"))
+    lbl_n.image = self.icone_gui.get("search")
+    lbl_n.grid(row=0, column=0, sticky="e", padx=4, pady=5)
+    self.ed_entry_nome = ttk.Entry(form, textvariable=self.nuova_cat, width=22, validate="key",
+                                   validatecommand=(vcmd_cat, "%P"))
+    self.ed_entry_nome.grid(row=0, column=1, sticky="w", padx=2, pady=5)
+    self.ed_entry_nome.bind("<Return>", lambda e: self.add_categoria())
+    self.ed_entry_nome.bind("<KP_Enter>", lambda e: self.add_categoria())
+    lbl_t = ttk.Label(form, image=self.icone_gui.get("documenti"), text=" Tipo:", compound="left",
+                      background=self.COLOR_WIDGET_BG, font=("Arial", 9, "bold"))
+    lbl_t.image = self.icone_gui.get("documenti")
+    lbl_t.grid(row=1, column=0, sticky="e", padx=4, pady=5)
+    def toggle_tipo():
+        self.tipo_categoria.set("Entrata" if self.tipo_categoria.get() == "Uscita" else "Uscita")
+        self._aggiorna_stile_pulsante_tipo_popup()
+    self.ed_btn_tipo = ttk.Button(form, text=self.tipo_categoria.get(), width=10, command=toggle_tipo,
+                                  style='RedOutline.TButton', takefocus=0)
+    self.ed_btn_tipo.grid(row=1, column=1, sticky="w", padx=2, pady=5)
+    self.ed_btn_tipo.config(cursor="hand2")
+    self._aggiorna_stile_pulsante_tipo_popup()
+    ttk.Label(form, text=" Classe 50/30/20:", background=self.COLOR_WIDGET_BG,
+              font=("Arial", 9, "bold")).grid(row=2, column=0, sticky="e", padx=4, pady=5)
+    self.ed_cb_classe = ttk.Combobox(form, textvariable=self.classe_categoria,
+                                     values=["Nessuna", "Bisogni", "Desideri", "Risparmio"],
+                                     style="Border.TCombobox", state="readonly", width=16)
+    self.ed_cb_classe.grid(row=2, column=1, sticky="w", padx=2, pady=5)
+    ttk.Label(form, text=" Conto:", font=("Arial", 9, "bold")).grid(row=3, column=0, sticky="e", padx=4, pady=5)
+    self.ed_cb_conto = ttk.Combobox(form, textvariable=self.conto_risp_cat,
+                                    values=["(nessuno)"] + self._nomi_conti_portafoglio(
+                                        solo_risparmio=True, includi=self.conto_risp_cat.get()),
+                                    style="ContoRisp.Border.TCombobox", state="readonly", width=16)
+    self.ed_cb_conto.grid(row=3, column=1, sticky="w", padx=2, pady=5)
+    def _stato_conto(*_):
+        try:
+            if not self.ed_cb_conto.winfo_exists():
+                return
+            if self.classe_categoria.get() == "Risparmio":
+                self.ed_cb_conto.config(state="readonly")
+            else:
+                self.conto_risp_cat.set("(nessuno)")
+                self.ed_cb_conto.config(state="disabled")
+        except tk.TclError:
+            pass
+    self.classe_categoria.trace_add("write", _stato_conto)
+    _stato_conto()
+    _tt_cat(self.ed_cb_classe,
+            "Classe 50/30/20 della categoria: Bisogni (max 50%), Desideri (max 30%), "
+            "Risparmio (min 20%). Decide in quale gruppo contano le uscite di questa categoria nel Metodo 50/30/20.")
+    _tt_cat(self.ed_cb_conto,
+            "Attivo solo con classe Risparmio. Ogni uscita in questa categoria, registrata con un conto "
+            "(es. Luca), diventa un trasferimento da quel conto al conto risparmio scelto qui. "
+            "Premi Aggiungi o Modifica per salvare.")
+    def convalida_budget(valore):
+        if valore == "" or valore == ".":
+            return True
+        try:
+            float(valore.replace(",", "."))
+            return len(valore) <= 8
+        except ValueError:
+            return False
+    vcmd_budget = form.register(convalida_budget)
+    for riga, testo, var in ((4, " Budget €/mese:", self.var_budget_cat), (5, " Budget €/anno:", self.var_budget_annuo_cat)):
+        ttk.Label(form, text=testo, font=("Arial", 9, "bold")).grid(row=riga, column=0, sticky="e", padx=4, pady=5)
+        e = ttk.Entry(form, textvariable=var, width=10, validate="key", validatecommand=(vcmd_budget, "%P"))
+        e.bind("<FocusOut>", lambda ev, v=var: [
+            v.set(f"{float(v.get().strip().replace(',', '.')):.2f}".replace(".", ","))
+            if v.get().strip() else None
+        ])
+        e.grid(row=riga, column=1, sticky="w", padx=2, pady=5)
+    fr_b1 = ttk.Frame(form)
+    fr_b1.grid(row=6, column=0, columnspan=2, pady=(14, 2))
+    _btn(fr_b1, "check", " Aggiungi", lambda: self.add_categoria())
+    _btn(fr_b1, "salva", " Salva", lambda: self.modifica_categoria())
+    fr_b2 = ttk.Frame(form)
+    fr_b2.grid(row=7, column=0, columnspan=2, pady=(4, 8))
+    _btn(fr_b2, "reset", " Reset", lambda: self.reset_campi_categoria())
+    _btn(fr_b2, "timer", " Analisi", lambda: self.analisi_categorie(self.cat_mod_sel.get() or None))
+
+    _costruisci_tab_suggerite(self, self.tab_cat_av_sugg)
+    self.nb_cat_av.bind("<<NotebookTabChanged>>",
+        lambda e: self._ricostruisci_sugg_av() if self.nb_cat_av.select() == str(self.tab_cat_av_sugg) else None)
+    self.reset_campi_categoria()
+    popup.deiconify()
+    self.nb_cat_av.select(self.tab_cat_av_sugg if tab == "suggerite" else self.tab_cat_av_elenco)
+
+_ICONE_CAT_REGOLE = (
+    ("home", ["Casa", "Affitto", "Mutuo", "Immobile", "Arredamento", "Pulizie", "Tassa", "Pellet", "Caldaia", "Utenze", "Bollette", "Consumi"]),
+    ("spesa", ["Spesa"]),
+    ("lavoro", ["Ristoranti", "Pranzi", "Asporto", "Colazioni"]),
+    ("icc", ["Stipendio", "Pensione", "Extra", "Corrente", "Finanza", "Commercialista"]),
+    ("salute", ["Salute", "Farmaci", "Mediche", "Dentista"]),
+    ("fitness", ["Palestra", "Wellness"]),
+    ("mobile", ["Telefonia", "Internet", "Cellulari"]),
+    ("bus", ["Trasporti", "Taxi", "Bollo", "Auto", "Veicoli", "Carburante"]),
+    ("regalo", ["Regali"]),
+    ("cinema", ["Cinema", "Videogiochi", "Eventi"]),
+    ("vestiti", ["Abbigliamento"]),
+    ("beauty", ["Parrucchiere", "Estetica"]),
+    ("aereo", ["Viaggi"]),
+    ("cloud", ["Cloud", "Streaming", "Abbonamenti"]),
+    ("studio", ["Libri", "Corsi"]),
+    ("lavoro", ["Software", "Lavoro", "IVA"]),
+    ("alert", ["Emergenze", "Straordinarie", "Impreviste"]),
+)
+
+def _icona_categoria_key(nome):
+    for chiave, parole in _ICONE_CAT_REGOLE:
+        if any(p in nome for p in parole):
+            return chiave
+    return "tools"
+
+_COLONNE_CAT_AV = (("Classe", 9, "w"), ("Conto", 13, "w"), ("Mese", 9, "e"), ("Anno", 10, "e"), ("Tipo", 9, "w"))
+
+def _fmt_budget_cat(v):
+    return _fmt_it(v) if v and v > 0 else "–"
+
+def _cat_av_protetta(self, nome):
+    return nome in ("Generica", self.CATEGORIA_RIMOSSA)
+
+def _seleziona_cat_av(self, nome):
+    self.cat_mod_sel.set(nome)
+    self.on_categoria_modifica_changed_popup()
+    self.ed_cb_conto["values"] = ["(nessuno)"] + self._nomi_conti_portafoglio(
+        solo_risparmio=True, includi=self._nome_conto_risparmio_cat(nome))
+    for n, ws in self.cat_av_rows.items():
+        bg = self.COLOR_WIDGET_BG if n == nome else self.COLOR_TOPLEVEL
+        for w in ws:
+            w.config(bg=bg)
+        ws[1].config(activebackground=bg)
+
+def _toggle_tutte_cat_av(self):
+    val = self.cat_av_toggle_var.get()
+    for n in self.cat_av_rows:
+        if not _cat_av_protetta(self, n):
+            self.cat_av_vars[n].set(val)
+    _conta_cat_av(self)
+
+def _conta_cat_av(self):
+    vis = [n for n in self.cat_av_rows if not _cat_av_protetta(self, n)]
+    self.cat_av_toggle_var.set(bool(vis) and all(self.cat_av_vars[n].get() for n in vis))
+    k = sum(1 for n, v in self.cat_av_vars.items() if v.get() and n in self.categorie)
+    self.lbl_cont_cat_av.config(text=f"{len(self.cat_av_rows)} categorie" + (f" · {k} spuntate" if k else ""))
+
+def _aggiorna_albero_cat_avanz(self):
+    righe = getattr(self, 'cat_av_righe', None)
+    if righe is None:
+        return
+    try:
+        if not righe.winfo_exists():
+            return
+    except tk.TclError:
+        return
+    filtro = self.var_filtro_cat_av.get().strip().lower()
+    for n in list(self.cat_av_vars):
+        if n not in self.categorie:
+            del self.cat_av_vars[n]
+    for w in righe.winfo_children():
+        w.destroy()
+    self.cat_av_rows = {}
+    sel = self.cat_mod_sel.get()
+    for nome in sorted(set(self.categorie), key=lambda c: c.lower()):
+        if filtro and filtro not in nome.lower():
+            continue
+        var = self.cat_av_vars.setdefault(nome, tk.BooleanVar())
+        prot = _cat_av_protetta(self, nome)
+        if prot:
+            var.set(False)
+        bg = self.COLOR_WIDGET_BG if nome == sel else self.COLOR_TOPLEVEL
+        f = tk.Frame(righe, bg=bg)
+        f.pack(fill="x", pady=1)
+        chk = tk.Checkbutton(f, variable=var, command=lambda: _conta_cat_av(self), bg=bg,
+                             selectcolor=self.COLOR_WHITE, activebackground=bg,
+                             highlightthickness=0, bd=0, state="disabled" if prot else "normal")
+        chk.pack(side="left", padx=(5, 0))
+        img_cat = self.icone_gui.get(_icona_categoria_key(nome))
+        li = None
+        if img_cat:
+            li = tk.Label(f, image=img_cat, bg=bg, cursor="hand2")
+            li.image = img_cat
+            li.pack(side="left", padx=5)
+        tipo = self.categorie_tipi.get(nome, "Uscita")
+        classe = self._classi_categorie().get(nome, "")
+        conto = self._nome_conto_risparmio_cat(nome) if classe == "Risparmio" else ""
+        if conto == "(nessuno)":
+            conto = ""
+        valori = (classe or "–", conto or "–",
+                  _fmt_budget_cat(self.budget_categorie.get(nome, 0)),
+                  _fmt_budget_cat(self.budget_annuale_categorie.get(nome, 0)),
+                  f"({tipo})")
+        col_cols = []
+        for (titolo, w, anc), testo in reversed(list(zip(_COLONNE_CAT_AV, valori))):
+            if titolo == "Tipo":
+                fg, fnt = ("#98C379" if tipo == "Entrata" else "#E06C75"), ("Arial", 8, "italic")
+            else:
+                fg, fnt = ("gray" if (prot or testo == "–") else self.TEXT_COLOR), ("Arial", 9)
+            c = tk.Label(f, text=testo, width=w, anchor=anc, bg=bg, fg=fg, font=fnt, cursor="hand2")
+            c.pack(side="right", padx=(0, 6))
+            col_cols.append(c)
+        lbl = tk.Label(f, text=nome, bg=bg, fg="gray" if prot else self.TEXT_COLOR,
+                       font=("Arial", 10), cursor="hand2", anchor="w")
+        lbl.pack(side="left", padx=5, fill="x", expand=True)
+        for w in (f, li, lbl, *col_cols):
+            if w is not None:
+                w.bind("<Button-1>", lambda e, n=nome: _seleziona_cat_av(self, n))
+        self.cat_av_rows[nome] = (f, chk, lbl) + tuple(col_cols) + ((li,) if li is not None else ())
+    _conta_cat_av(self)
+
+def cancella_categorie_selezionate(self):
+    selezionate = sorted((c for c, v in getattr(self, 'cat_av_vars', {}).items()
+                          if v.get() and c in self.categorie and not _cat_av_protetta(self, c)), key=str.lower)
+    if not selezionate:
+        self.show_custom_warning("Attenzione", "Spunta almeno una categoria da cancellare.")
+        return
+    var_elimina = getattr(self, 'cat_av_elimina_var', None)
+    elimina_movimenti = bool(var_elimina.get()) if var_elimina is not None else False
     MAX_MOSTRATE = 6
     if len(selezionate) > MAX_MOSTRATE:
         elenco = "\n".join(f"• {c}" for c in selezionate[:MAX_MOSTRATE])
@@ -1671,38 +1502,53 @@ def cancella_categorie_checkbox(self, popup):
     else:
         elenco = "\n".join(f"• {c}" for c in selezionate)
     testo_conferma = "Sei sicuro di voler cancellare le seguenti categorie?\n\n" + elenco
-    conferma = self.show_custom_askyesno("Elimina", testo_conferma)
-    if not conferma:
+    if elimina_movimenti:
+        testo_conferma += "\n\nI Movimenti associati saranno ELIMINATI."
+    else:
+        testo_conferma += f"\n\nI Movimenti saranno mantenuti ed etichettati '{self.CATEGORIA_RIMOSSA}'."
+    if not self.show_custom_askyesno("Elimina", testo_conferma):
         return
+    sel_set = set(selezionate)
     for cat in selezionate:
         if cat in self.categorie:
             self.categorie.remove(cat)
-        if cat in self.categorie_tipi:
-            del self.categorie_tipi[cat]
-        if cat in self.budget_categorie:
-            del self.budget_categorie[cat]
-        if cat in self.budget_annuale_categorie:
-            del self.budget_annuale_categorie[cat]
-        for giorno in list(self.spese.keys()):
-            nuove_spese = []
-            for voce in self.spese[giorno]:
-                voce_cat = campo(voce, "categoria", "")
-                if voce_cat == cat:
-                     if not self.elimina_spese_var.get():
-                         nuove_spese.append(
-                             voce.sostituisci(categoria=self.CATEGORIA_RIMOSSA)
-                         )
-                else:
-                    nuove_spese.append(voce)
+        self.categorie_tipi.pop(cat, None)
+        self.budget_categorie.pop(cat, None)
+        self.budget_annuale_categorie.pop(cat, None)
+        self._classi_categorie().pop(cat, None)
+        self._conti_risparmio_cat().pop(cat, None)
+        _aggiorna_cat_ricorrenze(self, cat, self.CATEGORIA_RIMOSSA)
+    for giorno in list(self.spese):
+        nuove_spese = []
+        for voce in self.spese[giorno]:
+            if campo(voce, "categoria", "") in sel_set:
+                if not elimina_movimenti:
+                    nuove_spese.append(
+                        voce.sostituisci(categoria=self.CATEGORIA_RIMOSSA)
+                    )
+            else:
+                nuove_spese.append(voce)
+        if nuove_spese:
             self.spese[giorno] = nuove_spese
-    self.show_custom_warning("Rimosse", f"✓ {len(selezionate)} categorie sono state cancellate.")
-    popup.destroy()
+        else:
+            del self.spese[giorno]
+    if var_elimina is not None:
+        var_elimina.set(False)
     self.save_db()
     self.refresh_gui()
     self.aggiorna_combobox_categorie()
+    self.on_categoria_changed()
+    self.reset_campi_categoria()
+    if len(selezionate) == 1:
+        self.show_toast(f"Categoria '{selezionate[0]}' cancellata.")
+    else:
+        self.show_toast(f"{len(selezionate)} categorie cancellate.")
+    if hasattr(self, 'ricorrenza_popup') and self.ricorrenza_popup.winfo_exists():
+        if hasattr(self, 'ric_cat_menu'):
+            self.ric_cat_menu['values'] = sorted(self.categorie)
 
-# Finestra Aggiunta Categorie Suggerite
-def apri_categorie_suggerite(self, parent=None):
+# Tab Categorie Suggerite
+def _costruisci_tab_suggerite(self, parent):
     CATEGORIE_SUGGERITE = [
             "Abbigliamento", "Abbonamenti digitali", "Affitto Immobile", 
             "Alimentari & Consumi", "Animali Domestici", "Arredamento", 
@@ -1725,6 +1571,86 @@ def apri_categorie_suggerite(self, parent=None):
             "Veicoli & Trasporti", "Videogiochi", "Visite Mediche", "Wellness / Spa"
     ]
     TIPO_SUGGERITI = {cat: ("Entrata" if any(x in cat for x in ["Stipendio", "Pensione", "Extra"]) else "Uscita") for cat in CATEGORIE_SUGGERITE}
+    selezioni = {nome_p: tk.BooleanVar() for nome_p in CATEGORIE_SUGGERITE}
+    toggle_var = tk.BooleanVar()
+    parent.columnconfigure(0, weight=1)
+    parent.rowconfigure(0, weight=1)
+    container = tk.Frame(parent, bg=self.COLOR_TOPLEVEL)
+    container.grid(row=0, column=0, sticky="nsew", padx=8, pady=(8, 0))
+    canvas = tk.Canvas(container, bg=self.COLOR_TOPLEVEL, highlightthickness=0)
+    scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview, style="Vertical.TScrollbar")
+    canvas.configure(yscrollcommand=scrollbar.set)
+    scrollbar.pack(side="right", fill="y")
+    canvas.pack(side="left", fill="both", expand=True)
+    scroll_frame = tk.Frame(canvas, bg=self.COLOR_TOPLEVEL)
+    canvas_window = canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
+    def _on_mousewheel(event):
+        try:
+            if self.nb_cat_av.select() != str(parent):
+                return
+            if canvas and canvas.winfo_exists():
+                delta = getattr(event, 'delta', 0)
+                num = getattr(event, 'num', 0)          
+                if num == 4 or delta > 0:
+                     canvas.yview_scroll(-1, "units")
+                elif num == 5 or delta < 0:
+                     canvas.yview_scroll(1, "units")
+        except (tk.TclError, NameError, AttributeError):
+                    pass
+    self.cat_av_popup.bind("<MouseWheel>", _on_mousewheel, add="+")
+    self.cat_av_popup.bind("<Button-4>", _on_mousewheel, add="+")
+    self.cat_av_popup.bind("<Button-5>", _on_mousewheel, add="+")
+    scroll_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+    canvas.bind("<Configure>", lambda e: canvas.itemconfig(canvas_window, width=e.width))
+    def toggle_all():
+        presenti = set(self.categorie)
+        for n, v in selezioni.items():
+            v.set(toggle_var.get() and n not in presenti)
+    f_toggle = tk.Frame(scroll_frame, bg=self.COLOR_TOPLEVEL)
+    f_toggle.pack(anchor="w", padx=10, pady=10)
+    tk.Checkbutton(f_toggle, variable=toggle_var, command=toggle_all,
+                   bg=self.COLOR_TOPLEVEL,
+                   fg=self.COLOR_BLACK,
+                   selectcolor=self.COLOR_WHITE,
+                   activebackground=self.COLOR_TOPLEVEL,
+                   highlightthickness=0,
+                   bd=0).pack(side="left")
+    tk.Label(f_toggle, text=" Seleziona Tutto/Nessuno",
+             bg=self.COLOR_TOPLEVEL,
+             fg=self.TEXT_COLOR,
+             font=("Arial", 10, "bold italic")).pack(side="left")
+    righe_frame = tk.Frame(scroll_frame, bg=self.COLOR_TOPLEVEL)
+    righe_frame.pack(fill="x")
+    def costruisci():
+        for w in righe_frame.winfo_children():
+            w.destroy()
+        presenti = set(self.categorie)
+        for nome_p in CATEGORIE_SUGGERITE:
+            var = selezioni[nome_p]
+            gia = nome_p in presenti
+            if gia:
+                var.set(False)
+            tipo = TIPO_SUGGERITI[nome_p]
+            icona_key = _icona_categoria_key(nome_p)
+            img_png = self.icone_gui.get(icona_key)
+            f_riga = tk.Frame(righe_frame, bg=self.COLOR_TOPLEVEL)
+            f_riga.pack(fill="x", pady=1)
+            chk = tk.Checkbutton(f_riga, variable=var, bg=self.COLOR_TOPLEVEL, 
+                                 selectcolor=self.COLOR_WHITE, activebackground=self.COLOR_TOPLEVEL, 
+                                 highlightthickness=0, bd=0, state="disabled" if gia else "normal")
+            chk.pack(side="left", padx=(5, 0))
+            if img_png:
+                lbl_i = tk.Label(f_riga, image=img_png, bg=self.COLOR_TOPLEVEL)
+                lbl_i.image = img_png
+                lbl_i.pack(side="left", padx=5)
+            tk.Label(f_riga, text=nome_p, bg=self.COLOR_TOPLEVEL, fg="gray" if gia else self.TEXT_COLOR, font=("Arial", 10)).pack(side="left", padx=5)            
+            if gia:
+                tk.Label(f_riga, text="già presente", bg=self.COLOR_TOPLEVEL, fg="gray", font=("Arial", 8, "italic")).pack(side="right", padx=15)
+            else:
+                color_t = "#98C379" if tipo == "Entrata" else "#E06C75"
+                tk.Label(f_riga, text=f"({tipo})", bg=self.COLOR_TOPLEVEL, fg=color_t, font=("Arial", 8, "italic")).pack(side="right", padx=15)            
+    self._ricostruisci_sugg_av = costruisci
+    costruisci()
     def esegui_import_interna(event=None):
         aggiunte = 0
         gia_presenti = 0
@@ -1744,135 +1670,26 @@ def apri_categorie_suggerite(self, parent=None):
                 self.show_custom_warning("Nessuna Selezione", "Seleziona almeno una categoria da importare per procedere.")
             return
         self.categorie.sort()
-        if hasattr(self, 'aggiorna_combobox_categorie'): self.aggiorna_combobox_categorie()
+        self.aggiorna_combobox_categorie()
         self.save_db()
+        for v in selezioni.values():
+            v.set(False)
+        toggle_var.set(False)
+        costruisci()
         self.show_toast(f"Successo! Aggiunte {aggiunte} categorie.")
-        self.update_idletasks()
-        finestra.destroy()
-    finestra = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
-    finestra.withdraw()
-    finestra.transient(parent or self)
-    finestra.title("Importa Categorie")
-    larghezza, altezza = 580, 620
-    x = self.winfo_rootx() + (self.winfo_width() // 2) - (larghezza // 2)
-    y = self.winfo_rooty() + (self.winfo_height() // 2) - (altezza // 2)
-    finestra.geometry(f"{larghezza}x{altezza}+{x}+{y}") 
-    finestra.minsize(larghezza, altezza)       
-    finestra.update_idletasks()
-    container = tk.Frame(finestra, bg=self.COLOR_TOPLEVEL)
-    container.pack(padx=20, pady=5, fill="both", expand=True)
-    canvas = tk.Canvas(container, bg=self.COLOR_TOPLEVEL, highlightthickness=0)
-    scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
-    canvas.configure(yscrollcommand=scrollbar.set)
-    scrollbar.pack(side="right", fill="y")
-    canvas.pack(side="left", fill="both", expand=True)
-    scroll_frame = tk.Frame(canvas, bg=self.COLOR_TOPLEVEL)
-    canvas_window = canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
-    def _on_mousewheel(event):
-        try:
-            if canvas and canvas.winfo_exists():
-                delta = getattr(event, 'delta', 0)
-                num = getattr(event, 'num', 0)          
-                if num == 4 or delta > 0:
-                     canvas.yview_scroll(-1, "units")
-                elif num == 5 or delta < 0:
-                     canvas.yview_scroll(1, "units")
-        except (tk.TclError, NameError, AttributeError):
-                    pass
-    finestra.bind("<MouseWheel>", _on_mousewheel)
-    finestra.bind("<Button-4>", _on_mousewheel)
-    finestra.bind("<Button-5>", _on_mousewheel)
-    scroll_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-    canvas.bind("<Configure>", lambda e: canvas.itemconfig(canvas_window, width=e.width))
-    selezioni = {}
-    toggle_var = tk.BooleanVar()
-    def toggle_all():
-        for v in selezioni.values(): v.set(toggle_var.get())
-    f_toggle = tk.Frame(scroll_frame, bg=self.COLOR_TOPLEVEL)
-    f_toggle.pack(anchor="w", padx=10, pady=10)
-    tk.Checkbutton(f_toggle, variable=toggle_var, command=toggle_all,
-                   bg=self.COLOR_TOPLEVEL,
-                   fg=self.COLOR_BLACK,
-                   selectcolor=self.COLOR_WHITE,
-                   activebackground=self.COLOR_TOPLEVEL,
-                   highlightthickness=0,
-                   bd=0).pack(side="left")
-    tk.Label(f_toggle, text=" Seleziona Tutto/Nessuno",
-             bg=self.COLOR_TOPLEVEL,
-             fg=self.TEXT_COLOR,
-             font=("Arial", 10, "bold italic")).pack(side="left")
-    lista_home = ["Casa", "Affitto", "Mutuo", "Immobile", "Arredamento", "Pulizie", "Tassa", "Pellet", "Caldaia", "Utenze", "Bollette", "Consumi"]
-    lista_lavoro1 = ["Ristoranti", "Pranzi", "Asporto", "Colazioni"]
-    lista_icc = ["Stipendio", "Pensione", "Extra", "Corrente", "Finanza", "Commercialista"]
-    lista_salute = ["Salute", "Farmaci", "Mediche", "Dentista"]
-    lista_fitness = ["Palestra", "Wellness"]
-    lista_mobile = ["Telefonia", "Internet", "Cellulari"]
-    lista_bus = ["Trasporti", "Taxi", "Bollo", "Auto", "Veicoli", "Carburante"]
-    lista_cinema = ["Cinema", "Videogiochi", "Eventi"]
-    lista_beauty = ["Parrucchiere", "Estetica"]
-    lista_cloud = ["Cloud", "Streaming", "Abbonamenti"]
-    lista_studio = ["Libri", "Corsi"]
-    lista_lavoro2 = ["Software", "Lavoro", "IVA"]
-    lista_alert = ["Emergenze", "Straordinarie", "Impreviste"]
-    for nome_p in CATEGORIE_SUGGERITE:
-        var = tk.BooleanVar()
-        tipo = TIPO_SUGGERITI[nome_p]
-        icona_key = "home" if any(x in nome_p for x in lista_home) else \
-                    "spesa" if "Spesa" in nome_p else \
-                    "lavoro" if any(x in nome_p for x in lista_lavoro1) else \
-                    "icc" if any(x in nome_p for x in lista_icc) else \
-                    "salute" if any(x in nome_p for x in lista_salute) else \
-                    "fitness" if any(x in nome_p for x in lista_fitness) else \
-                    "mobile" if any(x in nome_p for x in lista_mobile) else \
-                    "bus" if any(x in nome_p for x in lista_bus) else \
-                    "regalo" if "Regali" in nome_p else \
-                    "cinema" if any(x in nome_p for x in lista_cinema) else \
-                    "vestiti" if "Abbigliamento" in nome_p else \
-                    "beauty" if any(x in nome_p for x in lista_beauty) else \
-                    "aereo" if "Viaggi" in nome_p else \
-                    "cloud" if any(x in nome_p for x in lista_cloud) else \
-                    "studio" if any(x in nome_p for x in lista_studio) else \
-                    "lavoro" if any(x in nome_p for x in lista_lavoro2) else \
-                    "alert" if any(x in nome_p for x in lista_alert) else "tools"
-        img_png = self.icone_gui.get(icona_key)
-        f_riga = tk.Frame(scroll_frame, bg=self.COLOR_TOPLEVEL)
-        f_riga.pack(fill="x", pady=1)
-        chk = tk.Checkbutton(f_riga, variable=var, bg=self.COLOR_TOPLEVEL, 
-                             selectcolor=self.COLOR_WHITE, activebackground=self.COLOR_TOPLEVEL, 
-                             highlightthickness=0, bd=0)
-        chk.pack(side="left", padx=(5, 0))
-        if img_png:
-            lbl_i = tk.Label(f_riga, image=img_png, bg=self.COLOR_TOPLEVEL)
-            lbl_i.image = img_png
-            lbl_i.pack(side="left", padx=5)
-        tk.Label(f_riga, text=nome_p, bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR, font=("Arial", 10)).pack(side="left", padx=5)            
-        color_t = "#98C379" if tipo == "Entrata" else "#E06C75"
-        tk.Label(f_riga, text=f"({tipo})", bg=self.COLOR_TOPLEVEL, fg=color_t, font=("Arial", 8, "italic")).pack(side="right", padx=15)            
-        selezioni[nome_p] = var
-    btn_f = tk.Frame(finestra, bg=self.COLOR_TOPLEVEL)
-    btn_f.pack(pady=20)
-    b_add = tk.Label(btn_f, text=" Aggiungi", image=self.icone_gui.get("aggiungi"), compound="left",
+    btn_f = tk.Frame(parent, bg=self.COLOR_TOPLEVEL)
+    btn_f.grid(row=1, column=0, pady=10)
+    b_add = tk.Label(btn_f, text=" Aggiungi selezionate", image=self.icone_gui.get("aggiungi"), compound="left",
                      bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR, font=("Arial", 9, "bold"),
                      cursor="hand2", padx=20, pady=8)
-    b_add.pack(side="left", padx=10)
+    b_add.pack()
     b_add.bind("<Button-1>", esegui_import_interna)        
-    b_cls = tk.Label(btn_f, text=" Chiudi", image=self.icone_gui.get("chiudi"), compound="left",
-                     bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR, font=("Arial", 9, "bold"),
-                     cursor="hand2", padx=20, pady=8)
-    b_cls.pack(side="left", padx=10)
-    b_cls.bind("<Button-1>", lambda e: finestra.destroy())
-    finestra.deiconify()
-    finestra.wait_visibility()
-    try:
-        finestra.grab_set()
-        finestra.focus_force()
-    except: pass
 
 def get_dati_categorie_storiche_json(self, conto_filtro=None):
     spese_per_categoria = {}
     for giorno, voci in self.spese.items():
             for voce in voci:
-                    if conto_filtro and campo(voce, "conto", "") != conto_filtro:
+                    if conto_filtro and self._conto_effettivo(voce) != conto_filtro:
                             continue
                     if campo(voce, "tipo", "") == "Uscita":
                             categoria = campo(voce, "categoria", "")
@@ -1906,7 +1723,7 @@ def get_dati_categorie_json(self, conto_filtro=None):
     for data, entries in self.spese.items():
         if data.year == anno_corrente:
             for entry in entries:
-                if conto_filtro and campo(entry, "conto", "") != conto_filtro:
+                if conto_filtro and self._conto_effettivo(entry) != conto_filtro:
                     continue
                 if campo(entry, "tipo", "") == "Uscita":
                     categoria = campo(entry, "categoria", "")
@@ -2096,7 +1913,7 @@ def mostra_editor_memoria_categorie(self, event=None):
         b.pack(side="left", padx=8)
         b.bind("<Button-1>", lambda e: cmd())
         return b
-    _btn("Nuova",        "nuovo",    nuova_voce)
+    _btn("Nuova",        "aggiungi", nuova_voce)
     _btn("Modifica",     "modifica", modifica_voce)
     _btn("Elimina voce", "delete",   elimina_voce,  fg=self.COLOR_RED)
     _btn("Svuota tutto", "delete",   elimina_tutte, fg=self.COLOR_RED)

@@ -194,12 +194,13 @@ def get_dati_saldo_json(self, conto_filtro=None):
 
 # Portafoglio Bancario Web
 
-_PORTAFOGLIO_TIPI = ["personale", "comune", "figli", "altro"]
+_PORTAFOGLIO_TIPI = ["personale", "comune", "figli", "risparmio", "altro"]
 _PORTAFOGLIO_MAX_CONTI = 10
 _PORTAFOGLIO_TIPO_COLORI = {
     "personale": "#4A90D9",
     "comune":    "#50C878",
     "figli":     "#C45E00",
+    "risparmio": "#20B2AA",
     "altro":     "#A78BFA",
 }
 

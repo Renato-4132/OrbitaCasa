@@ -14,7 +14,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 
-from __main__ import DB_DIR, VERSION, EMAIL_USER, APP_PASSWORD
+import __main__ as _app
+from __main__ import VERSION
 
 # Compila Modulo Email per Assistenza
 def apri_pannello_topic(self, topic):
@@ -116,7 +117,7 @@ def apri_pannello_topic(self, topic):
                    highlightcolor=self.COLOR_BACKGROUND,
                    font=("Arial", 8), relief="flat", borderwidth=0
                    ).grid(row=7, column=0, sticky="w", padx=15, pady=(6, 0))
-    log_path = os.path.join(DB_DIR, "error_log.txt")
+    log_path = os.path.join(_app.DB_DIR, "error_log.txt")
     log_exists = os.path.exists(log_path) and os.path.getsize(log_path) > 0
     allega_log_var = tk.BooleanVar(value=False)
     tk.Checkbutton(popup, text="Allega Registro Anomalie",
@@ -179,7 +180,7 @@ def apri_pannello_topic(self, topic):
         if allegato_path["file"]:
             corpo += f"\nFile allegato: {os.path.basename(allegato_path['file'])}\n"
         if allega_log_var.get() and log_exists:
-            corpo += f"Registro anomalie: allegato\n"
+            corpo += "Registro anomalie: allegato\n"
         b1.unbind("<Button-1>")
         b1.config(text=" Invio in corso...")
 
@@ -217,6 +218,9 @@ def apri_pannello_topic(self, topic):
 
 # Invia Modulo Email per Assistenza
 def invia_email_assistenza(self, titolo, messaggio, allegato=None, allegati_extra=None, on_done=None):
+    import __main__ as _app
+    EMAIL_USER = _app.EMAIL_USER
+    APP_PASSWORD = _app.APP_PASSWORD
     if not EMAIL_USER or not APP_PASSWORD:
         corpo_mailto = messaggio
         if allegato or allegati_extra:

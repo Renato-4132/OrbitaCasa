@@ -3,8 +3,6 @@
 
 import os
 import json
-import base64
-import hashlib
 import datetime
 import tkinter as tk
 
@@ -129,7 +127,6 @@ def _gami_salva(self, dati):
 
 def _gami_estendi_licenza(self, giorni):
     import __main__ as _app
-    from cryptography.fernet import Fernet
     reg_file = _app.REG_FILE
     if not os.path.exists(reg_file):
         return False
@@ -238,7 +235,7 @@ def aggiorna_badge_header(self):
     righe = [
         f"BADGE A VITA: {nome}",
         f"Punti: {punti}  (mancano {prossima_soglia - punti} al prossimo livello)",
-        f"Al prossimo livello: +30 giorni di licenza!",
+        "Al prossimo livello: +30 giorni di licenza!",
         "",
         f"BADGE DEL MESE: {nome_mese}",
         f"Punti mese: {punti_mese}"
@@ -461,21 +458,21 @@ def mostra_dettaglio_gamification(self):
         f"Streak record (il tuo massimo storico): {streak_record} giorni ({streak_conteggiato} conteggiati) → {punti_da_streak} punti",
         f"Streak attuale (giorni di fila fino a oggi): {dati.get('streak_corrente', 0)} giorni",
         "",
-        f"Ogni nuovo livello a vita regala +30 giorni di licenza!",
+        "Ogni nuovo livello a vita regala +30 giorni di licenza!",
     ]
     righe_mese = [
-        f"Come si fanno i punti del mese: 1 punto per ogni azione del mese + 5 punti per ogni giorno attivo nel mese.",
+        "Come si fanno i punti del mese: 1 punto per ogni azione del mese + 5 punti per ogni giorno attivo nel mese.",
         "Cosa conta come \"azione\"? Ogni movimento (spesa o entrata) che registri nell'app.",
         f"Azioni questo mese: {dati.get('mese_azioni', 0)}",
         f"Giorni attivi questo mese: {len(dati.get('mese_giorni', []))}",
-        f"Si azzera automaticamente all'inizio di ogni mese.",
+        "Si azzera automaticamente all'inizio di ogni mese.",
     ]
     righe_anno = [
-        f"Come si fanno i punti dell'anno: 1 punto per ogni azione dell'anno + 5 punti per ogni giorno attivo nell'anno.",
+        "Come si fanno i punti dell'anno: 1 punto per ogni azione dell'anno + 5 punti per ogni giorno attivo nell'anno.",
         "Cosa conta come \"azione\"? Ogni movimento (spesa o entrata) che registri nell'app.",
         f"Azioni quest'anno: {dati.get('anno_azioni', 0)}",
         f"Giorni attivi quest'anno: {len(dati.get('anno_giorni', []))}",
-        f"Si azzera automaticamente ogni 1° gennaio.",
+        "Si azzera automaticamente ogni 1° gennaio.",
     ]
 
     _bordo_gami = getattr(self, "COLOR_HIGHLIGHT", "#3B82F6")

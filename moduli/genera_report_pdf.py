@@ -22,7 +22,6 @@ def _carica_db_conti_pdf():
 # Popup di Selezione Periodo/Sezioni e Avvio Generazione Report PDF
 def genera_report_pdf(self):
     import datetime
-    oggi = datetime.date.today()
     anni_disponibili = sorted(
         set(str(d.year) for d in self.spese.keys() if isinstance(d, datetime.date)),
         reverse=True

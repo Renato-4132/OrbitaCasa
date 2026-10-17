@@ -543,17 +543,16 @@ def apri_dialog_scansione(self, parent, on_pdf, titolo="Scansiona documento", sa
     tmp = tempfile.mkdtemp(prefix="orbita_scan_")
 
     win = tk.Toplevel(parent, bg=self.COLOR_TOPLEVEL)
+    win.withdraw()
     win.title(titolo)
-    win.transient(parent)
-    win.resizable(False, False)
+    
     W, H = 680, 640
-    try:
-        parent.update_idletasks()
-        x = parent.winfo_rootx() + (parent.winfo_width() // 2) - (W // 2)
-        y = parent.winfo_rooty() + (parent.winfo_height() // 2) - (H // 2)
-    except Exception:
-        x, y = 200, 120
+    x = self.winfo_screenwidth() // 2 - W // 2
+    y = self.winfo_screenheight() // 2 - H // 2
     win.geometry(f"{W}x{H}+{max(0, x)}+{max(0, y)}")
+    win.minsize(W, H)
+    win.resizable(False, False)
+    win.transient(self if isinstance(self, tk.Misc) else parent)
 
     pagine = []
     scanners = []
@@ -1001,6 +1000,8 @@ def apri_dialog_scansione(self, parent, on_pdf, titolo="Scansiona documento", sa
     _aggiorna_pulsanti()
     _mostra_anteprima()
     _cerca()
+    win.update_idletasks()
+    win.deiconify()
     win.focus_force()
 
 def scansiona_e_salva(self):

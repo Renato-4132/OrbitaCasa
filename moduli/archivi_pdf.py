@@ -3,7 +3,6 @@
 
 import os
 import re
-import sys
 import json
 import shutil
 import hashlib
@@ -19,6 +18,9 @@ from tkinter import ttk, filedialog
 from moduli.modello_spesa import (
     SpesaEntry, campo, METODI_PAGAMENTO_EMOJI, metodo_pagamento_pulito,
 )
+
+MESI_F = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
+          "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
 
 def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, importo_iniziale=None, tipo_iniziale="Uscita", descrizione_iniziale="", pdf_path_iniziale=None):
     import __main__ as _app
@@ -44,7 +46,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
     categorie_vuote = [] 
     if not hasattr(self, 'filtri_avanzati'):
          self.filtri_avanzati = {} 
-    if categoria_iniziale and categoria_iniziale.strip() not in ("", "Generica", "—"):
+    if categoria_iniziale and categoria_iniziale.strip() not in ("", "Generica"):
          self.filtri_avanzati['categoria'] = categoria_iniziale
     elif 'categoria' in self.filtri_avanzati and not categoria_iniziale:
          del self.filtri_avanzati['categoria']
@@ -340,11 +342,14 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                     if parola_chiave_lower and parola_chiave_lower not in search_string: match = False
                     if filtri_attuali and match:
                             filtro_categoria_attuale = filtri_attuali.get("categoria")
-                            if filtro_categoria_attuale and filtro_categoria_attuale != "—":
+                            if filtro_categoria_attuale:
                                     if filtro_categoria_attuale != categoria: 
                                             match = False
                             if filtri_attuali.get("descrizione") and filtri_attuali["descrizione"].lower() not in descrizione.lower(): match = False
-                            if filtri_attuali.get("tipo") and filtri_attuali["tipo"] != "—" and filtri_attuali["tipo"] != tipo: match = False
+                            if filtri_attuali.get("tipo") and filtri_attuali["tipo"] != tipo: match = False
+                            if data_raw != "00000000" and (filtri_attuali.get("anno") or filtri_attuali.get("mese")):
+                                    if filtri_attuali.get("anno") and data_raw[4:8] != filtri_attuali["anno"]: match = False
+                                    if filtri_attuali.get("mese") and filtri_attuali["mese"] in MESI_F and data_raw[2:4] != f"{MESI_F.index(filtri_attuali['mese']) + 1:02d}": match = False
                             if data_raw != "00000000":
                                     try:
                                             doc_date_obj = datetime.strptime(data_raw, "%d%m%Y").date()
@@ -513,11 +518,10 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                     if d_o in self.spese:
                         for s in self.spese[d_o]:
                             desc_db = str(s[1]).replace("ALL· ", "").strip()
-                            desc_tabella = str(d_v).replace("ALL· ", "").strip()
                             if (s[0] == c_v and s[3] == t_v and abs(float(s[2]) - i_f) < 0.01 and desc_compatibili(s[1], d_v)):
                                 spese_trovate = True
                                 break
-                except: continue
+                except Exception: continue
                 if spese_trovate: break
             msg_doc = "Eliminare il documento selezionato?" if len(items) == 1 else f"Eliminare i {len(items)} documenti selezionati?"
             if not self.show_custom_askyesno("Conferma", msg_doc): return
@@ -536,7 +540,6 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                         nuova_lista = []
                         for s in self.spese[d_o]:
                             desc_db = str(s[1]).replace("ALL· ", "").strip()
-                            desc_tabella = str(d_v).replace("ALL· ", "").strip()
                             if (s[0] == c_v and s[3] == t_v and abs(float(s[2]) - i_f) < 0.01 and desc_compatibili(s[1], d_v)):
                                 mod = True
                                 if not cancella_anche_spesa:
@@ -548,7 +551,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                             else:
                                 nuova_lista.append(s)
                         self.spese[d_o] = nuova_lista
-                except: pass
+                except Exception: pass
                 if f_n in reg: del reg[f_n]
                 tree.delete(item)
             if mod: self.save_db(); self.refresh_gui()
@@ -609,143 +612,6 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                 pass
         elif errori_count > 0:
              self.show_custom_warning("Esportazione Fallita", f"Nessun documento è stato esportato. {errori_count} errori riscontrati.")
-    def apri_filtri_avanzati():
-        root = pdf_window
-        filtro_win = tk.Toplevel(root, bg=self.COLOR_TOPLEVEL)
-        filtro_win.withdraw()
-        filtro_win.title("⚙️ Filtri Avanzati")
-        larghezza_finestra = 500
-        altezza_finestra = 380
-        x = root.winfo_rootx() + (root.winfo_width() // 2) - (larghezza_finestra // 2)
-        y = root.winfo_rooty() + (root.winfo_height() // 2) - (altezza_finestra // 2)
-        filtro_win.geometry(f"{larghezza_finestra}x{altezza_finestra}+{x}+{y}")
-        filtro_win.resizable(False, False)
-        filtro_win.protocol("WM_DELETE_WINDOW", lambda: (
-            (self.popup_calendario.destroy(), setattr(self, 'popup_calendario', None)) 
-            if hasattr(self, 'popup_calendario') and self.popup_calendario and self.popup_calendario.winfo_exists() 
-            else None,
-            filtro_win.destroy()
-        ))
-        filtro_win.bind("<Escape>", lambda e: filtro_win.destroy())
-        filtro_win.transient(root)
-        descrizione_initial = self.filtri_avanzati.get("descrizione", campo_input.get().strip() if 'campo_input' in locals() else '')
-        descrizione_var = tk.StringVar(value=descrizione_initial)
-        categoria_var = tk.StringVar(value=self.filtri_avanzati.get("categoria", "—"))
-        tipo_var = tk.StringVar(value=self.filtri_avanzati.get("tipo", "—"))
-        data_da_var = tk.StringVar(value=self.filtri_avanzati.get("data_da", ""))
-        data_a_var = tk.StringVar(value=self.filtri_avanzati.get("data_a", ""))
-        importo_da_var = tk.StringVar(value=self.filtri_avanzati.get("importo_da", ""))
-        importo_a_var = tk.StringVar(value=self.filtri_avanzati.get("importo_a", ""))
-        valori_categoria = ["—"] + (getattr(self, 'categorie', []))
-        valori_tipo = ["—", "Entrata", "Uscita"]
-        def applica_filtri():
-            nuovi_filtri = {}; 
-            if descrizione_var.get().strip():
-                nuovi_filtri["descrizione"] = descrizione_var.get().strip()
-                if 'campo_input' in locals(): campo_input.delete(0, tk.END) 
-            if categoria_var.get() and categoria_var.get() != "—": nuovi_filtri["categoria"] = categoria_var.get()
-            if tipo_var.get() and tipo_var.get() != "—": nuovi_filtri["tipo"] = tipo_var.get()
-            try:
-                data_da_str = data_da_var.get().strip()
-                data_a_str = data_a_var.get().strip()
-                if data_da_str: 
-                    datetime.strptime(data_da_str, "%d-%m-%Y")
-                    nuovi_filtri["data_da"] = data_da_str
-                if data_a_str: 
-                    datetime.strptime(data_a_str, "%d-%m-%Y")
-                    nuovi_filtri["data_a"] = data_a_str
-            except ValueError: 
-                self.show_custom_warning("Errore", "Formato Data non valido (DD-MM-YYYY).")
-                return 
-            if parse_importo_pulito(importo_da_var.get()) is not None: nuovi_filtri["importo_da"] = importo_da_var.get()
-            if parse_importo_pulito(importo_a_var.get()) is not None: nuovi_filtri["importo_a"] = importo_a_var.get()
-            self.filtri_avanzati = nuovi_filtri
-            filtro_win.destroy()
-            load_documents(tree, self.filtri_avanzati) 
-            self.show_custom_info("Filtri Applicati", "Filtri avanzati applicati con successo.")
-        def chiudi_filtri(): filtro_win.destroy()
-        frame_filtri = ttk.Frame(filtro_win, padding="10"); frame_filtri.pack(fill='both', expand=True)
-        ttk.Label(frame_filtri, text="Descrizione (nel nome file):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        entry_desc_filtro = ttk.Entry(frame_filtri, textvariable=descrizione_var, width=30)
-        entry_desc_filtro.grid(row=0, column=1, columnspan=2, padx=5, pady=5, sticky="ew")
-        ttk.Label(frame_filtri, text="Categoria Esatta:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
-        combo_cat_filtro = ttk.Combobox(frame_filtri, textvariable=categoria_var, values=valori_categoria, style="Border.TCombobox", state='readonly', width=27)
-        combo_cat_filtro.grid(row=1, column=1, columnspan=2, padx=5, pady=5, sticky="ew")
-        ttk.Label(frame_filtri, text="Tipo (Entrata/Uscita):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
-        combo_tipo_filtro = ttk.Combobox(frame_filtri, textvariable=tipo_var, values=valori_tipo, style="Border.TCombobox", state='readonly', width=27)
-        combo_tipo_filtro.grid(row=2, column=1, columnspan=2, padx=5, pady=5, sticky="ew")
-        entry_desc_filtro.bind("<Return>", lambda e: combo_cat_filtro.focus_set())
-        combo_cat_filtro.bind("<<ComboboxSelected>>", lambda e: (
-            combo_cat_filtro.selection_clear(),
-            combo_tipo_filtro.focus_set()
-        ))
-        combo_tipo_filtro.bind("<<ComboboxSelected>>", lambda e: (
-            combo_tipo_filtro.selection_clear(),
-            frame_filtri.focus_set()
-        ))
-        ttk.Separator(frame_filtri, orient='horizontal').grid(row=3, column=0, columnspan=3, sticky='ew', pady=10)
-        ttk.Label(frame_filtri, text="Intervallo Data DA:").grid(row=4, column=0, padx=5, pady=5, sticky="w")
-        entry_data_da = ttk.Entry(frame_filtri, textvariable=data_da_var, width=12)
-        entry_data_da.grid(row=4, column=1, padx=(0, 2), pady=5, sticky="ew")
-        img_cal = self.icone_gui.get("oggi")
-        btn_cal_da = ttk.Label(
-            frame_filtri,
-            image=img_cal,
-            text="🗓️" if not img_cal else "",
-            background=self.COLOR_WIDGET_BG,
-            foreground=self.TEXT_COLOR,
-            cursor="hand2"
-        )
-        btn_cal_da.image = img_cal
-        btn_cal_da.grid(row=4, column=2, padx=(2, 5), pady=5, sticky="w")
-        btn_cal_da.bind("<Button-1>", lambda e: self.mostra_calendario_popup_semplice(entry_data_da, data_da_var))
-        ttk.Label(frame_filtri, text="Intervallo Data A:").grid(row=5, column=0, padx=5, pady=5, sticky="w")
-        entry_data_a = ttk.Entry(frame_filtri, textvariable=data_a_var, width=12)
-        entry_data_a.grid(row=5, column=1, padx=(0, 2), pady=5, sticky="ew")
-        btn_cal_a = ttk.Label(
-            frame_filtri,
-            image=img_cal,
-            text="🗓️" if not img_cal else "",
-            background=self.COLOR_WIDGET_BG,
-            foreground=self.TEXT_COLOR,
-            cursor="hand2"
-        )
-        btn_cal_a.image = img_cal
-        btn_cal_a.grid(row=5, column=2, padx=(2, 5), pady=5, sticky="w")
-        btn_cal_a.bind("<Button-1>", lambda e: self.mostra_calendario_popup_semplice(entry_data_a, data_a_var))
-        ttk.Label(frame_filtri, text="Importo DA (€):").grid(row=6, column=0, padx=5, pady=5, sticky="w")
-        entry_importo_da = ttk.Entry(frame_filtri, textvariable=importo_da_var, width=15); entry_importo_da.grid(row=6, column=1, padx=5, pady=5, sticky="ew")
-        ttk.Label(frame_filtri, text="Importo A (€):").grid(row=7, column=0, padx=5, pady=5, sticky="w")
-        entry_importo_a = ttk.Entry(frame_filtri, textvariable=importo_a_var, width=15); entry_importo_a.grid(row=7, column=1, padx=5, pady=5, sticky="ew")
-        frame_btns = tk.Frame(filtro_win, bg=self.COLOR_TOPLEVEL); frame_btns.pack(pady=10)
-        img_check = self.icone_gui.get("check")
-        btn_applica = ttk.Label(
-            frame_btns,
-            compound="left",
-            image=img_check,
-            text=" Applica Filtri" if img_check else "Applica Filtri",
-            background=self.COLOR_WIDGET_BG,
-            foreground=self.TEXT_COLOR,
-            cursor="hand2"
-        )
-        btn_applica.image = img_check
-        btn_applica.pack(side='left', padx=10)
-        btn_applica.bind("<Button-1>", lambda e: applica_filtri())
-        img_chiudi = self.icone_gui.get("chiudi")
-        btn_annulla = ttk.Label(
-            frame_btns,
-            compound="left",
-            image=img_chiudi,
-            text=" Annulla" if img_chiudi else "Annulla",
-            background=self.COLOR_WIDGET_BG,
-            foreground=self.TEXT_COLOR,
-            cursor="hand2"
-        )
-        btn_annulla.image = img_chiudi
-        btn_annulla.pack(side='left', padx=10)
-        btn_annulla.bind("<Button-1>", lambda e: chiudi_filtri())
-        filtro_win.deiconify()
-        filtro_win.wait_window()
     def stampa_documenti_selezionati():
         selected_items = tree.selection()
         if not selected_items:
@@ -793,12 +659,14 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
          threading.Thread(target=self.backup_documenti, daemon=True).start()   
          self.filtri_avanzati = {}
          self.pdf_window.destroy()
+    _pannello = {"allinea": None}
     def filtra_documenti(event=None):
+         if _pannello["allinea"]: _pannello["allinea"]()
          filtri = self.filtri_avanzati.copy(); filtri['parola_chiave'] = campo_input.get().strip()
          load_documents(tree, filtri)
     def resetta_campo():
          campo_input.delete(0, tk.END); self.filtri_avanzati = {}
-         load_documents(tree, {})
+         filtra_documenti()
     crea_directory_documenti()
     if hasattr(self, 'pdf_window') and self.pdf_window.winfo_exists(): self.pdf_window.lift(); return
     pdf_window = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
@@ -844,14 +712,14 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
     self.pdf_window = pdf_window
     pdf_window.title("Archivio Documenti Contabili")
     pdf_window.withdraw()
-    larghezza_finestra = 1300
-    altezza_finestra = 620
+    larghezza_finestra = 1366
+    altezza_finestra = 660
     larghezza_schermo = self.winfo_screenwidth()
     altezza_schermo = self.winfo_screenheight()
     x = (larghezza_schermo // 2) - (larghezza_finestra // 2)
     y = (altezza_schermo // 2) - (altezza_finestra // 2)
     pdf_window.geometry(f"{larghezza_finestra}x{altezza_finestra}+{x}+{y}")
-    pdf_window.minsize(width=1250, height=600)
+    pdf_window.minsize(width=1366, height=660)
     pdf_window.transient(self)
     pdf_window.protocol("WM_DELETE_WINDOW", chiudi_finestra)
     pdf_window.bind('<Escape>', lambda e: chiudi_finestra())
@@ -923,7 +791,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
     btn_reset.bind("<Button-1>", lambda e: reset_data_totale())
     ttk.Label(frame_input, text="Categoria:").grid(row=0, column=3, padx=5, pady=5, sticky="w")
     combo_categoria = ttk.Combobox(frame_input, values=(getattr(self, 'categorie', categorie_vuote)), width=20, style="Border.TCombobox", state='readonly') 
-    combo_categoria.set(categoria_iniziale if categoria_iniziale and categoria_iniziale.strip() not in ("", "Generica", "—") else "Generica") 
+    combo_categoria.set(categoria_iniziale if categoria_iniziale and categoria_iniziale.strip() not in ("", "Generica") else "Generica") 
     combo_categoria.grid(row=0, column=4, padx=5, pady=5, sticky="w")
     ttk.Label(frame_input, text="Descrizione:").grid(row=0, column=5, padx=5, pady=5, sticky="w")
     entry_descrizione = ttk.Entry(frame_input, width=35, textvariable=desc_var)
@@ -1230,7 +1098,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
     def _pvt_righe(item):
         try:
             v = tree.item(item, 'values')
-            data, cat, desc, imp, tipo, nome = v[0], v[1], v[2], v[3], v[4], v[5]
+            data, cat, imp, tipo, nome = v[0], v[1], v[3], v[4], v[5]
         except Exception:
             return []
         righe = [("Data", str(data))]
@@ -1649,7 +1517,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                 return
             nome_file_drop = os.path.basename(pdf_path)
             self.show_toast(f"Analisi AI: {nome_file_drop}…")
-            _mostra_progress_ai(f"Analisi AI in corso…")
+            _mostra_progress_ai("Analisi AI in corso…")
             def _analizza():
                 try:
                     import json as _json
@@ -1822,18 +1690,6 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
     btn_help.image = self.icone_gui.get("help")
     btn_help.pack(side="right", padx=(1, 5))
     btn_help.bind("<Button-1>", lambda e: self.mostra_help_pdf())
-    btn_filtri = ttk.Label(
-            frame_ricerca,
-            compound="left",
-            image=self.icone_gui.get("filtri"),
-            text=" Filtri Avanzati" if self.icone_gui.get("filtri") else "Filtri Avanzati",
-            background=self.COLOR_WIDGET_BG,
-            foreground=self.TEXT_COLOR,
-            cursor="hand2"
-    )
-    btn_filtri.image = self.icone_gui.get("filtri")
-    btn_filtri.pack(side="right", padx=5)
-    btn_filtri.bind("<Button-1>", lambda e: apri_filtri_avanzati())
     btn_reset_campo = ttk.Label(
             frame_ricerca,
             compound="left",
@@ -1846,6 +1702,139 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
     btn_reset_campo.image = self.icone_gui.get("reset_campo")
     btn_reset_campo.pack(side="right", padx=5)
     btn_reset_campo.bind("<Button-1>", lambda e: resetta_campo())
+    var_f_tipo = tk.StringVar(value="")
+    var_f_cat = tk.StringVar(value="")
+    var_f_anno = tk.StringVar(value="")
+    var_f_mese = tk.StringVar(value="")
+    var_f_desc = tk.StringVar(value="")
+    var_f_imp_da = tk.StringVar(value="")
+    var_f_imp_a = tk.StringVar(value="")
+    var_f_da = tk.StringVar(value="")
+    var_f_a = tk.StringVar(value="")
+    _vars_f = {"tipo": var_f_tipo, "categoria": var_f_cat, "anno": var_f_anno, "mese": var_f_mese,
+               "descrizione": var_f_desc, "importo_da": var_f_imp_da, "importo_a": var_f_imp_a,
+               "data_da": var_f_da, "data_a": var_f_a}
+    stato_f = {"aperta": False, "sosp": False}
+    def _data_ok(txt):
+        t = str(txt or "").strip().replace("/", "-").replace(".", "-")
+        try:
+            datetime.strptime(t, "%d-%m-%Y")
+            return t
+        except ValueError:
+            return None
+    def _dict_da_vars():
+        d = {}
+        for k in ("tipo", "categoria", "anno", "mese"):
+            if _vars_f[k].get():
+                d[k] = _vars_f[k].get()
+        if var_f_desc.get().strip():
+            d["descrizione"] = var_f_desc.get().strip()
+        for k in ("data_da", "data_a"):
+            t = _data_ok(_vars_f[k].get())
+            if t:
+                d[k] = t
+        for k in ("importo_da", "importo_a"):
+            if parse_importo_pulito(_vars_f[k].get()) is not None:
+                d[k] = _vars_f[k].get()
+        return d
+    def _allinea_vars():
+        if self.filtri_avanzati == _dict_da_vars():
+            return
+        stato_f["sosp"] = True
+        try:
+            for k, v in _vars_f.items():
+                v.set(self.filtri_avanzati.get(k, ""))
+        finally:
+            stato_f["sosp"] = False
+        _aggiorna_testata()
+    _pannello["allinea"] = _allinea_vars
+    head_f = ttk.Frame(pdf_window)
+    head_f.pack(fill="x", padx=20, pady=(0, 2))
+    lbl_freccia = ttk.Label(head_f, foreground="#DC3545", cursor="hand2", font=("Arial", 11, "bold"), width=2)
+    lbl_freccia.pack(side="left")
+    lbl_head = ttk.Label(head_f, cursor="hand2", font=("Arial", 9, "bold"))
+    lbl_head.pack(side="left")
+    body_f = ttk.Frame(pdf_window)
+    def _riga_f():
+        r = ttk.Frame(body_f)
+        r.pack(fill="x", pady=2, padx=10)
+        return r
+    def _etichetta_f(r, testo, pad=(10, 4)):
+        ttk.Label(r, text=testo).pack(side="left", padx=pad)
+    def _combo_f(r, var, valori, w):
+        c = ttk.Combobox(r, values=valori, textvariable=var, style="Border.TCombobox", state="readonly", width=w)
+        c.pack(side="left")
+        return c
+    _anni_f = sorted({str(d.year) if hasattr(d, "year") else str(d)[-4:] if "-" in str(d) and len(str(d).split("-")[-1]) == 4 else str(d)[:4] for d in self.spese}, reverse=True)
+    r1_f, r2_f = _riga_f(), _riga_f()
+    _etichetta_f(r1_f, "Tipo:", (4, 4))
+    _combo_f(r1_f, var_f_tipo, ["", "Entrata", "Uscita"], 9)
+    _etichetta_f(r1_f, "Categoria:")
+    _combo_f(r1_f, var_f_cat, [""] + sorted(getattr(self, "categorie", [])), 20)
+    _etichetta_f(r1_f, "Anno:")
+    _combo_f(r1_f, var_f_anno, [""] + _anni_f, 7)
+    _etichetta_f(r1_f, "Mese:")
+    _combo_f(r1_f, var_f_mese, [""] + MESI_F, 11)
+    _etichetta_f(r2_f, "Descrizione contiene:", (4, 4))
+    ttk.Entry(r2_f, textvariable=var_f_desc, width=20).pack(side="left")
+    _etichetta_f(r2_f, "Importo da:")
+    ttk.Entry(r2_f, textvariable=var_f_imp_da, width=9).pack(side="left")
+    _etichetta_f(r2_f, "a:", (6, 4))
+    ttk.Entry(r2_f, textvariable=var_f_imp_a, width=9).pack(side="left")
+    _img_cal_f = self.icone_gui.get("oggi")
+    def _cal_btn_f(entry, var):
+        b = ttk.Label(r2_f, image=_img_cal_f, text="🗓️" if not _img_cal_f else "",
+                      background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2")
+        b.image = _img_cal_f
+        b.pack(side="left", padx=(2, 0))
+        b.bind("<Button-1>", lambda e: self.mostra_calendario_popup(entry, var))
+    _etichetta_f(r2_f, "Dal:")
+    entry_f_da = ttk.Entry(r2_f, textvariable=var_f_da, width=11)
+    entry_f_da.pack(side="left")
+    _cal_btn_f(entry_f_da, var_f_da)
+    _etichetta_f(r2_f, "Al:", (8, 4))
+    entry_f_a = ttk.Entry(r2_f, textvariable=var_f_a, width=11)
+    entry_f_a.pack(side="left")
+    _cal_btn_f(entry_f_a, var_f_a)
+    ttk.Label(r2_f, text="(GG-MM-AAAA)", foreground="gray", font=("Arial", 8, "italic")).pack(side="left", padx=(4, 0))
+    def _aggiorna_testata():
+        d = _dict_da_vars()
+        parti = []
+        for k, etich in (("tipo", ""), ("categoria", "Categoria "), ("anno", "Anno "), ("mese", "")):
+            if d.get(k):
+                parti.append(f"{etich}{d[k]}")
+        if d.get("descrizione"):
+            parti.append(f"«{d['descrizione']}»")
+        if d.get("importo_da") or d.get("importo_a"):
+            parti.append(f"Importo {d.get('importo_da') or '…'} → {d.get('importo_a') or '…'}")
+        if d.get("data_da") or d.get("data_a"):
+            parti.append(f"{d.get('data_da') or '…'} → {d.get('data_a') or '…'}")
+        lbl_freccia.config(text="▾" if stato_f["aperta"] else "▸")
+        lbl_head.config(text="Filtri avanzati  (" + (("filtri attivi: " + ", ".join(parti)) if parti else "nessun filtro attivo") + ")")
+    def _apri_chiudi_f(*_):
+        stato_f["aperta"] = not stato_f["aperta"]
+        if stato_f["aperta"]:
+            body_f.pack(fill="x", padx=10, before=frame_treeview_container)
+        else:
+            body_f.pack_forget()
+        _aggiorna_testata()
+    for _w in (lbl_freccia, lbl_head):
+        _w.bind("<Button-1>", _apri_chiudi_f)
+    def _applica_f(*_):
+        if stato_f["sosp"]:
+            return
+        for e, v in ((entry_f_da, var_f_da), (entry_f_a, var_f_a)):
+            sbagliata = bool(v.get().strip()) and _data_ok(v.get()) is None
+            try:
+                e.configure(foreground="#DC3545" if sbagliata else self.TEXT_COLOR)
+            except tk.TclError:
+                pass
+        self.filtri_avanzati = _dict_da_vars()
+        _aggiorna_testata()
+        filtra_documenti()
+    for _v in _vars_f.values():
+        _v.trace_add("write", _applica_f)
+    _aggiorna_testata()
     frame_treeview_container = ttk.Frame(pdf_window)
     frame_treeview_container.pack(fill='both', expand=True, padx=10, pady=5)
     cols = ("data", "categoria", "descrizione", "importo", "tipo", "nome_completo")
@@ -2057,7 +2046,7 @@ def mostra_help_pdf(self):
         testo += "----------------------------\n"
 
         testo += "• Ricerca Veloce: Digita una parola chiave; la ricerca è effettuata su nome file, data, categoria, descrizione e tipo.\n"
-        testo += "• Filtri Avanzati (Bottone Filtro): Filtra documenti per Intervallo di Data, Intervallo di Importo, Categoria Esatta e Tipo (Entrata/Uscita).\n"
+        testo += "• Filtri Avanzati (freccia sotto la ricerca): apri il pannello e filtra per Tipo, Categoria, Anno, Mese, Descrizione, Intervallo di Importo e Intervallo di Data. I filtri si applicano da soli; il pulsante Reset li azzera.\n"
  
         testo += "\nOperazioni di Sistema (Menu Archivio):\n"
         testo += "--------------------------------------------------\n"
@@ -2110,7 +2099,7 @@ def mostra_help_pdf(self):
     tk.Label(
         content_frame,
         text="• Ricerca Veloce: Digita una parola chiave; la ricerca è effettuata su nome file, data, categoria, descrizione e tipo.\n"
-             "• Filtri Avanzati (Bottone ⚙️): Filtra documenti per Intervallo di Data, Intervallo di Importo, Categoria Esatta e Tipo (Entrata/Uscita).",
+             "• Filtri Avanzati (freccia sotto la ricerca): apri il pannello e filtra per Tipo, Categoria, Anno, Mese, Descrizione, Intervallo di Importo e Intervallo di Data. I filtri si applicano da soli; il pulsante Reset li azzera.",
         font=("Arial", 9),
         justify=tk.LEFT,
         anchor='w',

@@ -77,7 +77,6 @@ def on_stats_table_double_click(self, event):
         categoria = str(values[1]).strip() if len(values) > 1 else ""
     else:
         categoria = str(values[0]).strip()
-    categoria_selezionata = str(values[1]).strip() if len(values) > 1 else ""
     riga_pianificata = ("promemoria" in self.stats_table.item(item_id, "tags")
                         or (len(values) > 2 and str(values[2]).strip() == "Pianificata"))
     spese_categoria = []
@@ -99,7 +98,7 @@ def on_stats_table_double_click(self, event):
                     t = t.replace(',', '.')
                 try:
                     return float(t)
-                except:
+                except Exception:
                     return 0.0
             categoria_da_tabella = str(values[1]).strip() if len(values) > 1 else "Generica"
             descrizione_reale = str(values[2]).strip() if len(values) > 2 else ""
@@ -133,7 +132,7 @@ def on_stats_table_double_click(self, event):
                 for entry in sp:
                     cat, desc, imp, tipo = entry[:4]
                     if cat.strip() == categoria: 
-                        conto_v = campo(entry, "conto", "")
+                        conto_v = self._conto_effettivo(entry)
                         metodo_v = campo(entry, "metodo_pagamento", "")
                         tag_v = " ".join(campo(entry, "hashtag", []) or [])
                         spese_categoria.append((d, desc, imp, tipo, conto_v, metodo_v, tag_v, _extra_voce(entry)))
@@ -147,7 +146,7 @@ def on_stats_table_double_click(self, event):
                 for entry in sp:
                     cat, desc, imp, tipo = entry[:4]
                     if cat.strip() == categoria:
-                        conto_v = campo(entry, "conto", "")
+                        conto_v = self._conto_effettivo(entry)
                         metodo_v = campo(entry, "metodo_pagamento", "")
                         tag_v = " ".join(campo(entry, "hashtag", []) or [])
                         spese_categoria.append((d, desc, imp, tipo, conto_v, metodo_v, tag_v, _extra_voce(entry)))
@@ -158,7 +157,7 @@ def on_stats_table_double_click(self, event):
             for entry in sp:
                 cat, desc, imp, tipo = entry[:4]
                 if cat.strip() == categoria:
-                    conto_v = campo(entry, "conto", "")
+                    conto_v = self._conto_effettivo(entry)
                     metodo_v = campo(entry, "metodo_pagamento", "")
                     tag_v = " ".join(campo(entry, "hashtag", []) or [])
                     spese_categoria.append((d, desc, imp, tipo, conto_v, metodo_v, tag_v, _extra_voce(entry)))
@@ -309,7 +308,6 @@ def on_stats_table_double_click(self, event):
             else:
                 tree.tag_configure(tag_name, foreground="red")
             tot_uscite += imp
-    saldo = tot_entrate - tot_uscite
     includi_futuri_var = tk.BooleanVar(value=True)
     lbl_frame = tk.Frame(popup, bg=self.COLOR_TOPLEVEL)
     lbl_frame.pack(fill=tk.X, pady=(7, 0))
@@ -444,7 +442,7 @@ def on_stats_table_double_click(self, event):
             if w and w.winfo_exists():
                 try:
                     w.destroy()
-                except:
+                except Exception:
                     pass
             setattr(self, attr, None)
     tree.bind("<Button-3>", on_right_click)

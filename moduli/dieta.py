@@ -2,17 +2,13 @@
 # -*- coding: utf-8 -*-
 
 import os
-import sys
 import ast
 import json
-import shutil
-import tempfile
-import stat
 import datetime
 import threading
 import requests
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog, Toplevel, Label, Button, TclError
+from tkinter import ttk, filedialog
 
 from moduli.spinner_animato import crea_spinner_animato
 
@@ -184,7 +180,7 @@ def apri_dieta(self):
                          row=row, column=col+1, padx=(0,16), pady=4, sticky="w")
             vars_[key] = (v, tipo)
         def _conferma():
-            nonlocal alimenti_custom, ALIMENTI_MERGED, ALIMENTI_ORDINATI, _ali_map, _categorie
+            nonlocal alimenti_custom, ALIMENTI_MERGED
             nome = vars_["nome"][0].get().strip()
             if not nome:
                 self.show_custom_warning("Errore", "Il nome non può essere vuoto.")
@@ -265,7 +261,7 @@ def apri_dieta(self):
         for r in sorted(alimenti_custom, key=lambda x: x[0].lower()):
             lb.insert("end", f"{r[0]}  ({r[1]}, {r[2]} kcal)")
         def _conferma_elim():
-            nonlocal alimenti_custom, ALIMENTI_MERGED, ALIMENTI_ORDINATI, _ali_map, _categorie
+            nonlocal ALIMENTI_MERGED
             sel = lb.curselection()
             if not sel:
                 ed.destroy(); return
@@ -526,7 +522,7 @@ def apri_dieta(self):
                     else:
                         bmi_cat = "Obesità III — Rischio molto elevato, consulta subito il medico"
                     bmi_txt = f"{bmi_val} — {bmi_cat}"
-            except: pass
+            except Exception: pass
             info_fisico = (f"Peso Attuale: {ultimo_peso} kg ({data_peso})  |  "
                            f"Altezza: {altezza} cm  |  Obiettivo: {obiettivo} kg  |  "
                            f"BMI: {bmi_txt}")
@@ -627,7 +623,7 @@ def apri_dieta(self):
                         h_cm = float(altezza.replace(",", ".")) / 100
                         if h_cm > 0:
                             bmi_r = str(round(r["peso"] / (h_cm * h_cm), 1))
-                    except: pass
+                    except Exception: pass
                     vals_p = [r["data"], str(r["peso"]), var_str, bmi_r]
                     for vi, (val, w2) in enumerate(zip(vals_p, CW_P)):
                         col = var_col if vi == 2 else BLACK
@@ -654,7 +650,7 @@ def apri_dieta(self):
                                 f"  ({'da perdere' if dist > 0 else 'obiettivo raggiunto!'})")
                     _tx(page, dist_str, ML, cy, fs=9, col=GREEN2, bold=True)
                     cy += 16
-                except: pass
+                except Exception: pass
                 fy = PAGE_H - MB + 8
                 page.draw_line(fitz.Point(ML, fy - 4), fitz.Point(PAGE_W - MR, fy - 4),
                                color=(0.80, 0.88, 0.82), width=0.5)
@@ -2270,7 +2266,7 @@ def apri_dieta(self):
                     func(path)
                 shutil.rmtree(cartella, onerror=on_error)
             if nome == _utente_corrente:
-                self.show_toast(f"Profilo attivo eliminato. Ritorno a Generico...")
+                self.show_toast("Profilo attivo eliminato. Ritorno a Generico...")
                 try:
                     with open(os.path.join(DB_DIR, "utente_attivo.json"), "w", encoding="utf-8") as f:
                         import json as _j

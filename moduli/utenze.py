@@ -838,7 +838,6 @@ def utenze(self):
 
     main_frame = ttk.Frame(win)
     main_frame.pack(fill=tk.BOTH, expand=True, padx=18, pady=6)
-    colori = {"Acqua": "#ccefff", "Luce": "#fff9cc", "Gas": "#ffe0cc"}
     colori_grafico = {"Acqua": "#0d8ecf", "Luce": "#e6ac00", "Gas": "#e2570c"}
     self.trees = {}
     anag_entries = {}

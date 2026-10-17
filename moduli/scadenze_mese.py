@@ -16,12 +16,12 @@ def scadenze_mese(self):
             if col in ("data", "scadenza"):
                 try:
                     return datetime.datetime.strptime(valore, "%d-%m-%Y")
-                except:
+                except Exception:
                     return datetime.datetime.max
             elif col == "importo":
                 try:
                     return float(valore.replace("€", "").replace(".", "").replace(",", ".").strip())
-                except:
+                except Exception:
                     return 0
             else:
                 return valore.lower() if isinstance(valore, str) else valore
@@ -87,7 +87,7 @@ def scadenze_mese(self):
     def on_scadenze_close():
         try:
             popup_mensile.grab_release() 
-        except:
+        except Exception:
             pass
         popup_mensile.destroy()
         self._scadenze_popup = None
@@ -171,7 +171,7 @@ def scadenze_mese(self):
                 pagato = "✔️" if data_movimento <= oggi and voce_trovata else "❌"
                 progressione = f"{indice}/{n}"
                 descrizione = descrizione_base
-                conto_val = campo(entry_trovata, "conto", "") if entry_trovata else ""
+                conto_val = self._conto_effettivo(entry_trovata) if entry_trovata else ""
                 metodo_val = campo(entry_trovata, "metodo_pagamento", "") if entry_trovata else ""
                 tag_val = " ".join(campo(entry_trovata, "hashtag", [])) if entry_trovata else ""
                 tag = "rosso" if tipo_voce == "Uscita" else "verde" if voce_trovata else "grigio"
@@ -232,7 +232,7 @@ def scadenze_mese(self):
                         pagato = "✔️" if data_voce <= oggi else "❌"
                         progressione = "—"
                         data_scadenza = data_voce.strftime("%d-%m-%Y")
-                        conto_val = campo(voce, "conto", "")
+                        conto_val = self._conto_effettivo(voce)
                         metodo_val = campo(voce, "metodo_pagamento", "")
                         tag_val = " ".join(campo(voce, "hashtag", []))
                         tag = "rosso" if tipo_voce == "Uscita" else "verde"
@@ -333,6 +333,6 @@ def on_scadenza_doppio_click(self, event):
        try:
           self._scadenze_popup.destroy()
           self._scadenze_popup = None
-       except:
+       except Exception:
           pass
     self.after(400, lambda: self.seleziona_spesa_in_lista(giorno, _desc_sel, _id_sp))

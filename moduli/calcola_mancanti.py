@@ -10,7 +10,7 @@ def calcola_mancanti(self):
     import __main__ as _app
     ANNI_STORICO = 4
     MAX_VOLTE_ANNO = 2
-    from datetime import datetime, timedelta
+    from datetime import datetime
     if hasattr(self, '_mancanti_popup') and self._mancanti_popup and self._mancanti_popup.winfo_exists():
         self._mancanti_popup.lift()
         return
@@ -37,7 +37,7 @@ def calcola_mancanti(self):
         if isinstance(d, str):
             try:
                 return datetime.strptime(d, "%d-%m-%Y").date()
-            except:
+            except Exception:
                 return None
         elif isinstance(d, datetime):
             return d.date()
@@ -199,7 +199,7 @@ def calcola_mancanti(self):
                 _mn = min(_vol, key=_vol.get)
                 _righe_st.append(("Mese max", f"{mesi[_mx - 1]}  € {_app._fmt_it(_vol[_mx])}"))
                 _righe_st.append(("Mese min", f"{mesi[_mn - 1]}  € {_app._fmt_it(_vol[_mn])}"))
-            self.tree._metodo_lookup[cat] = {"_righe_extra": _righe_st}
+            self.tree._metodo_lookup[cat] = {"categoria": cat, "_righe_extra": _righe_st}
             count += 1
         if count == 0:
             self.tree.insert("", "end",
@@ -360,7 +360,7 @@ def calcola_mancanti(self):
                 _righe_st.append(("Min / Max", f"€ {_app._fmt_it(min(_abs_imp))} / € {_app._fmt_it(max(_abs_imp))}"))
             _righe_st.append((str(oggi.year), "registrata" if presente else
                               ("non ancora (mese futuro)" if mese > oggi.month else "mancante")))
-            tree_annuali._metodo_lookup[_iid_ann] = {"_righe_extra": _righe_st}
+            tree_annuali._metodo_lookup[_iid_ann] = {"categoria": cat, "_righe_extra": _righe_st}
         if not tree_annuali.get_children():
             tree_annuali.insert("", "end",
                                 values=("Nessuna ricorrenza annuale rilevata.", "", "", "", ""),
@@ -441,7 +441,7 @@ def get_lista_categorie_mancanti(self):
         if isinstance(d, str):
             try:
                 return datetime.strptime(d, "%d-%m-%Y").date()
-            except:
+            except Exception:
                 return None
         elif isinstance(d, datetime):
             return d.date()

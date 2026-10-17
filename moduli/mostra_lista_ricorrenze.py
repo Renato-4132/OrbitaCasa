@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import json
 import datetime
 import tkinter as tk
 from tkinter import ttk
@@ -15,8 +14,6 @@ def _fmt_it(v, spec=",.2f"):
 
 # Visualizzazione e Gestione di Tutte le Ricorrenze Programmate (Dashboard)
 def mostra_lista_ricorrenze(self):
-    import __main__ as _app
-    PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
     import datetime
     if hasattr(self, 'lista_window_ref') and self.lista_window_ref.winfo_exists():
         self.lista_window_ref.lift()
@@ -159,19 +156,20 @@ def mostra_lista_ricorrenze(self):
         tree.column(col, width=larghezze[col], anchor="center")
     tree.pack(fill="both", expand=True)
     tree._metodo_lookup = {}
-    oggi = datetime.date.today()
     bilancio_mensile = 0.0
     conteggio_reale = {}
     for data_key, voci in self.spese.items():
         for voce in voci:
             rid = campo(voce, "id_ricorrenza", None)
             if rid and rid in self.ricorrenze:
-                entry = conteggio_reale.setdefault(rid, {"volte": 0, "importo": 0.0})
+                entry = conteggio_reale.setdefault(rid, {"volte": 0, "importo": 0.0, "conto": ""})
                 entry["volte"] += 1
+                if not entry["conto"]:
+                    entry["conto"] = self._conto_effettivo(voce)
                 entry["importo"] += float(campo(voce, "importo", 0.0))
     for i, (id_ricorrenza, dati) in enumerate(self.ricorrenze.items()):
         cat = dati.get("cat", "Sconosciuta")
-        conto = dati.get("conto") or ""
+        conto = dati.get("conto") or conteggio_reale.get(id_ricorrenza, {}).get("conto", "") or ""
         metodo = dati.get("metodo_pagamento") or ""
         tag_str = " ".join(dati.get("hashtag", []) or [])
         tipo_voce = dati.get("tipo_voce", dati.get("tipo", "N/D"))
@@ -324,7 +322,7 @@ def on_ricorrenza_double_click(self, event):
     for data_str in date_list_str:
         try:
             data_movimento = datetime.datetime.strptime(data_str, "%d-%m-%Y").date()
-        except: continue
+        except Exception: continue
         voce_trovata = False
         voce_ref = None
         importo_effettivo = importo_ricorrenza
@@ -346,8 +344,9 @@ def on_ricorrenza_double_click(self, event):
             icona_p, icona_dp = "", "❌"
             tag = "verde" if tipo_std == "Entrata" else "rosso"
 
+        _conto_mov = (self._conto_effettivo(voce_ref) if voce_ref is not None else "") or conto_ricorrenza
         _iid_mov = tree_movimenti.insert("", "end", values=(
-            data_str, descrizione_ricorrenza, conto_ricorrenza, metodo_ricorrenza, tag_ricorrenza_str, f"{_fmt_it(importo_effettivo)} €", icona_p, icona_dp
+            data_str, descrizione_ricorrenza, _conto_mov, metodo_ricorrenza, tag_ricorrenza_str, f"{_fmt_it(importo_effettivo)} €", icona_p, icona_dp
         ), tags=(tag,))
         if voce_trovata:
             _stato_mov = "Registrata"
@@ -357,7 +356,7 @@ def on_ricorrenza_double_click(self, event):
             _stato_mov = "Prevista"
         tree_movimenti._metodo_lookup[_iid_mov] = {
             "metodo": metodo_ricorrenza,
-            "conto": conto_ricorrenza,
+            "conto": _conto_mov,
             "ora": campo(voce_ref, "ora", "") if voce_ref is not None else "",
             "hashtag": list(campo(voce_ref, "hashtag", []) if voce_ref is not None else (ricorrenza_dati.get("hashtag", []) or [])),
             "id_ricorrenza": item_id,

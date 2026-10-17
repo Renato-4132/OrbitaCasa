@@ -22,7 +22,7 @@ def spesa_supermercato(self):
     except ImportError:
         DateEntry = None
         if not hasattr(self, '_tkcalendar_warned'):
-            print(f"AVVISO: Libreria 'tkcalendar' non trovata. La data dovrà essere inserita manualmente (gg-mm-aaaa).")
+            print("AVVISO: Libreria 'tkcalendar' non trovata. La data dovrà essere inserita manualmente (gg-mm-aaaa).")
             self._tkcalendar_warned = True
     DEFAULT_SUPERMERCATI = ["Coop", "Dpiu", "Esselunga", "Eurospin", "Lidl", "Maurys"]
     SUPERMERCATI = []
@@ -98,7 +98,6 @@ def spesa_supermercato(self):
                 except ValueError:
                     continue
             return None
-        nonlocal dati_supermercati
         oggi = datetime.datetime.now().date()
         articoli_modificati = False
         for supermercato, articoli in dati_supermercati.items():
@@ -130,7 +129,7 @@ def spesa_supermercato(self):
                     return str(val).lower()
             try:
                 return float(val)
-            except:
+            except Exception:
                 return str(val).lower()
         is_hierarchical = treeview.cget('show') == 'tree headings' and col != '#0' and treeview.master.winfo_name() == 'frame_tv_lista'
         if is_hierarchical:
@@ -781,7 +780,7 @@ def spesa_supermercato(self):
             row_id = tv_lista.identify_row(event.y)
             if not row_id.startswith('item_'): return
             try: chiave_lista = row_id.split('item_')[1]
-            except: return
+            except Exception: return
             if chiave_lista not in lista_spesa_data: return
             current_value = tv_lista.item(row_id)['values'][1]
             entry_editor = ttk.Entry(tv_lista, width=10)
@@ -832,7 +831,7 @@ def spesa_supermercato(self):
                 testo += linea
             testo += f"  TOTALE PARZIALE {superm}: {totale_super:.2f}\n\n"
             totale_generale += totale_super
-        testo += f"\n"
+        testo += "\n"
         testo += f"TOTALE GENERALE STIMATO: {totale_generale:.2f}\n"
         return testo
     def _mostra_anteprima_esportazione():
@@ -942,7 +941,6 @@ def spesa_supermercato(self):
         ricerca_var.set(ricerca_vars_crud[selected_superm].get())
         _cerca_articoli_crud(selected_superm, treeview_crud, ricerca_vars_crud[selected_superm])
     def _esegui_rinomina_supermercato(combo, treeview_crud, ricerca_var):
-        nonlocal SUPERMERCATI, dati_supermercati, campi_input_refs
         old_superm = combo.get()
         if old_superm == "Seleziona Supermercato" or not old_superm:
             self.show_custom_warning("Modifica Supermercato", "Seleziona prima un supermercato da rinominare.")
@@ -959,7 +957,6 @@ def spesa_supermercato(self):
         entry.focus_set()
         rinomina_popup.bind("<Escape>", lambda e: rinomina_popup.destroy())
         def on_confirm(e=None):
-            nonlocal SUPERMERCATI
             new_superm = new_name_var.get().strip()
             if not new_superm or new_superm == old_superm:
                 rinomina_popup.destroy(); return                
@@ -1053,7 +1050,7 @@ def spesa_supermercato(self):
                     self.spesa_supermercato()
                 self.show_custom_warning("Importazione completata", f"\nDatabase Supermercati ripristinato da:\n\n {file}\n")
             except json.JSONDecodeError:
-                self.show_custom_warning("Errore", f"Errore di lettura JSON. Il file selezionato non è un file di database valido.")
+                self.show_custom_warning("Errore", "Errore di lettura JSON. Il file selezionato non è un file di database valido.")
             except Exception as e:
                 self.show_custom_warning("Errore", f"Errore durante il ripristino: {e}")
     def export_supermercati_db():
@@ -1211,7 +1208,7 @@ def spesa_supermercato(self):
         _salva_dati_interno(dati_supermercati)
         try:
             self.popup_calendario.destroy() 
-        except:
+        except Exception:
             pass
         self.popup_calendario = None
         popup.destroy()
@@ -1788,7 +1785,7 @@ def spesa_supermercato(self):
             testo += linea
         testo += separatore + "\n"
         total_articoli = len(articoli)
-        testo += f"\n═══ RIEPILOGO DATI ═══\n"
+        testo += "\n═══ RIEPILOGO DATI ═══\n"
         testo += f"Totale Articoli: {total_articoli}\n"
         testo += f"Articoli Esportati: {articoli_esportati_count}\n"
         testo += f"Articoli Ignorati: {articoli_incompleti_count}\n"

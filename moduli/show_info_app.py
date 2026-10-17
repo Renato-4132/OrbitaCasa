@@ -7,7 +7,8 @@ import webbrowser
 import tkinter as tk
 from tkinter import ttk, filedialog
 
-from __main__ import NAME, VERSION, DB_DIR
+import __main__ as _app
+from __main__ import NAME, VERSION
 
 # Finestra Informativa e Dettagli dell'Applicazione (About Box)
 def show_info_app(self):
@@ -311,8 +312,6 @@ def show_info_app(self):
             "• Gestione Tag # (categorie multiple)\n"
             "• Confronta Periodi (Ctrl+N)\n"
             "• FairShare Partecipanti (Ctrl+D)\n"
-            "• Time Machine (Ctrl+W)\n"
-            "• Aggrega Categorie (Ctrl+G)\n"
             "• Proiezione - Fondo Risparmio (Ctrl+A)\n"
             "• Grafici Interattivi (Alt+H)\n"
             "• Andamento Risparmio\n"
@@ -337,7 +336,7 @@ def show_info_app(self):
             "• Scadenze Mese (Ctrl+J)\n"
             "• Pianifica — spese pianificate future\n"
             "\n 📅 CATEGORIE\n"
-            "• Analisi Categorie (Ctrl+K)\n"
+            "• Analisi Categorie (Ctrl+K) — tab Dettaglio, Aggrega, Time Machine, Trend\n"
             "• Suggerisci Categorie — SmartCat (Ctrl+Shift+K)\n"
             "• Gestione Categorie (Ctrl+Shift+T)\n"
             "• Gestione Categorie Bulk (Ctrl+Shift+S)\n"
@@ -374,7 +373,7 @@ def show_info_app(self):
             "• ⚙️ Configura — Impostazioni complete dell'applicazione\n"
             "• 🔌 Esci — Salva ed esce dal programma (anche Ctrl+Q dal menu Gestione)\n"
     )
-    resources_dir = os.path.join(DB_DIR, "resources")
+    resources_dir = os.path.join(_app.DB_DIR, "resources")
     logo_path = os.path.join(resources_dir, "info_image.png")
     info_win = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
     self._info_win = info_win

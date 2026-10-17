@@ -856,9 +856,9 @@ def _genera_testo_ricorrenti_mancanti(self):
     lines = []
     lines.append("")
     testo_centrato = "AVVISO SCADENZE MENSILE".center(28)
-    lines.append(f"")
+    lines.append("")
     lines.append(f"{testo_centrato}")
-    lines.append(f"─" * 31)
+    lines.append("─" * 31)
     lines.append("")
     lines.append("⚠️ MOVIMENTI MANCANTI RILEVATI")
     lines.append("─" * 31)
@@ -1444,7 +1444,7 @@ def _genera_testo_allerta_saldo(self, saldo, conto_filtro=None):
         titolo_all,
         "─" * 31,
         "",
-        f"Il saldo del mese corrente è in rosso:",
+        "Il saldo del mese corrente è in rosso:",
         "",
         f"  💸 Saldo:  {_fmt_it(saldo)} €",
         "",

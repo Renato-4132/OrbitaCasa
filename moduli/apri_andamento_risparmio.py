@@ -91,11 +91,11 @@ def apri_andamento_risparmio(self):
             return
         if _tip_win[0]:
             try: _tip_win[0].destroy()
-            except: pass
+            except Exception: pass
             _tip_win[0] = None
         if _tip_win[1] and _tip_win[2] is not None:
             try: _tip_win[2].after_cancel(_tip_win[1])
-            except: pass
+            except Exception: pass
             _tip_win[1] = None
         x, y = event.x_root, event.y_root
         widget = event.widget
@@ -135,17 +135,17 @@ def apri_andamento_risparmio(self):
     def _tooltip_hide(event):
         if _tip_win[1] and _tip_win[2] is not None:
             try: _tip_win[2].after_cancel(_tip_win[1])
-            except: pass
+            except Exception: pass
             _tip_win[1] = None
         if _tip_win[0]:
             try: _tip_win[0].destroy()
-            except: pass
+            except Exception: pass
             _tip_win[0] = None
 
     def _debounce(job_holder, widget, callback, delay=150):
         if job_holder[0]:
             try: widget.after_cancel(job_holder[0])
-            except: pass
+            except Exception: pass
         job_holder[0] = widget.after(delay, callback)
 
     win = tk.Toplevel(self)
@@ -259,7 +259,7 @@ def apri_andamento_risparmio(self):
             return
         if _tip_win[0]:
             try: _tip_win[0].destroy()
-            except: pass
+            except Exception: pass
             _tip_win[0] = None
         canvas1.delete("all")
         MARG_L, MARG_R, MARG_T, MARG_B = 60, 20, 30, 55
@@ -406,7 +406,7 @@ def apri_andamento_risparmio(self):
             return
         if _tip_win[0]:
             try: _tip_win[0].destroy()
-            except: pass
+            except Exception: pass
             _tip_win[0] = None
         canvas2.delete("all")
         n = len(categorie)

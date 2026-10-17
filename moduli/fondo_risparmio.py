@@ -210,9 +210,9 @@ def apri_fondo_risparmio(self):
         frm_proj2 = tk.Frame(frm_proj, bg=self.COLOR_BACKGROUND)
         frm_proj2.pack(side="left", fill="x", expand=True)
         col_rp = self.COLOR_GREEN if r_proj >= 0 else self.COLOR_RED
-        kpi_box(frm_proj2, f"Entrate stimate",  fmt(e_proj))
-        kpi_box(frm_proj2, f"Uscite stimate",   fmt(u_proj))
-        kpi_box(frm_proj2, f"Risparmio atteso", fmt(r_proj), col_rp)
+        kpi_box(frm_proj2, "Entrate stimate",  fmt(e_proj))
+        kpi_box(frm_proj2, "Uscite stimate",   fmt(u_proj))
+        kpi_box(frm_proj2, "Risparmio atteso", fmt(r_proj), col_rp)
         mesi_passati  = today.month
         mesi_mancanti = 12 - mesi_passati
         img_info = self.icone_gui.get("info")
@@ -706,7 +706,6 @@ def apri_fondo_risparmio(self):
         for w in tab_trend.winfo_children():
             w.destroy()
         dati_12 = _calcola_12_mesi()
-        stats   = _calcola_dati_365()
         best  = max(dati_12, key=lambda x: x["r"], default={"m":1,"y":2024,"r":0})
         worst = min(dati_12, key=lambda x: x["r"], default={"m":1,"y":2024,"r":0})
         frm_badge = tk.Frame(tab_trend, bg=self.COLOR_BACKGROUND)

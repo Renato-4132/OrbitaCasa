@@ -36,7 +36,7 @@ def launch_qr_svg_generator(self, initial_category="", initial_amount="", initia
         details_part = f"&details={encoded_details}"
         return f"{base_url}{dates_part}{title_part}{details_part}"
     def show_unified_qr_generator(self):
-        qr_popup = tk.Toplevel(self)
+        qr_popup = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
         qr_popup.title("Generatore Promemoria QRCODE Google Calendar")
         qr_popup.transient(self)
         qr_popup.withdraw()
@@ -55,7 +55,7 @@ def launch_qr_svg_generator(self, initial_category="", initial_amount="", initia
         def close_and_cleanup():
             try:
                 self.popup_calendario.destroy() 
-            except:
+            except Exception:
                 pass
             self.popup_calendario = None
             qr_popup.destroy()

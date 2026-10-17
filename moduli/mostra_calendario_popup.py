@@ -22,7 +22,6 @@ def mostra_calendario_popup_semplice(self, entry_widget, var_data):
     entry_widget.update_idletasks()
     x_entry = entry_widget.winfo_rootx()
     y_entry = entry_widget.winfo_rooty()
-    w_entry = entry_widget.winfo_width()
     h_entry = entry_widget.winfo_height()
     POPUP_WIDTH = 270
     POPUP_HEIGHT = 240
@@ -78,7 +77,7 @@ def mostra_calendario_popup_semplice(self, entry_widget, var_data):
         if hasattr(self, 'popup_calendario') and self.popup_calendario:
             try:
                 self.popup_calendario.destroy()
-            except:
+            except Exception:
                 pass
             self.popup_calendario = None
         self.focus_set()
@@ -99,7 +98,7 @@ def mostra_calendario_popup_semplice(self, entry_widget, var_data):
             if not (cx <= x <= cx + cw and cy <= y <= cy + ch):
                 if event.widget != self.btn_cal_btm:
                     chiudi_popup()
-        except:
+        except Exception:
             chiudi_popup()
     def poll_focus():
         if not hasattr(self, 'popup_calendario') or not self.popup_calendario:
@@ -107,7 +106,7 @@ def mostra_calendario_popup_semplice(self, entry_widget, var_data):
         try:
             if not self.popup_calendario.winfo_exists():
                 return
-        except:
+        except Exception:
             return
         if self.focus_get() is None:
             chiudi_popup()
@@ -183,20 +182,22 @@ def mostra_calendario_popup(self, entry_widget, var_data):
                     cat = campo(e, "categoria", "")
                     imp = campo(e, "importo", 0.0)
                     segno = "+" if str(tipo).lower() == "entrata" else "-"
-                    txt += f"{segno} {cat}: {_app._fmt_it(float(imp))}\n"
+                    _et = self._etichetta_classe_conto(e)
+                    _suf = f" [{_et}]" if _et else ""
+                    txt += f"{segno} {cat}{_suf}: {_app._fmt_it(float(imp))}\n"
                     if segno == "+": e_sum += 1
                     else: u_sum += 1
                 tag = "misto" if e_sum > 0 and u_sum > 0 else ("verde" if e_sum > 0 else "rosso")
                 cal.calevent_create(d_obj, txt.strip(), tag)
         cal._draw_calendar()
-    except: pass 
+    except Exception: pass 
     def chiudi_popup():
         if hasattr(self, 'tw') and self.tw and self.tw.winfo_exists(): self.tw.destroy()
         self.unbind_all('<Button-1>')
         self.unbind_all('<Escape>')
         if hasattr(self, 'popup_calendario') and self.popup_calendario:
             try: self.popup_calendario.destroy()
-            except: pass
+            except Exception: pass
             self.popup_calendario = None
     def on_date_select(event):
         data_sel = cal.selection_get()
@@ -247,15 +248,16 @@ def mostra_calendario_popup(self, entry_widget, var_data):
                             for r in blocco.split('\n'):
                                 if not r.strip(): continue
                                 try:
-                                    parti = r.split(':')
-                                    desc = parti[0].replace("+ ", "").replace("- ", "").strip()
+                                    parti = r.rsplit(':', 1)
+                                    _r_s = r.lstrip()
+                                    desc = parti[0].strip()[1:].strip() if _r_s[:1] in ("+", "-") else parti[0].strip()
                                     valore = _app._parse_it_float(parti[1].strip())
                                     r_data = (desc, _app._fmt_it(valore))
-                                    if "+" in r:
+                                    if _r_s.startswith("+"):
                                         entrate.append(r_data); tot_e += valore
-                                    elif "-" in r:
+                                    elif _r_s.startswith("-"):
                                         uscite.append(r_data); tot_u += valore
-                                except: pass
+                                except Exception: pass
                         def crea_riga(parent, sx, dx, col, bold=False):
                             f = tk.Frame(parent, bg=self.COLOR_TOOLTIP)
                             f.pack(fill="x", padx=10, pady=1)
@@ -284,7 +286,7 @@ def mostra_calendario_popup(self, entry_widget, var_data):
                         self.tw.geometry(f"{tw_w}x{tw_h}+{max(0, px)}+{max(0, py)}")
                         self.tw.deiconify()
                         self.tw.lift()
-            except:
+            except Exception:
                 if hasattr(self, 'tw') and self.tw.winfo_exists():
                     self.tw.withdraw()
         self.tooltip_timer = self.after(1000, mostra_reale)
@@ -294,7 +296,7 @@ def mostra_calendario_popup(self, entry_widget, var_data):
                 try:
                     if self.tw.winfo_exists():
                         self.tw.withdraw()
-                except:
+                except Exception:
                         pass
         w.bind("<Motion>", gestisci_tooltip, add="+")
         w.bind("<Leave>", safe_withdraw, add="+")
@@ -305,7 +307,7 @@ def mostra_calendario_popup(self, entry_widget, var_data):
     else:
         try:
             cal.configure(tooltipdelay=999999)
-        except:
+        except Exception:
             pass
     def on_app_focus_out(event):
         if event.widget != self:
@@ -315,7 +317,7 @@ def mostra_calendario_popup(self, entry_widget, var_data):
            widget_sotto = self.winfo_containing(x, y)
            if widget_sotto and str(self.popup_calendario) in str(widget_sotto):
               return
-        except:
+        except Exception:
               pass
         chiudi_popup()
     cal.bind("<<CalendarSelected>>", on_date_select)
@@ -401,7 +403,7 @@ def mostra_calendario_popup_trasferimenti(self, entry_widget, var_data, lista_tr
         self.unbind_all('<Escape>')
         if hasattr(self, 'popup_calendario') and self.popup_calendario:
             try: self.popup_calendario.destroy()
-            except: pass
+            except Exception: pass
             self.popup_calendario = None
 
     def on_date_select(event):
@@ -505,7 +507,7 @@ def mostra_calendario_popup_trasferimenti(self, entry_widget, var_data, lista_tr
                 try:
                     if self.tw.winfo_exists():
                         self.tw.withdraw()
-                except:
+                except Exception:
                     pass
         w.bind("<Motion>", gestisci_tooltip, add="+")
         w.bind("<Leave>", safe_withdraw, add="+")
@@ -521,7 +523,7 @@ def mostra_calendario_popup_trasferimenti(self, entry_widget, var_data, lista_tr
            widget_sotto = self.winfo_containing(x, y)
            if widget_sotto and str(self.popup_calendario) in str(widget_sotto):
               return
-        except:
+        except Exception:
               pass
         chiudi_popup()
 

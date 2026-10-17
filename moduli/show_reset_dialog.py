@@ -13,10 +13,84 @@ from tkinter import ttk
 FS_PARTECIPANTI = "#fairshare-partecipanti"
 FS_PAGAMENTI = "#fairshare-pagamenti"
 PIANI = "#pianificate"
+BUDGET = "#budget-categorie"
+TARGET = "#target-spesa"
+A_CALDO = (BUDGET, TARGET, PIANI, FS_PARTECIPANTI, FS_PAGAMENTI)
+CHIAVI_BUDGET = ("budget_categorie", "budget_annuale_categorie")
+CHIAVI_TARGET = ("target_mese", "target_anno")
 
 def _leggi_db_fairshare(db_file):
     with open(db_file, "r", encoding="utf-8") as f:
         return json.load(f)
+
+def _scrivi_json_atomico(db_file, dati, indent=2):
+    tmp = db_file + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(dati, f, indent=indent, ensure_ascii=False)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, db_file)
+
+def _contenitori_budget(dati):
+    cont = []
+    if isinstance(dati, dict):
+        if any(k in dati for k in CHIAVI_BUDGET):
+            cont.append(dati)
+        for v in dati.values():
+            if isinstance(v, dict) and any(k in v for k in CHIAVI_BUDGET):
+                cont.append(v)
+    return cont
+
+def _testo_budget(percorso):
+    try:
+        dati = _leggi_db_fairshare(percorso.split("#", 1)[0])
+    except Exception:
+        return "—"
+    cats = set()
+    for c in _contenitori_budget(dati):
+        for k in CHIAVI_BUDGET:
+            for cat, v in (c.get(k) or {}).items():
+                try:
+                    if float(v) > 0:
+                        cats.add(str(cat).strip().lower())
+                except (TypeError, ValueError):
+                    pass
+    return f"{len(cats)} {'categoria' if len(cats) == 1 else 'categorie'} con budget"
+
+def _testo_target(percorso):
+    try:
+        cfg = _leggi_db_fairshare(percorso.split("#", 1)[0])
+    except Exception:
+        return "—"
+    vals = []
+    for k in CHIAVI_TARGET:
+        try:
+            vals.append(float(cfg.get(k, 0) or 0))
+        except (TypeError, ValueError):
+            vals.append(0.0)
+    if not any(v > 0 for v in vals):
+        return "non impostati"
+    return f"mese € {vals[0]:.2f} · anno € {vals[1]:.2f}".replace(".", ",")
+
+def _azzera_budget(percorso):
+    db_file = percorso.split("#", 1)[0]
+    if not os.path.exists(db_file):
+        return
+    dati = _leggi_db_fairshare(db_file)
+    for c in _contenitori_budget(dati):
+        for k in CHIAVI_BUDGET:
+            if k in c:
+                c[k] = {}
+    _scrivi_json_atomico(db_file, dati)
+
+def _azzera_target(percorso):
+    cfg_file = percorso.split("#", 1)[0]
+    if not os.path.exists(cfg_file):
+        return
+    cfg = _leggi_db_fairshare(cfg_file)
+    for k in CHIAVI_TARGET:
+        cfg[k] = 0
+    _scrivi_json_atomico(cfg_file, cfg, indent=4)
 
 def _conta_fairshare(percorso):
     db_file = percorso.split("#", 1)[0]
@@ -122,6 +196,13 @@ def _elenco_file_variabili(_app):
                 voci.append(("Spese Pianificate",
                              "Piani di accantonamento per spese future (dentro spese_db.json). Movimenti e il resto restano",
                              percorso + PIANI, False))
+                voci.append(("Budget per Categoria",
+                             "Limiti di spesa mensili e annuali delle categorie (dentro spese_db.json). Movimenti e categorie restano",
+                             percorso + BUDGET, False))
+                if g("CONFIG_FILE"):
+                    voci.append(("Target di Spesa",
+                                 "Target mese e Target anno impostati in Configurazione (dentro config.json). Il resto della configurazione resta",
+                                 g("CONFIG_FILE") + TARGET, False))
 
     DB_DIR = g("DB_DIR")
     BASE_DIR = g("BASE_DIR")
@@ -142,6 +223,10 @@ def _elenco_file_variabili(_app):
     return voci
 
 def _dimensione_leggibile(percorso, is_dir):
+    if percorso.endswith(BUDGET):
+        return _testo_budget(percorso)
+    if percorso.endswith(TARGET):
+        return _testo_target(percorso)
     if percorso.endswith((FS_PARTECIPANTI, FS_PAGAMENTI, PIANI)):
         n = _conta_fairshare(percorso)
         if n is None:
@@ -214,7 +299,7 @@ def show_reset_dialog(self):
     lbl_count = tk.Label(toolbar, text="", bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR, font=("Arial", 9))
     lbl_count.pack(side="right")
 
-    tk.Label(win, text="Seleziona i dati da azzerare. L'operazione richiede il riavvio dell'app e non è reversibile.",
+    tk.Label(win, text="Seleziona i dati da azzerare. L'operazione non è reversibile. Budget, Target, Spese Pianificate e FairShare si aggiornano subito; per gli altri dati l'app viene riavviata.",
              bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR, font=("Arial", 9), wraplength=w_win - 40,
              justify="left").pack(anchor="w", padx=14, pady=(0, 6))
 
@@ -336,22 +421,69 @@ def show_reset_dialog(self):
             return
         os._exit(0)
 
+    def _aggiorna_a_caldo(selezionati):
+        if any(p.endswith(TARGET) for _e, p, _d in selezionati):
+            try:
+                self.lbl_budget_mese_widget.config(text="Target Mese: N/D")
+                self.lbl_budget_anno_widget.config(text="Target Anno: N/D")
+            except Exception:
+                pass
+        if any(p.endswith(PIANI) for _e, p, _d in selezionati):
+            try:
+                from moduli.spese_pianificate import _aggiorna_finestra_pianifica
+                _aggiorna_finestra_pianifica(self)
+            except Exception:
+                pass
+        if any(p.endswith(FS_PARTECIPANTI) for _e, p, _d in selezionati):
+            try:
+                gestore = _app.PROFILO_ATTIVO if _app.PROFILO_ATTIVO != "Principale" else os.path.basename(os.getcwd())
+                nomi = [f"PER· {gestore}"] if self._gestore_partecipa() else []
+                self.nomi_con_icone = list(nomi)
+                valori = [""] + nomi + ["⚙️ Gestisci Partecipanti"]
+                for attr in ("partecipante_combobox", "ric_partecipante_combobox"):
+                    cb = getattr(self, attr, None)
+                    try:
+                        if cb is not None and cb.winfo_exists():
+                            cb["values"] = valori
+                    except Exception:
+                        pass
+                self.partecipante_var.set("")
+            except Exception:
+                pass
+        if any(p.endswith((FS_PARTECIPANTI, FS_PAGAMENTI)) for _e, p, _d in selezionati):
+            try:
+                if getattr(self, "_dare_avere_aggiorna", None):
+                    self._dare_avere_aggiorna()
+            except Exception:
+                pass
+        for nome in ("aggiorna_monitoraggio_budget", "refresh_gui", "aggiorna_barre_503020"):
+            try:
+                getattr(self, nome)()
+            except Exception:
+                pass
+
     def _esegui_reset():
-        selezionati = [(e, p, d) for e, _de, p, d in voci if p in selezioni_correnti]
+        selezionati =[(e, p, d) for e, _de, p, d in voci if p in selezioni_correnti]
         if not selezionati:
             self.show_toast("Nessun elemento selezionato")
             return
         elenco = "\n".join(f"• {e}" for e, _p, _d in selezionati[:12])
         if len(selezionati) > 12:
             elenco += f"\n… e altri {len(selezionati) - 12}"
-        msg = f"Azzerare {len(selezionati)} elemento/i selezionato/i?\n\n{elenco}\n\nL'app verrà riavviata. L'operazione non è reversibile."
+        a_caldo = all(p.endswith(A_CALDO) for _e, p, _d in selezionati)
+        esito = ("I dati vengono azzerati subito, senza riavvio." if a_caldo else "L'app verrà riavviata.")
+        msg = f"Azzerare {len(selezionati)} elemento/i selezionato/i?\n\n{elenco}\n\n{esito} L'operazione non è reversibile."
         if not self.show_custom_askyesno("Conferma Reset", msg):
             return
         win.destroy()
         errori = []
         for etichetta, percorso, is_dir in selezionati:
             try:
-                if percorso.endswith((FS_PARTECIPANTI, FS_PAGAMENTI, PIANI)):
+                if percorso.endswith(BUDGET):
+                    _azzera_budget(percorso)
+                elif percorso.endswith(TARGET):
+                    _azzera_target(percorso)
+                elif percorso.endswith((FS_PARTECIPANTI, FS_PAGAMENTI, PIANI)):
                     _azzera_fairshare(percorso)
                 elif is_dir:
                     if os.path.isdir(percorso):
@@ -361,6 +493,29 @@ def show_reset_dialog(self):
                         os.remove(percorso)
             except Exception as e:
                 errori.append(f"{etichetta}: {e}")
+        if any(p.endswith(PIANI) for _e, p, _d in selezionati):
+            self.pianificate = {"piani": []}
+        if any(p.endswith(FS_PARTECIPANTI) for _e, p, _d in selezionati):
+            nomi_mem = getattr(self, "nomi_partecipanti", None)
+            if isinstance(nomi_mem, list):
+                nomi_mem.clear()
+        if any(p.endswith(FS_PAGAMENTI) for _e, p, _d in selezionati):
+            for lista_mem in (getattr(self, "spese", None) or {}).values():
+                for e_mem in lista_mem:
+                    if getattr(e_mem, "fairshare", None):
+                        e_mem.fairshare = None
+        if any(p.endswith(BUDGET) for _e, p, _d in selezionati):
+            for nome in CHIAVI_BUDGET:
+                d_mem = getattr(self, nome, None)
+                if isinstance(d_mem, dict):
+                    d_mem.clear()
+        if any(p.endswith(TARGET) for _e, p, _d in selezionati):
+            _app.TARGET_MESE = _app.TARGET_ANNO = 0
+            self.budget_mensile = self.budget_annuale = 0
+            cfg_mem = getattr(_app, "app_config_globale", None)
+            if isinstance(cfg_mem, dict):
+                for k in CHIAVI_TARGET:
+                    cfg_mem[k] = 0
         if errori:
             self.show_custom_warning(
                 "Errore Reset",
@@ -368,6 +523,10 @@ def show_reset_dialog(self):
                 "\n\nPer sicurezza l'app verrà comunque riavviata, per evitare che i dati "
                 "ancora in memoria vengano risalvati sugli elementi cancellati con successo."
             )
+        elif a_caldo:
+            _aggiorna_a_caldo(selezionati)
+            self.show_toast("Dati azzerati.", duration=2200)
+            return
         self.show_toast("Riavvio in corso. Dati azzerati!", duration=2600)
         self._on_close_lock()
         self.after(2600, _restart_application)

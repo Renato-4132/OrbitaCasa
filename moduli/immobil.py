@@ -8,9 +8,8 @@ import datetime
 from collections import defaultdict
 import tkinter as tk
 from tkinter import ttk
-from tkinter import ttk
 from moduli.modello_spesa import (
-    SpesaEntry, METODI_PAGAMENTO_EMOJI, SIMBOLI_METODO, metodo_pagamento_pulito, campo,
+    SpesaEntry, metodo_pagamento_pulito, campo,
 )
 
 def _fmt_it(v, spec=",.2f"):
@@ -1196,7 +1195,7 @@ def _immobil_elimina(self, db, nb, win):
             ph, text="Clicca '🏠 Nuovo Immobile' per iniziare",
             font=("Arial", 12), bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HEADER
         ).pack(expand=True)
-    self.show_toast(f"Immobile eliminato.")
+    self.show_toast("Immobile eliminato.")
 
 def _immobil_grafici(self, db):
     if not db["immobili"]:
@@ -1454,7 +1453,7 @@ def _immobil_estratto(self, db, nb, v_fmese=None, v_fanno=None):
     linea_singola = "─" * LARGHEZZA_DOC
     lines = [
         linea_doppia,
-        f"Gestione Immobili".center(LARGHEZZA_DOC),
+        "Gestione Immobili".center(LARGHEZZA_DOC),
         f"Estratto Conto: {nome.upper()}".center(LARGHEZZA_DOC),
     ]
     if periodo_str:
@@ -1462,8 +1461,8 @@ def _immobil_estratto(self, db, nb, v_fmese=None, v_fanno=None):
     lines += [
         linea_doppia,
         "",
-        f"  Informazione Immobile",
-        f"  ─────────────────────",
+        "  Informazione Immobile",
+        "  ─────────────────────",
         f"  Indirizzo : {imm.get('indirizzo', '─'):<26} Inquilino : {imm.get('inquilino', '─'):<26}",
         f"  Canone    : € {_fmt_it(imm.get('canone', 0))}/mese{'' :<13} Scadenza  : {imm.get('scadenza_contratto', '─'):<26}",
         f"  Note      : {imm.get('note', '-'):<66}",
@@ -1502,8 +1501,8 @@ def _immobil_estratto(self, db, nb, v_fmese=None, v_fanno=None):
     lines += [
         linea_singola,
         "",
-        f"Riepilogo Finanziario".rjust(70),
-        f"─────────────────────".rjust(70),
+        "Riepilogo Finanziario".rjust(70),
+        "─────────────────────".rjust(70),
         f"Totale Entrate: {_fmt_it(tot_ent, '>15,.2f')} €".rjust(70),
         f"Totale Uscite:  {_fmt_it(tot_usc, '>15,.2f')} €".rjust(70),
         f"Saldo Netto:    {_fmt_it(saldo, '>15,.2f')} €".rjust(70),
@@ -1551,16 +1550,16 @@ def _immobil_estratto_totale(self, db, v_fmese=None, v_fanno=None):
     linea_singola = "─" * 110
     lines = [
         linea_doppia,
-        f"  Gestione Immobili  ".center(110),
-        f"  Estratto conto generale e cumulativo".center(110),
+        "  Gestione Immobili  ".center(110),
+        "  Estratto conto generale e cumulativo".center(110),
     ]
     if periodo_str:
         lines.append(periodo_str.center(110))
     lines += [
         linea_doppia,
         "",
-        f"  Riepilogo patrimonio attivo:",
-        f"  ────────────────────────────",
+        "  Riepilogo patrimonio attivo:",
+        "  ────────────────────────────",
     ]
     for imm in db["immobili"]:
         lines.append(f"  • {imm.get('nome', 'Immobile'):<25} (Inquilino: {imm.get('inquilino', '─'):<20})")
@@ -1599,8 +1598,8 @@ def _immobil_estratto_totale(self, db, v_fmese=None, v_fanno=None):
     lines += [
         linea_singola,
         "",
-        f"  Bilancio Globale Complessivo".rjust(100),
-        f"  ────────────────────────────".rjust(100),
+        "  Bilancio Globale Complessivo".rjust(100),
+        "  ────────────────────────────".rjust(100),
         f"  Totale Entrate Generali: {_fmt_it(tot_ent, '>15,.2f')} €".rjust(100),
         f"  Totale Uscite Generali:  {_fmt_it(tot_usc, '>15,.2f')} €".rjust(100),
         f"  Saldo Netto Totale:      {_fmt_it(saldo, '>15,.2f')} €".rjust(100),

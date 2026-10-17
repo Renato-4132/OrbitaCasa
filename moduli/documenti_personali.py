@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import os
-import shutil
 import subprocess
 import tkinter as tk
 from tkinter import ttk, filedialog
@@ -419,7 +418,7 @@ def gestisci_documenti_personali(self):
             if col == "data":
                 def _k(x):
                     try: return datetime.strptime(x[0], "%d-%m-%Y")
-                    except: return datetime.min
+                    except Exception: return datetime.min
                 rows.sort(key=_k, reverse=rev)
             else:
                 rows.sort(reverse=rev)
@@ -470,7 +469,7 @@ def gestisci_documenti_personali(self):
                     return self.show_custom_warning("Errore", "Record non trovato nel registro.")
             rec = reg[fname]
             ewin = tk.Toplevel(win, bg=self.COLOR_TOPLEVEL)
-            ewin.title(f"Modifica Documento")
+            ewin.title("Modifica Documento")
             ewin.resizable(False, False)
             ewin.transient(win)
             ewin.withdraw()
@@ -788,7 +787,6 @@ def gestisci_documenti_personali(self):
             elif errori:
                 self.show_custom_warning("Stampa fallita", f"Nessun documento stampato. {errori} errori.")
         def gestisci_categorie():
-            nonlocal categorie
             cwin = tk.Toplevel(win, bg=self.COLOR_TOPLEVEL)
             cwin.title(f"Categorie — {nome_profilo}")
             cwin.transient(win)

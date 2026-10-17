@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import os
-import datetime
 import tkinter as tk
 from tkinter import ttk, filedialog
 
@@ -216,7 +215,7 @@ def calcolo_mutuo_prestito(self):
                 for lbl in lbl_scenari_risultati[i]: lbl.config(text="N/A", foreground=self.TEXT_COLOR)
                 popola_piano(trees_piani[i], None, None, None, None, None, None, labels_piani[i])
                 self.tutti_i_risultati[i] = None
-        except ValueError as ve:
+        except ValueError:
             for lbl in lbl_scenari_risultati[i]: lbl.config(text="N/A", foreground=self.TEXT_COLOR)
             popola_piano(trees_piani[i], None, None, None, None, None, None, labels_piani[i])
             self.tutti_i_risultati[i] = None
@@ -260,10 +259,10 @@ def calcolo_mutuo_prestito(self):
         oggi = datetime.date.today()
         try:
             idx_notebook = notebook.index(notebook.select())
-        except:
+        except Exception:
             try:
                 idx_notebook = self.notebook.index(self.notebook.select())
-            except:
+            except Exception:
                 return
         has_sim = hasattr(self, 'tutti_i_risultati') and any(self.tutti_i_risultati)
         has_killer = hasattr(self, 'killer_stats') and self.killer_stats
@@ -281,20 +280,15 @@ def calcolo_mutuo_prestito(self):
         idx_sub = sub_notebook.index(sub_notebook.select()) if idx_notebook == idx_sim_outer_tab else None
         if idx_notebook == idx_rata_sost_tab:
                 titolo_report = "REPORT FINANZIARIO - CALCOLO RATA SOSTENIBILE"
-                prefix_file = "Rata_Sostenibile"
         elif idx_notebook == idx_sost_tab:
                 titolo_report = "REPORT FINANZIARIO - SOSTENIBILITÀ NEL TEMPO"
-                prefix_file = "Sostenibilita_Tempo"
         elif idx_notebook == idx_killer_tab:
                 titolo_report = "REPORT FINANZIARIO - PIANO DI ESTINZIONE STRATEGICA (KILLER)"
-                prefix_file = "Piano_Killer"
         elif idx_sub is not None and idx_piano_start <= idx_sub <= idx_piano_end:
                 num_sim = idx_sub - idx_piano_start + 1
                 titolo_report = f"REPORT FINANZIARIO - PIANO DI AMMORTAMENTO (SIMULAZIONE {num_sim})"
-                prefix_file = f"Piano_Ammortamento_Sim{num_sim}"
         else:
                 titolo_report = "REPORT FINANZIARIO - RIEPILOGO SIMULAZIONI E PROIEZIONI"
-                prefix_file = "Riepilogo_Simulazioni"
         preview_window = tk.Toplevel(root, bg=self.COLOR_TOPLEVEL)
         preview_window.title("Report di Analisi e Proiezione Finanziaria")
         window_width, window_height = 1100, 630
@@ -453,7 +447,7 @@ def calcolo_mutuo_prestito(self):
                     rata_input     = get_val_local(ent_k_rata)
                     tasso_input    = get_val_local(ent_k_tasso)
                     extra_s_input  = get_val_local(ent_k_extra_subito)
-                except:
+                except Exception:
                     capitale_input = rata_input = tasso_input = extra_s_input = 0.0
                     mesi_input = 0
                 k_tot = getattr(self, 'killer_totali', {})
@@ -492,7 +486,7 @@ def calcolo_mutuo_prestito(self):
                 contenuto_testo += f"{'─'*117}\n"
                 contenuto_testo += " RISULTATI DOPO IL PIANO KILLER\n"
                 contenuto_testo += f"{'─'*117}\n"
-                contenuto_testo += f" Metodo: Ricalcolo interessi su debito residuo (Ammortamento Francese)\n"
+                contenuto_testo += " Metodo: Ricalcolo interessi su debito residuo (Ammortamento Francese)\n"
                 contenuto_testo += f"{' > Strategia Selezionata:':<45} {strat.upper():>20}\n"
                 contenuto_testo += f"{'─'*117}\n"
                 contenuto_testo += f"{' > Risparmio Interessi Netto:':<45} {_fmt_it(risparmio_k, '>20,.2f')} €\n"
@@ -524,7 +518,7 @@ def calcolo_mutuo_prestito(self):
                         )
                     try:
                         val_extra_ricorrente = float(ent_k_extra_annuo.get().replace(",", "."))
-                    except:
+                    except Exception:
                         val_extra_ricorrente = 0.0
                     for ann in self.killer_annuali:
                         anno_solare = oggi.year + ann['anno']

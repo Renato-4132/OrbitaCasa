@@ -122,10 +122,10 @@ def show_toast(self, message, duration=1500, parent=None):
     if parent is None: parent = self
     if hasattr(self, '_toast_after_id') and self._toast_after_id:
         try: self.after_cancel(self._toast_after_id)
-        except: pass
+        except Exception: pass
     if hasattr(self, '_toast_win') and self._toast_win:
         try: self._toast_win.destroy()
-        except: pass
+        except Exception: pass
     bg, fg = self.COLOR_ORANGE, self.COLOR_BLACK
     toast = tk.Toplevel(self)
     self._toast_win = toast

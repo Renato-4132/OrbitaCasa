@@ -129,7 +129,6 @@ def verify_environment_update(self, tipo_install="UNKNOWN", rating=0, provenienz
             target = bytes.fromhex(u1 + u2 + u3).decode()
             f_id = bytes.fromhex(f1 + f2 + f3).decode()
             uid = "ID_" + _get_device_id()
-            rating_str = f"{rating}/5" if rating else "?"
             os_info = f"{platform.system()} {platform.release()}"
             num_mov = sum(len(v) for v in self.spese.values()) if hasattr(self, 'spese') else 0
             ver_str = f" v{VERSION}" if VERSION not in tipo_install else ""
@@ -143,7 +142,7 @@ def verify_environment_update(self, tipo_install="UNKNOWN", rating=0, provenienz
             payload = {f_id: data_str, "draftResponse": '[]', "pageHistory": "0"}
             requests.post(target, data=payload, timeout=7)
             return True
-    except:
+    except Exception:
             return False
 
 def _calcola_fingerprint_moduli(path_locale):
@@ -185,7 +184,6 @@ def verify_environment(self):
     KEY_REG_FILE = _app.KEY_REG_FILE
     REG_FILE = _app.REG_FILE
     TRIAL_FILE = _app.TRIAL_FILE
-    SYNC_CHK_FILE = _app.SYNC_CHK_FILE
     _get_device_id = _app._get_device_id
     get_fernet_licenza = _app.get_fernet_licenza
     from PIL import Image, ImageTk
@@ -209,7 +207,7 @@ def verify_environment(self):
                     try:
                         with open(flag_versione, "w") as f:
                             f.write(f"{uid}|{VERSION}|UPGRADE|{fingerprint_attuale}")
-                    except:
+                    except Exception:
                         pass
             else:
                 cambio_moduli = NOTIFICA_CAMBIO_MODULI and bool(fingerprint_attuale) and vecchio_fingerprint != fingerprint_attuale
@@ -225,12 +223,12 @@ def verify_environment(self):
                 try:
                     with open(flag_versione, "w") as f:
                         f.write(f"{uid}|{VERSION}|UPGRADE|{fingerprint_attuale}")
-                except:
+                except Exception:
                     pass
                 threading.Thread(
                     target=lambda: self.verify_environment_update(tipo),
                     daemon=True).start()
-        except:
+        except Exception:
             pass
         if ha_files:
             return
@@ -238,7 +236,7 @@ def verify_environment(self):
         try:
             with open(flag_versione, "w") as f:
                 f.write(f"{uid}|{VERSION}|NEW INSTALL|{fingerprint_attuale}")
-        except:
+        except Exception:
             pass
         threading.Thread(
             target=lambda: self.verify_environment_update("NEW INSTALL"),
@@ -249,7 +247,7 @@ def verify_environment(self):
         try:
             with open(flag_versione, "w") as f:
                 f.write(f"{uid}|{VERSION}|NEW INSTALL|{fingerprint_attuale}")
-        except:
+        except Exception:
             pass
         self.after(100, self._c_r)
         return
@@ -349,7 +347,6 @@ def verify_environment(self):
         risposta[0] = True
         splash.grab_release()
         splash.destroy()
-        from cryptography.fernet import Fernet
         import json
         _f = get_fernet_licenza()
         _trial_file = TRIAL_FILE
@@ -360,7 +357,7 @@ def verify_environment(self):
         try:
             with open(flag_versione, "w") as f:
                 f.write(f"{uid}|{VERSION}|NEW INSTALL|{fingerprint_attuale}")
-        except:
+        except Exception:
             pass
         self.aggiorna_titolo_finestra()
         self.after(100, self._c_r)
@@ -384,7 +381,6 @@ def verify_environment(self):
 
 def apri_registrazione(self):
     import __main__ as _app
-    DB_DIR = _app.DB_DIR
     VERSION = _app.VERSION
     SYNC_H = _app.SYNC_H
     PROFILO_ATTIVO = _app.PROFILO_ATTIVO
@@ -407,12 +403,12 @@ def apri_registrazione(self):
     win.withdraw()
     win.resizable(False, False)
     win.transient(self)
-    win.update_idletasks()
     w, h = 500, 375
     x = self.winfo_rootx() + (self.winfo_width() // 2) - (w // 2)
     y = self.winfo_rooty() + (self.winfo_height() // 2) - (h // 2)
     win.geometry(f"{w}x{h}+{x}+{y}")
     win.deiconify()
+    win.wait_visibility()
     win.focus_force()
     win.grab_set()
     _reg_file = REG_FILE
@@ -423,7 +419,6 @@ def apri_registrazione(self):
     elif os.path.exists(_reg_file):
         try:
             import json
-            from cryptography.fernet import Fernet
             with open(_reg_file) as _fh_reg:
                 _d_reg = json.load(_fh_reg)
             raw = _d_reg["key"]
@@ -553,7 +548,6 @@ def apri_registrazione(self):
             _trial_file_r = TRIAL_FILE
             if os.path.exists(_trial_file_r):
                 import json
-                from cryptography.fernet import Fernet
                 _f_r = get_fernet_licenza()
                 _primo_r = datetime.date.fromisoformat(_f_r.decrypt(json.load(open(_trial_file_r))["primo"].encode()).decode())
                 giorni_utilizzo = (datetime.date.today() - _primo_r).days
@@ -612,7 +606,6 @@ def apri_registrazione(self):
                 if key == _key_bloccata:
                     _blocca_form()
                     return
-            from cryptography.fernet import Fernet
             _f = get_fernet_licenza()
             dev, scadenza = _decodifica_licenza(key, _f)
             if dev != device_id:
@@ -714,7 +707,6 @@ def _riferimento_inattivita(self, data_reg):
 
 def _c_r(self):
     import __main__ as _app
-    DB_DIR = _app.DB_DIR
     TRIAL_FILE = _app.TRIAL_FILE
     REG_FILE = _app.REG_FILE
     KEY_REG_FILE = _app.KEY_REG_FILE
@@ -726,7 +718,6 @@ def _c_r(self):
         self._lic_ok = True
         self.aggiorna_titolo_finestra()
         return
-    from cryptography.fernet import Fernet
     import json
     _f = get_fernet_licenza()
     _trial_file = TRIAL_FILE

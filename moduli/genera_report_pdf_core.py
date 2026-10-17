@@ -94,7 +94,7 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
             t_tipo   = str(tipo).lower()
             suffix   = "in" if t_tipo == "entrata" else "out"
             data_str = giorno.strftime('%d/%m/%Y')
-            conto    = campo(entry, "conto", "") or _nome_conto(giorno, val, t_tipo)
+            conto    = self._conto_effettivo(entry) or _nome_conto(giorno, val, t_tipo)
             if conto_filtro and conto != conto_filtro:
                 continue
             metodo   = campo(entry, "metodo_pagamento", "")
@@ -172,10 +172,8 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
     try:
         locale.setlocale(locale.LC_ALL, 'it_IT.UTF-8')
         cat_a_alfa = sorted(cat_anno_val, key=lambda x: locale.strxfrm(x.lower()))
-        cat_s_alfa = sorted(cat_st_val,   key=lambda x: locale.strxfrm(x.lower()))
     except locale.Error:
         cat_a_alfa = sorted(cat_anno_val, key=lambda x: x.lower())
-        cat_s_alfa = sorted(cat_st_val,   key=lambda x: x.lower())
     finally:
         try:
             locale.setlocale(locale.LC_ALL, _locale_originale)
@@ -192,8 +190,6 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
     C_ORANGE    = (0.95, 0.61, 0.07)
     C_DARKRED   = (0.75, 0.22, 0.17)
     C_BLUE      = (0.20, 0.60, 0.86)
-    C_PURPLE    = (0.55, 0.27, 0.68)
-    C_TEAL      = (0.13, 0.70, 0.67)
     C_TEXT      = (0.17, 0.24, 0.31)
     C_SUBTEXT   = (0.50, 0.55, 0.60)
     C_LINE      = (0.88, 0.90, 0.92)

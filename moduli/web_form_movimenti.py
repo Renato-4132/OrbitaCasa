@@ -34,7 +34,7 @@ def html_form(self):
                     ultimo_log_str = prec['data_ora']
                 elif len(logs) == 1:
                     ultimo_log_str = "Primo accesso!"
-        except:
+        except Exception:
             pass
     oggi = datetime.date.today()
     un_anno_fa = oggi - datetime.timedelta(days=365)
@@ -62,7 +62,7 @@ def html_form(self):
                 frequenze[cat] += 1
                 chiave_esatta = f"{cat}|{round(importo_f, 2)}"
                 mappa_ricorrenti[chiave_esatta] = mappa_ricorrenti.get(chiave_esatta, 0) + 1
-            except: continue
+            except Exception: continue
     smart_data_json = json.dumps({
         "spese": spese_valide,
         "frequenze": frequenze,
@@ -1786,7 +1786,7 @@ def ricalcola_operazioni_web(self):
                 if hasattr(self, 'btn_open_pdf_folder'):
                     self.btn_open_pdf_folder.config(foreground=colore_stato)
                 self.lbl_sync_count_widget.config(foreground=colore_stato)
-            except:
+            except Exception:
                 pass
     if hasattr(self, 'lbl_sync_count_widget') and self.lbl_sync_count_widget.winfo_exists():
         applica_stato_visivo()
@@ -1813,10 +1813,13 @@ def pianifica_sincro_web(self):
     import __main__ as _app
     SYNC_INT_MIN = _app.SYNC_INT_MIN
     from datetime import datetime
+    if not getattr(_app, "SYNC_DATI", True):
+        self._job_sincro = None
+        return
     try:
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Avvio sincronizzazione web automatica...")
         threading.Thread(target=self._esegui_sincro_thread, daemon=True).start()
     except Exception as e:
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Errore durante il trigger della sincronizzazione: {e}")
     SYNC_INTERVALLO_MS = SYNC_INT_MIN * 60 * 1000
-    self.after(SYNC_INTERVALLO_MS, self.pianifica_sincro_web)
+    self._job_sincro = self.after(SYNC_INTERVALLO_MS, self.pianifica_sincro_web)

@@ -18,7 +18,7 @@ def apri_inserimento_rapido(self, event):
         testo = event.widget.cget("text")
         if not str(testo).strip().isdigit():
             return
-    except:
+    except Exception:
         pass
     hud = getattr(self, '_quick_add_hud', None)
     if hud:
@@ -34,7 +34,7 @@ def apri_inserimento_rapido(self, event):
                 self.popup_rapido_attivo.lift()
                 self.popup_rapido_attivo.focus_force()
                 return
-        except: pass
+        except Exception: pass
     if self.tooltip_timer:
         self.after_cancel(self.tooltip_timer)
         self.tooltip_timer = None
@@ -46,7 +46,7 @@ def apri_inserimento_rapido(self, event):
     popup = tk.Toplevel(self, bg=self.COLOR_WIDGET_BG)
     self.popup_rapido_attivo = popup
     popup.withdraw()
-    popup.title(f"Inserimento Rapido")
+    popup.title("Inserimento Rapido")
     popup.transient(self)
     popup.resizable(False, False)
     w, h = 400, 420
@@ -109,7 +109,7 @@ def apri_inserimento_rapido(self, event):
                     if cat in ["", "Categoria Rimossa", None] or cat not in self.categorie: continue
                     chiave = (cat, round(float(imp), 2))
                     mappa_ricorrenti[chiave] = mappa_ricorrenti.get(chiave, 0) + 1
-                except: continue
+                except Exception: continue
         miglior_punteggio = float("inf")
         categoria_migliore = None
         for (categoria, importo_storico), freq in mappa_ricorrenti.items():
@@ -125,7 +125,7 @@ def apri_inserimento_rapido(self, event):
         if categoria_migliore:
             var_cat.set(categoria_migliore)
             var_tipo.set(self.categorie_tipi.get(categoria_migliore, "Uscita"))
-            lbl_smartcat.config(text=f"💡 SmartCat: On", foreground="red")
+            lbl_smartcat.config(text="💡 SmartCat: On", foreground="red")
     ttk.Label(frame, text="Importo (€):", font=("Arial", 9, "bold")).grid(row=1, column=0, sticky="w", pady=5)
     def _val_imp(p):
         if p == "":
