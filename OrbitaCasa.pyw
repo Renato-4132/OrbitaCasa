@@ -24,7 +24,6 @@ if sys.platform.startswith("linux"):
     os.environ["GTK_IM_MODULE"] = "none"
     os.environ["QT_IM_MODULE"] = "none"
 import json
-import math
 import time
 import uuid
 import base64
@@ -34,13 +33,10 @@ import shutil
 import secrets
 import hashlib
 import platform
-import calendar
 import datetime
-import tempfile
 import threading
 import subprocess
 import webbrowser
-import http.client
 import urllib.parse
 import urllib.error  
 import urllib.request
@@ -64,8 +60,6 @@ else:
         _toplevel_init_orig(self, master, cnf, **kw)
     tk.Toplevel.__init__ = _toplevel_init_sessione
 
-_NOME_SESSIONE = _os_id.path.basename(_os_id.path.dirname(_os_id.path.abspath(__file__)))[:20]
-
 _PALETTE = [(231,76,60),(46,204,113),(52,152,219),(241,196,15),
             (155,89,182),(230,126,34),(26,188,156),(236,64,122)]
 
@@ -78,23 +72,22 @@ def _badge_sessione(img):
         import PIL.Image, PIL.ImageDraw
         img = img.convert("RGBA")
         w, h = img.size
+        if w != h:
+            _lato = max(w, h)
+            _quad = PIL.Image.new("RGBA", (_lato, _lato), (0, 0, 0, 0))
+            _quad.paste(img, ((_lato - w) // 2, (_lato - h) // 2), img)
+            img = _quad
+            w = h = _lato
         d = max(8, int(min(w, h) * 0.38))
-        draw = PIL.ImageDraw.Draw(img)
-        box = (w - d - 1, h - d - 1, w - 2, h - 2)
-        draw.ellipse(box, fill=_colore_sessione(), outline=(255, 255, 255, 255), width=max(1, d // 8))
-        return img
+        S = 8
+        box = (w - d - 1, h - d - 1, w - 1, h - 1)
+        layer = PIL.Image.new("RGBA", (w * S, h * S), (0, 0, 0, 0))
+        PIL.ImageDraw.Draw(layer).ellipse(tuple(v * S for v in box), fill=_colore_sessione(),
+                                          outline=(255, 255, 255, 255), width=max(1, round(d / 8)) * S)
+        layer = layer.resize((w, h), PIL.Image.LANCZOS)
+        return PIL.Image.alpha_composite(img, layer)
     except Exception:
         return img
-
-_wm_title_orig = tk.Wm.title
-def _toplevel_title_sessione(self, string=None):
-    if string is None:
-        return _wm_title_orig(self)
-    s_ = str(string)
-    if s_ and f"[{_NOME_SESSIONE}]" not in s_:
-        s_ = f"{s_}  [{_NOME_SESSIONE}]"
-    return _wm_title_orig(self, s_)
-tk.Toplevel.title = _toplevel_title_sessione
 
 _PATH_LOCALE_BOOT = os.path.dirname(os.path.abspath(__file__))
 _MODULI_DIR_BOOT = os.path.join(_PATH_LOCALE_BOOT, "moduli")
@@ -367,8 +360,9 @@ class GestioneSpese(tk.Tk):
         self.categoria_bloccata = False
         
         # Sync dati esterni
+        self._job_sincro = None
         if SYNC_DATI:
-            self.after(30000, self.pianifica_sincro_web)
+            self._job_sincro = self.after(30000, self.pianifica_sincro_web)
         # Inizializzazione variabili per il Monitor Sync
         self.operazioni_scaricate_sessione = 0 
         # Suggerimento categorie
@@ -381,7 +375,7 @@ class GestioneSpese(tk.Tk):
         # Check Movimenti mancanti fine mese    
         if CHECK_MESE:
             self._last_dismiss_date = self._carica_dismiss_fm()
-            self.after(8000, self.controlla_ricorrenti_a_fine_mese)  
+            self._job_ricorrenti = self.after(8000, self.controlla_ricorrenti_a_fine_mese)
         
         self.categorie = ["Generica", self.CATEGORIA_RIMOSSA]
         self.categorie_tipi = {"Generica": "Uscita", self.CATEGORIA_RIMOSSA: "Uscita"}
@@ -449,7 +443,7 @@ class GestioneSpese(tk.Tk):
                     background=[("active", self.cal_header_bg), ("pressed", self.cal_header_bg)],
                     relief=[("active", "flat"), ("pressed", "flat")]
                 )
-        except:
+        except Exception:
             pass
         # Creazione del tooltip Calendario
         self.tooltip_win = tk.Toplevel(self)
@@ -551,7 +545,7 @@ class GestioneSpese(tk.Tk):
         try:
            self.cal._header_month.config(font=("Arial", 14, "bold"))
            self.cal._header_year.config(font=("Arial", 14, "bold"))
-        except:
+        except Exception:
            pass
 
         self.cal.tag_config("verde", background=self.COLOR_LIGHTGREEN, foreground=self.COLOR_BLACK)
@@ -703,6 +697,8 @@ class GestioneSpese(tk.Tk):
                 font=("Arial", 10, "bold")
         )
         self.lbl_budget_mese.grid(row=3, column=1, sticky="e", padx=(0,6), pady=(2, 2))
+        self.barra_503020_mese = self.crea_barra_503020(self.totalizzatore_mese_frame, "mese")
+        self.barra_503020_mese.grid(row=4, column=0, columnspan=2, sticky="ew", padx=6, pady=(0, 4))
         self.lbl_titolo_target_a = ttk.Label(
                 self.totalizzatore_frame, 
                 text="Target Anno:", 
@@ -716,6 +712,8 @@ class GestioneSpese(tk.Tk):
                 font=("Arial", 10, "bold")
         )
         self.lbl_budget_anno.grid(row=3, column=1, sticky="e", padx=(0,6), pady=(2, 2))
+        self.barra_503020_anno = self.crea_barra_503020(self.totalizzatore_frame, "anno")
+        self.barra_503020_anno.grid(row=4, column=0, columnspan=2, sticky="ew", padx=6, pady=(0, 4))
         self.lbl_titolo_analisi = tk.Label(
                 cal_frame,
                 text=" Analisi Mese Attuale",
@@ -843,7 +841,7 @@ class GestioneSpese(tk.Tk):
             importo     = campo(entry, "importo", 0.0)
             tipo        = campo(entry, "tipo", "").strip()
             metodo      = campo(entry, "metodo_pagamento", "")
-            conto       = campo(entry, "conto", "")
+            conto       = self._conto_effettivo(entry)
             hashtag     = campo(entry, "hashtag", [])
             cat_match = next(
                 (c for c in self.categorie if c.strip().lower() == categoria.lower()),
@@ -1289,18 +1287,9 @@ class GestioneSpese(tk.Tk):
         chk_container_frame = ttk.Frame(totali_row)
         chk_container_frame.pack(side=tk.RIGHT, padx=12)
         # Pulsante Carosello
+        self._chk_container_frame = chk_container_frame
         if CAROSELLO:
-            self.var_carosello_enabled = tk.BooleanVar(self, value=True)
-            img_reset = self.icone_gui.get("reset")
-            self.btn_ciclico_carosello = ttk.Checkbutton(
-                chk_container_frame,
-                image=img_reset if img_reset else "",
-                variable=self.var_carosello_enabled,
-                command=self.toggle_carosello
-            )
-            if img_reset:
-                self.btn_ciclico_carosello.image = img_reset
-            self.btn_ciclico_carosello.pack(side=tk.LEFT, padx=0)
+            self._crea_btn_carosello()
         def _refresh_con_grafici():
             if hasattr(self, 'stats_label') and "Dettaglio Giornaliero" in self.stats_label.cget("text"):
                 self.goto_dettaglio_mese()
@@ -1404,23 +1393,10 @@ class GestioneSpese(tk.Tk):
         btn_collapse.bind("<Button-1>", lambda e: _toggle_form())
         add_tt(btn_collapse, lambda: "Clic: espandi il pannello di inserimento" if self._form_collapsed
                else "Clic: comprimi il pannello di inserimento")
+        self._lbl_form_container = lbl_form_container
+        self._add_tt = add_tt
         if ABILITA_WEBSERVER:
-            _protocollo_titolo = " (HTTPS)" if USA_SSL and os.path.exists(os.path.join(DB_DIR, "cert.pem")) else " (HTTP)"
-            tk.Frame(lbl_form_container, height=1, bg="gray50").pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=2)
-            self.lbl_webport = ttk.Label(
-                lbl_form_container,
-                image=self.icone_gui.get("mobile"),
-                text=f" Port: {PORTA}{_protocollo_titolo}",
-                compound="left",
-                font=("Arial", 7, "italic"),
-                foreground=self.TEXT_COLOR,
-                background=self.COLOR_WIDGET_BG,
-                cursor="hand2"
-            )
-            self.lbl_webport.pack(side=tk.RIGHT, padx=(0, 4))
-            self.lbl_webport.bind("<Button-1>", lambda e: self.mostra_qr_popup_label())
-            add_tt(self.lbl_webport, "Mostra QR accesso web")
-            tk.Frame(lbl_form_container, height=1, bg="gray50").pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=2)
+            self._crea_lbl_webport()
         if _HAS_DND:
             img_mouse_form = self.icone_gui.get("mouse")
             lbl_form_hint = ttk.Label(lbl_form_container,
@@ -2163,7 +2139,7 @@ class GestioneSpese(tk.Tk):
                 if isinstance(d, str):
                     try:
                         dd = datetime.strptime(d, "%d-%m-%Y").date()
-                    except:
+                    except Exception:
                         continue
                 else:
                     dd = d
@@ -2181,7 +2157,7 @@ class GestioneSpese(tk.Tk):
                             date_occ.append(dd)
                             if ultima is None or dd > ultima[0]:
                                 ultima = (dd, imp, tipo_voce)
-                        except:
+                        except Exception:
                             continue
             if ultima:
                 segno = "+" if ultima[2] == "Entrata" else "-"
@@ -2199,7 +2175,7 @@ class GestioneSpese(tk.Tk):
                 if len(_date_ord) > 1:
                     _gap = (_date_ord[-1] - _date_ord[0]).days / (len(_date_ord) - 1)
                     _righe_st.append(("Ogni", f"~{round(_gap)} giorni"))
-                self.tree_ricorrenti._metodo_lookup[_item_ric] = {"_righe_extra": _righe_st}
+                self.tree_ricorrenti._metodo_lookup[_item_ric] = {"categoria": cat, "_righe_extra": _righe_st}
 
     def _avvia_rotazione_oggi(self):
         path = os.path.join(PATH_LOCALE, "db", "resources", "filtri.png")
@@ -2272,6 +2248,7 @@ class GestioneSpese(tk.Tk):
             self.after(300, lambda: setattr(self, "_esc_analisi_in_corso", False))
         if getattr(self, '_cruscotto_stato', 0) != 0:
             self._cruscotto_stato = 0
+            _salva_chiave_config("analisi_mese_vista", 0)
             self.mese_notebook.pack_forget()
             self.cruscotto_canvas.pack_forget()
             if hasattr(self, 'conti_canvas'):
@@ -2329,11 +2306,11 @@ class GestioneSpese(tk.Tk):
     def disattiva_binding_stop(self):
         root = self.winfo_toplevel()
         try: root.unbind('<Motion>') 
-        except: pass
+        except Exception: pass
         try: root.unbind('<Any-KeyPress>') 
-        except: pass
+        except Exception: pass
         try: root.unbind('<Button-1>')
-        except: pass
+        except Exception: pass
     def esegui_scorrimento_e_riprogramma(self):
         self.chiamato_da_carosello = True
         if not hasattr(self, 'STATI_VISTA'): return
@@ -2354,7 +2331,7 @@ class GestioneSpese(tk.Tk):
     def handle_stop_carosello(self, event=None):
         try:
             self.ferma_scorrimento_automatico()
-        except Exception as e:
+        except Exception:
             pass
     def ferma_scorrimento_automatico(self):
         _dett_utente = getattr(self, "_stats_dettaglio_utente", False)
@@ -2399,6 +2376,76 @@ class GestioneSpese(tk.Tk):
             self.intervallo_scorrimento, 
             self.esegui_scorrimento_e_riprogramma
         )
+    def _crea_btn_carosello(self):
+        if getattr(self, "btn_ciclico_carosello", None) is not None:
+            try:
+                if self.btn_ciclico_carosello.winfo_exists():
+                    return
+            except Exception:
+                pass
+        if not hasattr(self, "var_carosello_enabled"):
+            self.var_carosello_enabled = tk.BooleanVar(self, value=True)
+        img_reset = self.icone_gui.get("reset")
+        self.btn_ciclico_carosello = ttk.Checkbutton(
+            self._chk_container_frame,
+            image=img_reset if img_reset else "",
+            variable=self.var_carosello_enabled,
+            command=self.toggle_carosello
+        )
+        if img_reset:
+            self.btn_ciclico_carosello.image = img_reset
+        _altri = self._chk_container_frame.pack_slaves()
+        if _altri:
+            self.btn_ciclico_carosello.pack(side=tk.LEFT, padx=0, before=_altri[0])
+        else:
+            self.btn_ciclico_carosello.pack(side=tk.LEFT, padx=0)
+
+    def _rimuovi_btn_carosello(self):
+        try:
+            self.ferma_scorrimento_automatico()
+        except Exception:
+            pass
+        btn = getattr(self, "btn_ciclico_carosello", None)
+        if btn is not None:
+            try:
+                btn.destroy()
+            except Exception:
+                pass
+            del self.btn_ciclico_carosello
+
+    def _crea_lbl_webport(self):
+        self._rimuovi_lbl_webport()
+        cont = self._lbl_form_container
+        _prot = " (HTTPS)" if USA_SSL and os.path.exists(os.path.join(DB_DIR, "cert.pem")) else " (HTTP)"
+        sep1 = tk.Frame(cont, height=1, bg="gray50")
+        sep1.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=2)
+        self.lbl_webport = ttk.Label(
+            cont,
+            image=self.icone_gui.get("mobile"),
+            text=f" Port: {PORTA}{_prot}",
+            compound="left",
+            font=("Arial", 7, "italic"),
+            foreground=self.TEXT_COLOR,
+            background=self.COLOR_WIDGET_BG,
+            cursor="hand2"
+        )
+        self.lbl_webport.pack(side=tk.RIGHT, padx=(0, 4))
+        self.lbl_webport.bind("<Button-1>", lambda e: self.mostra_qr_popup_label())
+        self._add_tt(self.lbl_webport, "Mostra QR accesso web")
+        sep2 = tk.Frame(cont, height=1, bg="gray50")
+        sep2.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=2)
+        self._webport_widgets = [sep1, self.lbl_webport, sep2]
+
+    def _rimuovi_lbl_webport(self):
+        for w in getattr(self, "_webport_widgets", []):
+            try:
+                w.destroy()
+            except Exception:
+                pass
+        self._webport_widgets = []
+        if hasattr(self, "lbl_webport"):
+            del self.lbl_webport
+
     def toggle_carosello(self):
         if self.var_carosello_enabled.get():
             self.chiamato_da_carosello = True
@@ -2508,6 +2555,13 @@ class GestioneSpese(tk.Tk):
     def _bind_tooltip_metodo(self, tree, col_desc=2):
         _simboli_tooltip = NOME_DA_EMOJI
         _simbolo_di_nome = SIMBOLI_METODO
+        def _classe_cat(nome):
+            _m = self._classi_categorie()
+            _c = _m.get(nome, "")
+            if _c:
+                return _c
+            _low = str(nome).strip().lower()
+            return next((_v for _k, _v in _m.items() if str(_k).strip().lower() == _low), "")
         _tt = [None]
         _after = [None]
         _item_cur = [None]
@@ -2539,6 +2593,9 @@ class GestioneSpese(tk.Tk):
             if _piano is not None:
                 if _piano.get("categoria"):
                     righe.append(("Categoria", _piano.get("categoria")))
+                    _classe_pi = _classe_cat(_piano.get("categoria"))
+                    if _classe_pi:
+                        righe.append(("Classe", _classe_pi))
                 if _piano.get("_n_piani"):
                     righe.append(("Piani", str(_piano.get("_n_piani"))))
                 if _piano.get("descrizione"):
@@ -2624,9 +2681,14 @@ class GestioneSpese(tk.Tk):
             _categoria_info = _info.get("categoria", "")
             if _categoria_info:
                 righe.append(("Categoria", _categoria_info))
+                _classe_tt = _classe_cat(_categoria_info)
+                if _classe_tt:
+                    righe.append(("Classe", _classe_tt))
             if metodo:
                 righe.append(("Pagamento", metodo))
             _conto = _info.get("conto", "")
+            if not _conto and _info.get("id_spesa"):
+                _conto = self._mappa_conti_risparmio_auto().get(_info.get("id_spesa"), "")
             if _conto:
                 righe.append(("Conto", _conto))
             _importo_info = _info.get("importo", None)
@@ -2761,6 +2823,9 @@ class GestioneSpese(tk.Tk):
                 tot_e, tot_u = 0.0, 0.0
                 for e in entries:
                     cat, imp, tipo = e[0] or "Varie", float(e[2]), str(e[3]).lower()
+                    _et = self._etichetta_classe_conto(e)
+                    if _et:
+                        cat = f"{cat} [{_et}]"
                     if tipo == "entrata":
                         tot_e += imp
                         e_voci.append((cat, imp))
@@ -2774,14 +2839,14 @@ class GestioneSpese(tk.Tk):
                     linee.append(f"{'▲ SALDO (+):'.ljust(W - len(ve))}{ve}")
                     for c, v in e_voci:
                         vs = _fmt_it(v)
-                        linee.append(f"{f' {c}'.ljust(W - len(vs))}{vs}")
+                        linee.append(f"{f' {c}'.ljust(max(W - len(vs), len(c) + 2))}{vs}")
                 if u_voci:
                     if linee: linee.append("─" * W)
                     vu = f"€ {_fmt_it(tot_u)}"
                     linee.append(f"{'▼ SALDO (-):'.ljust(W - len(vu))}{vu}")
                     for c, v in u_voci:
                         vs = _fmt_it(v)
-                        linee.append(f"{f' {c}'.ljust(W - len(vs))}{vs}")
+                        linee.append(f"{f' {c}'.ljust(max(W - len(vs), len(c) + 2))}{vs}")
                 testo_tooltip = "\n" + "\n".join(linee)
                 if tot_e > 0 and tot_u > 0: tag = "misto"
                 elif tot_e > 0: tag = "verde"
@@ -2847,10 +2912,9 @@ class GestioneSpese(tk.Tk):
     # Imposta Titolo Finestra
     def aggiorna_titolo_finestra(self):
         stato_db = "📡 [RETE]" if DB_CONDIVISO else "🏠 [LOCALE]"
-        current_folder = os.path.basename(os.getcwd())
+        current_folder = os.path.basename(os.path.normpath(RADICE_DATI))
         scad_str = ""
         try:
-            from cryptography.fernet import Fernet
             import json
             _f = get_fernet_licenza()
             _reg_file   = REG_FILE
@@ -2946,7 +3010,7 @@ class GestioneSpese(tk.Tk):
             with open(DB_FILE, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            print(f"Errore salvataggio geometria finestra:", e)
+            print("Errore salvataggio geometria finestra:", e)
 
     # Rilascio del lock file e pulizia all'uscita (Non-Windows)
     def _on_close_lock(self):
@@ -3004,7 +3068,7 @@ class GestioneSpese(tk.Tk):
             if splash.winfo_exists():
                 splash.destroy()
             self.destroy()
-        except: pass
+        except Exception: pass
         self._on_close_lock()
         sys.exit(0)
 
@@ -3195,6 +3259,10 @@ class GestioneSpese(tk.Tk):
                     for d in spese_da_rimuovere:
                         del self.spese[d]
                     print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] PULIZIA: Rimosse {conteggio_giorni} giornate di dati antecedenti al {limite.strftime('%d-%m-%Y')}.")
+                try:
+                    self._sincronizza_risparmio()
+                except Exception as _e_risp:
+                    print(f"Errore sincronizzazione risparmio: {_e_risp}")
                 categorie_tipi_ordinati = dict(sorted(self.categorie_tipi.items(), key=lambda x: x[0].lower()))
                 CATEGORIA_PRIORITARIA = "Generica"
                 categorie_temporanee = sorted([c for c in self.categorie if c != CATEGORIA_PRIORITARIA], key=lambda c: c.lower())
@@ -3202,6 +3270,8 @@ class GestioneSpese(tk.Tk):
                 data = {
                     "categorie": categorie_ordinate,
                     "categorie_tipi": categorie_tipi_ordinati,
+                    "categorie_classi": {c: v for c, v in getattr(self, "categorie_classi", getattr(self, "db", {}).get("categorie_classi", {})).items() if c in self.categorie},
+                    "categorie_conti_risparmio": {c: v for c, v in self._conti_risparmio_cat().items() if c in self.categorie},
                     "spese": [
                         {"date": d.strftime("%d-%m-%Y"), "entries": [
                             self._entry_a_dict(entry) for entry in sp
@@ -3632,7 +3702,7 @@ class GestioneSpese(tk.Tk):
         new_style = 'GreenOutline.TButton' if tipo == "Entrata" else 'RedOutline.TButton'
         self.btn_tipo_spesa.config(style=new_style)
         if hasattr(self, 'v_conto_movimento'):
-            self.v_conto_movimento.set(campo(voce, "conto", "") or self._trova_conto_da_portafoglio(giorno, _parse_it_float(imp), tipo, self._ordine_in_gruppo_chiave(giorno, idx)))
+            self.v_conto_movimento.set(self._conto_effettivo(voce) or self._trova_conto_da_portafoglio(giorno, _parse_it_float(imp), tipo, self._ordine_in_gruppo_chiave(giorno, idx)))
         if hasattr(self, 'metodo_pagamento_var'):
             self.metodo_pagamento_var.set(self._metodo_pagamento_a_combo(campo(voce, "metodo_pagamento", "")))
         if hasattr(self, 'tag_entry'):
@@ -3703,7 +3773,7 @@ class GestioneSpese(tk.Tk):
         new_style = 'GreenOutline.TButton' if tipo == "Entrata" else 'RedOutline.TButton'
         self.btn_tipo_spesa.config(style=new_style)
         if hasattr(self, 'v_conto_movimento'):
-            self.v_conto_movimento.set(campo(voce, "conto", "") or self._trova_conto_da_portafoglio(giorno, _parse_it_float(imp), tipo, self._ordine_in_gruppo_chiave(giorno, idx)))
+            self.v_conto_movimento.set(self._conto_effettivo(voce) or self._trova_conto_da_portafoglio(giorno, _parse_it_float(imp), tipo, self._ordine_in_gruppo_chiave(giorno, idx)))
         if hasattr(self, 'metodo_pagamento_var'):
             self.metodo_pagamento_var.set(self._metodo_pagamento_a_combo(campo(voce, "metodo_pagamento", "")))
         if hasattr(self, 'tag_entry'):
@@ -3995,7 +4065,7 @@ class GestioneSpese(tk.Tk):
                     break
             self.spese_mese_tree._metodo_lookup[item_id] = {
                 "metodo": campo(entry, "metodo_pagamento", ""),
-                "conto": campo(entry, "conto", ""),
+                "conto": self._conto_effettivo(entry),
                 "ora": campo(entry, "ora", ""),
                 "hashtag": campo(entry, "hashtag", []),
                 "id_ricorrenza": campo(entry, "id_ricorrenza", ""),
@@ -4008,11 +4078,10 @@ class GestioneSpese(tk.Tk):
             self.spese_mese_tree._entry_lookup[item_id] = entry
         if hasattr(self, "ottieni_promemoria_mese"):
             for piano in self.ottieni_promemoria_mese(year, month):
-                nome_piano = piano.get("nome", "")
                 quota = piano.get("quota_mese", piano.get("quota", 0.0))
                 item_id_prom = self.spese_mese_tree.insert("", "end", values=(
                     "", piano.get("categoria", ""),
-                    f"Pianificata",
+                    "Pianificata",
                     _fmt_it_safe(quota), ""
                 ), tags=("promemoria",))
                 self.spese_mese_tree._promemoria_lookup[item_id_prom] = piano
@@ -4080,7 +4149,7 @@ class GestioneSpese(tk.Tk):
             self.stats_table.config(selectmode="browse")
             try:
                 data_corrente = self.cal.selection_get()
-            except:
+            except Exception:
                 data_corrente = datetime.date.today()
             
             self.stats_label.config(
@@ -4135,7 +4204,7 @@ class GestioneSpese(tk.Tk):
                  lambda: self.update_spese_mese_corrente(year=getattr(self, '_view_year', None), month=getattr(self, '_view_month', None))]
         for f in funcs:
             try: f()
-            except: pass
+            except Exception: pass
         if hasattr(self, 'vsb_stats'):
             self.stats_table.configure(yscrollcommand=self.vsb_stats.set)
             self.vsb_stats.config(command=self.stats_table.yview)
@@ -4235,7 +4304,7 @@ class GestioneSpese(tk.Tk):
             self.stats_table.insert("", "end", values=("", "Nessun movimento trovato", "", "", "", ""), tags=("vuoto",))
         for d, cat, desc, imp, tipo, entry in righe_trovate:
             tag = "futuro" if d > oggi else ("entrata" if tipo == "Entrata" else "uscita")
-            nome_conto_g = campo(entry, "conto", "")
+            nome_conto_g = self._conto_effettivo(entry)
             item_id = self.stats_table.insert(
                 "", "end",
                 values=(d.strftime("%d-%m-%Y"), cat, desc, _fmt_it_safe(imp), tipo, nome_conto_g),
@@ -4314,7 +4383,7 @@ class GestioneSpese(tk.Tk):
                         and (giorno.year, giorno.month) == (oggi.year, oggi.month)
                         and cat in getattr(self, "_budget_sforati", set())):
                     tag = "sforato"
-                nome_conto_st = campo(entry, "conto", "")
+                nome_conto_st = self._conto_effettivo(entry)
                 if not nome_conto_st:
                     _key_st = (giorno.strftime("%d-%m-%Y"), round(float(imp), 2), tipo)
                     _lista_conti = _agganci_st.get(_key_st, [])
@@ -4542,6 +4611,7 @@ class GestioneSpese(tk.Tk):
             self.totalizzatore_diff_label.config(foreground="dodgerblue")
         diff_mese = getattr(self, '_diff_mese_reale', 0.0)
         self.aggiorna_meteo_saldo(diff_mese, differenza_anno)
+        self.aggiorna_barre_503020("anno", year, None)
 
     def toggle_considera_pianificate_mese(self):
         self.considera_pianificate_var.set(not self.considera_pianificate_var.get())
@@ -4636,6 +4706,7 @@ class GestioneSpese(tk.Tk):
         diff_anno = getattr(self, '_diff_anno_reale', 0.0)
         self.aggiorna_meteo_saldo(differenza_mese, diff_anno)
         self.aggiorna_cruscotto(year=year, month=month)
+        self.aggiorna_barre_503020("mese", year, month)
         
     def _anima_label_valore(self, label, valore_finale, steps=20, step_ms=30):
         if ANIMAZIONI:
@@ -4643,7 +4714,7 @@ class GestioneSpese(tk.Tk):
                 testo_attuale = label.cget("text").replace("€", "").strip()
                 testo_attuale = testo_attuale.replace(".", "").replace(",", ".")
                 valore_iniziale = float(testo_attuale) if testo_attuale else 0.0
-            except:
+            except Exception:
                 valore_iniziale = 0.0
             delta = valore_finale - valore_iniziale
             def _step(i):
@@ -4853,7 +4924,6 @@ class GestioneSpese(tk.Tk):
         if W < 10 or H < 10:
             return
         c.delete("all")
-        bg_color = getattr(self, 'COLOR_WIDGET_BG', "#1E1E1E")
         testo_color = getattr(self, 'TEXT_COLOR', '#E8E8E8')
         try:
             with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as f:
@@ -4885,7 +4955,7 @@ class GestioneSpese(tk.Tk):
             nome_a_id[nome] = cid
             try:
                 saldi_visualizzati[cid] = float(conto.get("saldo", 0))
-            except:
+            except Exception:
                 saldi_visualizzati[cid] = 0.0
         oggi = datetime.date.today()
         include_futuri = self.considera_ricorrenze_var.get()
@@ -4907,13 +4977,13 @@ class GestioneSpese(tk.Tk):
                 data_str = tf.get("data", "")
                 d_parti = data_str.split("-")
                 giorno = datetime.date(int(d_parti[2]), int(d_parti[1]), int(d_parti[0]))
-            except:
+            except Exception:
                 continue
             if not include_futuri and giorno > oggi:
                 continue
             try:
                 imp = float(tf.get("importo", 0))
-            except:
+            except Exception:
                 imp = 0.0
             id_da = tf.get("da", "")
             id_a = tf.get("a", "")
@@ -4986,7 +5056,7 @@ class GestioneSpese(tk.Tk):
             for path in candidati:
                 try:
                     return ImageFont.truetype(path, size)
-                except:
+                except Exception:
                     continue
             return ImageFont.load_default()
         font_titolo = _carica_font(14*SCALE)
@@ -5471,7 +5541,7 @@ class GestioneSpese(tk.Tk):
         try:
             if self.state() == 'iconic':
                 return
-        except:
+        except Exception:
                 return
         try:
                 anno, mese = None, None
@@ -5479,7 +5549,7 @@ class GestioneSpese(tk.Tk):
                     try:
                             dt_cal = datetime.datetime.strptime(self.cal.get_date(), "%d-%m-%Y").date()
                             anno, mese = dt_cal.year, dt_cal.month
-                    except:
+                    except Exception:
                             pass
                 self.update_stats()
                 self.update_totalizzatore_anno_corrente(year=anno)
@@ -5489,6 +5559,12 @@ class GestioneSpese(tk.Tk):
                 self.aggiorna_monitoraggio_budget()
                 self.refresh_documenti()
                 self._refresh_portafoglio_se_aperto()
+                try:
+                    _p503 = getattr(self, "metodo_503020_popup", None)
+                    if _p503 and _p503.winfo_exists() and hasattr(self, "_aggiorna_503020"):
+                        self._aggiorna_503020()
+                except Exception:
+                    pass
                 self._controlla_sforamento_budget()
                 self._controlla_sforamento_budget_annuo()
         except Exception:
@@ -5522,14 +5598,14 @@ class GestioneSpese(tk.Tk):
                 self.iconphoto(True, tk_icon)
                 self.icon_ref = tk_icon
                 if platform.system() == "Windows":
-                    import ctypes, threading
+                    import threading
                     def run_tray():
                         try:
                             tray_img = pil_img.resize((32, 32), PIL.Image.Resampling.LANCZOS).convert('RGBA')
                             self.tray_icon = pystray.Icon(f"{_ID_ISTANZA}", tray_img, f"{NAME} — {current_folder}")
                             self.tray_icon.run()
                         except ImportError:
-                            print(f"Pystray mancante: pip install pystray")
+                            print("Pystray mancante: pip install pystray")
                         except Exception as tray_e:
                             print(f"Errore Tray: {tray_e}")
                     threading.Thread(target=run_tray, daemon=True).start()
@@ -5548,7 +5624,7 @@ class GestioneSpese(tk.Tk):
     def _blink_recursive(self, label):
         try:
             label.winfo_exists()
-        except:
+        except Exception:
             return
         if not hasattr(label, "_is_blinking_on"):
              label._is_blinking_on = True 
@@ -5735,7 +5811,7 @@ class GestioneSpese(tk.Tk):
                 if self.popup_rapido_attivo.winfo_exists():
                     safe_withdraw()
                     return
-            except: pass
+            except Exception: pass
         x_abs, y_abs = self.winfo_pointerxy()
         try:
             widget = self.winfo_containing(x_abs, y_abs)
@@ -5776,9 +5852,10 @@ class GestioneSpese(tk.Tk):
         for riga in righe:
             if not riga.strip(): continue
             colore_testo = self.COLOR_TEXT_TOOLTIP
-            if "-" in riga:
+            _r_s = riga.lstrip()
+            if _r_s.startswith(("-", "▼")):
                 colore_testo = self.COLOR_RED_SMOOTH
-            elif "+" in riga:
+            elif _r_s.startswith(("+", "▲")):
                 colore_testo = self.COLOR_GREEN_SMOOTH
             if riga.strip() == "Oggi":
                 colore_testo = self.COLOR_TEXT_TOOLTIP
@@ -5816,7 +5893,7 @@ class GestioneSpese(tk.Tk):
                     import winsound
                     winsound.MessageBeep(winsound.MB_OK)
                     return
-            except:
+            except Exception:
                 pass
             try:
                 import numpy as np
@@ -5840,7 +5917,7 @@ class GestioneSpese(tk.Tk):
                 elif sys.platform == "darwin":
                     subprocess.run(["afplay", nome], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 os.unlink(nome)
-            except:
+            except Exception:
                 pass
         threading.Thread(target=_suona, daemon=True).start()
 
@@ -5917,14 +5994,14 @@ class GestioneSpese(tk.Tk):
                     f.write(f"⚠️ ERRORE CALLBACK ({ora})\n")
                     f.write(f"{error_info}\n")
                     f.write("-" * 50 + "\n\n")
-            except:
+            except Exception:
                     pass
             print(error_info)
         self.report_callback_exception = gestore_errori_tkinter
         
     # Aggiorna Meteo Labels
     def _genera_frames_sole(self, n=12, size=(16, 16)):
-        from PIL import Image, ImageTk; import math
+        from PIL import Image, ImageTk
         p = os.path.normpath(os.path.join(PATH_LOCALE, "db", "resources", "meteo_sole.png"))
         if not os.path.exists(p): return []
         try:
@@ -5945,7 +6022,7 @@ class GestioneSpese(tk.Tk):
         w = info["widget"]
         try:
             if not w.winfo_exists(): self.ferma_animazione_meteo(w); return
-        except: return
+        except Exception: return
         f = info["frames"][info["idx"] % len(info["frames"])]
         w.config(image=f); w.image = f
         info["idx"] += 1
@@ -5999,7 +6076,7 @@ class GestioneSpese(tk.Tk):
                     raw, tipo = (str(v[3]), str(v[4]).lower()) if mode == "giorno" else (str(v[1]), str(v[2]).lower())
                     num = float(raw.replace('€','').replace('.','').replace(',','.').strip())
                     tot += -abs(num) if "usc" in tipo or "spes" in tipo else abs(num)
-                except: continue
+                except Exception: continue
             if hasattr(self, 'lbl_titolo_avanzato'):
                 t = "sole" if tot >= 0 else "temporale"
                 self.lbl_titolo_avanzato.config(fg="darkgreen" if tot >= 0 else "red")
@@ -6026,7 +6103,7 @@ def _get_device_id():
         else:
             with open("/etc/machine-id") as f:
                 raw = f.read().strip()
-    except:
+    except Exception:
         import uuid
         raw = str(uuid.getnode())
     return hashlib.md5(raw.encode()).hexdigest()[:12]
@@ -6108,7 +6185,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "78040d1f8936c9c18b31f52b319d27ee7a2c476a78fa3d738db39734f52fed20"
+        E_H_B = "e6f2e4dce8f8bcfcd197e7c92f40ed1c8475214ab33a44b70222d9ba02e54cc2"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
@@ -6171,7 +6248,7 @@ def _sw_crea():
     inner = tk.Frame(win, bg="#1E1E2E")
     inner.place(x=2, y=2, width=W-4, height=H-4)
     tk.Label(win,
-             text=f"Librerie – Setup",
+             text="Librerie – Setup",
              font=("Arial", 13, "bold"),
              fg="#FFFFFF", bg="#1E1E2E").pack(pady=(18, 2))
     tk.Label(win,
@@ -6681,8 +6758,63 @@ def _salva_chiave_config(chiave, valore):
     except Exception as e:
         print(f"Errore salvataggio config ({chiave}): {e}")
 
+_MAPPA_CONFIG_GLOBALI = (
+    ("AUTO_ICONIZE_STARTUP", "enable_auto_login_flow", False),
+    ("ICONIZZA_INATTIVITA", "iconizza_inattivita", True),
+    ("TIMEOUT_INATTIVITA_MS", "inactivity_timeout_ms", 1200000),
+    ("SALVA_GEOMETRIA_INIZIALE", "load_saved_geometry", False),
+    ("ABILITA_WEBSERVER", "webserver_enabled", False),
+    ("USA_SSL", "usa_ssl", False),
+    ("PORTA", "webserver_port", 8080),
+    ("ANNI_DA_MANTENERE", "anni_da_mantenere", 10),
+    ("ICO_SET_DATE", "ico_set_date", True),
+    ("CHECK_MESE", "enable_recurring_reminder", True),
+    ("SOGLIA_GIORNI_RICORRENTI", "soglia_giorni_ricorrenti", 5),
+    ("MAX_BACKUP", "max_backup", 5),
+    ("SMARTCAT", "smartcat_enabled", True),
+    ("TOLL", "smartcat_toll", 15),
+    ("USE_WAIT_WINDOW", "use_wait_window", False),
+    ("WARN_TIMEOUT", "warn_timeout_ms", 20000),
+    ("LINK_BANCA", "bank_link", ""),
+    ("THEMA", "thema", "OBSIDIAN"),
+    ("CAROSELLO", "carosello_enabled", True),
+    ("CAROSELLO_INTERVALLO", "carosello_intervallo", 10000),
+    ("CAL_TOOLTIPS", "cal_tooltips_enabled", True),
+    ("ANIMAZIONI", "anima_tot_enabled", True),
+    ("DB_CONDIVISO", "shared_db", False),
+    ("PATH_RETE", "shared_db_path", None),
+    ("UDP_PORT_1", "udp_port_1", 5555),
+    ("UDP_PORT_2", "udp_port_2", 5556),
+    ("TARGET_MESE", "target_mese", 0),
+    ("TARGET_ANNO", "target_anno", 0),
+    ("SYNC_DATI", "sync_dati_enabled", False),
+    ("SYNC_INT_MIN", "sync_intervallo_min", 720),
+    ("MANDA_PUSH", "manda_push_enabled", False),
+    ("EMAIL_USER", "email_user", ""),
+    ("APP_PASSWORD", "app_password", ""),
+    ("API_KEY", "gemini_api_key", ""),
+    ("CHECK_DOPPI_MOV", "check_double", False),
+    ("GEMINI", "gemini_model", "gemini-2.5-flash"),
+    ("CLOSE", "close_behavior", False),
+    ("BEEP", "beep_enabled", True),
+)
+
+def _applica_globali_da_config(cfg):
+    g = globals()
+    for nome, chiave, default in _MAPPA_CONFIG_GLOBALI:
+        if default is None and nome == "PATH_RETE":
+            default = PATH_LOCALE
+        g[nome] = cfg.get(chiave, default)
+    if isinstance(g["CLOSE"], str):
+        g["CLOSE"] = g["CLOSE"].lower() == "true"
+    kw_raw = cfg.get("parole_chiave", "")
+    if isinstance(kw_raw, list):
+        g["PAROLE_CHIAVE"] = kw_raw
+    else:
+        g["PAROLE_CHIAVE"] = [k.strip() for k in str(kw_raw).split(",") if k.strip()]
+
 # DataBase Condiviso
-def ascolta_aggiornamenti_rete(app_istanza):
+def ascolta_aggiornamenti_rete(app_istanza, stop_event=None):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     port = UDP_PORT_1
@@ -6696,7 +6828,8 @@ def ascolta_aggiornamenti_rete(app_istanza):
             print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] ERRORE: Entrambe le porte ({UDP_PORT_1}, {UDP_PORT_2}) sono occupate!")
             return
     print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Ricevitore attivo sulla porta: {port}")
-    while True:
+    sock.settimeout(1.0)
+    while not (stop_event is not None and stop_event.is_set()):
         try:
             data, addr = sock.recvfrom(1024)
             messaggio = data.decode('utf-8')
@@ -6708,8 +6841,14 @@ def ascolta_aggiornamenti_rete(app_istanza):
                     continue
                 print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Segnale da ALTRO PC ({addr}): avvio ricaricamento...")
                 app_istanza.after(100, app_istanza.refresh_remote)
+        except socket.timeout:
+            continue
         except Exception as e:
             print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Errore ricezione: {e}")
+    try:
+        sock.close()
+    except Exception:
+        pass
 # Scarica Logo
 def scarica_logo():
     base_resources_dir = os.path.join(DB_DIR, "resources")
@@ -6744,9 +6883,9 @@ _PALETTE_BOOT = {
         "success": "#98C379", "tooltip": "#4B4673",
     },
     "BLU": {
-        "bg": "#B3E5FC", "widget_bg": "#B3E5FC", "text": "#002F6C",
-        "text_secondary": "#004B8D", "highlight": "#0091EA",
-        "success": "#2ed573", "tooltip": "#E1F5FE",
+        "bg": "#08121F", "widget_bg": "#0B1B30", "text": "white",
+        "text_secondary": "#B8C7DC", "highlight": "#61AFEF",
+        "success": "#98C379", "tooltip": "#16335A",
     },
     "OBSIDIAN": {
         "bg": "#000000", "widget_bg": "#000000", "text": "white",
@@ -7172,51 +7311,7 @@ if __name__ == "__main__":
 
         # Caricamento Finale dei Parametri di Configurazione Globali
         app_config_globale = aggiorna_configurazione_globale()
-        AUTO_ICONIZE_STARTUP = app_config_globale.get("enable_auto_login_flow", False)
-        ICONIZZA_INATTIVITA = app_config_globale.get("iconizza_inattivita", True)
-        TIMEOUT_INATTIVITA_MS = app_config_globale.get("inactivity_timeout_ms", 1200000)
-        SALVA_GEOMETRIA_INIZIALE = app_config_globale.get("load_saved_geometry", False)
-        ABILITA_WEBSERVER = app_config_globale.get("webserver_enabled", False)
-        USA_SSL = app_config_globale.get("usa_ssl", False)
-        PORTA = app_config_globale.get("webserver_port", 8080)
-        ANNI_DA_MANTENERE = app_config_globale.get("anni_da_mantenere", 10)
-        ICO_SET_DATE = app_config_globale.get("ico_set_date", True)
-        CHECK_MESE = app_config_globale.get("enable_recurring_reminder", True)
-        SOGLIA_GIORNI_RICORRENTI = app_config_globale.get("soglia_giorni_ricorrenti", 5)
-        MAX_BACKUP = app_config_globale.get("max_backup", 5)
-        SMARTCAT = app_config_globale.get("smartcat_enabled", True)
-        TOLL = app_config_globale.get("smartcat_toll", 15)
-        USE_WAIT_WINDOW = app_config_globale.get("use_wait_window", False)
-        WARN_TIMEOUT = app_config_globale.get("warn_timeout_ms", 20000)
-        LINK_BANCA = app_config_globale.get("bank_link", "")
-        THEMA = app_config_globale.get("thema", "OBSIDIAN")
-        CAROSELLO = app_config_globale.get("carosello_enabled", True)
-        CAROSELLO_INTERVALLO = app_config_globale.get("carosello_intervallo", 10000)
-        CAL_TOOLTIPS = app_config_globale.get("cal_tooltips_enabled", True)
-        ANIMAZIONI = app_config_globale.get("anima_tot_enabled", True)
-        DB_CONDIVISO = app_config_globale.get("shared_db", False)
-        PATH_RETE = app_config_globale.get("shared_db_path", PATH_LOCALE)
-        UDP_PORT_1 = app_config_globale.get("udp_port_1", 5555)
-        UDP_PORT_2 = app_config_globale.get("udp_port_2", 5556)
-        TARGET_MESE = app_config_globale.get("target_mese", 0)
-        TARGET_ANNO = app_config_globale.get("target_anno", 0)         
-        SYNC_DATI = app_config_globale.get("sync_dati_enabled", False)
-        SYNC_INT_MIN = app_config_globale.get("sync_intervallo_min", 720)
-        MANDA_PUSH = app_config_globale.get("manda_push_enabled", False)
-        EMAIL_USER = app_config_globale.get("email_user", "")
-        APP_PASSWORD = app_config_globale.get("app_password", "")
-        API_KEY = app_config_globale.get("gemini_api_key", "")
-        CHECK_DOPPI_MOV = app_config_globale.get("check_double", False)
-        GEMINI = app_config_globale.get("gemini_model", "gemini-2.5-flash")
-        CLOSE = app_config_globale.get("close_behavior", False)
-        BEEP = app_config_globale.get("beep_enabled", True)
-        if isinstance(CLOSE, str):
-            CLOSE = CLOSE.lower() == "true"
-        kw_raw = app_config_globale.get("parole_chiave", "")
-        if isinstance(kw_raw, list):
-            PAROLE_CHIAVE = kw_raw
-        else:
-            PAROLE_CHIAVE = [k.strip() for k in str(kw_raw).split(",") if k.strip()]
+        _applica_globali_da_config(app_config_globale)
                      
         print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Modalità: {'RETE' if DB_CONDIVISO else 'LOCALE'}")
         
@@ -7231,13 +7326,12 @@ if __name__ == "__main__":
 
         # DataBase Condiviso
         if DB_CONDIVISO:
-            t = threading.Thread(target=ascolta_aggiornamenti_rete, args=(app,), daemon=True)
-            t.start()
+            app._avvia_udp_rete()
             print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Modalità Rete Attiva")
             
         app.mainloop()
 
-    except Exception as e:
+    except Exception:
         error_info = traceback.format_exc()
         print(f"\nERRORE CRITICO (v{globals().get('VERSION', '?')})\n{error_info}")
         try:
@@ -7247,7 +7341,7 @@ if __name__ == "__main__":
                 timestamp = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                 f.write(f"CRASH RILEVATO IL: {timestamp}\n")
                 f.write(f"VERSIONE APP: {globals().get('VERSION', '?')}\n")
-                f.write(f"CONFIGURAZIONE ATTIVA:\n")
+                f.write("CONFIGURAZIONE ATTIVA:\n")
                 if 'app_config_globale' in locals():
                     for chiave, valore in app_config_globale.items():
                         f.write(f"{chiave}: {valore}\n")
