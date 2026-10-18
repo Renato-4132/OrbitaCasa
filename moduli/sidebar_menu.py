@@ -118,9 +118,9 @@ def setup_sidebar(self):
     self._search_var = tk.StringVar()
     self._search_entry = tk.Entry(
         self.sidebar, textvariable=self._search_var,
-        font=("Arial", 8), bg="#2a2a2a", fg="white",
-        insertbackground="white", relief="flat", bd=4,
-        highlightthickness=1, highlightbackground="#4a4a4a", highlightcolor=self.COLOR_GREEN
+        font=("Arial", 8), bg=self.COLOR_WIDGET_BG, fg=self.MENU_FG_LIGHT,
+        insertbackground=self.MENU_FG_LIGHT, relief="flat", bd=4,
+        highlightthickness=1, highlightbackground=self.COLOR_HIGHLIGHT, highlightcolor=self.COLOR_HIGHLIGHT
     )
     self._search_var.trace_add("write", self._filtra_sidebar)
     self._search_results_frame = tk.Frame(self.sidebar, bg=self.MENU_BG_DARK)
