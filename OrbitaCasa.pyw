@@ -108,7 +108,26 @@ if not os.path.isfile(_SPINNER_PATH_BOOT):
         sys.exit(1)
 
 from moduli.spinner_animato import crea_spinner_animato
-from moduli.scorciatoie import lega_locale, etichetta_locale
+try:
+    from moduli.scorciatoie import lega_locale, etichetta_locale
+except ImportError:
+    print(f"[{time.strftime('%H:%M:%S')}] scorciatoie.py obsoleto: scarico la versione aggiornata da GitHub...")
+    try:
+        _req_sc = urllib.request.Request(
+            "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/main/moduli/scorciatoie.py",
+            headers={"User-Agent": "OrbitaCasa-Bootstrap"})
+        with urllib.request.urlopen(_req_sc, timeout=20) as _resp_sc:
+            _dati_sc = _resp_sc.read()
+        compile(_dati_sc, "scorciatoie.py", "exec")
+        with open(os.path.join(_MODULI_DIR_BOOT, "scorciatoie.py"), "wb") as _f_sc:
+            _f_sc.write(_dati_sc)
+        import importlib
+        importlib.invalidate_caches()
+        sys.modules.pop("moduli.scorciatoie", None)
+        from moduli.scorciatoie import lega_locale, etichetta_locale
+    except Exception as _e_sc:
+        print(f"[{time.strftime('%H:%M:%S')}] Impossibile aggiornare scorciatoie.py: {_e_sc}")
+        sys.exit(1)
 
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
@@ -6175,7 +6194,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "d301198d93074d7fca240e543c717420c47c501f38e45488379dd6b3688d40f6"
+        E_H_B = "1b628c52817494729f8e042370c33e1c2a7f285507b48ea5641e22bda52382b4"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
