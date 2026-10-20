@@ -117,40 +117,41 @@ Non paghi mai, ma la licenza non è "per sempre" a prescindere: **più usi l'app
 41. **Algoritmo FairShare** — Ripartizione equa spese tra più persone, quote calcolate al centesimo
 42. **Conti Personali FairShare** — Conto individuale per tracciare spese nel gruppo
 43. **Estratto Analitico & Dare/Avere** — Chi deve cosa a chi, con filtri per stato e ordinamento
-44. **Mercati Finanziari** — Monitoraggio real-time indici e asset globali
-45. **Monitor Utenze** — Consumi di luce, gas e acqua sotto controllo
-46. **Manutenzione e Risparmio Casa** — Calendario manutenzioni periodiche per impianti ed elettrodomestici
-47. **Confronto Prezzi** — Ottimizza la spesa alimentare nel tempo
-48. **Analizzatore Semantico IA** — Analisi intelligente e confronto multi-documento
-49. **Webserver Remoto** — Consulta i dati da smartphone anche in remoto
-50. **Sistema di Backup Evoluto (PRG)** — Snapshot, backup incrementali e rollback integrato
-51. **Fondo Pensione** — Piano, versamenti per tipologia, valorizzazioni e riscatti/anticipazioni.
-52. **Portafoglio Bancario Multi-Conto** — Riepilogo di tutti i conti con distribuzione per categoria
-53. **Trasferimenti tra Conti** — Pianifica trasferimenti singoli o in serie ricorrenti tra conti.
-54. **Conto Risparmio Automatico** — Ogni uscita di una categoria Risparmio genera il trasferimento al conto risparmio
-55. **Notifiche Email Pianificate** — Report multipli programmabili con frequenza personalizzata.
-56. **StockBox (Magazzino)** — Magazzino generico per tutto ciò che vuoi tenere in scorta.
+44. **CommunityPool** — Dividi le spese senza svelare il resto dei tuoi conti: pubblichi solo ciò che vuoi, il resto resta tuo
+45. **Mercati Finanziari** — Monitoraggio real-time indici e asset globali
+46. **Monitor Utenze** — Consumi di luce, gas e acqua sotto controllo
+47. **Manutenzione e Risparmio Casa** — Calendario manutenzioni periodiche per impianti ed elettrodomestici
+48. **Confronto Prezzi** — Ottimizza la spesa alimentare nel tempo
+49. **Analizzatore Semantico IA** — Analisi intelligente e confronto multi-documento
+50. **Webserver Remoto** — Consulta i dati da smartphone anche in remoto
+51. **Sistema di Backup Evoluto (PRG)** — Snapshot, backup incrementali e rollback integrato
+52. **Fondo Pensione** — Piano, versamenti per tipologia, valorizzazioni e riscatti/anticipazioni.
+53. **Portafoglio Bancario Multi-Conto** — Riepilogo di tutti i conti con distribuzione per categoria
+54. **Trasferimenti tra Conti** — Pianifica trasferimenti singoli o in serie ricorrenti tra conti.
+55. **Conto Risparmio Automatico** — Ogni uscita di una categoria Risparmio genera il trasferimento al conto risparmio
+56. **Notifiche Email Pianificate** — Report multipli programmabili con frequenza personalizzata.
+57. **StockBox (Magazzino)** — Magazzino generico per tutto ciò che vuoi tenere in scorta.
 ---
 
 **⚫ Specialistiche e comfort**
 
-57. **Archivio Documenti Personali** — Documenti sempre a portata di mano
-58. **Modulo Dieta** — Pasti, macronutrienti, peso e grafico BMI
-59. **Modulo Petcare** — Anagrafica animali, vaccinazioni e scadenze veterinarie, promemoria cura e peso sotto controllo
-60. **Rubrica Vcard/Android** — Esporta/importa contatti dallo smartphone
-61. **Retention Automatica** — Rimuove automaticamente i dati più vecchi
-62. **Tasti Shortcut Personali** — Funzioni rapide con combinazioni di tasti
-63. **Temi Personalizzabili** — Interfaccia adattata al proprio stile
-64. **Smart Info Point** — Tooltip ricchi su movimenti, tabelle e documenti con statistiche di spesa
-65. **Carosello Grafici** — Tour automatico degli andamenti all'avvio
-66. **Auto-Iconizza** — Riduzione a icona per inattività
-67. **Notifiche Auto-chiudenti** — Avvisi che scompaiono dopo tempo prestabilito
-68. **Aggiornamento Librerie Python** — Manutenzione automatica delle dipendenze
-69. **Licenza a Punti (Gamification)** — Usa l'app, sali di livello, allunghi la licenza gratuita
-70. **Streak & Livelli** — Da Novizio a Leggenda (e oltre): mantieni la costanza giorno dopo giorno e scala i livelli a vita
-71. **Badge Mese & Anno** — Oltre al livello a vita, guadagni riconoscimenti dedicati al mese e all'anno in corso
-72. **Gestione Multi-Profilo** — Ogni utente ha il proprio database, movimenti, categorie e credenziali.
-73. **Profilo Demo** — Prova l'app con dati di esempio
+58. **Archivio Documenti Personali** — Documenti sempre a portata di mano
+59. **Modulo Dieta** — Pasti, macronutrienti, peso e grafico BMI
+60. **Modulo Petcare** — Anagrafica animali, vaccinazioni e scadenze veterinarie, promemoria cura e peso sotto controllo
+61. **Rubrica Vcard/Android** — Esporta/importa contatti dallo smartphone
+62. **Retention Automatica** — Rimuove automaticamente i dati più vecchi
+63. **Tasti Shortcut Personali** — Funzioni rapide con combinazioni di tasti
+64. **Temi Personalizzabili** — Interfaccia adattata al proprio stile
+65. **Smart Info Point** — Tooltip ricchi su movimenti, tabelle e documenti con statistiche di spesa
+66. **Carosello Grafici** — Tour automatico degli andamenti all'avvio
+67. **Auto-Iconizza** — Riduzione a icona per inattività
+68. **Notifiche Auto-chiudenti** — Avvisi che scompaiono dopo tempo prestabilito
+69. **Aggiornamento Librerie Python** — Manutenzione automatica delle dipendenze
+70. **Licenza a Punti (Gamification)** — Usa l'app, sali di livello, allunghi la licenza gratuita
+71. **Streak & Livelli** — Da Novizio a Leggenda (e oltre): mantieni la costanza giorno dopo giorno e scala i livelli a vita
+72. **Badge Mese & Anno** — Oltre al livello a vita, guadagni riconoscimenti dedicati al mese e all'anno in corso
+73. **Gestione Multi-Profilo** — Ogni utente ha il proprio database, movimenti, categorie e credenziali.
+74. **Profilo Demo** — Prova l'app con dati di esempio
 
 </details>
 
