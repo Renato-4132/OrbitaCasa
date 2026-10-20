@@ -1655,12 +1655,9 @@ def magazzino_app(self):
     root.bind("<FocusOut>", _focus_out, add="+")
     root.bind("<Configure>", lambda e: chiudi_menu_sicuro() if e.widget is root else None, add="+")
     tree.bind("<Double-1>", doppio_click)
-    tree.bind("<Control-a>", lambda e: (tree.selection_set([i for i in tree.get_children() if i != "__vuoto__"]), "break")[1])
     tree.bind("<Button-3>", click_destro)
     tree.bind("<Return>", lambda e: modifica_sel())
     tree.bind("<Delete>", cancella_sel)
-    root.bind("<Control-n>", lambda e: apri_form())
-    root.bind("<Control-f>", lambda e: (entry_cerca.focus_set(), entry_cerca.select_range(0, "end")))
 
     def _ricarica_da_web():
         try:

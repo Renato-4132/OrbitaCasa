@@ -164,7 +164,11 @@ def gestisci_configurazione(self):
         current_sec = int(round(self.var_carosello_intervallo_sec.get()))
         carosello_intervallo_label.config(text=f"{current_sec} Sec.")      
     
+    _reset_stato = {"attivo": False}
+    _CHIAVI_STATO = ("pianificate_mese_attivo", "pianificate_anno_attivo", "includi_futuri_totali", "includi_futuri_saldo", "includi_futuri_analisi", "stats_mode_avanzato", "stats_dettaglio_mese", "analisi_mese_tab", "analisi_mese_vista", "icone_barra")
+
     def reset_defaults():
+        _reset_stato["attivo"] = True
         self.var_auto_login.set(DEFAULT_CONFIG["enable_auto_login_flow"])
         self.var_webserver_enabled.set(DEFAULT_CONFIG["webserver_enabled"])
         self.var_usa_ssl.set(DEFAULT_CONFIG.get("usa_ssl", True))
@@ -350,8 +354,10 @@ def gestisci_configurazione(self):
                     _cfg_precedente = json.load(f)
                 if "profilo_attivo" in _cfg_precedente:
                     nuova_config["profilo_attivo"] = _cfg_precedente["profilo_attivo"]
-                for _k in ("pianificate_mese_attivo", "pianificate_anno_attivo", "includi_futuri_totali", "includi_futuri_saldo", "includi_futuri_analisi", "stats_mode_avanzato", "stats_dettaglio_mese", "analisi_mese_tab", "analisi_mese_vista"):
-                    if _k in _cfg_precedente:
+                for _k in _CHIAVI_STATO:
+                    if _reset_stato["attivo"] and _k in DEFAULT_CONFIG:
+                        nuova_config[_k] = DEFAULT_CONFIG[_k]
+                    elif _k in _cfg_precedente:
                         nuova_config[_k] = _cfg_precedente[_k]
             except Exception:
                 pass
@@ -362,6 +368,36 @@ def gestisci_configurazione(self):
                 json.dump(nuova_config, f, indent=4)
             if config_window.winfo_exists():
                 config_window.destroy()
+            if _reset_stato["attivo"]:
+                def _passo_reset(nome, fn):
+                    try:
+                        fn()
+                    except Exception as e:
+                        print(f"Defaults: passo '{nome}' non riuscito ({e})")
+                def _vars_default():
+                    for _nome, _val in (("considera_pianificate_var", False), ("considera_pianificate_anno_var", False),
+                                        ("considera_ricorrenze_var", True), ("considera_futuri_portafoglio_var", True)):
+                        _v = getattr(self, _nome, None)
+                        if _v is not None:
+                            _v.set(_val)
+                    for _ico in ("_aggiorna_icona_pianificate_mese", "_aggiorna_icona_pianificate_anno"):
+                        if callable(getattr(self, _ico, None)):
+                            getattr(self, _ico)()
+                def _stato_analisi_default():
+                    if hasattr(self, "mese_notebook") and self.mese_notebook.tabs():
+                        self.mese_notebook.select(0)
+                    for _ in range(3):
+                        if getattr(self, "_cruscotto_stato", 0) == 0:
+                            break
+                        self._cicla_cruscotto()
+                def _stats_default():
+                    self._stats_dettaglio_utente = False
+                    self.set_stats_mode("giorno", salva=True)
+                _passo_reset("icone barra", self.costruisci_barra_icone)
+                _passo_reset("pianificate/futuri", _vars_default)
+                _passo_reset("analisi mese", _stato_analisi_default)
+                _passo_reset("statistiche", _stats_default)
+                _passo_reset("refresh", self.refresh_gui)
             try:
                 esito_applica = self.applica_configurazione_a_caldo()
             except Exception as e:

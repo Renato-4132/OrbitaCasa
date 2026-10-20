@@ -151,6 +151,7 @@ def _elenco_file_variabili(_app):
         ("Controllo Fine Mese",               "Stato dei controlli automatici di fine mese (controllo_fm.json)", "CONTROLLO_F_M", False),
         ("Fondo Risparmio",                   "Obiettivi e progressi del fondo risparmio (fondo_risparmio.json)", "FR_FILE", False),
         ("Fondo Pensione",                    "Dati anagrafica, versamenti, valorizzazioni e riscatti del fondo pensione (fondo_pensione.json)", "PENSIONE_FILE", False),
+        ("CommunityPool - Collegamenti",      "Collegamenti tra le tue spese e le voci del CommunityPool (communitypool_link.json). Il pool condiviso resta", "COMMUNITY_POOL_LINK_FILE", False),
         ("Piano Dieta",                       "Piano alimentare impostato (dieta_piano.json)", "DIETA_FILE", False),
         ("Alimenti Personalizzati",           "Alimenti custom aggiunti al database dieta (alimenti_custom.json)", "CUSTOM_FILE", False),
         ("Storico Peso",                      "Storico del peso corporeo registrato (peso_storico.json)", "PESO_FILE", False),
@@ -208,11 +209,12 @@ def _elenco_file_variabili(_app):
     BASE_DIR = g("BASE_DIR")
     if DB_DIR:
         voci.extend([
-            ("Log Errori Applicativi", "Registro degli errori dell'app (error_log.txt)", os.path.join(DB_DIR, "error_log.txt"), False),
-            ("Cache Risorse/Icone",    "Icone e risorse scaricate in cache: verranno riscaricate al riavvio", os.path.join(DB_DIR, "resources"), True),
-            ("Profilo Utente Dieta",   "Utente attivo selezionato nel modulo Dieta (utente_attivo.json)", os.path.join(DB_DIR, "utente_attivo.json"), False),
-            ("Profili Dieta Salvati",  "Cartella con i profili utente del modulo Dieta", os.path.join(DB_DIR, "utenti"), True),
-            ("Certificato SSL",        "Certificato/chiave HTTPS del server locale: si rigenera da sola al riavvio (cert.pem/key.pem)", os.path.join(DB_DIR, "cert.pem"), False),
+            ("Log Errori Applicativi",       "Registro degli errori dell'app (error_log.txt)", os.path.join(DB_DIR, "error_log.txt"), False),
+            ("Cache Risorse/Icone",          "Icone e risorse scaricate in cache: verranno riscaricate al riavvio", os.path.join(DB_DIR, "resources"), True),
+            ("CommunityPool - Novità viste", "Data dell'ultimo accesso al CommunityPool: azzerandola, le novità ripartono da zero (communitypool_visto.json)", os.path.join(DB_DIR, "communitypool_visto.json"), False),
+            ("Profilo Utente Dieta",         "Utente attivo selezionato nel modulo Dieta (utente_attivo.json)", os.path.join(DB_DIR, "utente_attivo.json"), False),
+            ("Profili Dieta Salvati",        "Cartella con i profili utente del modulo Dieta", os.path.join(DB_DIR, "utenti"), True),
+            ("Certificato SSL",              "Certificato/chiave HTTPS del server locale: si rigenera da sola al riavvio (cert.pem/key.pem)", os.path.join(DB_DIR, "cert.pem"), False),
         ])
     if BASE_DIR:
         voci.extend([
@@ -493,6 +495,12 @@ def show_reset_dialog(self):
                         os.remove(percorso)
             except Exception as e:
                 errori.append(f"{etichetta}: {e}")
+        if any(p == getattr(_app, "DB_FILE", None) for _e, p, _d in selezionati):
+            try:
+                from moduli.community_pool import community_pool_segna_riallinea
+                community_pool_segna_riallinea()
+            except Exception:
+                pass
         if any(p.endswith(PIANI) for _e, p, _d in selezionati):
             self.pianificate = {"piani": []}
         if any(p.endswith(FS_PARTECIPANTI) for _e, p, _d in selezionati):

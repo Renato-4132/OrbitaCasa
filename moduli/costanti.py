@@ -129,6 +129,8 @@ def carica_costanti(path_locale):
     g['PROMEMORIA_FILE'] = os.path.join(DB_DIR, "promemoria.json")
     g['PORTAFOGLIO_AZIONI'] = os.path.join(DB_DIR, "portafoglio.json")
     g['PENSIONE_FILE'] = os.path.join(DB_DIR, "fondo_pensione.json")
+    g['COMMUNITY_POOL_DIR'] = os.path.join(RADICE_DATI, "communitypool")
+    g['COMMUNITY_POOL_LINK_FILE'] = os.path.join(DB_DIR, "communitypool_link.json")
     g['ICON_NAME'] = "resources/meteo_sole.png"
     g['DEFAULT_API'] = os.path.join(DB_DIR, "api.json")
     g['CONTROLLO_F_M'] = os.path.join(DB_DIR, "controllo_fm.json")
@@ -186,7 +188,7 @@ def carica_costanti(path_locale):
     g['WARN_TIMEOUT'] = 20000                       # Timeout Messaggi Popup (ms)
     g['USE_WAIT_WINDOW'] = False                    # Timeout chiusura self.show_custom_warning
     g['TOLL'] = 15                                  # Tolleranza Movimenti simili (SmartCat) - Euro
-    g['VERSION'] = "2.5.4"
+    g['VERSION'] = "2.5.5"
     g['ICONIZZA_INATTIVITA'] = True                 # Attiva/disattiva Timer Minimizza
     g['TIMEOUT_INATTIVITA_MS'] = 1200000            # 20 minuti in ms - Timer Minimizza
     g['ANNI_DA_MANTENERE'] = 10                     # Anni conservati nel db
@@ -248,7 +250,6 @@ def carica_costanti(path_locale):
         "close_behavior": False,
         "gemini_model": "gemini-2.5-flash",
         "beep_enabled": True,
-        "budget_categorie": {},
         "pianificate_mese_attivo": False,
         "pianificate_anno_attivo": False,
         "includi_futuri_totali": True,
@@ -258,6 +259,7 @@ def carica_costanti(path_locale):
         "stats_dettaglio_mese": False,
         "analisi_mese_tab": 0,
         "analisi_mese_vista": 0,
+        "icone_barra": None,
     }
 
     g['CATEGORIE_PREDEFINITE'] = [
@@ -314,6 +316,27 @@ def carica_costanti(path_locale):
         ("pianeta_B", ("1fa90", "🪐")),
         ("terra_B", ("1f30d", "🌍")),
         ("scintille_B",	("1f4ab", "💫")),
+        ("scansiona_B", ("1f4f7", "📷")),
+        ("luce_B", ("1f4a1", "💡")),
+        ("home_B", ("1f3e0", "🏠")),
+        ("veicoli_B", ("1f697", "🚗")),
+        ("animali_B", ("1f43e", "🐾")),
+        ("carica_B", ("1f4e5", "📥")),
+        ("descrizione_B", ("1f4dd", "📝")),
+        ("utenti_B", ("1f464", "👤")),
+        ("salute_B", ("1f48a", "💊")),
+        ("stampa_B", ("1f5a8", "🖨️")),
+        ("alert_B", ("26a0", "⚠️")),
+        ("calcolatrice_B", ("2797", "➗")),
+        ("delete_B", ("1f5d1", "🗑️")),
+        ("tag_B", ("1f3f7", "🏷️")),
+        ("grafico_linea_B", ("1f4c8", "📈")),
+        ("grafico_torta_B", ("1f4c9", "📉")),
+        ("ccv_B", ("1f4b3", "💳")),
+        ("modifica_B", ("270f", "✏️")),
+        ("oggi_B", ("1f5d3", "🗓️")),
+        ("salva_B", ("1f4be", "💾")),
+        ("google_B", ("1f310", "🌐")),
         ("veicoli", ("1f697", "🚗")),
         ("animali", ("1f43e", "🐾")),
         ("iconizza", ("2796", "🗗")),

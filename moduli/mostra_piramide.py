@@ -54,9 +54,10 @@ def mostra_piramide(self):
                 "moduli": [
                     ("Utenze",           "Consumi e grafici",         _g("utenze")),
                     ("FairShare",        "Spese condivise e debiti",  _g("mostra_riepilogo_fairshare_periodo")),
+                    ("CommunityPool",    "dividi importi tra profili", _g("apri_community_pool")),
                     ("Dieta",            "Pasti, BMI, export PDF",    _g("apri_dieta")),
                     ("Rubrica",          "Contatti, vCard, CRUD",     _g("rubrica_app")),
-                    ("StockBox",        "Inventario e scorte",       _g("magazzino_app")),
+                    ("StockBox",         "Inventario e scorte",       _g("magazzino_app")),
                 ],
             },
             {
@@ -197,6 +198,7 @@ def mostra_piramide(self):
                 "fill": "#DBEAFE", "outline": "#3B82F6", "fg": "#1E3A5F",
                 "moduli": [
                     ("Impostazioni",      "Configurazione app",      _g("gestisci_configurazione")),
+                    ("Icone",             "Editor icone · Ctrl+Shift+C", _g("apri_personalizza_icone")),
                     ("Password",          "Sicurezza account",       _g("apri_cambio_password")),
                     ("Profili",           "Gestisci Profili Utenti", _g("mostra_selettore_profilo")),
                     ("Registra",          "Attivazione licenza",     _g("apri_registrazione")),

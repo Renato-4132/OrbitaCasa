@@ -696,10 +696,6 @@ def _immobil_crea_tab(self, nb, imm, db, win):
     tree.configure(yscrollcommand=vsb.set)
     vsb.pack(side=tk.RIGHT, fill=tk.Y)
     tree.pack(fill=tk.BOTH, expand=True)
-    def _seleziona_tutte_righe(event=None):
-        tree.selection_set(tree.get_children())
-        return "break"
-    tree.bind("<Control-a>", _seleziona_tutte_righe)
     wcfg = {"Data": (90,"w"), "Categoria": (110,"w"),
             "Descrizione": (220,"w"), "Tipo": (70,"center"), "Importo": (90,"e"),
             "Esportato": (70,"center")}

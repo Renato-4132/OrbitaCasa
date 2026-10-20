@@ -217,6 +217,9 @@ def registra_tutti_i_moduli(GestioneSpese):
     from moduli.pensione import apri_fondo_pensione
     _registra(apri_fondo_pensione)
 
+    from moduli.community_pool import apri_community_pool, community_pool_sync, community_pool_controlla_novita
+    _registra(apri_community_pool, community_pool_sync, community_pool_controlla_novita)
+
     from moduli.calcolo_mutuo_prestito import calcolo_mutuo_prestito
     _registra(calcolo_mutuo_prestito)
 
@@ -344,6 +347,12 @@ def registra_tutti_i_moduli(GestioneSpese):
     
     from moduli.mostra_piramide import mostra_piramide
     _registra(mostra_piramide)
+
+    from moduli.personalizza_icone import costruisci_barra_icone, apri_personalizza_icone
+    _registra(costruisci_barra_icone, apri_personalizza_icone)
+
+    from moduli.tooltip_legenda import testo_tooltip_legenda, esegui_disegno_ricco
+    _registra(testo_tooltip_legenda, esegui_disegno_ricco)
 
     from moduli.risparmio_auto import (_conti_risparmio_cat, _nomi_conti_portafoglio, _nome_conto_risparmio_cat,
         _salva_conto_risparmio_categoria, _sincronizza_risparmio, _mappa_conti_risparmio_auto, _conto_effettivo)

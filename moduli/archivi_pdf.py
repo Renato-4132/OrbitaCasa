@@ -467,6 +467,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                         metodo_pagamento=_metodo_sel_doc or campo(s, "metodo_pagamento", ""),
                         hashtag=_tags_doc or campo(s, "hashtag", []),
                         fairshare=campo(s, "fairshare", None),
+                        pool_ref=campo(s, "pool_ref", ""),
                     )
                     nuova_lista.append(s_agg)
                     trovato = True
@@ -1452,6 +1453,7 @@ def gestisci_archivi_pdf(self, categoria_iniziale=None, data_iniziale=None, impo
                     metodo_pagamento=_metodo_sel_e or campo(voce_originale, "metodo_pagamento", ""),
                     hashtag=_tags_e or campo(voce_originale, "hashtag", []),
                     fairshare=campo(voce_originale, "fairshare", None),
+                    pool_ref=campo(voce_originale, "pool_ref", ""),
                 )
                 if data_obj == data_obj_old:
                     self.spese[data_obj_old][idx_spesa] = voce_aggiornata

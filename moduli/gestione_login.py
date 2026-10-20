@@ -239,7 +239,17 @@ def gestione_login(self):
         login.attributes("-topmost", True)
         login.lift()
         login.focus_force()
-        login.grab_set()
+        def _prendi_grab(n=0):
+            try:
+                login.grab_set()
+            except tk.TclError:
+                if n < 10:
+                    login.after(200, lambda: _prendi_grab(n + 1))
+        try:
+            login.wait_visibility()
+        except tk.TclError:
+            pass
+        _prendi_grab()
         _timeout_id = [None]
         _timeout_sec = [60]
         lbl_timeout = tk.Label(login, text="⏱ Chiusura automatica tra 60s",

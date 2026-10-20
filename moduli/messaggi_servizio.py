@@ -123,30 +123,50 @@ def _registra_licenza_da_messaggio(self, msg):
     except Exception as e:
         return f"errore: {e}"
 
+def _badge_attivi(self):
+    attivi = []
+    if getattr(self, "_messaggi_servizio_pendenti", []):
+        attivi.append("servizio")
+    if getattr(self, "_pool_novita_pendenti", 0):
+        attivi.append("pool")
+    return attivi
+
+def _badge_disegna(self, tipo, acceso):
+    logo = self.lbl_logo
+    if tipo == "pool":
+        img = getattr(self, "_pool_img", None) if acceso else getattr(self, "_pool_img_dim", None)
+        simbolo, col_on, col_off = "\U0001F465", "#00ACC1", "#004D56"
+    else:
+        img = getattr(self, "_busta_img", None) if acceso else getattr(self, "_busta_img_dim", None)
+        simbolo, col_on, col_off = "\u2709", "#E65100", "#7A3300"
+    if img:
+        logo.configure(image=img, text="")
+        logo.image = img
+    else:
+        logo.configure(image="", text=simbolo, font=("Segoe UI Symbol", 15, "bold"),
+                       fg=col_on if acceso else col_off)
+
 def _lampeggia_badge_messaggi_servizio(self):
     logo = getattr(self, "lbl_logo", None)
-    if logo is None or not logo.winfo_exists() or not getattr(self, "_messaggi_servizio_pendenti", []):
+    attivi = _badge_attivi(self)
+    if logo is None or not logo.winfo_exists() or not attivi:
         self._badge_blink_job = None
         return
-    acceso = not getattr(self, "_badge_blink_acceso", False)
-    self._badge_blink_acceso = acceso
-    img = getattr(self, "_busta_img", None) if acceso else getattr(self, "_busta_img_dim", None)
-    if img:
-        logo.configure(image=img)
-    else:
-        logo.configure(fg="#E65100" if acceso else "#7A3300")
+    fase = getattr(self, "_badge_fase", 0)
+    self._badge_fase = fase + 1
+    acceso = (fase % 2 == 0)
+    tipo = attivi[(fase // 2) % len(attivi)]
+    self._badge_corrente = tipo
+    _badge_disegna(self, tipo, acceso)
     self._badge_blink_job = self.after(500, lambda: _lampeggia_badge_messaggi_servizio(self))
 
 def _aggiorna_badge_messaggi_servizio(self):
     logo = getattr(self, "lbl_logo", None)
     if logo is None or not logo.winfo_exists():
         return
-    if getattr(self, "_messaggi_servizio_pendenti", []):
-        if getattr(self, "_busta_img", None):
-            logo.configure(image=self._busta_img, text="")
-        else:
-            logo.configure(image="", text="\u2709", font=("Segoe UI Symbol", 15, "bold"), fg="#E65100")
+    if _badge_attivi(self):
         if not getattr(self, "_badge_blink_job", None):
+            self._badge_fase = 0
             _lampeggia_badge_messaggi_servizio(self)
     else:
         job = getattr(self, "_badge_blink_job", None)
@@ -156,11 +176,73 @@ def _aggiorna_badge_messaggi_servizio(self):
             except Exception:
                 pass
             self._badge_blink_job = None
+        self._badge_corrente = None
         img = getattr(self, "_logo_img", None)
         if img:
             logo.configure(image=img, text="")
         else:
             logo.configure(text="")
+
+def rendi_toast_cliccabile(self, azione):
+    toast = getattr(self, "_toast_win", None)
+    if toast is None:
+        return
+    def _click(_e=None):
+        try:
+            toast.destroy()
+        except Exception:
+            pass
+        azione()
+    def _lega(w):
+        w.bind("<Button-1>", _click)
+        try:
+            w.configure(cursor="hand2")
+        except Exception:
+            pass
+        for figlio in w.winfo_children():
+            _lega(figlio)
+    _lega(toast)
+
+def _toast_coda_prossimo(self):
+    coda = getattr(self, "_toast_coda", [])
+    if not coda:
+        self._toast_coda_attivo = False
+        return
+    testo, azione, durata = coda.pop(0)
+    self._toast_coda_attivo = True
+    self.show_toast(testo, duration=durata)
+    toast = getattr(self, "_toast_win", None)
+    if toast is None:
+        self._toast_coda_attivo = False
+        return
+    rendi_toast_cliccabile(self, azione)
+    def _fine(e):
+        if e.widget is toast:
+            try:
+                self.after(400, lambda: _toast_coda_prossimo(self))
+            except Exception:
+                self._toast_coda_attivo = False
+    toast.bind("<Destroy>", _fine, add="+")
+
+def mostra_toast_cliccabile(self, testo, azione, duration=8000):
+    if not hasattr(self, "_toast_coda"):
+        self._toast_coda = []
+    self._toast_coda.append((testo, azione, duration))
+    if not getattr(self, "_toast_coda_attivo", False):
+        _toast_coda_prossimo(self)
+
+def click_logo_sidebar(self, event=None):
+    tipo = getattr(self, "_badge_corrente", None)
+    servizio = bool(getattr(self, "_messaggi_servizio_pendenti", []))
+    pool = bool(getattr(self, "_pool_novita_pendenti", 0))
+    if tipo == "pool" and pool:
+        self.apri_community_pool()
+    elif servizio:
+        self.mostra_messaggi_servizio()
+    elif pool:
+        self.apri_community_pool()
+    else:
+        self.mostra_piramide()
 
 # Intervallo tra un controllo e il successivo (ms); GitHub raw ha comunque una cache di ~5 minuti
 INTERVALLO_CONTROLLO_MS = 60 * 60 * 1000
@@ -254,7 +336,7 @@ def _check_messaggi_servizio_in_background(self):
                 self._messaggi_servizio_notificati = notificati | {m["_id"] for m in nuovi}
                 _aggiorna_badge_messaggi_servizio(self)
                 if da_notificare:
-                    self.show_toast("📬 Nuovo messaggio di servizio\n\nClicca sull'icona lampeggiante in alto a sinistra per leggerlo", duration=6000)
+                    mostra_toast_cliccabile(self, "📬 Nuovo messaggio di servizio\n\nClicca qui (o sull'icona lampeggiante in alto a sinistra) per leggerlo", self.mostra_messaggi_servizio, 8000)
             self.after(0, _applica)
     threading.Thread(target=_check, daemon=True).start()
 

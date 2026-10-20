@@ -500,14 +500,20 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
         header_pagina(page, f"Movimenti tra Conti — {_titolo_periodo}", current_folder)
         cy = 68
         tot_trasf = sum(r["importo"] for r in trasf_tra_conti)
+        _f_bold = fitz.Font("hebo")
+        _f_reg  = fitz.Font("helv")
+        _K = 1.2   # margine di sicurezza: i viewer sostituiscono il font con uno più largo
+        _X_DX = W - MARG - 6
+        def _x_dx(testo, fs):
+            return _X_DX - _f_bold.text_length(testo, fontsize=fs) * _K
         def intestazione_trasf(p, y):
             p.draw_rect(fitz.Rect(MARG, y, W - MARG, y + 16),
                         color=None, fill=C_HEADER)
             p.insert_text((MARG + 4,   y + 11), "Data",     fontsize=7, color=C_WHITE, fontname="Helvetica-Bold")
             p.insert_text((MARG + 70,  y + 11), "Da conto", fontsize=7, color=C_WHITE, fontname="Helvetica-Bold")
             p.insert_text((MARG + 220, y + 11), "A conto",  fontsize=7, color=C_WHITE, fontname="Helvetica-Bold")
-            p.insert_text((MARG + 370, y + 11), "Note",     fontsize=7, color=C_WHITE, fontname="Helvetica-Bold")
-            p.insert_text((W-MARG-60,  y + 11), "Importo",  fontsize=7, color=C_WHITE, fontname="Helvetica-Bold")
+            p.insert_text((MARG + 330, y + 11), "Note",     fontsize=7, color=C_WHITE, fontname="Helvetica-Bold")
+            p.insert_text((_x_dx("Importo", 7), y + 11), "Importo", fontsize=7, color=C_WHITE, fontname="Helvetica-Bold")
             return y + 18
         cy = intestazione_trasf(page, cy)
         for i, r in enumerate(trasf_tra_conti):
@@ -518,14 +524,20 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
                 cy = intestazione_trasf(page, cy)
             bg = C_WHITE if i % 2 == 0 else (0.96, 0.97, 0.98)
             page.draw_rect(fitz.Rect(MARG, cy, W - MARG, cy + 13), color=None, fill=bg)
-            nota_corta = r["note"][:30] + "…" if len(r["note"]) > 30 else r["note"]
+            nota_corta = r["note"]
+            _max_w = 130
+            while nota_corta and _f_reg.text_length(nota_corta, fontsize=6.5) * _K > _max_w:
+                nota_corta = nota_corta[:-1]
+            if nota_corta != r["note"]:
+                nota_corta = nota_corta.rstrip() + "…"
             c_da = colore_conto.get(r["da"], C_SUBTEXT)
             c_a  = colore_conto.get(r["a"],  C_SUBTEXT)
             page.insert_text((MARG + 4,   cy + 10), r["data"].strftime("%d/%m/%Y"), fontsize=7,   color=C_TEXT,    fontname="Helvetica")
             page.insert_text((MARG + 70,  cy + 10), r["da"][:22],                    fontsize=6.5, color=c_da,      fontname="Helvetica-Bold")
             page.insert_text((MARG + 220, cy + 10), r["a"][:22],                     fontsize=6.5, color=c_a,       fontname="Helvetica-Bold")
-            page.insert_text((MARG + 370, cy + 10), nota_corta,                      fontsize=6.5, color=C_SUBTEXT, fontname="Helvetica")
-            page.insert_text((W-MARG-60,  cy + 10), f"€{_fmt_it(r['importo'])}",     fontsize=7,   color=C_BLUE,    fontname="Helvetica-Bold")
+            page.insert_text((MARG + 330, cy + 10), nota_corta,                      fontsize=6.5, color=C_SUBTEXT, fontname="Helvetica")
+            _imp_txt = f"€{_fmt_it(r['importo'])}"
+            page.insert_text((_x_dx(_imp_txt, 7), cy + 10), _imp_txt, fontsize=7, color=C_BLUE, fontname="Helvetica-Bold")
             cy += 13
         cy += 8
         if cy + 20 > H - MARG:

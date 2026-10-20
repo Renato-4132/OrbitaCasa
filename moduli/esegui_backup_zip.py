@@ -208,8 +208,16 @@ def _esegui_backup_json(self):
         _app.STUDIO_CASSA, _app.STUDIO_MAGAZZINO, _app.IMMOBIL_FILE, _app.FR_FILE, _app.PORTAFOGLIO_BANCARIO,
         _app.SCHEDULE_FILE, _app.VEICOLI_FILE, _app.GAMIFICATION_FILE, _app.CREDENTIALS_FILE, _app.PENSIONE_FILE,
         _app.ANIMALI_FILE, _app.MANUTENZIONE_CASA_FILE, _app.MESSAGGI_VISTI_FILE,
-        _app.MAGAZZINO_FILE, _app.SCANNER_FILE
+        _app.MAGAZZINO_FILE, _app.SCANNER_FILE, _app.COMMUNITY_POOL_LINK_FILE
     ]
+    try:
+        from moduli.community_pool import _safe
+        lista_file += [
+            os.path.join(_app.COMMUNITY_POOL_DIR, "communitypool.json"),
+            os.path.join(_app.COMMUNITY_POOL_DIR, f"eventi_{_safe(_app.PROFILO_ATTIVO)}.jsonl"),
+        ]
+    except Exception as e:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Errore percorsi CommunityPool: {e}")
     file_copiati = 0
     for f in lista_file:
         try:

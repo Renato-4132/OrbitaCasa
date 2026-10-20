@@ -139,7 +139,15 @@ def rinomina_profilo(self, vecchio_nome, nuovo_nome):
     try:
         if os.path.isdir(vecchio_path):
             os.rename(vecchio_path, nuovo_path)
-            self.show_toast(f"Profilo rinominato in '{nuovo_nome}'")
+            try:
+                from moduli.community_pool import community_pool_rinomina_profilo
+                pool_ok = community_pool_rinomina_profilo(vecchio_nome, nuovo_nome)
+            except Exception:
+                pool_ok = False
+            if pool_ok:
+                self.show_toast(f"Profilo rinominato in '{nuovo_nome}'")
+            else:
+                self.show_toast(f"Profilo rinominato in '{nuovo_nome}', ma il CommunityPool non è stato aggiornato")
             return True
     except Exception as e:
         self.show_toast(f"Errore durante la rinomina: {e}")
@@ -165,7 +173,15 @@ def cancella_profilo(self, nome_profilo):
     try:
         if os.path.isdir(cartella):
             shutil.rmtree(cartella)
-        self.show_toast(f"Profilo '{nome_profilo}' eliminato")
+        try:
+            from moduli.community_pool import community_pool_elimina_profilo
+            pool_ok = community_pool_elimina_profilo(nome_profilo)
+        except Exception:
+            pool_ok = False
+        if pool_ok:
+            self.show_toast(f"Profilo '{nome_profilo}' eliminato")
+        else:
+            self.show_toast(f"Profilo '{nome_profilo}' eliminato, ma il CommunityPool non è stato aggiornato")
         return True
     except Exception as e:
         self.show_toast(f"Errore durante l'eliminazione del profilo: {e}")
@@ -178,9 +194,6 @@ def _versione_tuple(v):
     return tuple(int(x) for x in str(v).strip().split("."))
 
 def _controlla_versione_demo(percorso_zip, versione_app):
-    """Se lo zip contiene demo_info.json con 'versione_minima_app' e l'app è più
-    vecchia, solleva un errore. Se il file manca o è illeggibile, la demo si
-    considera compatibile."""
     try:
         with zipfile.ZipFile(percorso_zip, "r") as zf:
             nome = next((n for n in zf.namelist()
@@ -476,6 +489,16 @@ def mostra_selettore_profilo(self):
         if not sel:
             return
         cambia_profilo(self, profili[sel[0]])
+    def _doppio_click(event):
+        i = lb.nearest(event.y)
+        bb = lb.bbox(i)
+        if bb and bb[1] <= event.y <= bb[1] + bb[3]:
+            lb.selection_clear(0, "end")
+            lb.selection_set(i)
+            _aggiorna_info()
+            _switch()
+    lb.bind("<Double-Button-1>", _doppio_click)
+    lb.bind("<Return>", lambda e: _switch())
     def _nuovo():
         popup = tk.Toplevel(win)
         popup.title("Nuovo Profilo")

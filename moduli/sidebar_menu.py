@@ -93,12 +93,14 @@ def setup_sidebar(self):
                                bd=0, activebackground=self.MENU_ACT_BG_COLOR,
                                command=self.toggle_sidebar, cursor="hand2")
     self.btn_toggle.pack(fill="x", pady=5)
-    self.lbl_logo_container = tk.Frame(self.sidebar, bg=self.MENU_BG_DARK, height=40)
+    self.lbl_logo_container = tk.Frame(self.sidebar, bg=self.MENU_BG_DARK, height=43)
     self.lbl_logo_container.pack(fill="x")
     self.lbl_logo_container.pack_propagate(False)
     self._logo_img = _carica_icona_scintille(self)
     self._busta_img = _carica_icona_scintille(self, nome="scadenze_B")
     self._busta_img_dim = _carica_icona_scintille(self, nome="scadenze_B", alpha=0.3)
+    self._pool_img = _carica_icona_scintille(self, nome="utenti_B")
+    self._pool_img_dim = _carica_icona_scintille(self, nome="utenti_B", alpha=0.3)
     self.lbl_logo = tk.Label(self.lbl_logo_container, bg=self.MENU_BG_DARK)
     if self._logo_img:
         self.lbl_logo.configure(image=self._logo_img)
@@ -111,9 +113,9 @@ def setup_sidebar(self):
         bg=self.MENU_BG_DARK, fg=self.COLOR_GREEN
     )
     self.lbl_logo_testo.bind("<Button-1>", lambda e: self.mostra_piramide())
-    self.lbl_logo.bind("<Button-1>", lambda e: self.mostra_messaggi_servizio() if getattr(self, "_messaggi_servizio_pendenti", []) else self.mostra_piramide())
-    if getattr(self, "_messaggi_servizio_pendenti", []):
-        from moduli.messaggi_servizio import _aggiorna_badge_messaggi_servizio
+    from moduli.messaggi_servizio import _aggiorna_badge_messaggi_servizio, click_logo_sidebar
+    self.lbl_logo.bind("<Button-1>", lambda e: click_logo_sidebar(self, e))
+    if getattr(self, "_messaggi_servizio_pendenti", []) or getattr(self, "_pool_novita_pendenti", 0):
         _aggiorna_badge_messaggi_servizio(self)
     self._search_var = tk.StringVar()
     self._search_entry = tk.Entry(
@@ -244,7 +246,7 @@ def pop_gestione(self):
     self._add_m_item(m, "Gestione Documenti", "documenti", self.gestisci_archivi_pdf) 
     self._add_m_item(m, "Gestione Documenti Personali", "documenti", self.gestisci_documenti_personali)
     self._add_m_item(m, "Scansiona e salva PDF", "scansiona", self.scansiona_e_salva)
-    self._add_m_item(m, "Gestione Utenze", "mobile", self.utenze, "Ctrl+U") 
+    self._add_m_item(m, "Gestione Utenze", "mobile", self.utenze) 
     self._add_m_item(m, "ImmoBil — Gestione Immobili", "home", self.immobil)
     self._add_m_item(m, "CasaCare — Manutenzione e Risparmio Casa", "auto_manutenzione", self.manutenzione_casa)
     self._add_m_item(m, "AutoPark — Gestione Veicoli", "veicoli", self.veicoli)
@@ -255,18 +257,18 @@ def pop_gestione(self):
     self._add_m_item(m, "Importa Documento AI (Gemini)", "documenti", self.apri_finestra_importa)
     self._add_m_item(m, "Log Importazioni", "sync", self.mostra_log_importazioni)
     m.add_separator() 
-    self._add_m_item(m, "Rubrica", "oggi", self.rubrica_app, "Ctrl+R") 
-    self._add_m_item(m, "Promemoria", "promemoria", self.gestisci_promemoria, "Ctrl+Y") 
+    self._add_m_item(m, "Rubrica", "oggi", self.rubrica_app) 
+    self._add_m_item(m, "Promemoria", "promemoria", self.gestisci_promemoria) 
     self._add_m_item(m, "GCalendar", "calendario", self.launch_qr_svg_generator)
     self._add_m_item(m, "Piano Dieta", "spesa", self.apri_dieta) 
-    self._add_m_item(m, "MyBusiness", "lavoro_B", self.apri_studio)
+    self._add_m_item(m, "MyBusiness", "lavoro", self.apri_studio)
     m.add_separator() 
-    self._add_m_item(m, "Stampa", "stampa", self.anteprima_e_stampa_txt, "Ctrl+P") 
-    self._add_m_item(m, "Pannello Controllo", "timer", self.calcola_mancanti, "Ctrl+Z") 
-    self._add_m_item(m, "Calcolatrice", "calcolatrice", self.apri_calcolatrice, "Ctrl+E") 
+    self._add_m_item(m, "Stampa", "stampa", self.anteprima_e_stampa_txt) 
+    self._add_m_item(m, "Pannello Controllo", "timer", self.calcola_mancanti) 
+    self._add_m_item(m, "Calcolatrice", "calcolatrice", self.apri_calcolatrice) 
     m.add_separator() 
-    self._add_m_item(m, "Salva ed Esci", "chiudi", self._on_close, "Ctrl+Q") 
-    self._add_m_item(m, "Riduci a Icona", "iconizza", self.iconify, "Ctrl+X") 
+    self._add_m_item(m, "Salva ed Esci", "chiudi", self._on_close) 
+    self._add_m_item(m, "Riduci a Icona", "iconizza", self.iconify) 
     self._mostra_popup(m, 50) 
     
 def pop_analisi(self): 
@@ -275,17 +277,18 @@ def pop_analisi(self):
         active_bg=self.MENU_ACT_BG_COLOR, border_color=self.COLOR_HIGHLIGHT,
         font=("Arial", 9)
     ) 
-    self._add_m_item(m, "Ricerca Globale", "search", self.cerca_operazioni, "Ctrl+F")
+    self._add_m_item(m, "Ricerca Globale", "search", self.cerca_operazioni)
     self._add_m_item(m, "Gestione Tag #", "filtri", self.apri_gestione_tag)
-    self._add_m_item(m, "Confronta Periodi", "report", self.open_compare_window, "Ctrl+N")
-    self._add_m_item(m, "FairShare Partecipanti", "utenti", self.mostra_dare_avere, "Ctrl+D")
+    self._add_m_item(m, "Confronta Periodi", "report", self.open_compare_window)
+    self._add_m_item(m, "FairShare Partecipanti", "utenti", self.mostra_dare_avere)
+    self._add_m_item(m, "CommunityPool", "utenti", self.apri_community_pool) 
     m.add_separator() 
-    self._add_m_item(m, "Proiezione - Fondo Risparmio", "ccv", self.apri_fondo_risparmio, "Ctrl+A")
-    self._add_m_item(m, "Grafici Interattivi", "grafico_linea", self.mostra_analisi_grafici, "Alt+H")
+    self._add_m_item(m, "Proiezione - Fondo Risparmio", "ccv", self.apri_fondo_risparmio)
+    self._add_m_item(m, "Grafici Interattivi", "grafico_linea", self.mostra_analisi_grafici)
     self._add_m_item(m, "Andamento Risparmio", "grafico_linea", self.apri_andamento_risparmio)
     self._add_m_item(m, "Schedulatore Notifiche", "timer_sync", self.apri_schedulatore) 
     self._add_m_item(m, "Calcolatore Inflazione", "calcolatrice", self.apri_calcolatore_inflazione)
-    self._add_m_item(m, "Bilancio Grafico PDF", "grafico_linea", self.genera_report_pdf, "Alt+R") 
+    self._add_m_item(m, "Bilancio Grafico PDF", "grafico_linea", self.genera_report_pdf) 
     self._mostra_popup(m, 100) 
     
 def pop_finanze(self): 
@@ -294,17 +297,17 @@ def pop_finanze(self):
         active_bg=self.MENU_ACT_BG_COLOR, border_color=self.COLOR_HIGHLIGHT,
         font=("Arial", 9)
     ) 
-    self._add_m_item(m, "Portafoglio Bancario", "saldo", self.open_saldo_conto, "Ctrl+S")
+    self._add_m_item(m, "Portafoglio Bancario", "saldo", self.open_saldo_conto)
     self._add_m_item(m, "Portafoglio Investimenti", "lavoro", self.apri_portafoglio) 
     self._add_m_item(m, "Fondo Pensione", "badge_maestro", self.apri_fondo_pensione) 
-    self._add_m_item(m, "Calcolo Mutuo/Prestiti", "banca", self.calcolo_mutuo_prestito, "Ctrl+O") 
+    self._add_m_item(m, "Calcolo Mutuo/Prestiti", "banca", self.calcolo_mutuo_prestito) 
     m.add_separator() 
-    self._add_m_item(m, "Bilancio Giorno", "calendario", self.export_giorno_forzato, "Alt+J") 
-    self._add_m_item(m, "Bilancio Mese", "calendario", self.export_month_detail, "Alt+K") 
-    self._add_m_item(m, "Bilancio Anno", "report", self.export_anno_dettagliato, "Alt+L") 
-    self._add_m_item(m, "Bilancio Storico Totale", "report", self.export_storico_totale, "Alt+G")
-    self._add_m_item(m, "Analisi e Bilanci", "report", self.popup_scelta_estratto, "Alt+E")
-    self._add_m_item(m, "Estratti per Metodo e Conti", "ccv", self.apri_estratti_metodo, "")
+    self._add_m_item(m, "Bilancio Giorno", "calendario", self.export_giorno_forzato) 
+    self._add_m_item(m, "Bilancio Mese", "calendario", self.export_month_detail) 
+    self._add_m_item(m, "Bilancio Anno", "report", self.export_anno_dettagliato) 
+    self._add_m_item(m, "Bilancio Storico Totale", "report", self.export_storico_totale)
+    self._add_m_item(m, "Analisi e Bilanci", "report", self.popup_scelta_estratto)
+    self._add_m_item(m, "Estratti per Metodo e Conti", "ccv", self.apri_estratti_metodo)
     self._add_m_item(m, "Analisi Andamento Bilancio OpenAI", "report", self.analizza_andamento_ia)
     self._add_m_item(m, "Analisi e Confronto Documenti OpenAI", "report", self.confronta_bollette_ia)
     self._add_m_item(m, "Chiedi al Database (Gemini AI)", "sparkles", self.chiedi_ia_database)
@@ -316,9 +319,9 @@ def pop_ricorrenze(self):
         active_bg=self.MENU_ACT_BG_COLOR, border_color=self.COLOR_HIGHLIGHT,
         font=("Arial", 9)
     ) 
-    self._add_m_item(m, "Gestione Ricorrenze", "descrizione", self.mostra_ricorrenza_popup, "Ctrl+T") 
-    self._add_m_item(m, "Lista Ricorrenze", "descrizione", self.mostra_lista_ricorrenze, "Ctrl+L") 
-    self._add_m_item(m, "Scadenze Mese", "scadenze", self.scadenze_mese, "Ctrl+J")
+    self._add_m_item(m, "Gestione Ricorrenze", "descrizione", self.mostra_ricorrenza_popup) 
+    self._add_m_item(m, "Lista Ricorrenze", "descrizione", self.mostra_lista_ricorrenze) 
+    self._add_m_item(m, "Scadenze Mese", "scadenze", self.scadenze_mese)
     self._add_m_item(m, "Pianifica", "timer", self.apri_gestione_spese_pianificate)
     self._mostra_popup(m, 180) 
 
@@ -329,6 +332,7 @@ def pop_opzioni(self):
         font=("Arial", 9)
     )
     self._add_m_item(m, "Impostazioni App", "filtri", self.gestisci_configurazione)
+    self._add_m_item(m, "Personalizza Icone", "tools", self.apri_personalizza_icone)
     m.add_separator()
     self._add_m_item(m, "Gestisci Profili Utenti", "api_key", self.mostra_selettore_profilo)
     import __main__ as _app
@@ -363,9 +367,9 @@ def pop_categorie(self):
         active_bg=self.MENU_ACT_BG_COLOR, border_color=self.COLOR_HIGHLIGHT,
         font=("Arial", 9)
     )
-    self._add_m_item(m, "Analisi Categorie", "timer", self.analisi_categorie, "Ctrl+K")
-    self._add_m_item(m, "Gestione Categorie", "filtri", self.mostra_categorie_popup, "Ctrl+Shift+T")
-    self._add_m_item(m, "Editor Categorie", "documenti", self.apri_gestione_categorie, "Ctrl+Shift+S")
+    self._add_m_item(m, "Analisi Categorie", "timer", self.analisi_categorie)
+    self._add_m_item(m, "Gestione Categorie", "filtri", self.mostra_categorie_popup)
+    self._add_m_item(m, "Editor Categorie", "documenti", self.apri_gestione_categorie)
     self._add_m_item(m, "Editor Categorie Estratti", "filtri", self.mostra_editor_memoria_categorie)
     self._mostra_popup(m, 220)
 
@@ -396,7 +400,7 @@ def pop_info(self):
     self._add_m_item(m, "Gestisci Backup e Ripristino", "archivia", self.gestisci_backup_popup)
     self._add_m_item(m, "Esegui Backup Completo Zip", "archivia", self.esegui_backup_zip)
     m.add_separator() 
-    self._add_m_item(m, "Apri Manuale", "documenti", self.scarica_manuale, "Ctrl+M") 
+    self._add_m_item(m, "Apri Manuale", "documenti", self.scarica_manuale) 
     self._mostra_popup(m, 300)
 
 def _mostra_popup(self, menu, y_offset): 
@@ -466,6 +470,8 @@ def espandi_sidebar(self):
             
 def _add_m_item(self, target, label, icon_key, command, acc=""): 
     img = self.icone_gui.get(icon_key) 
+    from moduli.scorciatoie import etichetta_per_metodo
+    acc = etichetta_per_metodo(getattr(command, "__name__", "")) or acc
     def wrapped(c=command):
         if self.menu_aperto:
             try: self.menu_aperto.unpost()
@@ -540,6 +546,7 @@ def _filtra_sidebar(self, *_):
         ("Editor Categorie",                       self.apri_gestione_categorie),
         ("Editor Memoria Categorie",              lambda: self.mostra_editor_memoria_categorie()),
         ("Impostazioni App",                      self.gestisci_configurazione),
+        ("Personalizza Icone",                    self.apri_personalizza_icone),
         ("Cambia Password",                       self.apri_cambio_password),
         ("Registra Prodotto",                     self.apri_registrazione),
         ("Gamification",                          self.mostra_dettaglio_gamification),
@@ -564,6 +571,7 @@ def _filtra_sidebar(self, *_):
         ("QR Code Connessioni",                   self.mostra_qr_popup_label),
         ("Manuale CertBot SSL",                   self.scarica_manuale_ssl),
         ("Gestisci Backup e Ripristino",          self.gestisci_backup_popup),
+        ("Community Pool",                        self.apri_community_pool),
     ]
     trovati = [(label, cmd) for label, cmd in TUTTE if testo in label.lower()][:10]
     if not trovati:

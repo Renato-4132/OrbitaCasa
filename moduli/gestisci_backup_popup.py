@@ -48,6 +48,7 @@ def gestisci_backup_popup(self):
     SCANNER_FILE = _app.SCANNER_FILE
     MANUTENZIONE_CASA_FILE = _app.MANUTENZIONE_CASA_FILE
     MESSAGGI_VISTI_FILE = _app.MESSAGGI_VISTI_FILE
+    COMMUNITY_POOL_LINK_FILE = _app.COMMUNITY_POOL_LINK_FILE
     
     import os, time, subprocess, sys
     if hasattr(self, '_win_backup_istanza') and self._win_backup_istanza.winfo_exists():
@@ -93,6 +94,8 @@ def gestisci_backup_popup(self):
         "schedule.json":                  "Schedulatore",
         "webauthn_credentials.json":      "Passkey / WebAuthn",
         "messaggi_servizio_visti.json":   "Messaggi Servizio (Visti)",
+        "communitypool_link.json":        "CommunityPool (link)",
+        "communitypool.json":             "CommunityPool (config)",
         "snapshot_db.zip":                "Snapshot DB Completo",
     }
     win = tk.Toplevel(self, bg=self.COLOR_BACKGROUND)
@@ -242,7 +245,10 @@ def gestisci_backup_popup(self):
                 else:
                     tipo_str = "Docs Contabili (ZIP)"
             else:
-                tipo_str = TIPI.get(nome_originale, "File dati")
+                if nome_originale.startswith("eventi_") and nome_originale.endswith(".jsonl"):
+                    tipo_str = "CommunityPool (eventi)"
+                else:
+                    tipo_str = TIPI.get(nome_originale, "File dati")
             if filtro:
                 f_lower = filtro.lower()
                 if f_lower not in nome.lower() and f_lower not in tipo_str.lower():
@@ -262,6 +268,29 @@ def gestisci_backup_popup(self):
     _carica_lista()
     frame_footer = tk.Frame(win, bg=self.COLOR_BACKGROUND)
     frame_footer.pack(fill="x", padx=12, pady=(0, 12))
+    def _unisci_eventi(sorgente, destinazione):
+        import json
+        righe = {}
+        altre = []
+        for percorso, e_corrente in ((destinazione, True), (sorgente, False)):
+            if not os.path.isfile(percorso):
+                continue
+            with open(percorso, "r", encoding="utf-8") as f:
+                for riga in f:
+                    riga = riga.strip()
+                    if not riga:
+                        continue
+                    try:
+                        ev = json.loads(riga)
+                        righe.setdefault(ev["id"], riga)
+                    except Exception:
+                        if e_corrente:
+                            altre.append(riga)
+        tmp = destinazione + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write("\n".join(altre + list(righe.values())) + "\n")
+        os.replace(tmp, destinazione)
+
     def _ripristina():
         import zipfile, shutil
         selezione = tree.selection()
@@ -269,6 +298,7 @@ def gestisci_backup_popup(self):
             self.show_custom_warning("Nessuna selezione", "Seleziona uno o più file di backup.")
             return
         contiene_zip = any(tree.set(s, "File").lower().endswith(".zip") for s in selezione)
+        riallinea_pool = contiene_zip
         if contiene_zip and len(selezione) > 1:
             self.show_custom_warning("Attenzione", "Se selezioni un archivio ZIP, non puoi selezionare altri file.")
             return
@@ -318,8 +348,16 @@ def gestisci_backup_popup(self):
                 STUDIO_CASSA, STUDIO_MAGAZZINO, IMMOBIL_FILE, FR_FILE, PORTAFOGLIO_BANCARIO,
                 SCHEDULE_FILE, VEICOLI_FILE, GAMIFICATION_FILE, CREDENTIALS_FILE, PENSIONE_FILE,
                 ANIMALI_FILE, MANUTENZIONE_CASA_FILE, MESSAGGI_VISTI_FILE,
-                MAGAZZINO_FILE, SCANNER_FILE
+                MAGAZZINO_FILE, SCANNER_FILE, COMMUNITY_POOL_LINK_FILE
             ]
+            try:
+                from moduli.community_pool import _safe
+                lista_file += [
+                    os.path.join(_app.COMMUNITY_POOL_DIR, "communitypool.json"),
+                    os.path.join(_app.COMMUNITY_POOL_DIR, f"eventi_{_safe(_app.PROFILO_ATTIVO)}.jsonl"),
+                ]
+            except Exception:
+                pass
             for s in selezione:
                 nome_bak = tree.set(s, "File")
                 parts = nome_bak.split("-", 3)
@@ -330,10 +368,22 @@ def gestisci_backup_popup(self):
                     self.show_custom_warning("File non riconosciuto", f"'{nome_originale}' non gestito.")
                     return
                 try:
-                    shutil.copy2(os.path.join(cartella_backup, nome_bak), destinazione)
+                    os.makedirs(os.path.dirname(destinazione), exist_ok=True)
+                    if nome_originale.startswith("eventi_") and nome_originale.endswith(".jsonl"):
+                        _unisci_eventi(os.path.join(cartella_backup, nome_bak), destinazione)
+                    else:
+                        shutil.copy2(os.path.join(cartella_backup, nome_bak), destinazione)
+                    if os.path.basename(destinazione) in (os.path.basename(DB_FILE), os.path.basename(COMMUNITY_POOL_LINK_FILE)):
+                        riallinea_pool = True
                 except Exception as e:
                     self.show_custom_warning("Errore Ripristino", f"Impossibile ripristinare:\n{e}")
                     return
+        if riallinea_pool:
+            try:
+                from moduli.community_pool import community_pool_segna_riallinea
+                community_pool_segna_riallinea()
+            except Exception:
+                pass
         win.destroy()
         self.show_toast("Ripristino completato. Riavvio in corso...", duration=2500)
         self.update()

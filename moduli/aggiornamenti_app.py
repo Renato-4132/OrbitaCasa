@@ -1177,12 +1177,14 @@ def aggiorna_librerie_pip(self):
     tk.Label(body, text="Output:", bg=self.COLOR_BACKGROUND,
              fg=self.TEXT_COLOR, font=("Segoe UI", 8)).pack(anchor="w", pady=(10, 2))
     frame_txt = tk.Frame(body, bg=self.COLOR_BACKGROUND,
-                         highlightbackground=self.COLOR_HEADER_BG, highlightthickness=1)
+                         highlightbackground=self.COLOR_HEADER_BG,
+                         highlightcolor=self.COLOR_HEADER_BG, highlightthickness=1)
     frame_txt.pack(fill=tk.BOTH, expand=True)
     sb = ttk.Scrollbar(frame_txt, style="Vertical.TScrollbar")
     sb.pack(side=tk.RIGHT, fill=tk.Y)
     txt = tk.Text(frame_txt, height=7, bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
                   font=("Consolas", 8), relief="flat", bd=0, padx=6, pady=4,
+                  highlightthickness=0,
                   yscrollcommand=sb.set, state=tk.DISABLED)
     txt.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
     sb.config(command=txt.yview)
@@ -1419,12 +1421,14 @@ def verifica_moduli_git(self):
     tk.Label(body, text="Output:", bg=self.COLOR_BACKGROUND,
              fg=self.TEXT_COLOR, font=("Segoe UI", 8)).pack(anchor="w", pady=(10, 2))
     frame_txt = tk.Frame(body, bg=self.COLOR_BACKGROUND,
-                         highlightbackground=self.COLOR_HEADER_BG, highlightthickness=1)
+                         highlightbackground=self.COLOR_HEADER_BG,
+                         highlightcolor=self.COLOR_HEADER_BG, highlightthickness=1)
     frame_txt.pack(fill=tk.BOTH, expand=False)
     sb = ttk.Scrollbar(frame_txt, style="Vertical.TScrollbar")
     sb.pack(side=tk.RIGHT, fill=tk.Y)
     txt = tk.Text(frame_txt, height=7, bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
               font=("Consolas", 8), relief="flat", bd=0, padx=6, pady=4,
+              highlightthickness=0,
               yscrollcommand=sb.set, state=tk.DISABLED)
     txt.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
     sb.config(command=txt.yview)

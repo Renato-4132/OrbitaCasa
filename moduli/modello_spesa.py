@@ -52,12 +52,12 @@ def campo(entry, nome, default=""):
 class SpesaEntry:
     __slots__ = (
         "categoria", "descrizione", "importo", "tipo", "id_ricorrenza",
-        "id_spesa", "conto", "ora", "hashtag", "metodo_pagamento", "fairshare",
+        "id_spesa", "conto", "ora", "hashtag", "metodo_pagamento", "fairshare", "pool_ref",
     )
 
     def __init__(self, categoria, descrizione, importo, tipo,
                  id_ricorrenza=None, id_spesa=None, conto="", ora="",
-                 hashtag=None, metodo_pagamento="", fairshare=None):
+                 hashtag=None, metodo_pagamento="", fairshare=None, pool_ref=""):
         self.categoria = categoria
         self.descrizione = descrizione
         self.importo = abs(float(importo))
@@ -69,6 +69,7 @@ class SpesaEntry:
         self.hashtag = list(hashtag) if hashtag else []
         self.metodo_pagamento = metodo_pagamento or ""
         self.fairshare = copy.deepcopy(fairshare) if fairshare else None
+        self.pool_ref = pool_ref or ""
     def _tupla_legacy(self):
         base = (self.categoria, self.descrizione, self.importo, self.tipo)
         if self.id_ricorrenza is not None:
@@ -106,6 +107,7 @@ class SpesaEntry:
             hashtag=e.get("hashtag", []),
             metodo_pagamento=e.get("metodo_pagamento", ""),
             fairshare=e.get("fairshare"),
+            pool_ref=e.get("pool_ref", ""),
         )
     def a_dict(self):
         d = {
@@ -127,6 +129,8 @@ class SpesaEntry:
             d["metodo_pagamento"] = self.metodo_pagamento
         if self.fairshare:
             d["fairshare"] = self.fairshare
+        if self.pool_ref:
+            d["pool_ref"] = self.pool_ref
         return d
 
     @classmethod

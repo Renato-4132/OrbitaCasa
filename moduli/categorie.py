@@ -1209,7 +1209,12 @@ def apri_gestione_categorie(self, event=None, tab=None):
                           background=self.COLOR_WIDGET_BG, font=("Arial", 9, "bold"))
     lbl_cerca.image = self.icone_gui.get("search")
     lbl_cerca.pack(side="left")
-    ttk.Entry(fr_filtro, textvariable=self.var_filtro_cat_av, width=24).pack(side="left", padx=6)
+    entry_filtro_cat = ttk.Entry(fr_filtro, textvariable=self.var_filtro_cat_av, width=24)
+    entry_filtro_cat.pack(side="left", padx=6)
+    def _reset_filtro_cat():
+        self.var_filtro_cat_av.set("")
+        entry_filtro_cat.focus_set()
+    _btn(fr_filtro, "reset", " Reset", _reset_filtro_cat)
     self.var_filtro_cat_av.trace_add("write", lambda *_: _aggiorna_albero_cat_avanz(self))
     cont = tk.Frame(fr_lista, bg=self.COLOR_TOPLEVEL)
     cont.grid(row=1, column=0, sticky="nsew")
@@ -1355,8 +1360,10 @@ def apri_gestione_categorie(self, event=None, tab=None):
     _btn(fr_b1, "salva", " Salva", lambda: self.modifica_categoria())
     fr_b2 = ttk.Frame(form)
     fr_b2.grid(row=7, column=0, columnspan=2, pady=(4, 8))
-    _btn(fr_b2, "reset", " Reset", lambda: self.reset_campi_categoria())
+    btn_annulla_cat = _btn(fr_b2, "chiudi", " Annulla", lambda: self.reset_campi_categoria())
     _btn(fr_b2, "timer", " Analisi", lambda: self.analisi_categorie(self.cat_mod_sel.get() or None))
+    _tt_cat(btn_annulla_cat,
+            "Annulla la modifica: svuota i campi e toglie la selezione dalla categoria scelta, senza salvare nulla.")
 
     _costruisci_tab_suggerite(self, self.tab_cat_av_sugg)
     self.nb_cat_av.bind("<<NotebookTabChanged>>",

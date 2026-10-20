@@ -3010,7 +3010,7 @@ def _barra_filtri(self, popup, main, nb, conto_var):
     btn_reset.bind("<Button-1>", azzera)
     aggiorna_testata()
 
-def analisi_categorie(self, categoria=None, tab=None):
+def analisi_categorie(self, categoria=None, tab=None, modo=None, anno=None, mese=None):
     esistente = getattr(self, "_analisi_cat_popup", None)
     if esistente is not None:
         try:
@@ -3018,7 +3018,7 @@ def analisi_categorie(self, categoria=None, tab=None):
                 esistente.deiconify()
                 esistente.lift()
                 esistente.focus_force()
-                esistente._seleziona(categoria, tab)
+                esistente._seleziona(categoria, tab, modo, anno, mese)
                 return
         except tk.TclError:
             pass
@@ -3087,9 +3087,9 @@ def analisi_categorie(self, categoria=None, tab=None):
     _tab_target(self, t7, vai, conto_var, bt)
     _tab_503020(self, t8, vai, conto_var, bt)
 
-    def seleziona(cat=None, tab_sel=None):
+    def seleziona(cat=None, tab_sel=None, modo=None, anno=None, mese=None):
         if cat:
-            set_cat_dett(cat)
+            set_cat_dett(cat, modo, anno, mese)
             set_cat_trend(cat)
             set_cat_dist(cat)
         if tab_sel is None and cat:
@@ -3100,7 +3100,7 @@ def analisi_categorie(self, categoria=None, tab=None):
             nb.select(tab_sel)
 
     popup._seleziona = seleziona
-    seleziona(categoria, tab)
+    seleziona(categoria, tab, modo, anno, mese)
     popup.update_idletasks()
     popup.deiconify()
     popup.focus_set()
