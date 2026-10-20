@@ -108,6 +108,7 @@ if not os.path.isfile(_SPINNER_PATH_BOOT):
         sys.exit(1)
 
 from moduli.spinner_animato import crea_spinner_animato
+from moduli.scorciatoie import lega_locale, etichetta_locale
 
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
@@ -464,25 +465,34 @@ class GestioneSpese(tk.Tk):
         
         def _mostra_tooltip_legenda(widget, testo):
             def entra(e):
-                x = widget.winfo_rootx()
-                y = widget.winfo_rooty() + widget.winfo_height() + 4
-                tip = tk.Toplevel(widget)
-                tip.overrideredirect(True)
-                tip.attributes("-topmost", True)
-                tip.wm_geometry(f"+{x}+{y}")
-                tip.config(
-                    highlightthickness=1,
-                    highlightbackground=self.COLOR_HIGHLIGHT,
-                    bg=self.COLOR_TOOLTIP
-                )
-                tk.Label(tip, text=testo, background=self.COLOR_TOOLTIP,
-                         foreground=self.TEXT_COLOR, font=("Arial", 8),
-                         padx=4, pady=2).pack()
-                widget._tooltip = tip
+                if self.tooltip_timer:
+                    self.after_cancel(self.tooltip_timer)
+                    self.tooltip_timer = None
+                _t_chiudi = getattr(self, "_tooltip_chiudi_timer", None)
+                if _t_chiudi:
+                    self.after_cancel(_t_chiudi)
+                    self._tooltip_chiudi_timer = None
+                def mostra():
+                    self.tooltip_timer = None
+                    x_abs, y_abs = self.winfo_pointerxy()
+                    contenuto = testo() if callable(testo) else testo
+                    if isinstance(contenuto, str):
+                        self._tooltip_interattivo = False
+                        self.esegui_disegno(contenuto, x_abs, y_abs)
+                    else:
+                        self.esegui_disegno_ricco(contenuto, x_abs, y_abs)
+                self.tooltip_timer = self.after(1000, mostra)
             def esce(e):
-                if hasattr(widget, "_tooltip"):
-                    widget._tooltip.destroy()
-                    del widget._tooltip
+                if self.tooltip_timer:
+                    self.after_cancel(self.tooltip_timer)
+                    self.tooltip_timer = None
+                _ritarda = getattr(self, "_tooltip_chiudi_ritardato", None)
+                if (getattr(self, "_tooltip_interattivo", False) and callable(_ritarda)
+                        and self.tooltip_win and self.tooltip_win.winfo_exists()
+                        and self.tooltip_win.winfo_viewable()):
+                    _ritarda()
+                elif self.tooltip_win and self.tooltip_win.winfo_exists():
+                    self.tooltip_win.withdraw()
             widget.bind("<Enter>", entra)
             widget.bind("<Leave>", esce)
         legenda = ttk.Frame(cal_frame, style="BlackFrame.TFrame")
@@ -501,31 +511,32 @@ class GestioneSpese(tk.Tk):
         self.btn_oggi.pack(side="left", padx=3)
         self.btn_oggi.bind("<Button-1>", lambda e: self.after(10, lambda: self.goto_today(salva=True)))
         self.after(500, self._avvia_rotazione_oggi)
-        _mostra_tooltip_legenda(self.btn_oggi, "Torna al giorno di oggi")
+        _mostra_tooltip_legenda(self.btn_oggi, lambda: self.testo_tooltip_legenda("oggi"))
 
         lbl_entrata = ttk.Label(legenda, text="Entrata", background=self.COLOR_WIDGET_BG, foreground="lightgreen", width=7, anchor="center", font=("Arial", 10, "bold"))
         lbl_entrata.pack(side="left", padx=3)
-        _mostra_tooltip_legenda(lbl_entrata, "Giorno con almeno un'entrata")
+        _mostra_tooltip_legenda(lbl_entrata, lambda: self.testo_tooltip_legenda("entrate"))
 
         lbl_uscita = ttk.Label(legenda, text="Uscita", background=self.COLOR_WIDGET_BG, foreground="lightcoral", width=6, anchor="center", font=("Arial", 10, "bold"))
         lbl_uscita.pack(side="left", padx=3)
-        _mostra_tooltip_legenda(lbl_uscita, "Giorno con almeno un'uscita")
+        _mostra_tooltip_legenda(lbl_uscita, lambda: self.testo_tooltip_legenda("uscite"))
 
         lbl_misto = ttk.Label(legenda, text="Entrata+Uscita", background=self.COLOR_WIDGET_BG, foreground="khaki", width=14, anchor="center", font=("Arial", 10, "bold"))
         lbl_misto.pack(side="left", padx=3)
-        _mostra_tooltip_legenda(lbl_misto, "Giorno con entrate e uscite")
+        _mostra_tooltip_legenda(lbl_misto, lambda: self.testo_tooltip_legenda("misto"))
 
         lbl_weekend = ttk.Label(legenda, text="Weekend", background=self.cal_weekend_bg, foreground=self.cal_weekend_fg, font=("Arial", 10, "bold"), width=9, anchor="center")
         lbl_weekend.pack(side="left", padx=3)
-        _mostra_tooltip_legenda(lbl_weekend, "Sabato e Domenica")
+        _mostra_tooltip_legenda(lbl_weekend, lambda: self.testo_tooltip_legenda("weekend"))
 
         lbl_sel = ttk.Label(legenda, text="Selezionato", background=self.COLOR_WIDGET_BG, foreground="dodgerblue", font=("Arial", 10, "bold"), width=12, anchor="center")
         lbl_sel.pack(side="left", padx=3)
-        _mostra_tooltip_legenda(lbl_sel, "Giorno selezionato")
+        _mostra_tooltip_legenda(lbl_sel, lambda: self.testo_tooltip_legenda("saldi"))
 
-        lbl_righe = ttk.Label(legenda, text="Righe ⓘ", background=self.COLOR_WIDGET_BG, foreground="gray", font=("Arial", 10, "bold"), width=8, anchor="center")
+        _img_righe = self.icone_gui.get("info")
+        lbl_righe = ttk.Label(legenda, text="Righe" if _img_righe else "Righe ⓘ", image=_img_righe, compound="right", background=self.COLOR_WIDGET_BG, foreground="gray", font=("Arial", 10, "bold"), width=8 if not _img_righe else 9, anchor="center")
         lbl_righe.pack(side="left", padx=3)
-        _mostra_tooltip_legenda(lbl_righe, "Colori righe movimenti:\nVerde: Entrata\nRosso: Uscita\nGiallo corsivo: futuro\nRosso spento grassetto: oltre budget\nAzzurro corsivo: pianificata")
+        _mostra_tooltip_legenda(lbl_righe, lambda: self.testo_tooltip_legenda("righe"))
 
         legenda2 = ttk.Frame(cal_frame, style="BlackFrame.TFrame")
         legenda2.pack(side=tk.TOP, anchor="w")
@@ -1110,16 +1121,7 @@ class GestioneSpese(tk.Tk):
             cursor="hand2", 
             background=self.COLOR_WIDGET_BG
         )
-        self.btn_analisi.pack(side=tk.LEFT, padx=5)
         self.btn_analisi.bind("<Button-1>", lambda e: self.mostra_analisi_grafici())
-        self.btn_help = ttk.Label(
-            mode_frame, 
-            image=self.icone_gui.get("occhio_B"),
-            cursor="hand2",
-            background=self.COLOR_WIDGET_BG
-        )
-        self.btn_help.pack(side=tk.LEFT, padx=(5, 2))
-        self.btn_help.bind("<Button-1>", lambda e: self.mostra_piramide())
         self.btn_oggi_stats = ttk.Label(
             mode_frame, text=" Oggi", image=self.icone_gui.get("filtri"),
             compound="left", cursor="hand2", font=("Arial", 9, "bold"),
@@ -1213,7 +1215,6 @@ class GestioneSpese(tk.Tk):
         add_tt(self.btn_totali, "Totali generali raggruppati di tutti i movimenti")
         add_tt(self.btn_ciclico, "Cicla la visualizzazione delle statistiche")
         add_tt(self.btn_analisi, "Mostra analisi grafiche dettagliate")
-        add_tt(self.btn_help, "Hub Pannello Moduli Principali")
         add_tt(self.btn_aggiorna_lib, "Aggiornamenti librerie disponibili — clicca per aggiornare")    
         add_tt(self.btn_verifica_moduli, "Moduli da aggiornare — clicca per verificare/aggiornare")    
         add_tt(self.lbl_badge_gamification, lambda: getattr(self, "_gami_tooltip_testo", "Traguardi di utilizzo — clicca per i dettagli"))
@@ -1227,40 +1228,12 @@ class GestioneSpese(tk.Tk):
             if self.considera_pianificate_anno_var.get()
             else "Includi nel Totale Uscite anno anche le rate degli accantonamenti pianificati"
         ))
-        def crea_icona_nav(chiave, comando, tooltip, emoji):
-                img = self.icone_gui.get(chiave)
-                lbl = tk.Label(
-                        mode_frame, 
-                        image=img, 
-                        text=emoji if not img else "", 
-                        bg=self.COLOR_WIDGET_BG, 
-                        fg=self.TEXT_COLOR, 
-                        cursor="hand2"
-                )
-                lbl.pack(side="right", anchor="e", padx=(0, 1))
-                lbl.bind('<Button-1>', lambda e: comando())
-                add_tt(lbl, tooltip)
-                return lbl
-        self.btn_saldo = crea_icona_nav("saldo_B", self.open_saldo_conto, "Apri Portafoglio Bancario", "💰")        
-        self.btn_shortcuts = crea_icona_nav("tastiera_B", self.mostra_popup_scorciatoie, "Visualizza Scorciatoie da Tastiera", "⌨️")
-        self.btn_shortcuts.pack(side=tk.RIGHT, padx=1)  
-        self.btn_iconizza = crea_icona_nav("iconizza_B", self.iconify, "Riduci a icona", "🗗")
-        self.btn_report_html = crea_icona_nav("report_B", self.genera_report_pdf, "Genera un Bilancio Annuo PDF", "📊")
-        self.btn_web_qr = crea_icona_nav("qr_B", self.mostra_qr_popup_label, "Genera QR per accesso Web", "🌐")
-        self.btn_promemoria = crea_icona_nav("promemoria_B", self.gestisci_promemoria, "Gestione Promemoria", "📌")
-        self.btn_qr_generator = crea_icona_nav("timer_B", self.launch_qr_svg_generator, "Generatore QR e Timer", "⏰")
-        self.btn_controlla_ricorrenze = crea_icona_nav("scadenze_B", self.controlla_ricorrenti_manual, "Controlla scadenze e ricorrenze", "📢")
-        self.btn_documenti_icona = crea_icona_nav("documenti_B", self.gestisci_archivi_pdf, "Archivio Documenti Contabili", "📁")
-        self.btn_documenti_icona = crea_icona_nav("documentiP_B", self.gestisci_documenti_personali, "Archivio Documenti Personali", "📁")
-        self.btn_spesa_super_icon = crea_icona_nav("spesa_B", self.spesa_supermercato, "Gestione Lista della Spesa", "🛒")
-        self.btn_banca = crea_icona_nav("banca_B", self.chiama_banca, "Accedi ai servizi bancari", "🏦")
-        self.btn_analisi_ia = crea_icona_nav("sparkles_B", self.analizza_andamento_ia, "Analisi Bilancio OpenAI", "✨")
-        self.btn_scadenze_mese = crea_icona_nav("calendario_B", self.scadenze_mese, "Scadenze del mese", "📅")
+        self._add_tt = add_tt
         self._ricerca_globale_var = tk.StringVar()
         self._ricerca_globale_var.trace_add("write", self._filtra_stats_table_globale)
         self.ricerca_globale_entry = ttk.Entry(mode_frame, textvariable=self._ricerca_globale_var, width=16)
         self._ricerca_globale_aperta = False
-        self.btn_ricerca_globale = crea_icona_nav("search_B", self._toggle_ricerca_globale, "Ricerca Globale Movimenti", "🔍")
+        self.costruisci_barra_icone(mode_frame)
         self.stats_label = ttk.Label(stat_frame, text="")
         self.stats_label.grid(row=1, column=0, sticky="w", padx=(0, 6), pady=(2, 0))
         img_mouse = self.icone_gui.get("mouse")
@@ -2023,6 +1996,7 @@ class GestioneSpese(tk.Tk):
         self.after(5000, self._check_librerie_in_background)
         self.after(5500, self._check_moduli_in_background)
         self.after(6000, self._check_messaggi_servizio_in_background)
+        self.after(7000, self.community_pool_controlla_novita)
         if _BOOT_MODULI_AGGIORNATI_NOMI:
             _n_moduli_agg_boot = len(_BOOT_MODULI_AGGIORNATI_NOMI)
             def _mostra_label_changelog_boot():
@@ -2770,7 +2744,7 @@ class GestioneSpese(tk.Tk):
                     _lbl_pv = tk.Label(_tt[0], image=_pdf_prev, bg=self.COLOR_TOOLTIP, bd=0)
                     _lbl_pv.image = _pdf_prev
                     _lbl_pv.pack(padx=4, pady=(0, 2))
-                    tk.Label(_tt[0], text="F2 o Ctrl+Shift+O: apri il documento", bg=self.COLOR_TOOLTIP,
+                    tk.Label(_tt[0], text=f"{etichetta_locale('apri_allegato')}: apri il documento", bg=self.COLOR_TOOLTIP,
                              fg="gray", font=("Arial", 8, "italic"), bd=0).pack(pady=(0, 4))
                 _tt[0].update_idletasks()
                 tw = _tt[0].winfo_reqwidth()
@@ -2807,8 +2781,7 @@ class GestioneSpese(tk.Tk):
                 return "break"
         if not getattr(tree, "_tasto_apri_allegato_bound", False):
             tree._tasto_apri_allegato_bound = True
-            for _seq in ("<F2>", "<Control-Shift-O>", "<Control-Shift-o>"):
-                tree.winfo_toplevel().bind(_seq, _tasto_apri_allegato, add="+")
+            lega_locale(tree.winfo_toplevel(), "apri_allegato", _tasto_apri_allegato, add="+")
         tree.winfo_toplevel().bind("<Escape>", _distruggi, add="+")
         tree.winfo_toplevel().bind("<Destroy>", _distruggi, add="+")                
         
@@ -3178,6 +3151,11 @@ class GestioneSpese(tk.Tk):
                         import shutil
                         os.replace(DB_FILE, DB_FILE + ".corrotto") 
                         shutil.copy2(bak_file, DB_FILE)
+                        try:
+                            from moduli.community_pool import community_pool_segna_riallinea
+                            community_pool_segna_riallinea()
+                        except Exception:
+                            pass
                         print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Ripristino completato dal file .bak")
                         risultato = self.load_db()
                         return risultato
@@ -3952,6 +3930,7 @@ class GestioneSpese(tk.Tk):
             metodo_pagamento=_metodo_nuovo,
             hashtag=_tags,
             fairshare=campo(voce_old, "fairshare", None),
+            pool_ref=campo(voce_old, "pool_ref", ""),
         )
         self.spese[new_dt].append(voce_new)
         if hasattr(self, '_cache_tutti_tag'):
@@ -4297,7 +4276,17 @@ class GestioneSpese(tk.Tk):
         for d, lista in self.spese.items():
             for entry in lista:
                 cat, desc, imp, tipo = entry[:4]
-                if testo in f"{cat} {desc}".lower():
+                _tags_s = " ".join(str(t) for t in campo(entry, "hashtag", []) or [])
+                _tags_s = f"{_tags_s} " + " ".join("#" + str(t).lstrip("#") for t in campo(entry, "hashtag", []) or [])
+                _hay = " ".join((
+                    d.strftime("%d-%m-%Y"), d.strftime("%d/%m/%Y"), d.strftime("%Y-%m-%d"),
+                    str(cat), str(desc), _fmt_it_safe(imp), str(imp), str(tipo),
+                    str(self._conto_effettivo(entry)),
+                    str(campo(entry, "metodo_pagamento", "")),
+                    str(campo(entry, "ora", "")),
+                    _tags_s,
+                )).lower()
+                if testo in _hay:
                     righe_trovate.append((d, cat, desc, imp, tipo, entry))
         righe_trovate.sort(key=lambda r: r[0], reverse=True)
         if not righe_trovate:
@@ -5505,6 +5494,7 @@ class GestioneSpese(tk.Tk):
             metodo_pagamento=_metodo_web,
             hashtag=campo(originale, "hashtag", []),
             fairshare=campo(originale, "fairshare", None),
+            pool_ref=campo(originale, "pool_ref", ""),
         )
         if d_vecchia_obj == d_nuova_obj:
             self.spese[d_nuova_obj][v_idx] = nuova_voce
@@ -6185,7 +6175,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "e6f2e4dce8f8bcfcd197e7c92f40ed1c8475214ab33a44b70222d9ba02e54cc2"
+        E_H_B = "d301198d93074d7fca240e543c717420c47c501f38e45488379dd6b3688d40f6"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
