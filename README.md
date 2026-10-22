@@ -1,4 +1,4 @@
-**🏠 Orbita Casa 🇮🇹 [![Sito Web](https://img.shields.io/badge/SITO_UFFICIALE-VISITA-4f46e5?style=flat-square&logo=google-chrome&logoColor=white)](https://renato-4132.github.io/OrbitaCasa/)**
+**🏠 OrbitaCasa 🇮🇹 [![Sito Web](https://img.shields.io/badge/SITO_UFFICIALE-VISITA-4f46e5?style=flat-square&logo=google-chrome&logoColor=white)](https://renato-4132.github.io/OrbitaCasa/)**
 
 **Il centro di comando per la tua gestione domestica, dalle spese quotidiane al risparmio intelligente.**
 
@@ -29,9 +29,9 @@
 
 **🚀 L'ESSENZA DEL SOFTWARE**
 
-**Orbita Casa** è un ecosistema progettato per chi vuole il controllo totale sulle proprie finanze senza rinunciare alla **Privacy**. Unisce la potenza di un software gestionale alla semplicità di un'app domestica.
+**OrbitaCasa** è un ecosistema progettato per chi vuole il controllo totale sulle proprie finanze senza rinunciare alla **Privacy**. Unisce la potenza di un software gestionale alla semplicità di un'app domestica.
 
-Nota Tecnica sulla Sync: Orbita Casa evita deliberatamente le API bancarie (PSD2) per proteggere la privacy dell'utente ed evitare i costi di sottoscrizione che renderebbero il progetto a pagamento. Crediamo in un software libero da canoni e da occhi indiscreti.
+Nota Tecnica sulla Sync: OrbitaCasa evita deliberatamente le API bancarie (PSD2) per proteggere la privacy dell'utente ed evitare i costi di sottoscrizione che renderebbero il progetto a pagamento. Crediamo in un software libero da canoni e da occhi indiscreti.
 
 * 🛡️ **Zero Cloud**: I tuoi dati risiedono solo sul tuo PC.
 * 💰 **Smart Saving**: Algoritmi per il confronto prezzi e risparmio.
@@ -67,7 +67,7 @@ Non paghi mai, ma la licenza non è "per sempre" a prescindere: **più usi l'app
 6. **SmartCat** — Categorizza da solo basandosi sullo storico — l'utente non ci pensa
 7. **Gestione Ricorrenze** — Inserisci una volta affitto, abbonamenti, stipendio — poi dimentica
 8. **Spese Pianificate** — Dilaziona una spesa in quote automatiche fino alla cifra prefissata
-9. **Promemoria & QR Code** — Inserimento manuale rapido dei promemoria o tramite QR Code con un colpo d'occhio
+9. **Agenda & Promemoria** — Appuntamenti e scadenze su calendario, con ripetizioni, avvisi ed email
 
 ---
 
@@ -98,7 +98,7 @@ Non paghi mai, ma la licenza non è "per sempre" a prescindere: **più usi l'app
 27. **Proiezioni Finanziarie** — Rendite, spese e patrimonio nel futuro
 28. **Stampa Report** — Documentazione professionale pronta all'uso
 29. **Analisi Finanziaria con IA** — Analisi intelligente dell'andamento complessivo
-30. **Chiedi al Database con l'IA** — Domande in linguaggio naturale su spese, conti, veicoli, immobili e tutti i moduli
+30. **Chiedi al Database con l'IA** — Domande in linguaggio naturale su tutti i moduli, anche da browser e con allegati
 31. **Calcolo Inflazione** — Tasso reale calcolato sullo storico personale
 32. **Invio Estratti Mail** — Distribuzione automatica dei report
 33. **Analisi Mese** — Cruscotto e Saldi conti del mese
@@ -123,7 +123,7 @@ Non paghi mai, ma la licenza non è "per sempre" a prescindere: **più usi l'app
 47. **Manutenzione e Risparmio Casa** — Calendario manutenzioni periodiche per impianti ed elettrodomestici
 48. **Confronto Prezzi** — Ottimizza la spesa alimentare nel tempo
 49. **Analizzatore Semantico IA** — Analisi intelligente e confronto multi-documento
-50. **Webserver Remoto** — Consulta i dati da smartphone anche in remoto
+50. **Webserver Remoto** — Consulta i dati da smartphone anche in remoto, con agenda e chat IA
 51. **Sistema di Backup Evoluto (PRG)** — Snapshot, backup incrementali e rollback integrato
 52. **Fondo Pensione** — Piano, versamenti per tipologia, valorizzazioni e riscatti/anticipazioni.
 53. **Portafoglio Bancario Multi-Conto** — Riepilogo di tutti i conti con distribuzione per categoria
@@ -240,7 +240,7 @@ Tra notti insonni, un saggio copia-incolla e un pizzico di IA, siamo arrivati a 
 **Cosa sa fare oggi**
 
 Nel frattempo siamo cresciuti.
-OrbitaCasa vanta ora oltre 70 funzioni diverse, un manuale di oltre 80 pagine e tante cose che altri software nemmeno si sognano.
+OrbitaCasa vanta ora oltre 70 funzioni diverse, un manuale di oltre 100 pagine e tante cose che altri software nemmeno si sognano.
 Serve a gestire:
 
 - Conti personali e famiglia.
