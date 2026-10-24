@@ -14,7 +14,7 @@ def apri_webserver(self):
     DB_DIR = _app.DB_DIR
     PORTA = _app.PORTA
     USA_SSL = _app.USA_SSL
-    protocollo = "https" if USA_SSL and os.path.exists(os.path.join(DB_DIR, "cert.pem")) and os.path.exists(os.path.join(DB_DIR, "key.pem")) else "http"
+    protocollo = "https" if USA_SSL and os.path.exists(_app.SSL_CERT) and os.path.exists(_app.SSL_KEY) else "http"
     IP = self.get_ip_locale_reale()         
     url = f"{protocollo}://{IP}:{PORTA}"
     print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Apertura WebUI: {url}")
@@ -56,8 +56,61 @@ def _crea_flask_app(self):
         return (token == tk_app.web_token and
                 (ora - tk_app.ultimo_accesso_web) < tk_app.timeout_sessione)
 
+    import threading as _th
+    _CLIENT_WEB = {}
+    _CLIENT_LOCK = _th.Lock()
+
+    def _chiave_client():
+        return get_ip() + "|" + request.headers.get("User-Agent", "")[:200]
+
+    def _info_client():
+        try:
+            host = request.host.rsplit(":", 1)[0] if not request.host.startswith("[") else ""
+            host = "" if (not host or host.replace(".", "").isdigit() or host == "localhost") else host
+            ua = request.headers.get("User-Agent", "")
+            sis = next((n for k, n in (("Android", "Android"), ("iPhone", "iPhone"), ("iPad", "iPad"),
+                                       ("Windows", "Windows"), ("Macintosh", "Mac"), ("Linux", "Linux")) if k in ua), "")
+            bro = next((n for k, n in (("Edg/", "Edge"), ("OPR/", "Opera"), ("Firefox", "Firefox"),
+                                       ("Chrome", "Chrome"), ("Safari", "Safari")) if k in ua), "")
+            parti = []
+            if host:
+                parti.append("via " + host)
+            if bro or sis:
+                parti.append((bro + " " + sis).strip())
+            return " · ".join(parti)
+        except Exception:
+            return ""
+
     def touch():
-        tk_app.ultimo_accesso_web = time.time()
+        ora = time.time()
+        tk_app.ultimo_accesso_web = ora
+        try:
+            with _CLIENT_LOCK:
+                _CLIENT_WEB[_chiave_client()] = (ora, _info_client())
+        except Exception:
+            pass
+
+    def _web_connessi():
+        try:
+            limite = time.time() - float(tk_app.timeout_sessione)
+            with _CLIENT_LOCK:
+                for k in [k for k, v in _CLIENT_WEB.items() if v[0] < limite]:
+                    del _CLIENT_WEB[k]
+                return len(_CLIENT_WEB)
+        except Exception:
+            return 0
+
+    def _web_connessi_elenco():
+        try:
+            limite = time.time() - float(tk_app.timeout_sessione)
+            with _CLIENT_LOCK:
+                return sorted(((k.split("|", 1)[0], v[0], v[1]) for k, v in _CLIENT_WEB.items() if v[0] >= limite),
+                              key=lambda x: -x[1])
+        except Exception:
+            return []
+
+    tk_app.web_connessi = _web_connessi
+    tk_app.web_connessi_elenco = _web_connessi_elenco
 
     def html_resp(html, code=200):
         r = make_response(html, code)
@@ -69,6 +122,147 @@ def _crea_flask_app(self):
     def aggiorna_ui():
         if hasattr(tk_app, "update_spese_mese_corrente"):
             tk_app.after(0, tk_app.update_spese_mese_corrente)
+        if hasattr(tk_app, "_esegui_refresh_finestre"):
+            tk_app.after(0, tk_app._esegui_refresh_finestre)
+
+    # ── Aggiornamento automatico delle pagine web quando i dati cambiano (dal desktop o da un'altra pagina) ──
+    # La "versione" dei dati e' ricavata dalle date di modifica dei file .json del database: nessun aggancio
+    # da mantenere nel desktop. Il polling NON rinnova la sessione web (niente touch()).
+    _VER_CACHE = {"t": 0.0, "v": ""}
+    _VER_ESCLUSI = {"login_web.json", "login_web_fail.json", "login_lcl.json", "messaggi_servizio_visti.json",
+                    "update.json", "controllo_fm.json", "schedule.json", "api.json", "password.json",
+                    "webauthn_credentials.json", "supermercati.json", "memoria_categorie.json",
+                    "gamification.json", "config.json", "scanner_impostazioni.json", "communitypool_link.json"}
+
+    def _versione_dati():
+        ora = time.time()
+        if ora - _VER_CACHE["t"] < 1.5 and _VER_CACHE["v"]:
+            return _VER_CACHE["v"]
+        mx, n = 0, 0
+        def _scan(cartella, profondita):
+            nonlocal mx, n
+            try:
+                with os.scandir(cartella) as it:
+                    for e in it:
+                        try:
+                            if e.is_file():
+                                if (e.name.endswith(".json") and e.name not in _VER_ESCLUSI
+                                        and not e.name.startswith("login")):
+                                    mx = max(mx, e.stat().st_mtime_ns)
+                                    n += 1
+                            elif e.is_dir() and ((profondita == 0 and e.name == "utenti") or profondita == 1):
+                                _scan(e.path, profondita + 1)
+                        except OSError:
+                            continue
+            except OSError:
+                pass
+        _scan(_app.DB_DIR, 0)
+        v = f"{mx}-{n}"
+        _VER_CACHE.update({"t": ora, "v": v})
+        return v
+
+    _JS_AUTOREFRESH = """<script>/*__autorefresh__*/
+(function () {
+  var base = null, sporco = false, banner = null;
+  function marca(e) { var t = e.target; if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) sporco = true; }
+  document.addEventListener('input', marca, true);
+  document.addEventListener('change', marca, true);
+  function modaleAperto() {
+    var els = document.querySelectorAll('.modal-overlay,[id^="velo"],#deleteModal,#pdfModal,.modal');
+    for (var i = 0; i < els.length; i++) { if (window.getComputedStyle(els[i]).display !== 'none') return true; }
+    return false;
+  }
+  function sicuro() {
+    var a = document.activeElement;
+    if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return false;
+    return !sporco && !modaleAperto();
+  }
+  function troppiReload() {
+    try {
+      var h = JSON.parse(sessionStorage.getItem('ar_h') || '[]'), t = Date.now();
+      h = h.filter(function (x) { return t - x < 60000; });
+      return h.length >= 3;
+    } catch (e) { return false; }
+  }
+  function ricarica() {
+    try {
+      var h = JSON.parse(sessionStorage.getItem('ar_h') || '[]'); h.push(Date.now());
+      sessionStorage.setItem('ar_h', JSON.stringify(h.slice(-5)));
+      sessionStorage.setItem('ar_scroll', location.pathname + location.search + '|' + window.scrollY);
+    } catch (e) {}
+    location.reload();
+  }
+  function mostraBanner() {
+    if (banner) return;
+    banner = document.createElement('div');
+    banner.textContent = '🔄 Dati aggiornati — tocca per ricaricare';
+    banner.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:99999;background:#2a2a2a;color:#fff;border:1px solid #c9a24a;border-radius:20px;padding:9px 16px;font:600 13px sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.4)';
+    banner.onclick = ricarica;
+    document.body.appendChild(banner);
+  }
+  function controlla() {
+    if (document.hidden) return;
+    fetch('/api/versione', {cache: 'no-store', credentials: 'same-origin'})
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !j.ok) return;
+        if (base === null) { base = j.v; return; }
+        if (j.v === base) return;
+        if (sicuro() && !troppiReload()) ricarica(); else mostraBanner();
+      }).catch(function () {});
+  }
+  window.addEventListener('load', function () {
+    try {
+      var s = sessionStorage.getItem('ar_scroll');
+      if (s) { sessionStorage.removeItem('ar_scroll'); var p = s.split('|'); if (p[0] === location.pathname + location.search) setTimeout(function () { window.scrollTo(0, +p[1] || 0); }, 350); }
+    } catch (e) {}
+    controlla(); setInterval(controlla, 4000);
+  });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) controlla(); });
+})();
+</script>"""
+
+    _BTN_HOME = ('<div style="height:84px;"></div><a id="__homebtn__" href="/" title="Home" style="position:fixed;left:14px;bottom:18px;'
+                 'width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;'
+                 'background:#c9a84c;color:#000;font-size:1.3em;text-decoration:none;z-index:2000;'
+                 'box-shadow:0 6px 20px rgba(0,0,0,0.5);">🏠</a>')
+
+    @flask_app.after_request
+    def _inietta_tasto_home(resp):
+        try:
+            if (request.method == "GET" and resp.status_code == 200 and resp.mimetype == "text/html"
+                    and not resp.direct_passthrough
+                    and request.path not in ("/", "/login", "/check_login", "/logoff", "/api/versione")):
+                corpo = resp.get_data(as_text=True)
+                if "</body>" in corpo and "__homebtn__" not in corpo and 'http-equiv="refresh"' not in corpo:
+                    i = corpo.rfind("</body>")
+                    resp.set_data(corpo[:i] + _BTN_HOME + corpo[i:])
+        except Exception:
+            pass
+        return resp
+
+    @flask_app.route("/api/versione")
+    def api_versione():
+        if not is_logged():
+            return Response(json.dumps({"ok": False}), status=401, mimetype="application/json")
+        r = Response(json.dumps({"ok": True, "v": _versione_dati()}), mimetype="application/json")
+        r.headers["Cache-Control"] = "no-store"
+        return r
+
+    @flask_app.after_request
+    def _inietta_autorefresh(resp):
+        try:
+            if (request.method == "GET" and resp.status_code == 200 and resp.mimetype == "text/html"
+                    and not resp.direct_passthrough
+                    and request.path not in ("/login", "/check_login", "/api/versione")):
+                corpo = resp.get_data(as_text=True)
+                if ("</body>" in corpo and "__autorefresh__" not in corpo
+                        and 'http-equiv="refresh"' not in corpo):
+                    i = corpo.rfind("</body>")
+                    resp.set_data(corpo[:i] + _JS_AUTOREFRESH + corpo[i:])
+        except Exception:
+            pass
+        return resp
 
     def richiede_login(f):
         from functools import wraps
@@ -124,6 +318,11 @@ def _crea_flask_app(self):
 
     @flask_app.route("/logoff")
     def logoff():
+        try:
+            with _CLIENT_LOCK:
+                _CLIENT_WEB.pop(_chiave_client(), None)
+        except Exception:
+            pass
         resp = make_response(tk_app.html_saluto())
         resp.headers["Content-Type"] = "text/html; charset=utf-8"
         resp.set_cookie(f"session_id_{_app.PORTA}", "", max_age=0,
@@ -133,7 +332,23 @@ def _crea_flask_app(self):
     @flask_app.route("/")
     @richiede_login
     def home_get():
-        return html_resp(tk_app.html_form())
+        return html_resp(tk_app.pagina_home_web())
+
+    @flask_app.route("/inserisci")
+    @richiede_login
+    def inserisci_get():
+        return html_resp(tk_app.html_form(request.args.get("data", "")))
+
+    @flask_app.route("/calendario_web")
+    @richiede_login
+    def calendario_web():
+        return html_resp(tk_app.pagina_calendario_web())
+
+    @flask_app.route("/api/calendario/mese")
+    @richiede_login
+    def api_calendario_mese():
+        r = tk_app.calendario_web_mese(request.args.get("anno", ""), request.args.get("mese", ""))
+        return Response(json.dumps(r, ensure_ascii=False), mimetype="application/json")
 
     @flask_app.route("/", methods=["POST"])
     @richiede_login
@@ -145,13 +360,16 @@ def _crea_flask_app(self):
                  "descrizione": request.form.get("descrizione", ""),
                  "importo":     float(request.form.get("importo", "0").replace(",", ".")),
                  "tipo":        request.form.get("tipo", "Uscita"),
-                 "conto":       request.form.get("conto", "")}
+                 "conto":       request.form.get("conto", ""),
+                 "metodo_pagamento": request.form.get("metodo", ""),
+                 "ora":         request.form.get("ora", ""),
+                 "hashtag":     tk_app._normalizza_tags(request.form.get("hashtag", ""))}
             tk_app.aggiungi_voce_web(v)
             tk_app.save_db()
             aggiorna_ui()
             tk_app.refresh_portafoglio_web()
-            return redirect("/?salvato=1", code=303)
-        return redirect("/", code=303)
+            return redirect("/inserisci?salvato=1", code=303)
+        return redirect("/inserisci", code=303)
 
     @flask_app.route("/gestione_categorie")
     @richiede_login
@@ -347,6 +565,12 @@ def _crea_flask_app(self):
                     json.dump(fr_dati, f, indent=2, ensure_ascii=False)
             except Exception:
                 pass
+            _cb = getattr(tk_app, "_fondo_risparmio_refresh", None)
+            if _cb:
+                try:
+                    tk_app.after(0, _cb)
+                except Exception:
+                    pass
             return redirect("/fondo_risparmio_web", code=303)
         return html_resp(tk_app.pagina_fondo_risparmio_web())
 
@@ -365,10 +589,101 @@ def _crea_flask_app(self):
     def documenti_pdf_web():
         return html_resp(tk_app.documenti_pdf_web())
 
+    @flask_app.route("/promemoria_web")
+    @richiede_login
+    def promemoria_web():
+        return html_resp(tk_app.pagina_promemoria_web())
+
+    @flask_app.route("/api/promemoria/elenco")
+    @richiede_login
+    def api_promemoria_elenco():
+        r = tk_app.promemoria_web_elenco(request.args.get("giorni", 14))
+        return Response(json.dumps(r, ensure_ascii=False), mimetype="application/json")
+
+    @flask_app.route("/api/promemoria/salva", methods=["POST"])
+    @richiede_login
+    def api_promemoria_salva():
+        r, code = tk_app.promemoria_web_salva(request.get_json(silent=True) or {})
+        return Response(json.dumps(r, ensure_ascii=False), status=code, mimetype="application/json")
+
+    @flask_app.route("/api/promemoria/fatto", methods=["POST"])
+    @richiede_login
+    def api_promemoria_fatto():
+        r, code = tk_app.promemoria_web_fatto(request.get_json(silent=True) or {})
+        return Response(json.dumps(r, ensure_ascii=False), status=code, mimetype="application/json")
+
+    @flask_app.route("/api/promemoria/elimina", methods=["POST"])
+    @richiede_login
+    def api_promemoria_elimina():
+        r, code = tk_app.promemoria_web_elimina(request.get_json(silent=True) or {})
+        return Response(json.dumps(r, ensure_ascii=False), status=code, mimetype="application/json")
+
+    @flask_app.route("/api/promemoria/posticipa", methods=["POST"])
+    @richiede_login
+    def api_promemoria_posticipa():
+        r, code = tk_app.promemoria_web_posticipa(request.get_json(silent=True) or {})
+        return Response(json.dumps(r, ensure_ascii=False), status=code, mimetype="application/json")
+
+    @flask_app.route("/finanziamenti_web")
+    @richiede_login
+    def finanziamenti_web():
+        return html_resp(tk_app.pagina_finanziamenti_web())
+
+    @flask_app.route("/api/finanziamenti/calcola", methods=["POST"])
+    @richiede_login
+    def api_finanziamenti_calcola():
+        r, code = tk_app.finanziamenti_web_calcola(request.get_json(silent=True) or {})
+        return Response(json.dumps(r, ensure_ascii=False), status=code, mimetype="application/json")
+
+    @flask_app.route("/ricorrenze_web")
+    @richiede_login
+    def ricorrenze_web():
+        return html_resp(tk_app.pagina_ricorrenze_web())
+
+    @flask_app.route("/api/ricorrenze/elenco")
+    @richiede_login
+    def api_ricorrenze_elenco():
+        r = tk_app.ricorrenze_web_elenco()
+        return Response(json.dumps(r, ensure_ascii=False), mimetype="application/json")
+
+    @flask_app.route("/api/ricorrenze/dettaglio")
+    @richiede_login
+    def api_ricorrenze_dettaglio():
+        r, code = tk_app.ricorrenze_web_dettaglio(request.args.get("id", ""))
+        return Response(json.dumps(r, ensure_ascii=False), status=code, mimetype="application/json")
+
+    @flask_app.route("/api/ricorrenze/crea", methods=["POST"])
+    @richiede_login
+    def api_ricorrenze_crea():
+        r, code = tk_app.ricorrenze_web_crea(request.get_json(silent=True) or {})
+        return Response(json.dumps(r, ensure_ascii=False), status=code, mimetype="application/json")
+
+    @flask_app.route("/api/ricorrenze/elimina", methods=["POST"])
+    @richiede_login
+    def api_ricorrenze_elimina():
+        r, code = tk_app.ricorrenze_web_elimina(request.get_json(silent=True) or {})
+        return Response(json.dumps(r, ensure_ascii=False), status=code, mimetype="application/json")
+
     @flask_app.route("/magazzino_web")
     @richiede_login
     def magazzino_web():
         return html_resp(tk_app.pagina_magazzino_web())
+
+    @flask_app.route("/chiedi_ia_web")
+    @richiede_login
+    def chiedi_ia_web():
+        return html_resp(tk_app.pagina_chiedi_ia_web())
+
+    @flask_app.route("/api/chiedi_ia", methods=["POST"])
+    @richiede_login
+    def api_chiedi_ia():
+        try:
+            storico = json.loads(request.form.get("storico", "[]"))
+        except ValueError:
+            storico = []
+        files = [(f.filename, f.mimetype, f.read()) for f in request.files.getlist("files")[:10]]
+        r, code = tk_app.chiedi_ia_web_risposta({"domanda": request.form.get("domanda", ""), "storico": storico}, files)
+        return Response(json.dumps(r, ensure_ascii=False), status=code, mimetype="application/json")
 
     @flask_app.route("/api/magazzino/cerca")
     @richiede_login
@@ -400,6 +715,75 @@ def _crea_flask_app(self):
         r, code = tk_app.magazzino_web_scorte(request.get_json(silent=True) or {})
         return Response(json.dumps(r, ensure_ascii=False), status=code, mimetype="application/json")
 
+    @flask_app.route("/immobili_web")
+    @richiede_login
+    def immobili_web():
+        return html_resp(tk_app.pagina_schede_web("immobili"))
+
+    @flask_app.route("/autopark_web")
+    @richiede_login
+    def autopark_web():
+        return html_resp(tk_app.pagina_schede_web("autopark"))
+
+    @flask_app.route("/petcare_web")
+    @richiede_login
+    def petcare_web():
+        return html_resp(tk_app.pagina_schede_web("petcare"))
+
+    @flask_app.route("/api/schede/<chiave>/<azione>", methods=["GET", "POST"])
+    @richiede_login
+    def api_schede(chiave, azione):
+        dati = (request.get_json(silent=True) or {}) if request.method == "POST" else {}
+        r, code = tk_app.schede_web_api(chiave, azione, dati)
+        return Response(json.dumps(r, ensure_ascii=False), status=code, mimetype="application/json")
+
+    @flask_app.route("/dieta_web")
+    @richiede_login
+    def dieta_web():
+        return html_resp(tk_app.pagina_dieta_web())
+
+    @flask_app.route("/api/dieta/dati")
+    @richiede_login
+    def api_dieta_dati():
+        r = tk_app.dieta_web_dati()
+        return Response(json.dumps(r, ensure_ascii=False), mimetype="application/json")
+
+    @flask_app.route("/api/dieta/alimenti")
+    @richiede_login
+    def api_dieta_alimenti():
+        r = tk_app.dieta_web_alimenti(request.args.get("q", ""))
+        return Response(json.dumps(r, ensure_ascii=False), mimetype="application/json")
+
+    @flask_app.route("/api/dieta/alimento_custom", methods=["POST"])
+    @richiede_login
+    def api_dieta_alimento_custom():
+        r, code = tk_app.dieta_web_alimento_custom(request.get_json(silent=True) or {})
+        return Response(json.dumps(r, ensure_ascii=False), status=code, mimetype="application/json")
+
+    @flask_app.route("/api/dieta/giorno", methods=["POST"])
+    @richiede_login
+    def api_dieta_giorno():
+        r, code = tk_app.dieta_web_giorno(request.get_json(silent=True) or {})
+        return Response(json.dumps(r, ensure_ascii=False), status=code, mimetype="application/json")
+
+    @flask_app.route("/api/dieta/peso", methods=["POST"])
+    @richiede_login
+    def api_dieta_peso():
+        r, code = tk_app.dieta_web_peso(request.get_json(silent=True) or {})
+        return Response(json.dumps(r, ensure_ascii=False), status=code, mimetype="application/json")
+
+    @flask_app.route("/api/dieta/passi", methods=["POST"])
+    @richiede_login
+    def api_dieta_passi():
+        r, code = tk_app.dieta_web_passi(request.get_json(silent=True) or {})
+        return Response(json.dumps(r, ensure_ascii=False), status=code, mimetype="application/json")
+
+    @flask_app.route("/api/dieta/fabb", methods=["POST"])
+    @richiede_login
+    def api_dieta_fabb():
+        r, code = tk_app.dieta_web_fabb(request.get_json(silent=True) or {})
+        return Response(json.dumps(r, ensure_ascii=False), status=code, mimetype="application/json")
+
     @flask_app.route("/menu_esplora")
     @richiede_login
     def menu_esplora():
@@ -428,7 +812,23 @@ def _crea_flask_app(self):
         utente = request.args.get("utente", "tutti")
         return Response(tk_app.get_fairshare_data_json(anno, mese, utente),
                         mimetype="application/json; charset=utf-8")
+                        
+    @flask_app.route("/community_pool_web")
+    @richiede_login
+    def community_pool_web():
+        return html_resp(tk_app.pagina_community_pool_web())
 
+    @flask_app.route("/api/community_pool/dati")
+    @richiede_login
+    def api_community_pool_dati():
+        r = tk_app.community_pool_web_dati(request.args.get("primo") == "1")
+        return Response(json.dumps(r, ensure_ascii=False), mimetype="application/json")
+
+    @flask_app.route("/api/community_pool/azione", methods=["POST"])
+    @richiede_login
+    def api_community_pool_azione():
+        r, code = tk_app.community_pool_web_azione(request.get_json(silent=True) or {})
+        return Response(json.dumps(r, ensure_ascii=False), status=code, mimetype="application/json")
     @flask_app.route("/info_sys_web")
     @richiede_login
     def info_sys_web():
@@ -516,7 +916,15 @@ def _crea_flask_app(self):
     @richiede_login
     def salva_modifica():
         p = {k: [v] for k, v in request.form.items()}
-        destinazione = tk_app.salva_modifica_voce(p)
+        try:
+            destinazione = tk_app.salva_modifica_voce(p)
+        except ValueError as e:
+            dest = p.get("provenienza", ["/"])[0] or "/"
+            return html_resp(
+                '<!DOCTYPE html><html><head><meta charset="utf-8">'
+                f'<meta http-equiv="refresh" content="3;url={dest}"><title>Voce non aggiornata</title></head>'
+                '<body style="background:#050505;color:#e05a5a;font-family:sans-serif;padding:2rem;">'
+                f'⚠️ {e}<br><br><a style="color:#ccc" href="{dest}">Torna indietro</a></body></html>', 409)
         tk_app.save_db()
         aggiorna_ui()
         tk_app.refresh_portafoglio_web()
@@ -528,7 +936,18 @@ def _crea_flask_app(self):
         g = request.form.get("data", "")
         i = int(request.form.get("idx", -1))
         elimina_pdf = request.form.get("elimina_pdf", "0") == "1"
+        sid = request.form.get("sid", "")
         if i != -1 and g:
+            try:
+                _d_c = datetime.datetime.strptime(g, "%d-%m-%Y").date()
+                i = tk_app._idx_da_id(_d_c, i, sid)
+            except Exception:
+                i = None
+            if i is None:
+                aggiorna_ui()
+                if request.form.get("ajax") == "1":
+                    return Response(json.dumps({"ok": False}), status=404, mimetype="application/json")
+                return redirect("/inserisci", code=303)
             if elimina_pdf:
                 try:
                     data_obj = datetime.datetime.strptime(g, "%d-%m-%Y").date()
@@ -556,7 +975,9 @@ def _crea_flask_app(self):
             tk_app.save_db()
         aggiorna_ui()
         tk_app.refresh_portafoglio_web()
-        return redirect("/", code=303)
+        if request.form.get("ajax") == "1":
+            return Response(json.dumps({"ok": True}), mimetype="application/json")
+        return redirect("/inserisci", code=303)
 
     @flask_app.route("/avvia_sync_web", methods=["POST"])
     @richiede_login
@@ -646,8 +1067,8 @@ def start_web_server(self):
             while not _porta_libera(_app.PORTA):
                 print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Porta {_app.PORTA} occupata, provo su {_app.PORTA + 1}...")
                 _app.PORTA += 1
-            cert_file = os.path.join(DB_DIR, "cert.pem")
-            key_file  = os.path.join(DB_DIR, "key.pem")
+            cert_file = _app.SSL_CERT
+            key_file  = _app.SSL_KEY
             ssl_context = None
             if USA_SSL and os.path.exists(cert_file) and os.path.exists(key_file):
                 ctx = ssl_mod.SSLContext(ssl_mod.PROTOCOL_TLS_SERVER)
@@ -712,7 +1133,7 @@ def manda_push(self, titolo, messaggio):
             self.show_toast("Email o AppPassword non configurate.", duration=2000)
             print("Email o password non configurate.")
             return False
-        prot = "https" if USA_SSL and os.path.exists(os.path.join(DB_DIR, "cert.pem")) else "http"
+        prot = "https" if USA_SSL and os.path.exists(_app.SSL_CERT) else "http"
         ip_reale = self.get_ip_locale_reale()
         link_web = f"{prot}://{ip_reale}:{PORTA}"
         msg = MIMEMultipart("alternative")
@@ -1279,7 +1700,6 @@ def html_cambia_pw_web(self):
         </form>
     </div>
     <div class="footer">
-        <a href="/" class="btn-home">🏠 Torna alla Home</a>
     </div>
 </div>
 <script>
@@ -1856,38 +2276,64 @@ def html_info_sys(self):
 <header>
     <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
+        <a href="/">🏠 Home</a>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗓️ Movimenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
-                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/calendario_web">🗓️ Calendario</a>
+                <a href="/inserisci">➕ Aggiungi Operazione</a>
                 <a href="/lista">📈 Gestione Movimenti Mese</a>
-                <a href="/stats">📊 Bilancio Mese</a>
-                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/menu_esplora">🔍 Esplora e Cerca</a>
+                <a href="/ricorrenze_web">🔁 Ricorrenze</a>
                 <a href="/scadenze_web">📅 Scadenze del Mese</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>📊 Statistiche</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/grafici_web">📉 Grafici e Statistiche</a>
                 <a href="/fairshare_web">⚖️ FairShare</a>
-                <a href="/menu_esplora">🔍 Esplora</a>
-                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/community_pool_web">🤝 CommunityPool</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏦 Portafoglio</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
+                <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏠 Casa</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
-                <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+                <a href="/consultazione_supermercati">🛒 Supermercati</a>
                 <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
+                <a href="/immobili_web">🏢 ImmoBil (Immobili)</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🌿 Vita</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/promemoria_web">🔔 Promemoria</a>
+                <a href="/autopark_web">🚗 AutoPark (Veicoli)</a>
+                <a href="/petcare_web">🐾 PetCare (Animali)</a>
+                <a href="/dieta_web">🥗 Dieta</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗄️ Documenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+                <a href="/documenti_personali_web">🗂️ Documenti Personali</a>
+                <a href="/chiedi_ia_web">🤖 Chiedi al Database</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🛠️ Strumenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/info_sys_web">📡 Monitor Server</a>
                 <a href="/cambia_pw_web">🔑 Cambia Password</a>
@@ -1921,12 +2367,11 @@ def html_info_sys(self):
             <div class="log-time">🕒 Ultimo accesso: {ultimo_log}</div>
         </div>
         <div class="log-links">
-            <a href="https://github.com/Renato-4132/OrbitaCasa/blob/main/" target="_blank" class="log-link">🐙 GitHub</a>
+            <a href="https://github.com/{_app.REPO_OWNER}/{_app.REPO_NAME}/blob/main/" target="_blank" class="log-link">🐙 GitHub</a>
             <a href="mailto:helporbitacasa@gmail.com" class="log-link">✉️ Supporto</a>
             <a href="/log_web" class="log-link">📋 Log</a>
         </div>
     </div>
-    <a href="/" class="btn-home">🏠 Torna alla Home</a>
 </main>
 <script>
     function applyTheme(t) {{

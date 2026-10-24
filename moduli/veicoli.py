@@ -356,6 +356,8 @@ def veicoli(self):
         self._veicoli_win.focus_force()
         return
     db = self._veicoli_carica()
+    self._veicoli_db = db
+    self._veicoli_refresh = {}
     win = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
     win.title("AutoPark — Gestione Parco Auto")
     self._veicoli_win = win
@@ -1130,6 +1132,34 @@ def _veicoli_crea_tab(self, nb, v, db, win):
              bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR,
              font=("Arial", 8, "italic")).pack(side=tk.LEFT, padx=(4, 0))
 
+    def _refresh_web(changed=None):
+        nonlocal riga_in_modifica
+        changed = set(changed or ())
+        for _d in (vars_ana, vars_scad):
+            for _k, _var in _d.items():
+                if _k in changed:
+                    _nv = str(v.get(_k, ""))
+                    if _k in widgets_combo_ana and _nv not in widgets_combo_ana[_k]["values"]:
+                        _nv = "(nessuno)"
+                    _var.set(_nv)
+        if "nome" in changed:
+            try:
+                nb.tab(tab, text=f"  {v.get('nome','Veicolo')}  ")
+            except Exception:
+                pass
+        cb_cat["values"] = cat_v
+        if riga_in_modifica is not None:
+            _rid = riga_in_modifica.get("id")
+            _nuova = next((m for m in v.get("movimenti", []) if m.get("id") == _rid), None)
+            if _nuova is None:
+                riga_in_modifica = None
+                btn_add.config(text=" Aggiungi" if img_add else "➕ Aggiungi")
+                v_desc.set(""); v_imp.set(""); v_km.set(""); v_litri.set("")
+                self.show_toast("Il movimento in modifica è stato eliminato dal web.")
+            else:
+                riga_in_modifica = _nuova
+        _popola_tree()
+    getattr(self, "_veicoli_refresh", {})[id(v)] = _refresh_web
     _popola_tree()
 
 def _veicoli_nuovo(self, db, nb, win):

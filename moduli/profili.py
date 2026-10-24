@@ -38,7 +38,7 @@ def elenco_profili(self):
     return profili
 
 def _copia_certificati_e_licenza(db_sorgente, db_destinazione):
-    for nome_file in ("cert.pem", "key.pem"):
+    for nome_file in ():
         src = os.path.join(db_sorgente, nome_file)
         dst = os.path.join(db_destinazione, nome_file)
         if os.path.isfile(src) and not os.path.exists(dst):
@@ -320,6 +320,7 @@ def _percorso_db_profilo(nome_profilo):
     return os.path.join(_app.PROFILI_DIR, nome_profilo, "db")
 
 def esporta_profilo(self, nome_profilo):
+    import __main__ as _app
     db_sorgente = _percorso_db_profilo(nome_profilo)
     if not os.path.isdir(db_sorgente):
         self.show_toast("Nessun dato da esportare per questo profilo")
@@ -329,9 +330,9 @@ def esporta_profilo(self, nome_profilo):
     percorso_output = filedialog.asksaveasfilename(
         title=f"Esporta profilo '{_etichetta_profilo(self, nome_profilo)}'",
         initialdir=os.path.expanduser('~'),
-        initialfile=f"OrbitaCasa_{nome_pulito}_{timestamp}.zip",
+        initialfile=f"{_app.NAME}_{nome_pulito}_{timestamp}.zip",
         defaultextension=".zip",
-        filetypes=[("Archivio Profilo OrbitaCasa", "*.zip")]
+        filetypes=[(f"Archivio Profilo {_app.NAME}", "*.zip")]
     )
     if not percorso_output:
         return
@@ -369,7 +370,7 @@ def importa_profilo(self):
     percorso_zip = filedialog.askopenfilename(
         title="Seleziona archivio profilo da importare",
         initialdir=os.path.expanduser('~'),
-        filetypes=[("Archivio Profilo OrbitaCasa", "*.zip")]
+        filetypes=[(f"Archivio Profilo {_app.NAME}", "*.zip")]
     )
     if not percorso_zip:
         return

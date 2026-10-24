@@ -25,12 +25,12 @@ def _avvia_tutorial(self):
         ("#F9FBE7", "#558B2F"),
         ("#E8EAF6", "#283593"),
     ]
-    BASE_URL = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/main/screenshots/"
+    BASE_URL = f"https://raw.githubusercontent.com/{_app.REPO_OWNER}/{_app.REPO_NAME}/main/screenshots/"
     IMG_W, IMG_H = 390, 210
     passi = [
         {
             "screenshot": None,
-            "titolo": "Benvenuto in OrbitaCasa!",
+            "titolo": f"Benvenuto in {NAME}!",
             "intro": "Il tuo assistente finanziario personale.\nIntelligente, offline, sempre tuo.",
             "punti": [
                 "Registra spese ed entrate in pochi secondi",
@@ -143,7 +143,7 @@ def _avvia_tutorial(self):
         {
             "screenshot": "saldo.png",
             "titolo": "Tutto pronto. Si parte!",
-            "intro": "Setup iniziale: meno di 5 minuti.\nPoi OrbitaCasa lavora per te.\n\nUsa il pulsante qui sotto per scaricare e aprire il manuale PDF completo, una guida dettagliata sempre a portata di mano.",
+            "intro": f"Setup iniziale: meno di 5 minuti.\nPoi {NAME} lavora per te.\n\nUsa il pulsante qui sotto per scaricare e aprire il manuale PDF completo, una guida dettagliata sempre a portata di mano.",
             "punti": [
                 "Crea le tue categorie  →  Ctrl+Shift+T",
                 "Imposta il saldo iniziale  →  Ctrl+S",
@@ -156,7 +156,7 @@ def _avvia_tutorial(self):
         {
             "screenshot": None,
             "titolo": "Vuoi provarla con dati di esempio?",
-            "intro": "La Modalità Demo apre OrbitaCasa con movimenti, categorie e conti già compilati, così puoi esplorare tutto senza inserire nulla.\n\nI tuoi dati non vengono toccati: la Demo usa un profilo separato e temporaneo.\n\nSe preferisci iniziare subito con i tuoi dati, premi «Inizia!»: potrai attivarla in qualsiasi momento.",
+            "intro": f"La Modalità Demo apre {NAME} con movimenti, categorie e conti già compilati, così puoi esplorare tutto senza inserire nulla.\n\nI tuoi dati non vengono toccati: la Demo usa un profilo separato e temporaneo.\n\nSe preferisci iniziare subito con i tuoi dati, premi «Inizia!»: potrai attivarla in qualsiasi momento.",
             "punti": [
                 "COME SI ATTIVA:  pulsante qui sotto → conferma → l'app scarica i dati di esempio (serve internet) e si riavvia",
                 f"Si apre nel profilo «{NOME_PROFILO_DEMO}»: puoi inserire, modificare e cancellare quello che vuoi",

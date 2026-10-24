@@ -1393,7 +1393,7 @@ def _genera_testo_scadenze_documenti(self, profilo=None, soglia_giorni=30):
             lines.append(f"       {testo_gg} ({data_str})")
         lines.append("")
     lines.append("┈" * 30)
-    lines.append("Controlla la sezione Documenti Personali su OrbitaCasa")
+    lines.append(f"Controlla la sezione Documenti Personali su {_app.NAME}")
     lines.append("per i dettagli e per rinnovare i documenti in tempo.")
     lines.append("")
     lines.append(f"📊 Report generato il {data_oggi}.")

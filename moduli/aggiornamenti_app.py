@@ -34,6 +34,11 @@ LIBRERIE_PIP_INFO = [
     ("webauthn",     "Autenticazione biometrica"),
 ]
 
+def _user_agent_sync():
+    import __main__ as _app
+    return f"{_app.NAME}-Sync"
+
+
 def _imposta_permessi_file(nome_file, nome_tmp):
     if os.name == "nt":
         return
@@ -976,7 +981,7 @@ def aggiorna_librerie_pip(self):
     def _connessione_pypi_disponibile():
         try:
             req = urllib.request.Request("https://pypi.org", method="HEAD",
-                                          headers={"User-Agent": "OrbitaCasa-Sync"})
+                                          headers={"User-Agent": _user_agent_sync()})
             urllib.request.urlopen(req, timeout=4)
             return True
         except Exception:
@@ -1658,7 +1663,7 @@ def verifica_moduli_git(self):
                 continue
             dest_tmp = dest + ".tmp"
             try:
-                req = urllib.request.Request(url_raw, headers={"User-Agent": "OrbitaCasa-Sync"})
+                req = urllib.request.Request(url_raw, headers={"User-Agent": _user_agent_sync()})
                 with urllib.request.urlopen(req, timeout=20) as resp, open(dest_tmp, "wb") as out:
                     shutil.copyfileobj(resp, out)
                 if _boot_git_blob_sha1(dest_tmp) != sha_remoto:

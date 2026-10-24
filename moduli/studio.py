@@ -169,6 +169,118 @@ def apri_studio(self):
             self.mostra_calendario_popup_semplice(entry_widget, _tmp)
         lbl.bind("<Button-1>", lambda e: _apri())
         return lbl
+    def _norm_ora(s):
+        s = (s or "").strip().replace(".", ":").replace(",", ":").replace(" ", "")
+        if not s:
+            return ""
+        if ":" in s:
+            h, _, m = s.partition(":")
+            m = m or "00"
+        elif s.isdigit() and len(s) <= 4:
+            h, m = (s, "00") if len(s) <= 2 else ((s[0], s[1:]) if len(s) == 3 else (s[:2], s[2:]))
+        else:
+            raise ValueError(s)
+        if not (h.isdigit() and m.isdigit() and 0 <= int(h) <= 23 and 0 <= int(m) <= 59):
+            raise ValueError(s)
+        return f"{int(h):02d}:{int(m):02d}"
+    def _mk_ora_btn(parent, entry_widget):
+        img = self.icone_gui.get("timer")
+        lbl = ttk.Label(parent, image=img, text="" if img else "⏰", cursor="hand2",
+                        background=self.COLOR_WIDGET_BG, padding=(2, 0))
+        if img: lbl.image = img
+        lbl.pack(side="left", padx=2)
+        def _apri(_e=None):
+            top = entry_widget.winfo_toplevel()
+            vecchio = getattr(entry_widget, "_orologio", None)
+            try:
+                if vecchio is not None and vecchio.winfo_exists():
+                    vecchio.destroy()
+                    entry_widget._orologio = None
+                    return
+            except Exception:
+                pass
+            try:
+                cur = _norm_ora(entry_widget.get())
+            except ValueError:
+                cur = ""
+            st = {"h": int(cur[:2]) if cur else datetime.datetime.now().hour, "m": int(cur[3:]) if cur else 0}
+            w = tk.Toplevel(top)
+            entry_widget._orologio = w
+            w.title("Scegli l'ora")
+            w.configure(bg=self.COLOR_WIDGET_BG)
+            w.transient(top)
+            w.resizable(False, False)
+            cont = tk.Frame(w, bg=self.COLOR_WIDGET_BG, padx=14, pady=10)
+            cont.pack()
+            def _scrivi(t):
+                entry_widget.delete(0, "end")
+                entry_widget.insert(0, t)
+            def _agg(scrivi=True):
+                lbl_h.config(text=f"{st['h']:02d}")
+                lbl_m.config(text=f"{st['m']:02d}")
+                if scrivi:
+                    _scrivi(f"{st['h']:02d}:{st['m']:02d}")
+            def _passo(k, delta, blocchi=False):
+                if k == "h":
+                    st["h"] = (st["h"] + delta) % 24
+                else:
+                    m = st["m"]
+                    if blocchi:
+                        m = (m // 5) * 5 + 5 if delta > 0 else ((m - 1) // 5) * 5 if m % 5 else m - 5
+                    else:
+                        m += delta
+                    st["m"] = m % 60
+                _agg()
+            def _col(c, k):
+                su = tk.Label(cont, text="▲", bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HIGHLIGHT,
+                              font=("Arial", 16, "bold"), cursor="hand2")
+                su.grid(row=0, column=c)
+                val = tk.Label(cont, bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR, font=("Arial", 30, "bold"),
+                               width=3, relief="groove", borderwidth=1)
+                val.grid(row=1, column=c, padx=2)
+                giu = tk.Label(cont, text="▼", bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HIGHLIGHT,
+                               font=("Arial", 16, "bold"), cursor="hand2")
+                giu.grid(row=2, column=c)
+                su.bind("<Button-1>", lambda e: _passo(k, 1, True))
+                giu.bind("<Button-1>", lambda e: _passo(k, -1, True))
+                for wd in (val, su, giu):
+                    wd.bind("<MouseWheel>", lambda e: _passo(k, 1 if e.delta > 0 else -1))
+                    wd.bind("<Button-4>", lambda e: _passo(k, 1))
+                    wd.bind("<Button-5>", lambda e: _passo(k, -1))
+                return val
+            lbl_h = _col(0, "h")
+            tk.Label(cont, text=":", bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR,
+                     font=("Arial", 30, "bold")).grid(row=1, column=1)
+            lbl_m = _col(2, "m")
+            def _imposta_chiudi(t):
+                _scrivi(t)
+                w.destroy()
+            rapidi = tk.Frame(cont, bg=self.COLOR_WIDGET_BG)
+            rapidi.grid(row=3, column=0, columnspan=3, pady=(10, 0))
+            for i, t in enumerate(("08:00", "09:00", "12:00", "15:00", "18:00", "20:00")):
+                b_ = tk.Label(rapidi, text=t, bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR,
+                              font=("Arial", 10, "bold"), relief="groove", borderwidth=1,
+                              cursor="hand2", padx=6, pady=3)
+                b_.grid(row=i // 3, column=i % 3, padx=2, pady=2)
+                b_.bind("<Button-1>", lambda e, x=t: _imposta_chiudi(x))
+            bt_o = tk.Frame(cont, bg=self.COLOR_WIDGET_BG)
+            bt_o.grid(row=4, column=0, columnspan=3, pady=(8, 0), sticky="ew")
+            _mk_btn(bt_o, "oggi", "Adesso", lambda: _imposta_chiudi(f"{datetime.datetime.now():%H:%M}"), padx=0)
+            _mk_btn(bt_o, "cancella", "Nessuna ora", lambda: _imposta_chiudi(""), padx=4)
+            _mk_btn(bt_o, "check", "OK", w.destroy, side="right", padx=0)
+            w.bind("<Escape>", lambda e: w.destroy())
+            w.bind("<Return>", lambda e: w.destroy())
+            _agg(scrivi=False)
+            w.update_idletasks()
+            ww, hh = w.winfo_reqwidth(), w.winfo_reqheight()
+            x = top.winfo_rootx() + (top.winfo_width() - ww) // 2
+            y = top.winfo_rooty() + (top.winfo_height() - hh) // 2
+            x = max(0, min(x, w.winfo_screenwidth() - ww - 8))
+            y = max(0, min(y, w.winfo_screenheight() - hh - 48))
+            w.geometry(f"+{x}+{y}")
+            w.focus_set()
+        lbl.bind("<Button-1>", _apri)
+        return lbl
     def _btn_bar(parent, items):
         bar = tk.Frame(parent, bg=self.COLOR_WIDGET_BG,
                        highlightthickness=1,
@@ -932,7 +1044,11 @@ def apri_studio(self):
             e_data.pack(side="left")
             _mk_cal_btn(frm_d, e_data)
             _row(fw, "Ora (HH:MM)",          2)
-            e_ora  = _ent(fw, 2, width=8)
+            frm_o = tk.Frame(fw, bg=self.COLOR_WIDGET_BG)
+            frm_o.grid(row=2, column=1, sticky="w", padx=10, pady=3)
+            e_ora = ttk.Entry(frm_o, width=8)
+            e_ora.pack(side="left")
+            _mk_ora_btn(frm_o, e_ora)
             _row(fw, "Cliente",              3)
             e_cli  = _cbo(fw, 3, _nomi_clienti(), width=24)
             _row(fw, "Prestazione",          4)
@@ -964,10 +1080,14 @@ def apri_studio(self):
                     data = datetime.datetime.strptime(data_raw, "%d/%m/%Y").strftime("%Y-%m-%d")
                 except ValueError:
                     self.show_toast("Data non valida (GG/MM/AAAA)."); return
+                try:
+                    ora = _norm_ora(e_ora.get())
+                except ValueError:
+                    self.show_toast("Ora non valida (HH:MM)."); return
                 record = {
                     "id":           prefill["id"] if prefill else _new_id(),
                     "data":         data,
-                    "ora":          e_ora.get().strip(),
+                    "ora":          ora,
                     "cliente_nome": e_cli.get().strip(),
                     "prestazione":  e_pre.get().strip(),
                     "stato":        e_stato.get().strip() or "Confermato",

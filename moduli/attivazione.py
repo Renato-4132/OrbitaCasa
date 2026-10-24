@@ -562,14 +562,14 @@ def apri_registrazione(self):
         except Exception:
             _cod_mail = _get_device_id()
         corpo = (
-            f"Salve,\n\nVorrei ottenere/rinnovare la mia licenza OrbitaCasa.\n\n"
+            f"Salve,\n\nVorrei ottenere/rinnovare la mia licenza {_app.NAME}.\n\n"
             f"Codice dispositivo: {_cod_mail}\n"
             f"Licenza: {self.topic_unico}\n"
             f"Versione: {VERSION}\n"
             f"Utente: {PROFILO_ATTIVO if PROFILO_ATTIVO != 'Principale' else self.current_folder}\n\n"
             f"In attesa di istruzioni.\n\nGrazie"
         )
-        url = "mailto:helporbitacasa@gmail.com?subject=" + urllib.parse.quote("Licenza OrbitaCasa") + "&body=" + urllib.parse.quote(corpo)
+        url = "mailto:helporbitacasa@gmail.com?subject=" + urllib.parse.quote(f"Licenza {_app.NAME}") + "&body=" + urllib.parse.quote(corpo)
         webbrowser.open(url)
     def conferma():
         import json

@@ -487,6 +487,15 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
         b.bind("<Button-1>", lambda e, c=cmd: c())
     aggiorna_testata()
     aggiorna()
+    def _refresh_da_modifica_esterna():
+        try:
+            pos = tree.yview()[0]
+            aggiorna()
+            tree.yview_moveto(pos)
+        except tk.TclError:
+            pass
+    if hasattr(self, "registra_refresh_finestra"):
+        self.registra_refresh_finestra(win, _refresh_da_modifica_esterna)
 
 def _esporta_estratti_metodo(self, tree, var_metodo, descr_filtri):
     import __main__ as _app

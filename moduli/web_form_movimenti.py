@@ -12,7 +12,7 @@ from moduli.web_utils import _fmt_it, _saldo_effettivo_web
 
 
 # Html Pagina inserimenti Web
-def html_form(self):
+def html_form(self, data_iniziale=""):
     import __main__ as _app
     LOGIN_WEB = _app.LOGIN_WEB
     NAME = _app.NAME
@@ -23,19 +23,6 @@ def html_form(self):
     smartcat_text = "SmartCat Idle..." if SMARTCAT_ABILITATO else "SmartCat Off"
     smartcat_icon = "🛠️" if SMARTCAT_ABILITATO else "❌"
     PROFILO_ATTIVO = _app.PROFILO_ATTIVO
-    folder = (PROFILO_ATTIVO if PROFILO_ATTIVO != "Principale" else os.path.basename(os.getcwd())).upper()
-    ultimo_log_str = "Primo accesso"
-    if os.path.exists(LOGIN_WEB):
-        try:
-            with open(LOGIN_WEB, "r", encoding="utf-8") as f:
-                logs = json.load(f)
-                if len(logs) > 1:
-                    prec = logs[1]
-                    ultimo_log_str = prec['data_ora']
-                elif len(logs) == 1:
-                    ultimo_log_str = "Primo accesso!"
-        except Exception:
-            pass
     oggi = datetime.date.today()
     un_anno_fa = oggi - datetime.timedelta(days=365)
     frequenze = {}
@@ -72,10 +59,21 @@ def html_form(self):
     entrate_mese = 0.0
     uscite_mese = 0.0
     movimenti_mese_corrente = []
+    try:
+        _agganci_m = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
+    except Exception:
+        _agganci_m = {}
+    _uso_ordinale_m = {}
     for d, lista in self.spese.items():
         if d.month == oggi.month and d.year == oggi.year:
             for voce in lista:
                 cat, desc, importo, tipo = voce[:4]
+                _conto_m = campo(voce, "conto", "")
+                if not _conto_m:
+                    try:
+                        _conto_m = conto_da_mappa(_agganci_m, _uso_ordinale_m, d.strftime("%d-%m-%Y"), importo, tipo or "Uscita")
+                    except Exception:
+                        _conto_m = ""
                 if not cat or cat == "Categoria Rimossa" or cat not in self.categorie:
                     continue
                 if tipo == "Entrata": entrate_mese += importo
@@ -85,7 +83,11 @@ def html_form(self):
                     "cat": cat,
                     "desc": desc,
                     "imp": importo,
-                    "tipo": tipo
+                    "tipo": tipo,
+                    "conto": _conto_m or "",
+                    "metodo": campo(voce, "metodo_pagamento", "") or "",
+                    "ora": campo(voce, "ora", "") or "",
+                    "tag": ", ".join(f"#{str(t).lstrip('#')}" for t in (campo(voce, "hashtag", []) or []) if t)
                 })
     movimenti_mese_corrente.sort(key=lambda x: x["data"], reverse=True)
     ultimi_movimenti_html = ""
@@ -96,16 +98,24 @@ def html_form(self):
             colore = "#4caf82" if mov["tipo"] == "Entrata" else "#e05a5a"
             segno = "+" if mov["tipo"] == "Entrata" else "-"
             data_str = mov["data"].strftime("%d/%m")
+            _parti_m = [f"{ico} {html.escape(str(mov[k]))}" for k, ico in (("conto", "🏦"), ("metodo", "💳"), ("ora", "🕒"), ("tag", "🏷️")) if mov.get(k)]
+            _meta_m = f'<div class="mov-desc" style="opacity:0.7; white-space:normal;">{" · ".join(_parti_m)}</div>' if _parti_m else ""
             ultimi_movimenti_html += f"""
             <div class="mov-item">
                 <div class="mov-left">
                     <div class="mov-date">{data_str}</div>
                     <div class="mov-cat">{mov["cat"]}</div>
                     <div class="mov-desc">{mov["desc"]}</div>
+                    {_meta_m}
                 </div>
                 <div class="mov-amount" style="color:{colore}">€ {segno}{_fmt_it(mov["imp"])}</div>
             </div>"""
     today = oggi.isoformat()
+    try:
+        if data_iniziale:
+            today = datetime.date.fromisoformat(str(data_iniziale)).isoformat()
+    except ValueError:
+        pass
     anno_corrente = oggi.year
     categorie_options = "\n".join(
         f"<option value='{c}'>{c}</option>"
@@ -136,6 +146,7 @@ def html_form(self):
     except Exception:
         conti_options = ""
         mostra_conto_stile = "none"
+    metodo_options = "\n".join(f'<option value="{m}">{m}</option>' for m in METODI_PAGAMENTO)
     return f"""<!DOCTYPE html>
 <html>
 <head>
@@ -188,11 +199,6 @@ def html_form(self):
         font-family: 'DM Sans', sans-serif; font-size: 0.95em; font-weight: 700;
         letter-spacing: 0.5px; color: var(--text); text-align: center; line-height: 1.3;
     }}
-    .header-sub {{
-        font-size: 0.6em; color: var(--text-dim); font-weight: 400; letter-spacing: 2px;
-        text-transform: uppercase; margin-top: 2px; cursor: pointer; transition: color 0.2s; text-align: center;
-    }}
-    .header-sub:hover {{ color: var(--blue); }}
     .theme-toggle {{
         position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
         background: var(--surface3); border: 1px solid var(--border);
@@ -397,38 +403,64 @@ def html_form(self):
 <header>
     <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
+        <a href="/">🏠 Home</a>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗓️ Movimenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
-                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/calendario_web">🗓️ Calendario</a>
+                <a href="/inserisci">➕ Aggiungi Operazione</a>
                 <a href="/lista">📈 Gestione Movimenti Mese</a>
-                <a href="/stats">📊 Bilancio Mese</a>
-                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/menu_esplora">🔍 Esplora e Cerca</a>
+                <a href="/ricorrenze_web">🔁 Ricorrenze</a>
                 <a href="/scadenze_web">📅 Scadenze del Mese</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>📊 Statistiche</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/grafici_web">📉 Grafici e Statistiche</a>
                 <a href="/fairshare_web">⚖️ FairShare</a>
-                <a href="/menu_esplora">🔍 Esplora</a>
-                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/community_pool_web">🤝 CommunityPool</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏦 Portafoglio</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
+                <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏠 Casa</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
-                <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+                <a href="/consultazione_supermercati">🛒 Supermercati</a>
                 <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
+                <a href="/immobili_web">🏢 ImmoBil (Immobili)</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🌿 Vita</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/promemoria_web">🔔 Promemoria</a>
+                <a href="/autopark_web">🚗 AutoPark (Veicoli)</a>
+                <a href="/petcare_web">🐾 PetCare (Animali)</a>
+                <a href="/dieta_web">🥗 Dieta</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗄️ Documenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+                <a href="/documenti_personali_web">🗂️ Documenti Personali</a>
+                <a href="/chiedi_ia_web">🤖 Chiedi al Database</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🛠️ Strumenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/info_sys_web">📡 Monitor Server</a>
                 <a href="/cambia_pw_web">🔑 Cambia Password</a>
@@ -440,7 +472,6 @@ def html_form(self):
     </div>
     <div>
         <div class="header-title">🏠 Inserisci Operazione</div>
-        <div class="header-sub" id="user-badge" onclick="mostraLog()">👤 {folder}</div>
     </div>
     <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Cambia tema">🌙</button>
 </header>
@@ -527,9 +558,20 @@ def html_form(self):
             <div class="form-group" id="conto_group" style="display:{mostra_conto_stile}">
                 <label>Conto</label>
                 <select name="conto" id="conto_select">
-                    <option value="">(nessuno)</option>
+                    <option value="">— Nessuno —</option>
                     {conti_options}
                 </select>
+            </div>
+            <div class="form-group">
+                <label>Metodo</label>
+                <select name="metodo">
+                    <option value="">— Nessuno —</option>
+                    {metodo_options}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Tag</label>
+                <input name="hashtag" placeholder="#casa #vacanza">
             </div>
             <button type="submit" class="btn-submit" style="position:sticky; bottom:16px; box-shadow:0 4px 20px rgba(0,0,0,0.4);">➕ Aggiungi Movimento</button>
         </form>
@@ -749,27 +791,6 @@ def html_form(self):
             }}
         }}
     }}
-    function mostraLog() {{
-        const badge = document.getElementById('user-badge');
-        const originale = "PER· {folder}";
-        const dataLog = "🕒 {ultimo_log_str}";
-        if (badge.innerText.toUpperCase().includes("{folder}".toUpperCase())) {{
-            badge.style.opacity = "0";
-            setTimeout(() => {{
-                badge.innerText = dataLog;
-                badge.style.color = "var(--blue)";
-                badge.style.opacity = "1";
-            }}, 200);
-            setTimeout(() => {{
-                badge.style.opacity = "0";
-                setTimeout(() => {{
-                    badge.innerText = originale;
-                    badge.style.color = "";
-                    badge.style.opacity = "1";
-                }}, 200);
-            }}, 3000);
-        }}
-    }}
     let formInAttesa = null;
     function rispostaModal(procedi) {{
         document.getElementById("customConfirm").style.display = "none";
@@ -925,6 +946,8 @@ def pagina_risultati_avanzati(self, params):
     min_importo = float(params.get("min_importo", ["0"])[0] or 0)
     max_importo = float(params.get("max_importo", ["999999"])[0] or 999999)
     query = params.get("q", [""])[0].strip().lower()
+    metodo_filtro = params.get("metodo", [""])[0].strip().lower()
+    tag_filtri = [t.strip().lstrip("#").lower() for t in params.get("tag", [""])[0].replace(",", " ").split() if t.strip().lstrip("#")]
     from urllib.parse import urlencode
     _query_originale = urlencode({
         k: v[0] for k, v in params.items() if v and v[0]
@@ -960,14 +983,24 @@ def pagina_risultati_avanzati(self, params):
                 nome_conto_voce = conto_da_mappa(_agganci_r, _uso_ordinale_r, data.strftime("%d-%m-%Y"), importo, tipo_voce or "Uscita")
             if conto_filtro and nome_conto_voce != conto_filtro:
                 continue
+            if metodo_filtro and (campo(voce, "metodo_pagamento", "") or "").strip().lower() != metodo_filtro:
+                continue
+            if tag_filtri:
+                _tag_voce = [str(t).lstrip("#").lower() for t in (campo(voce, "hashtag", []) or []) if t]
+                if not all(any(tf in tv for tv in _tag_voce) for tf in tag_filtri):
+                    continue
             risultati_categorizzati[cat].append({
                 "data": data.strftime("%d-%m-%Y"),
                 "desc": html_escape.escape(descrizione),
                 "imp": float(importo),
                 "tipo": tipo_voce.strip(),
                 "idx": idx_voce,
+                "sid": campo(voce, "id_spesa", "") or "",
                 "cat": cat,
-                "conto": nome_conto_voce
+                "conto": nome_conto_voce,
+                "metodo": campo(voce, "metodo_pagamento", "") or "",
+                "ora": campo(voce, "ora", "") or "",
+                "tag": ", ".join(f"#{str(t).lstrip('#')}" for t in (campo(voce, "hashtag", []) or []) if t)
             })
     entrate_totali = sum(v["imp"] for vlist in risultati_categorizzati.values() for v in vlist if v["tipo"].lower() == "entrata")
     uscite_totali = sum(v["imp"] for vlist in risultati_categorizzati.values() for v in vlist if v["tipo"].lower() != "entrata")
@@ -991,11 +1024,12 @@ def pagina_risultati_avanzati(self, params):
                     <form method="get" action="/modifica" style="display:inline;">
                         <input type="hidden" name="data" value="{v['data']}">
                         <input type="hidden" name="idx" value="{v['idx']}">
+                        <input type="hidden" name="sid" value="{html_escape.escape(str(v['sid']))}">
                         <input type="hidden" name="from" value="{html_escape.escape(provenienza_con_filtri)}">
                         <button type="submit" class="btn-action btn-edit">✏️</button>
                     </form>
                     <button type="button" class="btn-action btn-delete"
-                        onclick="apriModal('{v['data']}', '{v['idx']}', '{_cat_js}', '{_fmt_it(v['imp'])}', {'1' if 'ALL·' in v['desc'] else '0'})">❌</button>
+                        onclick="apriModal('{v['data']}', '{v['idx']}', '{_cat_js}', '{_fmt_it(v['imp'])}', {'1' if 'ALL·' in v['desc'] else '0'}, '{html_escape.escape(str(v['sid']))}')">❌</button>
                     <span class="voce-data">{v['data']}</span>
                 </div>
                 <div class="voce-body">
@@ -1003,6 +1037,9 @@ def pagina_risultati_avanzati(self, params):
                     <span class="voce-tipo" style="color:{colore_tipo}">{v['tipo']}</span>
                     <div class="voce-desc">{v['desc']}</div>
                     {f'<div class="voce-desc" style="opacity:0.7;">🏦 {html_escape.escape(v["conto"])}</div>' if v.get('conto') else ''}
+                    {f'<div class="voce-desc" style="opacity:0.7;">💳 {html_escape.escape(v["metodo"])}</div>' if v.get('metodo') else ''}
+                    {f'<div class="voce-desc" style="opacity:0.7;">🕒 {html_escape.escape(v["ora"])}</div>' if v.get('ora') else ''}
+                    {f'<div class="voce-desc" style="opacity:0.7;">🏷️ {html_escape.escape(v["tag"])}</div>' if v.get('tag') else ''}
                 </div>
             </li>"""
         schede_html += f"""
@@ -1176,38 +1213,64 @@ def pagina_risultati_avanzati(self, params):
 <header>
     <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
+        <a href="/">🏠 Home</a>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗓️ Movimenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
-                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/calendario_web">🗓️ Calendario</a>
+                <a href="/inserisci">➕ Aggiungi Operazione</a>
                 <a href="/lista">📈 Gestione Movimenti Mese</a>
-                <a href="/stats">📊 Bilancio Mese</a>
-                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/menu_esplora">🔍 Esplora e Cerca</a>
+                <a href="/ricorrenze_web">🔁 Ricorrenze</a>
                 <a href="/scadenze_web">📅 Scadenze del Mese</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>📊 Statistiche</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/grafici_web">📉 Grafici e Statistiche</a>
                 <a href="/fairshare_web">⚖️ FairShare</a>
-                <a href="/menu_esplora">🔍 Esplora</a>
-                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/community_pool_web">🤝 CommunityPool</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏦 Portafoglio</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
+                <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏠 Casa</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
-                <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
-                <a href="/magazzino_web">📦 StockBox (magazzino)</a>
+                <a href="/consultazione_supermercati">🛒 Supermercati</a>
+                <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
+                <a href="/immobili_web">🏢 ImmoBil (Immobili)</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🌿 Vita</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/promemoria_web">🔔 Promemoria</a>
+                <a href="/autopark_web">🚗 AutoPark (Veicoli)</a>
+                <a href="/petcare_web">🐾 PetCare (Animali)</a>
+                <a href="/dieta_web">🥗 Dieta</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗄️ Documenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+                <a href="/documenti_personali_web">🗂️ Documenti Personali</a>
+                <a href="/chiedi_ia_web">🤖 Chiedi al Database</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🛠️ Strumenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/info_sys_web">📡 Monitor Server</a>
                 <a href="/cambia_pw_web">🔑 Cambia Password</a>
@@ -1243,9 +1306,6 @@ def pagina_risultati_avanzati(self, params):
         <form method="get" action="/menu_esplora">
             <button type="submit" class="btn-nav btn-gold">🔙 Torna al Menu Esplora</button>
         </form>
-        <form method="get" action="/">
-            <button type="submit" class="btn-nav btn-outline">🏠 Torna alla Home</button>
-        </form>
     </div>
 </main>
 <script>
@@ -1261,9 +1321,9 @@ def pagina_risultati_avanzati(self, params):
         applyTheme(next);
     }}
     applyTheme(localStorage.getItem('theme') || 'dark');
-    let dData = null, dIdx = null, dHaPdf = false;
-    function apriModal(data, idx, cat, imp, ha_pdf) {{
-        dData = data; dIdx = idx; dHaPdf = (ha_pdf === '1' || ha_pdf === 1);
+    let dData = null, dIdx = null, dSid = '', dHaPdf = false;
+    function apriModal(data, idx, cat, imp, ha_pdf, sid) {{
+        dData = data; dIdx = idx; dSid = sid || ''; dHaPdf = (ha_pdf === '1' || ha_pdf === 1);
         document.getElementById("modalText").innerHTML = "Eliminare <b>" + cat + "</b> — <b>€ " + imp + "</b>?";
         document.getElementById("deleteModal").style.display = "flex";
     }}
@@ -1281,7 +1341,7 @@ def pagina_risultati_avanzati(self, params):
         fetch('/cancella', {{
             method: 'POST',
             headers: {{ 'Content-Type': 'application/x-www-form-urlencoded' }},
-            body: 'data=' + encodeURIComponent(dData) + '&idx=' + encodeURIComponent(dIdx) + '&elimina_pdf=' + elimina_pdf
+            body: 'data=' + encodeURIComponent(dData) + '&idx=' + encodeURIComponent(dIdx) + '&sid=' + encodeURIComponent(dSid) + '&elimina_pdf=' + elimina_pdf
         }}).then(() => window.location.reload());
     }}
     function toggleNavGroup(btn, ev) {{
@@ -1324,10 +1384,14 @@ def modifica_voce_form(self, params):
     from datetime import datetime
     data_str = params.get("data", [""])[0]
     idx = int(params.get("idx", ["0"])[0])
+    sid = params.get("sid", [""])[0]
     provenienza = params.get("from", ["/lista"])[0]
     d_obj = datetime.strptime(data_str, "%d-%m-%Y").date()
     data_html = d_obj.strftime("%Y-%m-%d")
-    if d_obj not in self.spese or idx >= len(self.spese[d_obj]):
+    _idx_ris = self._idx_da_id(d_obj, idx, sid) if d_obj in self.spese else None
+    if _idx_ris is not None:
+        idx = _idx_ris
+    if d_obj not in self.spese or _idx_ris is None:
         return f"""<!DOCTYPE html><html><head><meta charset="utf-8">
         <meta http-equiv="refresh" content="2;url={provenienza}">
         <title>Errore</title></head><body style="background:#050505;color:#e05a5a;font-family:sans-serif;padding:2rem;">
@@ -1345,25 +1409,26 @@ def modifica_voce_form(self, params):
         except Exception:
             _conto_corrente = ""
     if not _conto_corrente:
-        _conto_corrente = "(nessuno)"
+        _conto_corrente = "— Nessuno —"
     try:
         with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as _pf:
             _db_portaf_m = json.load(_pf)
         _conti_lista_m = _db_portaf_m.get("conti", [])
-        conti_options_mod = '<option value="">(nessuno)</option>\n' + "\n".join(
+        conti_options_mod = '<option value="">— Nessuno —</option>\n' + "\n".join(
             f'<option value="{c.get("nome","")}" {"selected" if c.get("nome","") == _conto_corrente else ""}>'
             f'{c.get("nome","")}\u2002(\u20ac {_fmt_it(_saldo_effettivo_web(self, c, _db_portaf_m))})</option>'
             for c in _conti_lista_m
         )
         mostra_conto_mod = "block" if _conti_lista_m else "none"
     except Exception:
-        conti_options_mod = '<option value="">(nessuno)</option>'
+        conti_options_mod = '<option value="">— Nessuno —</option>'
         mostra_conto_mod = "none"
     _metodo_corrente = campo(voce, "metodo_pagamento", "")
-    metodo_options_mod = '<option value="">— (nessuno)</option>\n' + "\n".join(
+    metodo_options_mod = '<option value="">— Nessuno —</option>\n' + "\n".join(
         f'<option value="{m}" {"selected" if m == _metodo_corrente else ""}>{m}</option>'
         for m in METODI_PAGAMENTO
     )
+    _tag_corrente = " ".join(campo(voce, "hashtag", []) or [])
     return f"""<!DOCTYPE html>
 <html>
 <head>
@@ -1471,6 +1536,7 @@ def modifica_voce_form(self, params):
         <form method="post" action="/salva_modifica">
             <input type="hidden" name="vecchia_data" value="{data_str}">
             <input type="hidden" name="vecchio_idx" value="{idx}">
+            <input type="hidden" name="vecchio_sid" value="{html.escape(str(campo(voce, 'id_spesa', '') or ''))}">
             <input type="hidden" name="provenienza" value="{html.escape(provenienza)}">
 
             <div class="form-row">
@@ -1514,6 +1580,11 @@ def modifica_voce_form(self, params):
                 <select name="metodo">
                     {metodo_options_mod}
                 </select>
+            </div>
+
+            <div class="form-group">
+                <label>Tag</label>
+                <input name="hashtag" type="text" value="{html.escape(_tag_corrente)}" placeholder="#casa #vacanza">
             </div>
 
             <button type="submit" class="btn-save">💾 Salva Modifiche</button>
@@ -1623,7 +1694,7 @@ def analizza_pdf_web(self, pdf_bytes, filename_originale="documento.pdf"):
     if CATEGORIA_PDF not in self.categorie:
         self.categorie.append(CATEGORIA_PDF)
         self.categorie_tipi[CATEGORIA_PDF] = "Uscita"
-        self.aggiorna_combobox_categorie()
+        self.after(0, self.aggiorna_combobox_categorie)
     if not os.path.exists(DOC_DIR):
         os.makedirs(DOC_DIR)
     client = genai_client.Client(api_key=API_KEY)

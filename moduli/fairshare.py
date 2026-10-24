@@ -367,6 +367,8 @@ def _debito_da_voce(self, data_obj, voce, ctx):
         "creditore":      creditore,
         "partecipanti":   parti,
         "pagamenti":      pagamenti,
+        "ora":            campo(voce, "ora", ""),
+        "hashtag":        list(campo(voce, "hashtag", []) or []),
     }
     _stato_debito(deb)
     return voce, deb
@@ -684,6 +686,8 @@ def mostra_riepilogo_fairshare_periodo(self):
                 "data": d_obj.strftime("%d-%m-%Y"),
                 "categoria": deb.get("categoria", ""),
                 "importo": imp,
+                "ora": deb.get("ora", ""),
+                "hashtag": deb.get("hashtag", []),
                 "_righe_extra": _extra_a,
             }
             for nome in parti:

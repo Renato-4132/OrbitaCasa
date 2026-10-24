@@ -110,7 +110,7 @@ def apri_schedulatore(self):
     self._win_scheduler = win
     win.transient(self)
     win.withdraw()
-    win.title("Schedulatore Notifiche Email — OrbitaCasa")
+    win.title(f"Schedulatore Notifiche Email — {_app.NAME}")
     win.configure(bg=self.COLOR_TOPLEVEL)
     win.resizable(True, True)
     W, H = 1200, 600
@@ -754,7 +754,7 @@ def _esegui_scheduler(self):
                         else:
                             ie = False
                     elif t == "promemoria_libero":
-                        nota_testo = tk_task.get('note', 'Promemoria schedulato da OrbitaCasa.')
+                        nota_testo = tk_task.get('note', f'Promemoria schedulato da {_app.NAME}.')
                         data_oggi = datetime.date.today().strftime('%d/%m/%Y')
                         corpo_mail = (
                             f"\n"
@@ -850,6 +850,7 @@ def _genera_testo_riepilogo_cronologico(self, frequenza_tipo, conto_filtro=None)
     return "\n".join(lines)
 
 def _genera_testo_ricorrenti_mancanti(self):
+    import __main__ as _app
     oggi = datetime.date.today()
     data_oggi = oggi.strftime('%d/%m/%Y')
     mancanti = self._ottieni_categorie_ricorrenti_mancanti()
@@ -871,7 +872,7 @@ def _genera_testo_ricorrenti_mancanti(self):
             lines.append(f"    📌 {cat}")
         lines.append("")
         lines.append("┈" * 30)
-        lines.append("Controlla la tua contabilità su OrbitaCasa se hai")
+        lines.append(f"Controlla la tua contabilità su {_app.NAME} se hai")
         lines.append("dimenticato di segnare queste scadenze.")
     else:
         lines.append("🟩 Tutto sotto controllo!")
@@ -881,6 +882,7 @@ def _genera_testo_ricorrenti_mancanti(self):
     return "\n".join(lines)
 
 def _genera_testo_scadenze_veicoli(self, soglia_giorni=30):
+    import __main__ as _app
     oggi = datetime.date.today()
     data_oggi = oggi.strftime('%d/%m/%Y')
     db = self._veicoli_carica()
@@ -931,7 +933,7 @@ def _genera_testo_scadenze_veicoli(self, soglia_giorni=30):
             lines.append(f"       {testo_gg} ({data_str})")
         lines.append("")
     lines.append("┈" * 30)
-    lines.append("Controlla la sezione Veicoli su OrbitaCasa per i dettagli")
+    lines.append(f"Controlla la sezione Veicoli su {_app.NAME} per i dettagli")
     lines.append("e per rinnovare le scadenze in tempo.")
     lines.append("")
     lines.append(f"📊 Report generato il {data_oggi}.")
@@ -996,6 +998,7 @@ def _genera_testo_scadenze_animali(self, soglia_giorni=30):
     return "\n".join(lines)
 
 def _genera_testo_scadenze_manutenzione_casa(self, soglia_giorni=30):
+    import __main__ as _app
     oggi = datetime.date.today()
     data_oggi = oggi.strftime('%d/%m/%Y')
     db = self._manutenzione_carica()
@@ -1045,7 +1048,7 @@ def _genera_testo_scadenze_manutenzione_casa(self, soglia_giorni=30):
             lines.append(f"{testo_gg} ({data_str})")
         lines.append("")
     lines.append("┈" * 30)
-    lines.append("Controlla la sezione CasaCare su OrbitaCasa per i dettagli")
+    lines.append(f"Controlla la sezione CasaCare su {_app.NAME} per i dettagli")
     lines.append("e per segnare le attività come eseguite in tempo.")
     lines.append("")
     lines.append(f"📊 Report generato il {data_oggi}.")
@@ -1462,7 +1465,7 @@ def _invia_email_scheduler(self, nome, corpo, destinatario):
         from email.mime.text import MIMEText
         from email.mime.multipart import MIMEMultipart
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = f"⏰ OrbitaCasa — {nome}"
+        msg["Subject"] = f"⏰ {_app.NAME} — {nome}"
         msg["From"] = EMAIL_USER
         msg["To"] = destinatario
         msg.attach(MIMEText(corpo, "plain", "utf-8"))

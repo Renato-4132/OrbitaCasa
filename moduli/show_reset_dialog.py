@@ -214,7 +214,7 @@ def _elenco_file_variabili(_app):
             ("CommunityPool - Novità viste", "Data dell'ultimo accesso al CommunityPool: azzerandola, le novità ripartono da zero (communitypool_visto.json)", os.path.join(DB_DIR, "communitypool_visto.json"), False),
             ("Profilo Utente Dieta",         "Utente attivo selezionato nel modulo Dieta (utente_attivo.json)", os.path.join(DB_DIR, "utente_attivo.json"), False),
             ("Profili Dieta Salvati",        "Cartella con i profili utente del modulo Dieta", os.path.join(DB_DIR, "utenti"), True),
-            ("Certificato SSL",              "Certificato/chiave HTTPS del server locale: si rigenera da sola al riavvio (cert.pem/key.pem)", os.path.join(DB_DIR, "cert.pem"), False),
+            ("Certificato SSL",              "Certificato/chiave HTTPS del server locale: si rigenera da sola al riavvio (cert.pem/key.pem)", _app.SSL_CERT, False),
         ])
     if BASE_DIR:
         voci.extend([

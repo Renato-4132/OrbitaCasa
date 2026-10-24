@@ -272,6 +272,8 @@ def immobil(self):
         self._immobil_win.focus_force()
         return
     db = self._immobil_carica()
+    self._immobil_db = db
+    self._immobil_refresh = {}
     win = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
     win.title("ImmoBil — Gestione Immobili")
     self._immobil_win = win
@@ -1068,6 +1070,34 @@ def _immobil_crea_tab(self, nb, imm, db, win):
              bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR,
              font=("Arial", 8, "italic")).pack(side=tk.LEFT, padx=(4, 0))
 
+    def _refresh_web(changed=None):
+        nonlocal riga_in_modifica
+        changed = set(changed or ())
+        for _d in (vars_ana,):
+            for _k, _var in _d.items():
+                if _k in changed:
+                    _nv = str(imm.get(_k, ""))
+                    if _k == "conto" and _nv not in cb_conto_imm["values"]:
+                        _nv = "(nessuno)"
+                    _var.set(_nv)
+        if "nome" in changed:
+            try:
+                nb.tab(tab, text=f"  {imm.get('nome','Immobile')}  ")
+            except Exception:
+                pass
+        cb_cat["values"] = cat_imm
+        if riga_in_modifica is not None:
+            _rid = riga_in_modifica.get("id")
+            _nuova = next((m for m in imm.get("spese", []) if m.get("id") == _rid), None)
+            if _nuova is None:
+                riga_in_modifica = None
+                btn_add.config(text=" Aggiungi" if img_add else "➕ Aggiungi")
+                v_desc.set(""); v_imp.set("")
+                self.show_toast("Il movimento in modifica è stato eliminato dal web.")
+            else:
+                riga_in_modifica = _nuova
+        _popola_tree()
+    getattr(self, "_immobil_refresh", {})[id(imm)] = _refresh_web
     _popola_tree()
     tree.selection_remove(tree.get_children())
 def _immobil_nuovo(self, db, nb, win):

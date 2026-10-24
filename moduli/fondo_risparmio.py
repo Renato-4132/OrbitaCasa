@@ -949,6 +949,27 @@ def apri_fondo_risparmio(self):
     _build_obiettivi()
     _build_trend()
     _build_emergenza()
+    def _refresh_web():
+        try:
+            with open(FR_FILE, "r", encoding="utf-8") as _f:
+                nuovo = json.load(_f)
+        except Exception:
+            return
+        if not isinstance(nuovo, dict) or not win.winfo_exists():
+            return
+        cambi = {k for k in set(nuovo) | set(fr_dati) if nuovo.get(k) != fr_dati.get(k)}
+        if not cambi:
+            return
+        fr_dati.clear()
+        fr_dati.update(nuovo)
+        if "obiettivo_annuale" in cambi:
+            _build_mensile()
+        if "obiettivi" in cambi:
+            _build_obiettivi()
+        if "fondo_attuale" in cambi:
+            _build_emergenza()
+    self._fondo_risparmio_refresh = _refresh_web
+    win.bind("<Destroy>", lambda e: setattr(self, "_fondo_risparmio_refresh", None) if e.widget is win else None, add="+")
     img_chiudi = self.icone_gui.get("chiudi")
     btn_chiudi = tk.Label(button_frame, compound="left",
                           image=img_chiudi,

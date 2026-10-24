@@ -213,38 +213,64 @@ def pagina_grafici_web(self, conto_filtro=""):
 <header>
     <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
+        <a href="/">🏠 Home</a>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗓️ Movimenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
-                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/calendario_web">🗓️ Calendario</a>
+                <a href="/inserisci">➕ Aggiungi Operazione</a>
                 <a href="/lista">📈 Gestione Movimenti Mese</a>
-                <a href="/stats">📊 Bilancio Mese</a>
-                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/menu_esplora">🔍 Esplora e Cerca</a>
+                <a href="/ricorrenze_web">🔁 Ricorrenze</a>
                 <a href="/scadenze_web">📅 Scadenze del Mese</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>📊 Statistiche</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/grafici_web">📉 Grafici e Statistiche</a>
                 <a href="/fairshare_web">⚖️ FairShare</a>
-                <a href="/menu_esplora">🔍 Esplora</a>
-                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/community_pool_web">🤝 CommunityPool</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏦 Portafoglio</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
+                <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏠 Casa</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/utenze?anno={anno_corrente_format}">💧 Utenze</a>
-                <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+                <a href="/consultazione_supermercati">🛒 Supermercati</a>
                 <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
+                <a href="/immobili_web">🏢 ImmoBil (Immobili)</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🌿 Vita</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/promemoria_web">🔔 Promemoria</a>
+                <a href="/autopark_web">🚗 AutoPark (Veicoli)</a>
+                <a href="/petcare_web">🐾 PetCare (Animali)</a>
+                <a href="/dieta_web">🥗 Dieta</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗄️ Documenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+                <a href="/documenti_personali_web">🗂️ Documenti Personali</a>
+                <a href="/chiedi_ia_web">🤖 Chiedi al Database</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🛠️ Strumenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/info_sys_web">📡 Monitor Server</a>
                 <a href="/cambia_pw_web">🔑 Cambia Password</a>
@@ -293,7 +319,6 @@ def pagina_grafici_web(self, conto_filtro=""):
         </div>
     </div>
 
-    <a href="/" class="btn-home">🏠 Torna alla Home</a>
 </main>
 <script>
     const chartInstances = {{}};
@@ -509,6 +534,24 @@ def html_scadenze_mese(self):
     ]
     mese_nome = mesi_italiani[mese_corrente - 1]
     righe = []
+
+    def _extra_voce(voce_ref, dati_ric=None):
+        if voce_ref is not None:
+            conto_x = campo(voce_ref, "conto", "") or ""
+            metodo_x = campo(voce_ref, "metodo_pagamento", "") or ""
+            ora_x = campo(voce_ref, "ora", "") or ""
+            tags_x = campo(voce_ref, "hashtag", []) or []
+        else:
+            d_ = dati_ric or {}
+            conto_x = d_.get("conto", "") or ""
+            metodo_x = d_.get("metodo_pagamento", "") or ""
+            ora_x = ""
+            tags_x = d_.get("hashtag", []) or []
+        if isinstance(tags_x, str):
+            tags_x = [tags_x]
+        return {"conto": conto_x, "metodo": metodo_x, "ora": ora_x,
+                "tag": ", ".join(f"#{str(t).lstrip('#')}" for t in tags_x if t)}
+
     for item_id, dati in self.ricorrenze.items():
         try:
             ric_type = dati.get("tipo", "").lower()
@@ -542,17 +585,20 @@ def html_scadenze_mese(self):
             for indice, data_movimento in date_nel_mese:
                 voce_trovata = False
                 importo_effettivo = importo_base
+                _voce_ref = None
                 if data_movimento in self.spese:
                     for voce in self.spese[data_movimento]:
                         if len(voce) >= 5 and voce[4] == item_id:
                             importo_effettivo = voce[2]
                             voce_trovata = True
+                            _voce_ref = voce
                             break
                 pagato = data_movimento <= oggi and voce_trovata
                 righe.append({
                     "data": data_movimento, "categoria": categoria, "descrizione": descrizione_base,
                     "importo": importo_effettivo, "tipo": tipo_voce, "scadenza_serie": data_fine_serie,
                     "pagato": pagato, "trovata": voce_trovata, "progressione": f"{indice}/{n}",
+                    "extra": _extra_voce(_voce_ref, dati),
                 })
         except Exception as e:
             print(f"Errore nella ricorrenza con ID {item_id}: {e}")
@@ -573,6 +619,7 @@ def html_scadenze_mese(self):
                             "data": data_voce, "categoria": categoria, "descrizione": descrizione,
                             "importo": importo, "tipo": tipo_voce, "scadenza_serie": data_voce.strftime("%d-%m-%Y"),
                             "pagato": data_voce <= oggi, "trovata": True, "progressione": "—",
+                            "extra": _extra_voce(voce),
                         })
                     except Exception as e:
                         print(f"Errore nella voce normale del {data_voce}: {e}")
@@ -587,6 +634,11 @@ def html_scadenze_mese(self):
             segno = "-" if r["tipo"].strip().lower() == "uscita" else "+"
             stato_icona = "✔️" if r["pagato"] else "❌"
             stato_testo = "Pagato" if r["pagato"] else "Da pagare"
+            _ex_s = r.get("extra", {})
+            badge_extra = "".join(
+                f'<span class="scad-badge">{ico} {__import__("html").escape(str(_ex_s[k]))}</span>'
+                for k, ico in (("conto", "🏦"), ("metodo", "💳"), ("ora", "🕒"), ("tag", "🏷️")) if _ex_s.get(k)
+            )
             valore_importo = f"{segno}€{_fmt_it(r['importo'])}" if r["trovata"] else "—"
             righe_html += f"""
             <div class="scad-item">
@@ -601,6 +653,7 @@ def html_scadenze_mese(self):
                         <span class="scad-badge">{stato_icona} {stato_testo}</span>
                         <span class="scad-badge">{r['progressione']}</span>
                         <span class="scad-badge">{r['tipo']}</span>
+                        {badge_extra}
                     </div>
                 </div>
             </div>"""
@@ -699,38 +752,64 @@ def html_scadenze_mese(self):
 <header>
     <button class="menu-btn" onclick="toggleMenu(event)">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
+        <a href="/">🏠 Home</a>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗓️ Movimenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
-                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/calendario_web">🗓️ Calendario</a>
+                <a href="/inserisci">➕ Aggiungi Operazione</a>
                 <a href="/lista">📈 Gestione Movimenti Mese</a>
-                <a href="/stats">📊 Bilancio Mese</a>
-                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/menu_esplora">🔍 Esplora e Cerca</a>
+                <a href="/ricorrenze_web">🔁 Ricorrenze</a>
                 <a href="/scadenze_web">📅 Scadenze del Mese</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>📊 Statistiche</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/grafici_web">📉 Grafici e Statistiche</a>
                 <a href="/fairshare_web">⚖️ FairShare</a>
-                <a href="/menu_esplora">🔍 Esplora</a>
-                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/community_pool_web">🤝 CommunityPool</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏦 Portafoglio</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
+                <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏠 Casa</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/utenze?anno={oggi.year}">💧 Utenze</a>
                 <a href="/consultazione_supermercati">🛒 Supermercati</a>
                 <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
+                <a href="/immobili_web">🏢 ImmoBil (Immobili)</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🌿 Vita</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/promemoria_web">🔔 Promemoria</a>
+                <a href="/autopark_web">🚗 AutoPark (Veicoli)</a>
+                <a href="/petcare_web">🐾 PetCare (Animali)</a>
+                <a href="/dieta_web">🥗 Dieta</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗄️ Documenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+                <a href="/documenti_personali_web">🗂️ Documenti Personali</a>
+                <a href="/chiedi_ia_web">🤖 Chiedi al Database</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🛠️ Strumenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/info_sys_web">📡 Monitor Server</a>
                 <a href="/cambia_pw_web">🔑 Cambia Password</a>
@@ -748,7 +827,6 @@ def html_scadenze_mese(self):
         <div class="summary-title">Scadenze di {mese_nome} {anno_corrente}</div>
     </div>
     {righe_html}
-    <a href="/" class="btn-home">🏠 Torna alla Home</a>
 </main>
 <script>
     function applyTheme(t) {{
@@ -865,6 +943,25 @@ def html_lista_spese_mensili(self, conto_filtro=""):
                 f'<div class="op-row"><span class="op-lbl">Conto</span><span>{nome_conto_voce}</span></div>'
                 if nome_conto_voce else ""
             )
+            import html as _html
+            _v_w = self.spese[d][idx]
+            _met_w = campo(_v_w, "metodo_pagamento", "") or ""
+            _ora_w = campo(_v_w, "ora", "") or ""
+            _tag_w = ", ".join(f"#{str(t).lstrip('#')}" for t in (campo(_v_w, "hashtag", []) or []) if t)
+            riga_metodo = (
+                f'<div class="op-row"><span class="op-lbl">Metodo</span><span>{_html.escape(str(_met_w))}</span></div>'
+                if _met_w else ""
+            )
+            riga_ora = (
+                f'<div class="op-row"><span class="op-lbl">Orario</span><span>{_html.escape(str(_ora_w))}</span></div>'
+                if _ora_w else ""
+            )
+            riga_tag = (
+                f'<div class="op-row"><span class="op-lbl">Tag</span><span>{_html.escape(_tag_w)}</span></div>'
+                if _tag_w else ""
+            )
+            _parti_l = [f"{ico} {_html.escape(str(v))}" for ico, v in (("🏦", nome_conto_voce), ("💳", _met_w), ("🕒", _ora_w), ("🏷️", _tag_w)) if v]
+            riga_meta = f'<div class="op-meta">{" · ".join(_parti_l)}</div>' if _parti_l else ""
             schede_html += f"""
             <div class="op-item">
                 <div class="op-summary" onclick="toggleVisibility('{details_id}', this)">
@@ -873,10 +970,14 @@ def html_lista_spese_mensili(self, conto_filtro=""):
                     <span class="op-cat">{cat}</span>
                     <span class="op-amt" style="color:{colore_imp};">€ {segno}{_fmt_it(imp)}</span>
                 </div>
+                {riga_meta}
                 <div id="{details_id}" class="op-details">
                     <div class="op-row"><span class="op-lbl">Tipo</span><span>{tipo}</span></div>
                     <div class="op-row"><span class="op-lbl">Dettaglio</span><span>{desc}</span></div>
                     {riga_conto}
+                    {riga_metodo}
+                    {riga_ora}
+                    {riga_tag}
                     <div class="op-row op-actions">
                         <form method="get" action="/modifica" style="flex:1;">
                             <input type="hidden" name="data" value="{data_str}">
@@ -974,6 +1075,7 @@ def html_lista_spese_mensili(self, conto_filtro=""):
     .op-date {{ color:var(--text-dim); font-size:0.75em; width:72px; flex-shrink:0; }}
     .op-cat {{ font-family:'DM Sans',sans-serif; font-weight:700; font-size:0.85em; flex:1; }}
     .op-amt {{ font-weight:700; font-size:0.9em; flex-shrink:0; }}
+    .op-meta {{ padding:0 14px 10px 14px; font-size:0.72em; color:var(--text-dim); }}
     .op-details {{ display:none; border-top:1px solid var(--border); padding:10px 14px; background:var(--surface2); }}
     .op-details.active {{ display:block; }}
     .op-row {{ display:flex; gap:8px; font-size:0.83em; margin-bottom:6px; }}
@@ -1010,38 +1112,64 @@ def html_lista_spese_mensili(self, conto_filtro=""):
 <header>
     <button class="menu-btn" onclick="toggleMenu(event)">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
+        <a href="/">🏠 Home</a>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗓️ Movimenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
-                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/calendario_web">🗓️ Calendario</a>
+                <a href="/inserisci">➕ Aggiungi Operazione</a>
                 <a href="/lista">📈 Gestione Movimenti Mese</a>
-                <a href="/stats">📊 Bilancio Mese</a>
-                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/menu_esplora">🔍 Esplora e Cerca</a>
+                <a href="/ricorrenze_web">🔁 Ricorrenze</a>
                 <a href="/scadenze_web">📅 Scadenze del Mese</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>📊 Statistiche</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/grafici_web">📉 Grafici e Statistiche</a>
                 <a href="/fairshare_web">⚖️ FairShare</a>
-                <a href="/menu_esplora">🔍 Esplora</a>
-                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/community_pool_web">🤝 CommunityPool</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏦 Portafoglio</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
+                <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏠 Casa</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/utenze?anno={oggi.year}">💧 Utenze</a>
                 <a href="/consultazione_supermercati">🛒 Supermercati</a>
                 <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
+                <a href="/immobili_web">🏢 ImmoBil (Immobili)</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🌿 Vita</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/promemoria_web">🔔 Promemoria</a>
+                <a href="/autopark_web">🚗 AutoPark (Veicoli)</a>
+                <a href="/petcare_web">🐾 PetCare (Animali)</a>
+                <a href="/dieta_web">🥗 Dieta</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗄️ Documenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+                <a href="/documenti_personali_web">🗂️ Documenti Personali</a>
+                <a href="/chiedi_ia_web">🤖 Chiedi al Database</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🛠️ Strumenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/info_sys_web">📡 Monitor Server</a>
                 <a href="/cambia_pw_web">🔑 Cambia Password</a>
@@ -1081,7 +1209,6 @@ def html_lista_spese_mensili(self, conto_filtro=""):
         </div>
     </div>
     {schede_html}
-    <a href="/" class="btn-home">🏠 Torna alla Home</a>
 </main>
 <div id="deleteModal" class="modal-overlay">
     <div class="modal-box">
@@ -1213,26 +1340,37 @@ def stats_mensili_html(self, conto_filtro=""):
         if d.month == oggi.month and d.year == oggi.year:
             for voce in voci:
                 categoria, descrizione, importo, tipo = voce[:4]
-                if conto_filtro:
-                    nome_conto_voce = campo(voce, "conto", "")
-                    if not nome_conto_voce:
-                        nome_conto_voce = conto_da_mappa(_agganci_s, _uso_ordinale_s, d.strftime("%d-%m-%Y"), importo, tipo or "Uscita")
-                    if nome_conto_voce != conto_filtro:
-                        continue
+                nome_conto_voce = campo(voce, "conto", "")
+                if not nome_conto_voce:
+                    nome_conto_voce = conto_da_mappa(_agganci_s, _uso_ordinale_s, d.strftime("%d-%m-%Y"), importo, tipo or "Uscita")
+                if conto_filtro and nome_conto_voce != conto_filtro:
+                    continue
+                _extra_det = {
+                    "conto": nome_conto_voce or "",
+                    "metodo": campo(voce, "metodo_pagamento", "") or "",
+                    "ora": campo(voce, "ora", "") or "",
+                    "tag": ", ".join(f"#{str(t).lstrip('#')}" for t in (campo(voce, "hashtag", []) or []) if t),
+                }
                 if tipo == "Entrata":
                     entrate += importo
                     entrate_categorie[categoria] = entrate_categorie.get(categoria, 0.0) + importo
-                    raw_entrate_dettaglio.setdefault(categoria, []).append((d, descrizione, importo))
+                    raw_entrate_dettaglio.setdefault(categoria, []).append((d, descrizione, importo, _extra_det))
                     entrate_count[categoria] = entrate_count.get(categoria, 0) + 1
                 else:
                     uscite += importo
                     uscite_categorie[categoria] = uscite_categorie.get(categoria, 0.0) + importo
-                    raw_uscite_dettaglio.setdefault(categoria, []).append((d, descrizione, importo))
+                    raw_uscite_dettaglio.setdefault(categoria, []).append((d, descrizione, importo, _extra_det))
                     uscite_count[categoria] = uscite_count.get(categoria, 0) + 1
     saldo = entrate - uscite
     saldo_colore = "#4caf82" if saldo >= 0 else "#e05a5a"
     meteo_saldo = "☀️" if saldo >= 0 else "🌧️"
     segno_saldo = "+" if saldo >= 0 else ""
+
+    import html as _h_st
+
+    def _riga_extra(ex):
+        parti = [f"{ico} {_h_st.escape(str(ex[k]))}" for k, ico in (("conto", "🏦"), ("metodo", "💳"), ("ora", "🕒"), ("tag", "🏷️")) if ex.get(k)]
+        return f'<small style="display:block;opacity:0.7;">{" · ".join(parti)}</small>' if parti else ""
 
     def genera_html_categorie(categorie_totals, raw_dettaglio, prefix, counts_dict):
         html_content = ""
@@ -1248,8 +1386,8 @@ def stats_mensili_html(self, conto_filtro=""):
             color_class = "amt-income" if prefix == "entrate" else "amt-expense"
             segno_cat = "+" if prefix == "entrate" else "-"
             dettaglio_items_html = ''.join(
-                f'<li class="det-item"><span class="det-text">{data.strftime("%d-%m-%Y")}{" — " + desc if desc else ""}</span><span class="det-amt {color_class}">€ {segno_cat}{_fmt_it(imp)}</span></li>'
-                for data, desc, imp, *_ in voci_dettaglio
+                f'<li class="det-item"><span class="det-text">{data.strftime("%d-%m-%Y")}{" — " + desc if desc else ""}{_riga_extra(ex)}</span><span class="det-amt {color_class}">€ {segno_cat}{_fmt_it(imp)}</span></li>'
+                for data, desc, imp, ex in voci_dettaglio
             )
             if not dettaglio_items_html:
                 dettaglio_items_html = '<li class="det-item" style="color:var(--text-dim)">Nessun dettaglio.</li>'
@@ -1396,38 +1534,64 @@ def stats_mensili_html(self, conto_filtro=""):
 <header>
     <button class="menu-btn" onclick="toggleMenu(event)">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
+        <a href="/">🏠 Home</a>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗓️ Movimenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
-                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/calendario_web">🗓️ Calendario</a>
+                <a href="/inserisci">➕ Aggiungi Operazione</a>
                 <a href="/lista">📈 Gestione Movimenti Mese</a>
-                <a href="/stats">📊 Bilancio Mese</a>
-                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/menu_esplora">🔍 Esplora e Cerca</a>
+                <a href="/ricorrenze_web">🔁 Ricorrenze</a>
                 <a href="/scadenze_web">📅 Scadenze del Mese</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>📊 Statistiche</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/grafici_web">📉 Grafici e Statistiche</a>
                 <a href="/fairshare_web">⚖️ FairShare</a>
-                <a href="/menu_esplora">🔍 Esplora</a>
-                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/community_pool_web">🤝 CommunityPool</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏦 Portafoglio</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
+                <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏠 Casa</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/utenze?anno={datetime.date.today().year}">💧 Utenze</a>
-                <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+                <a href="/consultazione_supermercati">🛒 Supermercati</a>
                 <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
+                <a href="/immobili_web">🏢 ImmoBil (Immobili)</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🌿 Vita</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/promemoria_web">🔔 Promemoria</a>
+                <a href="/autopark_web">🚗 AutoPark (Veicoli)</a>
+                <a href="/petcare_web">🐾 PetCare (Animali)</a>
+                <a href="/dieta_web">🥗 Dieta</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗄️ Documenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+                <a href="/documenti_personali_web">🗂️ Documenti Personali</a>
+                <a href="/chiedi_ia_web">🤖 Chiedi al Database</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🛠️ Strumenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/info_sys_web">📡 Monitor Server</a>
                 <a href="/cambia_pw_web">🔑 Cambia Password</a>
@@ -1480,7 +1644,6 @@ def stats_mensili_html(self, conto_filtro=""):
     <div id="entrateCatContent" class="collapsible-content">
         {categorie_entrate_html}
     </div>
-    <a href="/" class="btn-home">🏠 Torna alla Home</a>
 </main>
 <script>
     function applyTheme(t) {{

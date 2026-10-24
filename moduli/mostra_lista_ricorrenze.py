@@ -155,58 +155,62 @@ def mostra_lista_ricorrenze(self):
         tree.heading(col, text=col, command=lambda _col=col: self.treeview_sort_column(tree, _col, False))
         tree.column(col, width=larghezze[col], anchor="center")
     tree.pack(fill="both", expand=True)
-    tree._metodo_lookup = {}
-    bilancio_mensile = 0.0
-    conteggio_reale = {}
-    for data_key, voci in self.spese.items():
-        for voce in voci:
-            rid = campo(voce, "id_ricorrenza", None)
-            if rid and rid in self.ricorrenze:
-                entry = conteggio_reale.setdefault(rid, {"volte": 0, "importo": 0.0, "conto": ""})
-                entry["volte"] += 1
-                if not entry["conto"]:
-                    entry["conto"] = self._conto_effettivo(voce)
-                entry["importo"] += float(campo(voce, "importo", 0.0))
-    for i, (id_ricorrenza, dati) in enumerate(self.ricorrenze.items()):
-        cat = dati.get("cat", "Sconosciuta")
-        conto = dati.get("conto") or conteggio_reale.get(id_ricorrenza, {}).get("conto", "") or ""
-        metodo = dati.get("metodo_pagamento") or ""
-        tag_str = " ".join(dati.get("hashtag", []) or [])
-        tipo_voce = dati.get("tipo_voce", dati.get("tipo", "N/D"))
-        imp = dati.get("imp", 0.0)
-        n_volte = dati.get("n", 0)
-        ric_periodo = dati.get("tipo", "N/D")
-        data_inizio_str = dati.get("data_inizio", "N/D")
-        data_inizio_obj = parse_data(data_inizio_str)
-        data_fine = calcola_data_fine(data_inizio_obj, n_volte, ric_periodo)
-        importo_totale = imp * n_volte if isinstance(n_volte, int) else 0.0
-        reale = conteggio_reale.get(id_ricorrenza, {"volte": 0, "importo": 0.0})
-        volte_passate = min(reale["volte"], n_volte) if isinstance(n_volte, int) and n_volte > 0 else reale["volte"]
-        importo_gia_pagato = reale["importo"]
-        importo_rimasto = importo_totale - importo_gia_pagato
-        tag = "uscita" if tipo_voce == "Uscita" else "entrata"
-        values = (cat, conto, metodo, tag_str, tipo_voce, f"{_fmt_it(imp)} €", n_volte, volte_passate, data_inizio_str, data_fine, f"{_fmt_it(importo_totale)} €", f"{_fmt_it(importo_gia_pagato)} €", f"{_fmt_it(importo_rimasto)} €", id_ricorrenza)
-        tree.insert("", "end", iid=id_ricorrenza, values=values, tags=(tag,))
-        tree._metodo_lookup[id_ricorrenza] = {
-            "metodo": metodo,
-            "conto": conto,
-            "categoria": cat,
-            "importo": imp,
-            "hashtag": list(dati.get("hashtag", []) or []),
-            "id_ricorrenza": id_ricorrenza,
-            "_righe_extra": [
-                ("Tipo", str(tipo_voce)),
-                ("Durata", f"{n_volte} volte"),
-                ("Saldate", str(volte_passate)),
-                ("Inizio", str(data_inizio_str)),
-                ("Fine", str(data_fine)),
-                ("Importo totale", f"€ {_fmt_it(importo_totale)}"),
-                ("Contabilizzato", f"€ {_fmt_it(importo_gia_pagato)}"),
-                ("Residuo", f"€ {_fmt_it(importo_rimasto)}"),
-            ],
-        }
-        if ric_periodo.lower() == "ogni mese":
-            bilancio_mensile += imp if tipo_voce == "Entrata" else -imp
+    def popola():
+        tree.delete(*tree.get_children())
+        tree._metodo_lookup = {}
+        bilancio_mensile = 0.0
+        conteggio_reale = {}
+        for data_key, voci in self.spese.items():
+            for voce in voci:
+                rid = campo(voce, "id_ricorrenza", None)
+                if rid and rid in self.ricorrenze:
+                    entry = conteggio_reale.setdefault(rid, {"volte": 0, "importo": 0.0, "conto": ""})
+                    entry["volte"] += 1
+                    if not entry["conto"]:
+                        entry["conto"] = self._conto_effettivo(voce)
+                    entry["importo"] += float(campo(voce, "importo", 0.0))
+        for i, (id_ricorrenza, dati) in enumerate(self.ricorrenze.items()):
+            cat = dati.get("cat", "Sconosciuta")
+            conto = dati.get("conto") or conteggio_reale.get(id_ricorrenza, {}).get("conto", "") or ""
+            metodo = dati.get("metodo_pagamento") or ""
+            tag_str = " ".join(dati.get("hashtag", []) or [])
+            tipo_voce = dati.get("tipo_voce", dati.get("tipo", "N/D"))
+            imp = dati.get("imp", 0.0)
+            n_volte = dati.get("n", 0)
+            ric_periodo = dati.get("tipo", "N/D")
+            data_inizio_str = dati.get("data_inizio", "N/D")
+            data_inizio_obj = parse_data(data_inizio_str)
+            data_fine = calcola_data_fine(data_inizio_obj, n_volte, ric_periodo)
+            importo_totale = imp * n_volte if isinstance(n_volte, int) else 0.0
+            reale = conteggio_reale.get(id_ricorrenza, {"volte": 0, "importo": 0.0})
+            volte_passate = min(reale["volte"], n_volte) if isinstance(n_volte, int) and n_volte > 0 else reale["volte"]
+            importo_gia_pagato = reale["importo"]
+            importo_rimasto = importo_totale - importo_gia_pagato
+            tag = "uscita" if tipo_voce == "Uscita" else "entrata"
+            values = (cat, conto, metodo, tag_str, tipo_voce, f"{_fmt_it(imp)} €", n_volte, volte_passate, data_inizio_str, data_fine, f"{_fmt_it(importo_totale)} €", f"{_fmt_it(importo_gia_pagato)} €", f"{_fmt_it(importo_rimasto)} €", id_ricorrenza)
+            tree.insert("", "end", iid=id_ricorrenza, values=values, tags=(tag,))
+            tree._metodo_lookup[id_ricorrenza] = {
+                "metodo": metodo,
+                "conto": conto,
+                "categoria": cat,
+                "importo": imp,
+                "hashtag": list(dati.get("hashtag", []) or []),
+                "id_ricorrenza": id_ricorrenza,
+                "_righe_extra": [
+                    ("Tipo", str(tipo_voce)),
+                    ("Durata", f"{n_volte} volte"),
+                    ("Saldate", str(volte_passate)),
+                    ("Inizio", str(data_inizio_str)),
+                    ("Fine", str(data_fine)),
+                    ("Importo totale", f"€ {_fmt_it(importo_totale)}"),
+                    ("Contabilizzato", f"€ {_fmt_it(importo_gia_pagato)}"),
+                    ("Residuo", f"€ {_fmt_it(importo_rimasto)}"),
+                ],
+            }
+            if ric_periodo.lower() == "ogni mese":
+                bilancio_mensile += imp if tipo_voce == "Entrata" else -imp
+        return bilancio_mensile
+    bilancio_mensile = popola()
     tree.bind("<Double-1>", self.on_ricorrenza_double_click)
     self._bind_tooltip_metodo(tree, col_desc=0)
     summary_frame = ttk.Frame(main_frame, padding=(0, 10))
@@ -225,7 +229,8 @@ def mostra_lista_ricorrenze(self):
     self.lbl_hint_ricorrenze.pack(side="right", padx=5)
     bilancio_colore = "green" if bilancio_mensile >= 0 else "red"
     ttk.Label(summary_frame, text="Impatto Mensile Stimato (su base 'Mese'):", font=("Arial", 10)).pack(side="left")
-    ttk.Label(summary_frame, text=f"{_fmt_it(bilancio_mensile)} €", font=("Arial", 11, "bold"), foreground=bilancio_colore).pack(side="left", padx=5)
+    lbl_bilancio = ttk.Label(summary_frame, text=f"{_fmt_it(bilancio_mensile)} €", font=("Arial", 11, "bold"), foreground=bilancio_colore)
+    lbl_bilancio.pack(side="left", padx=5)
     button_frame = ttk.Frame(main_frame, padding=(0, 10))
     button_frame.pack(fill="x", expand=False)
     self.btn_cancella_ric = ttk.Label(
@@ -252,6 +257,20 @@ def mostra_lista_ricorrenze(self):
     self.btn_chiudi_ric.image = self.icone_gui.get("chiudi")
     self.btn_chiudi_ric.pack(side="right", padx=5)
     self.btn_chiudi_ric.bind("<Button-1>", lambda e: lista_window.after(50, destroy_window_and_cleanup))
+    def _refresh_da_modifica_esterna():
+        try:
+            sel = set(tree.selection())
+            pos = tree.yview()[0]
+            bil = popola()
+            presenti = [i for i in sel if tree.exists(i)]
+            if presenti:
+                tree.selection_set(presenti)
+            tree.yview_moveto(pos)
+            lbl_bilancio.config(text=f"{_fmt_it(bil)} €", foreground="green" if bil >= 0 else "red")
+        except tk.TclError:
+            pass
+    if hasattr(self, "registra_refresh_finestra"):
+        self.registra_refresh_finestra(lista_window, _refresh_da_modifica_esterna)
     lista_window.update_idletasks()
     lista_window.deiconify()
     lista_window.lift()

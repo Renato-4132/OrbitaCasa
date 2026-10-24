@@ -243,7 +243,7 @@ def export_month_detail(self):
             lines.append(f"{data_str:<11} {cat_mov:<18.18} {desc_mov:<38.38} {tipo_mov:<10} {imp_str:>11}  {conto_mov:<16.16} {metodo_mov:<14.14} {ora_mov:<8.8} {tag_mov:<18.18}")
         lines.append("─" * 146)
         lines.append(f"Totale movimenti: {len(tutti_movimenti)}\n")
-    lines.append(f"Report generato il {oggi.strftime('%d/%m/%Y')} da OrbitaCasa.\n")
+    lines.append(f"Report generato il {oggi.strftime('%d/%m/%Y')} da {_app.NAME}.\n")
     month_str = f"{month:02d}-{year}"
     filename = f"Riepilogo_Mese_{month_str}.txt"
     self.show_export_preview("\n".join(lines), default_filename=filename)

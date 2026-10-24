@@ -314,7 +314,12 @@ def _blocco_utenze(data, _fmt_it):
     return righe
 
 def _blocco_promemoria(data):
-    testo = (data or {}).get("promemoria", "") if isinstance(data, dict) else ""
+    try:
+        # testo rigenerato ogni volta, cosi' l'agenda non resta ferma all'ultimo salvataggio
+        from moduli.gestisci_promemoria import _carica as _pm_carica, _testo_riepilogo as _pm_testo
+        testo = _pm_testo(_pm_carica()[0])
+    except Exception:
+        testo = (data or {}).get("promemoria", "") if isinstance(data, dict) else ""
     testo = (testo or "").strip()
     if not testo:
         return []

@@ -232,6 +232,7 @@ def mostra_dare_avere(self):
                         chi_deve_a_chi.setdefault(chiave, 0.0)
                         chi_deve_a_chi[chiave] += quota
         righe.sort(key=lambda r: r[0])
+        _deb_per_key = {_d.get("_key"): _d for _d in _debiti_ref[0]}
         for _ri, r in enumerate(righe):
             (d_obj, data_str, cat, desc, imp, quota,
              nome, paid_ic, data_p, st_ic, tag, key, pagato) = r
@@ -247,6 +248,8 @@ def mostra_dare_avere(self):
                 "data": d_obj.strftime("%d-%m-%Y"),
                 "categoria": cat,
                 "importo": imp,
+                "ora": _deb_per_key.get(key, {}).get("ora", ""),
+                "hashtag": _deb_per_key.get(key, {}).get("hashtag", []),
                 "partecipante": nome,
                 "_righe_extra": [
                     ("Quota", f"€ {_fmt_it(quota)}"),

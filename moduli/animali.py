@@ -362,6 +362,8 @@ def animali(self):
         self._animali_win.focus_force()
         return
     db = self._animali_carica()
+    self._animali_db = db
+    self._animali_refresh = {}
     win = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
     win.title("Pet Care — Gestione Anagrafica e Spese")
     self._animali_win = win
@@ -1124,6 +1126,34 @@ def _animali_crea_tab(self, nb, a, db, win):
              bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR,
              font=("Arial", 8, "italic")).pack(side=tk.LEFT, padx=(4, 0))
 
+    def _refresh_web(changed=None):
+        nonlocal riga_in_modifica
+        changed = set(changed or ())
+        for _d in (vars_ana, vars_scad):
+            for _k, _var in _d.items():
+                if _k in changed:
+                    _nv = str(a.get(_k, ""))
+                    if _k in widgets_combo_ana and _nv not in widgets_combo_ana[_k]["values"]:
+                        _nv = "(nessuno)"
+                    _var.set(_nv)
+        if "nome" in changed:
+            try:
+                nb.tab(tab, text=f"  {a.get('nome','Profilo')}  ")
+            except Exception:
+                pass
+        cb_cat["values"] = cat_a
+        if riga_in_modifica is not None:
+            _rid = riga_in_modifica.get("id")
+            _nuova = next((m for m in a.get("movimenti", []) if m.get("id") == _rid), None)
+            if _nuova is None:
+                riga_in_modifica = None
+                btn_add.config(text=" Aggiungi" if img_add else "➕ Aggiungi")
+                v_desc.set(""); v_imp.set(""); v_peso.set(""); v_quantita.set("")
+                self.show_toast("Il movimento in modifica è stato eliminato dal web.")
+            else:
+                riga_in_modifica = _nuova
+        _popola_tree()
+    getattr(self, "_animali_refresh", {})[id(a)] = _refresh_web
     _popola_tree()
 
 def _animali_nuovo(self, db, nb, win):

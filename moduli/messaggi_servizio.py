@@ -129,6 +129,8 @@ def _badge_attivi(self):
         attivi.append("servizio")
     if getattr(self, "_pool_novita_pendenti", 0):
         attivi.append("pool")
+    if getattr(self, "_agenda_novita_pendenti", 0):
+        attivi.append("agenda")
     return attivi
 
 def _badge_disegna(self, tipo, acceso):
@@ -136,6 +138,9 @@ def _badge_disegna(self, tipo, acceso):
     if tipo == "pool":
         img = getattr(self, "_pool_img", None) if acceso else getattr(self, "_pool_img_dim", None)
         simbolo, col_on, col_off = "\U0001F465", "#00ACC1", "#004D56"
+    elif tipo == "agenda":
+        img = getattr(self, "_agenda_img", None) if acceso else getattr(self, "_agenda_img_dim", None)
+        simbolo, col_on, col_off = "\U0001F4C5", "#7CB342", "#33481A"
     else:
         img = getattr(self, "_busta_img", None) if acceso else getattr(self, "_busta_img_dim", None)
         simbolo, col_on, col_off = "\u2709", "#E65100", "#7A3300"
@@ -235,12 +240,17 @@ def click_logo_sidebar(self, event=None):
     tipo = getattr(self, "_badge_corrente", None)
     servizio = bool(getattr(self, "_messaggi_servizio_pendenti", []))
     pool = bool(getattr(self, "_pool_novita_pendenti", 0))
+    agenda = bool(getattr(self, "_agenda_novita_pendenti", 0))
     if tipo == "pool" and pool:
         self.apri_community_pool()
+    elif tipo == "agenda" and agenda:
+        self.gestisci_promemoria()
     elif servizio:
         self.mostra_messaggi_servizio()
     elif pool:
         self.apri_community_pool()
+    elif agenda:
+        self.gestisci_promemoria()
     else:
         self.mostra_piramide()
 

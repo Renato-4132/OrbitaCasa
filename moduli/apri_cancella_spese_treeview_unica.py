@@ -96,27 +96,34 @@ def apri_cancella_spese_treeview_unica(self):
         )
         response = self.show_custom_askyesno("Conferma Cancellazione", testo_messaggio)
         if not response: return
+        _lookup = getattr(self.spese_treeview, "_metodo_lookup", {}) or {}
+        ids_sel = set()
+        for _iid in self.selezionate_iid:
+            _idsp = (_lookup.get(_iid) or {}).get("id_spesa", "")
+            if _idsp:
+                ids_sel.add(str(_idsp))
+        if not ids_sel:
+            self.show_custom_warning("Attenzione", "Le spese selezionate non sono piu' disponibili. Riapri l'elenco e riprova.")
+            return
         spese_da_mantenere = {}
         self.spese_cancellate_tmp = {}
-        for giorno_obj in self.spese.keys():
-            giorno_interno = str(giorno_obj)
-            for indice, voce in enumerate(self.spese.get(giorno_obj, [])):
-                iid = f"{giorno_interno}_{indice}"
-                if iid in self.selezionate_iid:
-                    if giorno_obj not in self.spese_cancellate_tmp:
-                        self.spese_cancellate_tmp[giorno_obj] = []
-                    self.spese_cancellate_tmp[giorno_obj].append(voce)
+        for giorno_obj in list(self.spese.keys()):
+            spese_mantenute_giorno = []
+            for voce in self.spese.get(giorno_obj, []):
+                if str(campo(voce, "id_spesa", "")) in ids_sel:
+                    self.spese_cancellate_tmp.setdefault(giorno_obj, []).append(voce)
                     if hasattr(self, "elimina_piano_per_spesa"):
                         self.elimina_piano_per_spesa(campo(voce, "id_spesa", None))
-        for giorno_obj in self.spese.keys():
-            giorno_interno = str(giorno_obj)
-            spese_mantenute_giorno = []
-            for indice, voce in enumerate(self.spese.get(giorno_obj, [])):
-                iid = f"{giorno_interno}_{indice}"
-                if iid not in self.selezionate_iid:
+                else:
                     spese_mantenute_giorno.append(voce)
             if spese_mantenute_giorno:
                 spese_da_mantenere[giorno_obj] = spese_mantenute_giorno
+        num_selezionate = sum(len(v) for v in self.spese_cancellate_tmp.values())
+        if num_selezionate == 0:
+            self.selezionate_iid.clear()
+            popola_treeview_spese()
+            self.show_custom_warning("Attenzione", "Le spese selezionate erano gia' state modificate o eliminate dal web. Nessuna cancellazione eseguita.")
+            return
         self.spese = spese_da_mantenere
         self.selezionate_iid.clear()
         popola_treeview_spese()
@@ -655,6 +662,23 @@ def apri_cancella_spese_treeview_unica(self):
     aggiorna_stato_filtri() 
     popola_treeview_spese()
     sort_treeview_column(self.spese_treeview, "Giorno", True, data_type='date') 
+    def _refresh_da_modifica_esterna():
+        # Il web (o altro) ha cambiato le spese: rilegge l'elenco mantenendo la selezione per id_spesa
+        try:
+            lk = getattr(self.spese_treeview, "_metodo_lookup", {}) or {}
+            ids_sel = {str((lk.get(i) or {}).get("id_spesa", "")) for i in self.selezionate_iid}
+            ids_sel.discard("")
+            popola_treeview_spese()
+            lk = self.spese_treeview._metodo_lookup
+            self.selezionate_iid.clear()
+            for iid, info in lk.items():
+                if str(info.get("id_spesa", "")) in ids_sel:
+                    self.selezionate_iid.add(iid)
+            popola_treeview_spese()
+        except tk.TclError:
+            pass
+    if hasattr(self, "registra_refresh_finestra"):
+        self.registra_refresh_finestra(popup, _refresh_da_modifica_esterna)
     self._bind_tooltip_metodo(self.spese_treeview, col_desc=2)
     popup.wait_visibility()
     popup.grab_set()

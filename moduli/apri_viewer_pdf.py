@@ -304,7 +304,7 @@ def _apri_viewer_pdf(self, pdf_path):
             initialdir=EXPORT_FILES,
             defaultextension=".pdf",
             filetypes=[("PDF", "*.pdf")],
-            initialfile="Manuale_Orbita_Casa.pdf"
+            initialfile=f"Manuale_{NAME}.pdf"
         )
         if dest:
             import shutil
@@ -355,7 +355,7 @@ def scarica_manuale(self):
     try:
         response = requests.get(URL_PDF, timeout=15)
         response.raise_for_status()
-        temp_path = os.path.join(tempfile.gettempdir(), "manuale_Orbita_casa.pdf")
+        temp_path = os.path.join(tempfile.gettempdir(), f"manuale_{_app.NAME}.pdf")
         with open(temp_path, "wb") as f:
             f.write(response.content)
         self._apri_viewer_pdf(temp_path)

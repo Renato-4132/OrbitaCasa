@@ -101,6 +101,8 @@ def setup_sidebar(self):
     self._busta_img_dim = _carica_icona_scintille(self, nome="scadenze_B", alpha=0.3)
     self._pool_img = _carica_icona_scintille(self, nome="utenti_B")
     self._pool_img_dim = _carica_icona_scintille(self, nome="utenti_B", alpha=0.3)
+    self._agenda_img = _carica_icona_scintille(self, nome="promemoria_B")
+    self._agenda_img_dim = _carica_icona_scintille(self, nome="promemoria_B", alpha=0.3)
     self.lbl_logo = tk.Label(self.lbl_logo_container, bg=self.MENU_BG_DARK)
     if self._logo_img:
         self.lbl_logo.configure(image=self._logo_img)
@@ -115,7 +117,7 @@ def setup_sidebar(self):
     self.lbl_logo_testo.bind("<Button-1>", lambda e: self.mostra_piramide())
     from moduli.messaggi_servizio import _aggiorna_badge_messaggi_servizio, click_logo_sidebar
     self.lbl_logo.bind("<Button-1>", lambda e: click_logo_sidebar(self, e))
-    if getattr(self, "_messaggi_servizio_pendenti", []) or getattr(self, "_pool_novita_pendenti", 0):
+    if getattr(self, "_messaggi_servizio_pendenti", []) or getattr(self, "_pool_novita_pendenti", 0) or getattr(self, "_agenda_novita_pendenti", 0):
         _aggiorna_badge_messaggi_servizio(self)
     self._search_var = tk.StringVar()
     self._search_entry = tk.Entry(
@@ -212,7 +214,7 @@ def _crea_voce_sidebar(self, icon_key, testo, comando, icon_fallback="•"):
         l_icona.image = img  
     else: 
         l_icona.configure(text=icon_fallback, fg=self.MENU_FG_LIGHT) 
-    l_icona.pack(side="left", pady=12, padx=(13, 4))          
+    l_icona.pack(side="left", pady=9, padx=(13, 4))          
     l_testo = tk.Label(f, text=testo, font=("Arial", 9, "bold"), 
                        bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT) 
     l_testo.pack(side="left", padx=(2, 6)) 
@@ -223,14 +225,14 @@ def _crea_voce_sidebar(self, icon_key, testo, comando, icon_fallback="•"):
         f.config(bg=self.MENU_BG_DARK)
         l_icona.config(bg=self.MENU_BG_DARK)
         l_testo.config(bg=self.MENU_BG_DARK, fg=self.COLOR_HIGHLIGHT)
-        l_icona.pack_configure(pady=(8, 16))
-        f.after(120, lambda: l_icona.pack_configure(pady=12) if f.winfo_exists() else None)
+        l_icona.pack_configure(pady=(5, 13))
+        f.after(120, lambda: l_icona.pack_configure(pady=9) if f.winfo_exists() else None)
         
     def _on_leave(e):
         f.config(bg=self.MENU_BG_DARK)
         l_icona.config(bg=self.MENU_BG_DARK)
         l_testo.config(bg=self.MENU_BG_DARK, fg=self.MENU_FG_LIGHT)
-        l_icona.pack_configure(pady=12)
+        l_icona.pack_configure(pady=9)
     for w in (f, l_icona, l_testo):
         w.bind("<Enter>", _on_enter)
         w.bind("<Leave>", _on_leave)

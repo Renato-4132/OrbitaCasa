@@ -377,8 +377,8 @@ def registra_tutti_i_moduli(GestioneSpese):
     from moduli.stampa import anteprima_e_stampa_txt, _stampa_lista_diretta, stampa_pdf
     _registra(anteprima_e_stampa_txt, _stampa_lista_diretta, stampa_pdf)
     
-    from moduli.gestisci_promemoria import gestisci_promemoria
-    _registra(gestisci_promemoria)
+    from moduli.gestisci_promemoria import gestisci_promemoria, avvisi_agenda
+    _registra(gestisci_promemoria, avvisi_agenda)
     
     from moduli.avvia_tutorial import _avvia_tutorial
     _registra(_avvia_tutorial)
@@ -457,6 +457,29 @@ def registra_tutti_i_moduli(GestioneSpese):
         magazzino_web_scorte, magazzino_web_riordino,)
     _registra(pagina_magazzino_web, magazzino_web_cerca, magazzino_web_movimento, magazzino_web_nuovo,
               magazzino_web_scorte, magazzino_web_riordino)
+    from moduli.web_promemoria import (
+        pagina_promemoria_web, promemoria_web_elenco, promemoria_web_salva,
+        promemoria_web_fatto, promemoria_web_elimina, promemoria_web_posticipa,)
+    _registra(pagina_promemoria_web, promemoria_web_elenco, promemoria_web_salva,
+              promemoria_web_fatto, promemoria_web_elimina, promemoria_web_posticipa)
+    from moduli.web_finanziamenti import (pagina_finanziamenti_web, finanziamenti_web_calcola,)
+    _registra(pagina_finanziamenti_web, finanziamenti_web_calcola)
+    from moduli.web_ricorrenze import (
+        pagina_ricorrenze_web, ricorrenze_web_elenco, ricorrenze_web_dettaglio,
+        ricorrenze_web_crea, ricorrenze_web_elimina,)
+    _registra(pagina_ricorrenze_web, ricorrenze_web_elenco, ricorrenze_web_dettaglio,
+              ricorrenze_web_crea, ricorrenze_web_elimina)
+    from moduli.web_schede import (pagina_schede_web, schede_web_api,)
+    _registra(pagina_schede_web, schede_web_api)
+    from moduli.web_dieta import (
+        pagina_dieta_web, dieta_web_dati, dieta_web_alimenti, dieta_web_alimento_custom,
+        dieta_web_giorno, dieta_web_peso, dieta_web_passi, dieta_web_fabb,)
+    _registra(pagina_dieta_web, dieta_web_dati, dieta_web_alimenti, dieta_web_alimento_custom,
+              dieta_web_giorno, dieta_web_peso, dieta_web_passi, dieta_web_fabb)
+    from moduli.web_home import (pagina_home_web, pagina_calendario_web, calendario_web_mese,)
+    _registra(pagina_home_web, pagina_calendario_web, calendario_web_mese)
+    from moduli.web_chiedi_ia import (pagina_chiedi_ia_web, chiedi_ia_web_risposta,)
+    _registra(pagina_chiedi_ia_web, chiedi_ia_web_risposta)
     _registra(apri_webserver, _crea_flask_app, start_web_server, html_login, 
     html_cambia_pw_web, html_log_web, pagina_risultati_avanzati, html_info_sys, 
     html_form, html_saluto, html_fairshare_web, documenti_pdf_web, documenti_personali_web, 
@@ -469,7 +492,9 @@ def registra_tutti_i_moduli(GestioneSpese):
     get_dati_entrate_uscite_json, get_dati_saldo_json, esegui_switch_profilo_web, pagina_cambia_profilo_web,
     pagina_switch_in_corso_web, pagina_portafoglio_web, salva_conto_web, elimina_conto_web,
     salva_trasferimento_web, elimina_trasferimento_web, refresh_portafoglio_web)
-
+    from moduli.web_community_pool import (
+        pagina_community_pool_web, community_pool_web_dati, community_pool_web_azione,)
+    _registra(pagina_community_pool_web, community_pool_web_dati, community_pool_web_azione)
     from moduli.sicurezza_rete import (
         apri_cambio_password, scarica_manuale_ssl, _apri_viewer_ssl, start_watchdog_server, genera_certificati_auto,
         leggi_hash,salva_hash, verifica_password, registra_accesso, registra_accesso_fallito, invia_notifica_fallimento,

@@ -14,7 +14,31 @@ def documenti_pdf_web(self):
     import __main__ as _app
     DOC_DIR = _app.DOC_DIR
     REGISTRY_FILE = _app.REGISTRY_FILE
+    from moduli.modello_spesa import campo, METODI_PAGAMENTO, metodo_pagamento_pulito
+    from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti
     oggi = datetime.date.today()
+    try:
+        _agganci_doc = costruisci_mappa_conti_da_trasferimenti(_app.PORTAFOGLIO_BANCARIO)
+    except Exception:
+        _agganci_doc = {}
+    def _parole_doc(t):
+        return set(w for w in str(t).lower().split() if len(w) > 2)
+    def _spesa_collegata_doc(data_obj, imp, tipo, cat, desc):
+        try:
+            cand = [_s for _s in getattr(self, 'spese', {}).get(data_obj, [])
+                    if abs(float(_s[2]) - imp) < 0.01 and _s[3] == tipo]
+            if not cand:
+                return None
+            if len(cand) == 1:
+                return cand[0]
+            w_doc = _parole_doc(desc)
+            def punti(_s):
+                w_s = _parole_doc(_s[1])
+                return (len(w_doc & w_s) * 2 + (1 if _s[0] == cat else 0)
+                        + (3 if w_doc and w_doc <= w_s else 0))
+            return max(cand, key=punti)
+        except Exception:
+            return None
     def bytes_to_human(byte_count):
         if byte_count is None: return "0 B"
         byte_count = int(byte_count)
@@ -50,7 +74,20 @@ def documenti_pdf_web(self):
             importo_val = float(importo_raw) / 100 if isinstance(importo_raw, (int, float)) else 0.0
         except Exception:
             importo_val = 0.0
+        _sp_doc = _spesa_collegata_doc(data_obj, importo_val, tipo_doc, cat, dettagli.get('descrizione_esatta', ''))
+        _conto_doc = _met_doc = _tag_doc = ""
+        if _sp_doc is not None:
+            _conto_doc = campo(_sp_doc, "conto", "") or ""
+            _met_doc = metodo_pagamento_pulito(campo(_sp_doc, "metodo_pagamento", "") or "")
+            _tag_doc = ", ".join(f"#{str(t).lstrip('#')}" for t in (campo(_sp_doc, "hashtag", []) or []) if t)
+        if not _conto_doc:
+            _cands_doc = _agganci_doc.get((data_obj.strftime("%d-%m-%Y"), round(importo_val, 2), str(tipo_doc).capitalize()), [])
+            if _cands_doc:
+                _conto_doc = _cands_doc[0]
         archivi_dati_strutturati.append({
+            "conto": _conto_doc,
+            "metodo": _met_doc,
+            "tag": _tag_doc,
             "nome_file": nome_file,
             "data_caricamento": data_obj,
             "data_str": data_obj.strftime("%d/%m/%Y"),
@@ -74,8 +111,15 @@ def documenti_pdf_web(self):
         "cat": a["categoria"],
         "imp": a["importo_val"],
         "imp_str": a["importo_str"],
-        "dim": a["dimensione"]
+        "dim": a["dimensione"],
+        "conto": a["conto"],
+        "metodo": a["metodo"],
+        "tag": a["tag"]
     } for a in archivi_ordinati])
+    import html as _html_doc
+    metodo_options_doc = "".join(
+        f"<option value='{_html_doc.escape(m)}'>{_html_doc.escape(m)}</option>" for m in METODI_PAGAMENTO
+    )
     anno_corrente = oggi.year
     return f"""<!DOCTYPE html>
 <html>
@@ -165,6 +209,20 @@ def documenti_pdf_web(self):
         background:linear-gradient(90deg, transparent, var(--gold), var(--blue), transparent);
     }}
     .filter-row {{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; }}
+    .collapsible-wrap {{ margin-top:6px; padding-top:12px; border-top:1px solid var(--border); }}
+    .collapsible-toggle {{
+        background:none; border:none; width:100%;
+        display:flex; align-items:center; gap:8px;
+        color:var(--text-mid); font-family:'DM Sans',sans-serif;
+        font-size:0.82em; font-weight:700; letter-spacing:0.5px;
+        cursor:pointer; padding:0 0 10px 0; text-align:left;
+        line-height:1.5; transition:color 0.15s;
+    }}
+    .collapsible-toggle:hover {{ color:var(--blue); }}
+    .arrow {{ font-size:0.7em; transition:transform 0.25s; }}
+    .collapsible-open .arrow {{ transform:rotate(90deg); }}
+    .collapsible-content {{ display:none; }}
+    .collapsible-open .collapsible-content {{ display:block; }}
     .filter-group label {{
         display:block; font-size:0.6em; font-weight:700; color:var(--text-dim);
         letter-spacing:1.5px; text-transform:uppercase; margin-bottom:5px;
@@ -224,6 +282,7 @@ def documenti_pdf_web(self):
     .doc-cat:hover {{ color:var(--gold); }}
     .doc-desc {{ font-size:0.77em; color:var(--text-mid); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:3px; }}
     .doc-meta {{ display:flex; gap:10px; align-items:center; }}
+    .doc-extra {{ font-size:0.7em; color:var(--text-dim); margin-bottom:3px; line-height:1.4; word-break:break-word; }}
     .doc-importo {{ font-size:0.75em; font-weight:700; color:var(--gold); }}
     .doc-dim {{ font-size:0.7em; color:var(--text-dim); }}
     .doc-dl {{ font-size:1.2em; text-decoration:none; opacity:0.5; transition:opacity 0.15s; flex-shrink:0; }}
@@ -254,38 +313,64 @@ def documenti_pdf_web(self):
 <header>
     <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
+        <a href="/">🏠 Home</a>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗓️ Movimenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
-                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/calendario_web">🗓️ Calendario</a>
+                <a href="/inserisci">➕ Aggiungi Operazione</a>
                 <a href="/lista">📈 Gestione Movimenti Mese</a>
-                <a href="/stats">📊 Bilancio Mese</a>
-                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/menu_esplora">🔍 Esplora e Cerca</a>
+                <a href="/ricorrenze_web">🔁 Ricorrenze</a>
                 <a href="/scadenze_web">📅 Scadenze del Mese</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>📊 Statistiche</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/grafici_web">📉 Grafici e Statistiche</a>
                 <a href="/fairshare_web">⚖️ FairShare</a>
-                <a href="/menu_esplora">🔍 Esplora</a>
-                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/community_pool_web">🤝 CommunityPool</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏦 Portafoglio</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
+                <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏠 Casa</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
-                <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+                <a href="/consultazione_supermercati">🛒 Supermercati</a>
                 <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
+                <a href="/immobili_web">🏢 ImmoBil (Immobili)</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🌿 Vita</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/promemoria_web">🔔 Promemoria</a>
+                <a href="/autopark_web">🚗 AutoPark (Veicoli)</a>
+                <a href="/petcare_web">🐾 PetCare (Animali)</a>
+                <a href="/dieta_web">🥗 Dieta</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗄️ Documenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+                <a href="/documenti_personali_web">🗂️ Documenti Personali</a>
+                <a href="/chiedi_ia_web">🤖 Chiedi al Database</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🛠️ Strumenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/info_sys_web">📡 Monitor Server</a>
                 <a href="/cambia_pw_web">🔑 Cambia Password</a>
@@ -313,24 +398,44 @@ def documenti_pdf_web(self):
                 </select>
             </div>
         </div>
-        <div class="filter-row">
-            <div class="filter-group">
-                <label>Data da</label>
-                <input type="date" id="f_data_da">
-            </div>
-            <div class="filter-group">
-                <label>Data a</label>
-                <input type="date" id="f_data_a">
-            </div>
-        </div>
-        <div class="filter-row">
-            <div class="filter-group">
-                <label>Importo da (€)</label>
-                <input type="number" id="f_imp_da" step="0.01" min="0" placeholder="es: 10.00">
-            </div>
-            <div class="filter-group">
-                <label>Importo a (€)</label>
-                <input type="number" id="f_imp_a" step="0.01" min="0" placeholder="es: 500.00">
+        <div class="collapsible-wrap">
+            <button type="button" class="collapsible-toggle" onclick="toggleCollapsible(this)">
+                <span class="arrow">▶</span> Filtri aggiuntivi
+            </button>
+            <div class="collapsible-content">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Data da</label>
+                        <input type="date" id="f_data_da">
+                    </div>
+                    <div class="filter-group">
+                        <label>Data a</label>
+                        <input type="date" id="f_data_a">
+                    </div>
+                </div>
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Importo da (€)</label>
+                        <input type="number" id="f_imp_da" step="0.01" min="0" placeholder="es: 10.00">
+                    </div>
+                    <div class="filter-group">
+                        <label>Importo a (€)</label>
+                        <input type="number" id="f_imp_a" step="0.01" min="0" placeholder="es: 500.00">
+                    </div>
+                </div>
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Metodo di pagamento</label>
+                        <select id="f_metodo">
+                            <option value="">-- Qualsiasi --</option>
+                            {metodo_options_doc}
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Tag</label>
+                        <input type="text" id="f_tag" placeholder="es: #casa, vacanza">
+                    </div>
+                </div>
             </div>
         </div>
         <div class="filter-actions">
@@ -344,7 +449,6 @@ def documenti_pdf_web(self):
     </div>
     <div class="doc-list" id="docList"></div>
     <div class="pagination" id="pagination"></div>
-    <a href="/" class="btn-home">🏠 Torna alla Home</a>
 </main>
 <script>
     function applyTheme(t) {{
@@ -363,7 +467,12 @@ def documenti_pdf_web(self):
     const PER_PAGE = 15;
     let filtered = [...DOCS];
     let currentPage = 1;
+    function toggleCollapsible(btn) {{
+        btn.parentNode.classList.toggle('collapsible-open');
+    }}
     function applicaFiltri() {{
+        const metodo = document.getElementById('f_metodo').value;
+        const tagQ = document.getElementById('f_tag').value.toLowerCase().split(/[\\s,]+/).map(t => t.replace(/^#+/, '')).filter(t => t);
         const desc  = document.getElementById('f_desc').value.toLowerCase().trim();
         const cat   = document.getElementById('f_cat').value;
         const daDt  = document.getElementById('f_data_da').value || null;
@@ -377,13 +486,18 @@ def documenti_pdf_web(self):
             if (aDt  && d.data_iso > aDt)  return false;
             if (impDa !== null && d.imp < impDa) return false;
             if (impA  !== null && d.imp > impA)  return false;
+            if (metodo && d.metodo !== metodo) return false;
+            if (tagQ.length) {{
+                const tagsD = (d.tag || '').toLowerCase().split(/[\\s,]+/).map(t => t.replace(/^#+/, '')).filter(t => t);
+                if (!tagQ.every(q => tagsD.some(t => t.includes(q)))) return false;
+            }}
             return true;
         }});
         currentPage = 1;
         renderPage();
     }}
     function resetFiltri() {{
-        ['f_desc','f_cat','f_data_da','f_data_a','f_imp_da','f_imp_a'].forEach(id => {{
+        ['f_desc','f_cat','f_data_da','f_data_a','f_imp_da','f_imp_a','f_metodo','f_tag'].forEach(id => {{
             document.getElementById(id).value = '';
         }});
         filtered = [...DOCS];
@@ -407,6 +521,13 @@ def documenti_pdf_web(self):
             list.innerHTML = "<div class='empty-msg'>Nessun documento trovato con i filtri selezionati.</div>";
         }} else {{
             page.forEach(d => {{
+                const extraHtml = x => {{
+                    const p = [];
+                    if (x.conto)  p.push('🏦 ' + esc(x.conto));
+                    if (x.metodo) p.push('💳 ' + esc(x.metodo));
+                    if (x.tag)    p.push('🏷️ ' + esc(x.tag));
+                    return p.length ? '<div class="doc-extra">' + p.join(' · ') + '</div>' : '';
+                }};
                 const link = '/get_pdf?file=' + encodeURIComponent(d.nome);
                 const el = document.createElement('div');
                 el.className = 'doc-item';
@@ -415,6 +536,7 @@ def documenti_pdf_web(self):
                         '<div class="doc-date">' + esc(d.data) + '</div>' +
                         '<a href="' + link + '" target="_blank" class="doc-cat">' + esc(d.cat) + '</a>' +
                         '<div class="doc-desc">' + esc(d.desc) + '</div>' +
+                        extraHtml(d) +
                         '<div class="doc-meta">' +
                             '<span class="doc-importo">' + esc(d.imp_str) + '</span>' +
                             '<span class="doc-dim">' + esc(d.dim) + '</span>' +
@@ -645,6 +767,20 @@ def documenti_personali_web(self):
     }}
     .filter-row {{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; }}
     .filter-row-3 {{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:8px; }}
+    .collapsible-wrap {{ margin-top:6px; padding-top:12px; border-top:1px solid var(--border); }}
+    .collapsible-toggle {{
+        background:none; border:none; width:100%;
+        display:flex; align-items:center; gap:8px;
+        color:var(--text-mid); font-family:'DM Sans',sans-serif;
+        font-size:0.82em; font-weight:700; letter-spacing:0.5px;
+        cursor:pointer; padding:0 0 10px 0; text-align:left;
+        line-height:1.5; transition:color 0.15s;
+    }}
+    .collapsible-toggle:hover {{ color:var(--blue); }}
+    .arrow {{ font-size:0.7em; transition:transform 0.25s; }}
+    .collapsible-open .arrow {{ transform:rotate(90deg); }}
+    .collapsible-content {{ display:none; }}
+    .collapsible-open .collapsible-content {{ display:block; }}
     @media (max-width:520px) {{
         .filter-row, .filter-row-3 {{ grid-template-columns:1fr; }}
     }}
@@ -746,38 +882,64 @@ def documenti_personali_web(self):
 <header>
     <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
+        <a href="/">🏠 Home</a>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗓️ Movimenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
-                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/calendario_web">🗓️ Calendario</a>
+                <a href="/inserisci">➕ Aggiungi Operazione</a>
                 <a href="/lista">📈 Gestione Movimenti Mese</a>
-                <a href="/stats">📊 Bilancio Mese</a>
-                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/menu_esplora">🔍 Esplora e Cerca</a>
+                <a href="/ricorrenze_web">🔁 Ricorrenze</a>
                 <a href="/scadenze_web">📅 Scadenze del Mese</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>📊 Statistiche</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/grafici_web">📉 Grafici e Statistiche</a>
                 <a href="/fairshare_web">⚖️ FairShare</a>
-                <a href="/menu_esplora">🔍 Esplora</a>
-                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/community_pool_web">🤝 CommunityPool</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏦 Portafoglio</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
+                <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏠 Casa</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
-                <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+                <a href="/consultazione_supermercati">🛒 Supermercati</a>
                 <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
+                <a href="/immobili_web">🏢 ImmoBil (Immobili)</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🌿 Vita</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/promemoria_web">🔔 Promemoria</a>
+                <a href="/autopark_web">🚗 AutoPark (Veicoli)</a>
+                <a href="/petcare_web">🐾 PetCare (Animali)</a>
+                <a href="/dieta_web">🥗 Dieta</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗄️ Documenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-                <a href="/documenti_personali_web">📄 Documenti Personali</a>
+                <a href="/documenti_personali_web">🗂️ Documenti Personali</a>
+                <a href="/chiedi_ia_web">🤖 Chiedi al Database</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🛠️ Strumenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/info_sys_web">📡 Monitor Server</a>
                 <a href="/cambia_pw_web">🔑 Cambia Password</a>
@@ -792,34 +954,41 @@ def documenti_personali_web(self):
 </header>
 <main>
     <div class="filter-card">
-        <div class="filter-row">
-            <div class="filter-group">
-                <label>Descrizione / Note</label>
-                <input type="text" id="f_desc" placeholder="cerca...">
-            </div>
-            <div class="filter-group">
-                <label>Profilo</label>
-                <select id="f_profilo">
-                    <option value="">-- Tutti --</option>
-                    {profili_options}
-                </select>
-            </div>
+        <div class="filter-group" style="margin-bottom:8px;">
+            <label>Descrizione / Note</label>
+            <input type="text" id="f_desc" placeholder="cerca...">
         </div>
-        <div class="filter-row-3">
-            <div class="filter-group">
-                <label>Categoria</label>
-                <select id="f_cat">
-                    <option value="">-- Tutte --</option>
-                    {categorie_options}
-                </select>
-            </div>
-            <div class="filter-group">
-                <label>Data da</label>
-                <input type="date" id="f_data_da">
-            </div>
-            <div class="filter-group">
-                <label>Data a</label>
-                <input type="date" id="f_data_a">
+        <div class="collapsible-wrap">
+            <button type="button" class="collapsible-toggle" onclick="toggleCollapsible(this)">
+                <span class="arrow">▶</span> Filtri aggiuntivi
+            </button>
+            <div class="collapsible-content">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Profilo</label>
+                        <select id="f_profilo">
+                            <option value="">-- Tutti --</option>
+                            {profili_options}
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Categoria</label>
+                        <select id="f_cat">
+                            <option value="">-- Tutte --</option>
+                            {categorie_options}
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Data da</label>
+                        <input type="date" id="f_data_da">
+                    </div>
+                    <div class="filter-group">
+                        <label>Data a</label>
+                        <input type="date" id="f_data_a">
+                    </div>
+                </div>
             </div>
         </div>
         <div class="filter-actions">
@@ -833,7 +1002,6 @@ def documenti_personali_web(self):
     </div>
     <div class="doc-list" id="docList"></div>
     <div class="pagination" id="pagination"></div>
-    <a href="/" class="btn-home">🏠 Torna alla Home</a>
 </main>
 <script>
     function applyTheme(t) {{
@@ -854,6 +1022,9 @@ def documenti_personali_web(self):
     const PER_PAGE = 15;
     let filtered = [...DOCS];
     let currentPage = 1;
+    function toggleCollapsible(btn) {{
+        btn.parentNode.classList.toggle('collapsible-open');
+    }}
     function applicaFiltri() {{
         const desc    = document.getElementById('f_desc').value.toLowerCase().trim();
         const cat     = document.getElementById('f_cat').value;
@@ -1211,38 +1382,64 @@ def genera_html_utenze(self, percorso_db, anno):
 <header>
     <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
+        <a href="/">🏠 Home</a>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗓️ Movimenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
-                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/calendario_web">🗓️ Calendario</a>
+                <a href="/inserisci">➕ Aggiungi Operazione</a>
                 <a href="/lista">📈 Gestione Movimenti Mese</a>
-                <a href="/stats">📊 Bilancio Mese</a>
-                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/menu_esplora">🔍 Esplora e Cerca</a>
+                <a href="/ricorrenze_web">🔁 Ricorrenze</a>
                 <a href="/scadenze_web">📅 Scadenze del Mese</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>📊 Statistiche</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/grafici_web">📉 Grafici e Statistiche</a>
                 <a href="/fairshare_web">⚖️ FairShare</a>
-                <a href="/menu_esplora">🔍 Esplora</a>
-                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/community_pool_web">🤝 CommunityPool</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏦 Portafoglio</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
+                <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏠 Casa</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
-                <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+                <a href="/consultazione_supermercati">🛒 Supermercati</a>
                 <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
+                <a href="/immobili_web">🏢 ImmoBil (Immobili)</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🌿 Vita</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/promemoria_web">🔔 Promemoria</a>
+                <a href="/autopark_web">🚗 AutoPark (Veicoli)</a>
+                <a href="/petcare_web">🐾 PetCare (Animali)</a>
+                <a href="/dieta_web">🥗 Dieta</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗄️ Documenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+                <a href="/documenti_personali_web">🗂️ Documenti Personali</a>
+                <a href="/chiedi_ia_web">🤖 Chiedi al Database</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🛠️ Strumenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/info_sys_web">📡 Monitor Server</a>
                 <a href="/cambia_pw_web">🔑 Cambia Password</a>
@@ -1258,7 +1455,6 @@ def genera_html_utenze(self, percorso_db, anno):
 <main>
     {select_html}
     {utenze_html}
-    <a href="/" class="btn-home">🏠 Torna alla Home</a>
 </main>
 <script>
     function applyTheme(t) {{
@@ -1547,38 +1743,64 @@ def genera_html_consultazione(self, file_selezionato=None):
 <header>
     <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
     <div id="extraMenu" class="nav-dropdown">
+        <a href="/">🏠 Home</a>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗓️ Movimenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
-                <a href="/">🏠 Aggiungi Operazione</a>
+                <a href="/calendario_web">🗓️ Calendario</a>
+                <a href="/inserisci">➕ Aggiungi Operazione</a>
                 <a href="/lista">📈 Gestione Movimenti Mese</a>
-                <a href="/stats">📊 Bilancio Mese</a>
-                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+                <a href="/menu_esplora">🔍 Esplora e Cerca</a>
+                <a href="/ricorrenze_web">🔁 Ricorrenze</a>
                 <a href="/scadenze_web">📅 Scadenze del Mese</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>📊 Statistiche</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/stats">📊 Bilancio Mese</a>
+                <a href="/grafici_web">📉 Grafici e Statistiche</a>
                 <a href="/fairshare_web">⚖️ FairShare</a>
-                <a href="/menu_esplora">🔍 Esplora</a>
-                <a href="/grafici_web">📅 Grafici e Statistiche</a>
+                <a href="/community_pool_web">🤝 CommunityPool</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏦 Portafoglio</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
+                <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏠 Casa</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/utenze?anno={anno_corrente}">💧 Utenze</a>
-                <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+                <a href="/consultazione_supermercati">🛒 Supermercati</a>
                 <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
+                <a href="/immobili_web">🏢 ImmoBil (Immobili)</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🌿 Vita</span><span class="nav-arrow">▶</span></button>
+            <div class="nav-group-items">
+                <a href="/promemoria_web">🔔 Promemoria</a>
+                <a href="/autopark_web">🚗 AutoPark (Veicoli)</a>
+                <a href="/petcare_web">🐾 PetCare (Animali)</a>
+                <a href="/dieta_web">🥗 Dieta</a>
+            </div>
+        </div>
+        <div class="nav-group">
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗄️ Documenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-                <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+                <a href="/documenti_personali_web">🗂️ Documenti Personali</a>
+                <a href="/chiedi_ia_web">🤖 Chiedi al Database</a>
             </div>
         </div>
         <div class="nav-group">
-            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+            <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🛠️ Strumenti</span><span class="nav-arrow">▶</span></button>
             <div class="nav-group-items">
                 <a href="/info_sys_web">📡 Monitor Server</a>
                 <a href="/cambia_pw_web">🔑 Cambia Password</a>
@@ -1610,7 +1832,6 @@ def genera_html_consultazione(self, file_selezionato=None):
             {cataloghi_html}
         </div>
     </div>
-    <a href="/" class="btn-home">🏠 Torna alla Home</a>
 </main>
 <script>
     function applyTheme(t) {{

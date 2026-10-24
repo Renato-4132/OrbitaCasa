@@ -746,6 +746,15 @@ def cerca_operazioni(self):
         btn.pack(side="left", padx=6)
         btn.bind("<Button-1>", cmd)
     self.after(100, esegui_ricerca)
+    def _refresh_da_modifica_esterna():
+        try:
+            pos = tree.yview()[0]
+            esegui_ricerca()
+            tree.yview_moveto(pos)
+        except tk.TclError:
+            pass
+    if hasattr(self, "registra_refresh_finestra"):
+        self.registra_refresh_finestra(finestra, _refresh_da_modifica_esterna)
     finestra.deiconify()
 def cerca_doppio_click(self, event):
     tree = event.widget

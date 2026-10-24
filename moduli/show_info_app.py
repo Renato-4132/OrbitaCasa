@@ -24,7 +24,7 @@ def show_info_app(self):
         webbrowser.open("https://www.python.org/downloads/")
 
     def apri_github(event):
-        webbrowser.open("https://github.com/Renato-4132/OrbitaCasa")
+        webbrowser.open(f"https://github.com/{_app.REPO_OWNER}/{_app.REPO_NAME}")
 
     def apri_manuale(event):
         self.scarica_manuale()
@@ -32,7 +32,7 @@ def show_info_app(self):
     def apri_manuale_risparmio(event):
         self.scarica_manuale_risparmio()
 
-    URL_DOCKER_ZIP = "https://github.com/Renato-4132/OrbitaCasa/raw/main/orbitacasa-docker.zip"
+    URL_DOCKER_ZIP = f"https://github.com/{_app.REPO_OWNER}/{_app.REPO_NAME}/raw/main/orbitacasa-docker.zip"
     _docker_dlg = [None]
 
     def apri_docker(event=None):
@@ -42,18 +42,18 @@ def show_info_app(self):
             return
         dlg = tk.Toplevel(info_win, bg=self.COLOR_TOPLEVEL)
         _docker_dlg[0] = dlg
-        dlg.title("OrbitaCasa in Docker")
+        dlg.title(f"{NAME} in Docker")
         dlg.resizable(False, False)
         dlg.transient(info_win)
         dlg.withdraw()
         testo_docker = (
-            "OrbitaCasa in Docker\n\n"
-            "Fai girare OrbitaCasa su un server (NAS, Raspberry, VPS, PC sempre acceso) "
+            f"{NAME} in Docker\n\n"
+            f"Fai girare {NAME} su un server (NAS, Raspberry, VPS, PC sempre acceso) "
             "e usalo da qualsiasi browser su https://IP-DEL-SERVER:5800, "
             "senza installare nulla sui PC client. È la stessa app, trasmessa nel browser.\n\n"
             "Il pacchetto contiene Dockerfile, docker-compose.yml, script di avvio e LEGGIMI.md "
             "con le istruzioni passo passo.\n\n"
-            "Ti serve Docker con Compose e il file OrbitaCasa.pyw nella stessa cartella. "
+            f"Ti serve Docker con Compose e il file {_app.NOME_FILE} nella stessa cartella. "
             "Poi basta: docker compose up -d --build\n\n"
             "Non usare l'app sul PC e nel container sullo stesso database (./db) nello stesso momento."
         )

@@ -17,8 +17,8 @@ def mostra_qr_popup_label(self):
         self._qr_popup.lift()
         self._qr_popup.focus_force()
         return
-    cert_file = os.path.join(_app.DB_DIR, "cert.pem")
-    key_file = os.path.join(_app.DB_DIR, "key.pem")
+    cert_file = _app.SSL_CERT
+    key_file = _app.SSL_KEY
     prot = "https" if USA_SSL and os.path.exists(cert_file) and os.path.exists(key_file) else "http"
     ip_locale = self.get_ip_locale_reale()
     try:

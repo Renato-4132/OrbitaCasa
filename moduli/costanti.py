@@ -76,22 +76,24 @@ def carica_costanti(path_locale):
     g['PROFILO_ATTIVO'] = PROFILO_ATTIVO
     g['BASE_DIR'] = BASE_DIR
 
-    g['URL_PDF'] = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/refs/heads/main/resources/OrbitaCasa.pdf"
-    g['URL_PDF_RISPARMIO'] = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/main/resources/Manuale_Manutenzione_Risparmio_Casa.pdf"
-    g['URL_PDF_CONSUMI'] = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/main/resources/Tabella%20Contatori.pdf"
-    g['URL_PDF_SSL'] = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/main/resources/Manuale_CertBot_SSL.pdf"
-    g['URL_LOGO'] = "https://github.com/Renato-4132/OrbitaCasa/raw/main/resources/info_image.png"
-    g['URL_DEMO_ZIP'] = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/main/resources/Profilo_Demo.zip"
-    g['NOME_PROFILO_DEMO'] = "Demo_Mode"
-    g['DEMO_MARKER_FILE'] = os.path.join(PROFILI_DIR, "_demo_pending_cleanup.json")
-    g['GITHUB_FILE_URL'] = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/refs/heads/main/OrbitaCasa.pyw"
-    g['GITHUB_SUPERMARKET'] = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/main/resources/supermarket.pyw"
-    g['ALIMENTI'] = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/main/resources/alimenti.json"
-    g['NOME_EDITOR_LOCALE'] = "supermarket.pyw"
-    g['NOME_FILE'] = "OrbitaCasa.pyw"
     g['REPO_OWNER'] = "Renato-4132"
     g['REPO_NAME'] = "OrbitaCasa"
-    g['NAME'] = "Orbita Casa"
+    g['NAME'] = "OrbitaCasa"
+    _gh = f"{g['REPO_OWNER']}/{g['REPO_NAME']}"
+    _raw = f"https://raw.githubusercontent.com/{_gh}"
+    g['URL_PDF'] = f"{_raw}/refs/heads/main/resources/{g['NAME']}.pdf"
+    g['URL_PDF_RISPARMIO'] = f"{_raw}/main/resources/Manuale_Manutenzione_Risparmio_Casa.pdf"
+    g['URL_PDF_CONSUMI'] = f"{_raw}/main/resources/Tabella%20Contatori.pdf"
+    g['URL_PDF_SSL'] = f"{_raw}/main/resources/Manuale_CertBot_SSL.pdf"
+    g['URL_LOGO'] = f"https://github.com/{_gh}/raw/main/resources/info_image.png"
+    g['URL_DEMO_ZIP'] = f"{_raw}/main/resources/Profilo_Demo.zip"
+    g['NOME_PROFILO_DEMO'] = "Demo_Mode"
+    g['DEMO_MARKER_FILE'] = os.path.join(PROFILI_DIR, "_demo_pending_cleanup.json")
+    g['GITHUB_FILE_URL'] = f"{_raw}/refs/heads/main/{g['NAME']}.pyw"
+    g['GITHUB_SUPERMARKET'] = f"{_raw}/main/resources/supermarket.pyw"
+    g['ALIMENTI'] = f"{_raw}/main/resources/alimenti.json"
+    g['NOME_EDITOR_LOCALE'] = "supermarket.pyw"
+    g['NOME_FILE'] = f"{g['NAME']}.pyw"
     g['MODULI_DIR'] = os.path.join(path_locale, "moduli")
     g['MODULI_BAK_DIR'] = os.path.join(path_locale, "moduli_bak")
     g['BRANCH_PRINCIPALE'] = "main"
@@ -100,6 +102,23 @@ def carica_costanti(path_locale):
     DB_DIR = os.path.join(BASE_DIR, "db")
     g['EXPORT_DIR'] = os.path.join(BASE_DIR, "export")
     g['DB_DIR'] = DB_DIR
+
+    SSL_DIR = os.path.join(RADICE_DATI, "ssl")
+    g['SSL_DIR'] = SSL_DIR
+    g['SSL_CERT'] = os.path.join(SSL_DIR, "cert.pem")
+    g['SSL_KEY'] = os.path.join(SSL_DIR, "key.pem")
+    try:
+        if not (os.path.exists(g['SSL_CERT']) and os.path.exists(g['SSL_KEY'])):
+            for _src in (os.path.join(RADICE_DATI, "db"), DB_DIR):
+                _c, _k = os.path.join(_src, "cert.pem"), os.path.join(_src, "key.pem")
+                if os.path.isfile(_c) and os.path.isfile(_k):
+                    import shutil as _sh
+                    os.makedirs(SSL_DIR, exist_ok=True)
+                    _sh.copy2(_c, g['SSL_CERT'])
+                    _sh.copy2(_k, g['SSL_KEY'])
+                    break
+    except Exception as _e_ssl:
+        print(f"[SSL] Migrazione certificati non riuscita: {_e_ssl}")
     g['DB_FILE'] = os.path.join(DB_DIR, "spese_db.json")
     g['DATI_FILE'] = os.path.join(DB_DIR, "rubrica.json")
     g['UTENZE_DB'] = os.path.join(DB_DIR, "utenze_db.json")
@@ -124,7 +143,7 @@ def carica_costanti(path_locale):
         except Exception:
             pass
     g['RIMANDA_FILE'] = os.path.join(DB_DIR, "update.json")
-    g['MESSAGGI_SERVIZIO_URL'] = "https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/main/resources/messaggi_servizio.json"
+    g['MESSAGGI_SERVIZIO_URL'] = f"{_raw}/main/resources/messaggi_servizio.json"
     g['MESSAGGI_VISTI_FILE'] = os.path.join(DB_DIR, "messaggi_servizio_visti.json")
     g['PROMEMORIA_FILE'] = os.path.join(DB_DIR, "promemoria.json")
     g['PORTAFOGLIO_AZIONI'] = os.path.join(DB_DIR, "portafoglio.json")
@@ -188,7 +207,7 @@ def carica_costanti(path_locale):
     g['WARN_TIMEOUT'] = 20000                       # Timeout Messaggi Popup (ms)
     g['USE_WAIT_WINDOW'] = False                    # Timeout chiusura self.show_custom_warning
     g['TOLL'] = 15                                  # Tolleranza Movimenti simili (SmartCat) - Euro
-    g['VERSION'] = "2.5.5"
+    g['VERSION'] = "2.5.6"
     g['ICONIZZA_INATTIVITA'] = True                 # Attiva/disattiva Timer Minimizza
     g['TIMEOUT_INATTIVITA_MS'] = 1200000            # 20 minuti in ms - Timer Minimizza
     g['ANNI_DA_MANTENERE'] = 10                     # Anni conservati nel db

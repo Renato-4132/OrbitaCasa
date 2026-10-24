@@ -593,7 +593,7 @@ def _genera_report_pdf_core(self, anno_da=None, anno_a=None, mese_filtro=0, sezi
             f"Pagina {i+1} / {n_tot}",
             fontsize=7, color=C_SUBTEXT, fontname="Helvetica"
         )
-    temp_path = os.path.join(tempfile.gettempdir(), "report_OrbitaCasa.pdf")
+    temp_path = os.path.join(tempfile.gettempdir(), f"report_{_app.NAME}.pdf")
     doc.save(temp_path)
     doc.close()
     self.after(0, lambda: self._apri_viewer_report(temp_path))

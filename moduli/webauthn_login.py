@@ -80,10 +80,10 @@ def aggiungi_rotte_webauthn(flask_app, tk_app, richiede_login, html_resp, get_ip
         ]
         opzioni = generate_registration_options(
             rp_id=rp_id,
-            rp_name="OrbitaCasa",
+            rp_name=_app.NAME,
             user_id=b"utente-unico",
             user_name="utente",
-            user_display_name="Utente OrbitaCasa",
+            user_display_name=f"Utente {_app.NAME}",
             exclude_credentials=escludi,
             authenticator_selection=AuthenticatorSelectionCriteria(
                 authenticator_attachment=AuthenticatorAttachment.PLATFORM,
@@ -341,7 +341,6 @@ def html_webauthn_web(self):
         <div id="msg"></div>
     </div>
     <div class="footer">
-        <a href="/" class="btn-home">🏠 Torna alla Home</a>
     </div>
 </div>
 <script>

@@ -426,11 +426,12 @@ def genera_certificati_auto(self):
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import rsa
     from datetime import datetime, timedelta, timezone
-    cert_path = os.path.join(DB_DIR, "cert.pem")
-    key_path = os.path.join(DB_DIR, "key.pem")
+    cert_path = _app.SSL_CERT
+    key_path = _app.SSL_KEY
     if os.path.exists(cert_path) and os.path.exists(key_path):
         return True
     try:
+        os.makedirs(_app.SSL_DIR, exist_ok=True)
         print("Generazione certificati SSL di sicurezza...")
         key = rsa.generate_private_key(public_exponent=65537, key_size=2048)            
         subject = issuer = x509.Name([
@@ -592,7 +593,7 @@ def invia_notifica_fallimento(self, ip="sconosciuto", pwd_tentata="", user_agent
         if not EMAIL_USER or not APP_PASSWORD:
             return
         ora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        oggetto = "🚫 Accesso Bloccato - OrbitaCasa Web"
+        oggetto = f"🚫 Accesso Bloccato - {_app.NAME} Web"
         corpo = (
             f"Dopo 3 tentativi falliti l'accesso è stato bloccato per 5 minuti.\n\n"
             f"🕐 Data/Ora: {ora}\n"
@@ -629,7 +630,7 @@ def get_ip_locale_reale(self):
 def get_dominio_ssl(self):
     import __main__ as _app
     DB_DIR = _app.DB_DIR
-    cert_path = os.path.join(DB_DIR, "cert.pem")
+    cert_path = _app.SSL_CERT
     try:
         from cryptography import x509
         with open(cert_path, "rb") as f:
@@ -644,7 +645,8 @@ def get_dominio_ssl(self):
 # Popup gestione certificati SSL: elenca i file .pem/.crt/.key presenti, permette generazione self-signed, importazione ed eliminazione
 def gestisci_certificati(self):
     import __main__ as _app
-    DB_DIR = _app.DB_DIR
+    SSL_DIR = _app.SSL_DIR
+    os.makedirs(SSL_DIR, exist_ok=True)
     EXP_DB = _app.EXP_DB
     if hasattr(self, '_certificati_popup') and self._certificati_popup and self._certificati_popup.winfo_exists():
                 self._certificati_popup.lift()
@@ -700,9 +702,9 @@ def gestisci_certificati(self):
     def refresh_list():
         for i in self.tree_ssl.get_children():
             self.tree_ssl.delete(i)
-        if os.path.exists(DB_DIR):
+        if os.path.exists(SSL_DIR):
             ext = ('.crt', '.key', '.pem', '.p12')
-            files = [f for f in os.listdir(DB_DIR) if f.lower().endswith(ext)]
+            files = [f for f in os.listdir(SSL_DIR) if f.lower().endswith(ext)]
             for f in sorted(files):
                 t = os.path.splitext(f)[1].upper().replace(".", "")
                 self.tree_ssl.insert("", tk.END, values=(f, t))
@@ -714,7 +716,7 @@ def gestisci_certificati(self):
         if paths:
             for p in paths:
                 try:
-                    shutil.copy(p, os.path.join(DB_DIR, os.path.basename(p)))
+                    shutil.copy(p, os.path.join(SSL_DIR, os.path.basename(p)))
                 except Exception as err:
                     self.show_custom_warning("Errore", str(err))
             refresh_list()
@@ -731,13 +733,13 @@ def gestisci_certificati(self):
             for i in items:
                 name = self.tree_ssl.item(i)['values'][0]
                 try:
-                    os.remove(os.path.join(DB_DIR, name))
+                    os.remove(os.path.join(SSL_DIR, name))
                 except Exception as err:
                     self.show_custom_warning("Errore", f"Errore su {name}: {err}")
             refresh_list()
     def on_genera(e=None):
-        cert_path = os.path.join(DB_DIR, "cert.pem")
-        key_path  = os.path.join(DB_DIR, "key.pem")
+        cert_path = _app.SSL_CERT
+        key_path  = _app.SSL_KEY
         if os.path.exists(cert_path) and os.path.exists(key_path):
             if not self.show_custom_askyesno(
                 "Certificato già presente",

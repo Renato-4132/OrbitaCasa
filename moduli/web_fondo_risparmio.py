@@ -403,38 +403,64 @@ def pagina_fondo_risparmio_web(self):
 <header>
 <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
 <div id="extraMenu" class="nav-dropdown">
+    <a href="/">🏠 Home</a>
     <div class="nav-group">
-        <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Finanze</span><span class="nav-arrow">▶</span></button>
+        <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗓️ Movimenti</span><span class="nav-arrow">▶</span></button>
         <div class="nav-group-items">
-            <a href="/">🏠 Aggiungi Operazione</a>
+            <a href="/calendario_web">🗓️ Calendario</a>
+            <a href="/inserisci">➕ Aggiungi Operazione</a>
             <a href="/lista">📈 Gestione Movimenti Mese</a>
-            <a href="/stats">📊 Bilancio Mese</a>
-            <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
+            <a href="/menu_esplora">🔍 Esplora e Cerca</a>
+            <a href="/ricorrenze_web">🔁 Ricorrenze</a>
             <a href="/scadenze_web">📅 Scadenze del Mese</a>
+        </div>
+    </div>
+    <div class="nav-group">
+        <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>📊 Statistiche</span><span class="nav-arrow">▶</span></button>
+        <div class="nav-group-items">
+            <a href="/stats">📊 Bilancio Mese</a>
+            <a href="/grafici_web">📉 Grafici e Statistiche</a>
             <a href="/fairshare_web">⚖️ FairShare</a>
-            <a href="/menu_esplora">🔍 Esplora</a>
-            <a href="/grafici_web">📅 Grafici e Statistiche</a>
+            <a href="/community_pool_web">🤝 CommunityPool</a>
+        </div>
+    </div>
+    <div class="nav-group">
+        <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏦 Portafoglio</span><span class="nav-arrow">▶</span></button>
+        <div class="nav-group-items">
             <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
+            <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+            <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
             <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
         </div>
     </div>
     <div class="nav-group">
-        <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Casa</span><span class="nav-arrow">▶</span></button>
+        <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🏠 Casa</span><span class="nav-arrow">▶</span></button>
         <div class="nav-group-items">
             <a href="/utenze?anno={nav_anno}">💧 Utenze</a>
-            <a href="/consultazione_supermercati">🛒 Gestione Supermercati</a>
+            <a href="/consultazione_supermercati">🛒 Supermercati</a>
             <a href="/magazzino_web">📦 StockBox (Magazzino)</a>
+            <a href="/immobili_web">🏢 ImmoBil (Immobili)</a>
         </div>
     </div>
     <div class="nav-group">
-        <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Documenti</span><span class="nav-arrow">▶</span></button>
+        <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🌿 Vita</span><span class="nav-arrow">▶</span></button>
+        <div class="nav-group-items">
+            <a href="/promemoria_web">🔔 Promemoria</a>
+            <a href="/autopark_web">🚗 AutoPark (Veicoli)</a>
+            <a href="/petcare_web">🐾 PetCare (Animali)</a>
+            <a href="/dieta_web">🥗 Dieta</a>
+        </div>
+    </div>
+    <div class="nav-group">
+        <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🗄️ Documenti</span><span class="nav-arrow">▶</span></button>
         <div class="nav-group-items">
             <a href="/documenti_pdf_web">🗄️ Documenti Contabili</a>
-            <a href="/documenti_personali_web">🗄️ Documenti Personali</a>
+            <a href="/documenti_personali_web">🗂️ Documenti Personali</a>
+            <a href="/chiedi_ia_web">🤖 Chiedi al Database</a>
         </div>
     </div>
     <div class="nav-group">
-        <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>Sistema</span><span class="nav-arrow">▶</span></button>
+        <button class="nav-group-btn" onclick="toggleNavGroup(this, event)"><span>🛠️ Strumenti</span><span class="nav-arrow">▶</span></button>
         <div class="nav-group-items">
             <a href="/info_sys_web">📡 Monitor Server</a>
             <a href="/cambia_pw_web">🔑 Cambia Password</a>
