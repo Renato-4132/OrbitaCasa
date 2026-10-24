@@ -1907,7 +1907,7 @@ class GestioneSpese(tk.Tk):
                 compound="left", cursor="hand2", font=("Arial", 10, "bold"),
                 background=self.COLOR_WIDGET_BG, foreground=self.COLOR_GREEN
         )
-        self.btn_aggiungi.pack(side="left", padx=3)
+        self.btn_aggiungi.pack(side="left", padx=2)
         self.btn_aggiungi.bind(
                 "<Button-1>", 
                 lambda e: self.add_spesa() if "disabled" not in self.btn_aggiungi.state() else None
@@ -1924,9 +1924,9 @@ class GestioneSpese(tk.Tk):
                 compound="left",
                 background=self.COLOR_WIDGET_BG,
                 foreground=self.COLOR_ORANGE,
-                cursor="X_cursor", padding=(8, 4)
+                cursor="X_cursor", padding=(3, 4)
         )
-        self.btn_modifica_sel.pack(side=tk.LEFT, padx=2)
+        self.btn_modifica_sel.pack(side=tk.LEFT, padx=1)
         self.btn_modifica_sel.bind("<Button-1>", lambda e: self.avvia_modifica_da_selezione()
                                if self.stats_table.selection() and self.stats_mode.get() == "giorno"
                                else None)
@@ -1941,28 +1941,28 @@ class GestioneSpese(tk.Tk):
                 font=("Arial", 9, "bold"),
                 background=self.COLOR_WIDGET_BG, foreground=self.COLOR_RED
         )
-        self.btn_annulla_modifica.pack(side="left", padx=3)
+        self.btn_annulla_modifica.pack(side="left", padx=2)
         self.btn_annulla_modifica.bind("<Button-1>", lambda e: self.reset_modifica_form())
         self.btn_modifica = ttk.Label(
                 pannello_bottoni, text=" Salva", image=self.icone_gui.get("salva"),
                 compound="left", cursor="X_cursor", font=("Arial", 9, "bold"),
                 background=self.COLOR_WIDGET_BG, foreground=self.COLOR_GREEN
         )
-        self.btn_modifica.pack(side="left", padx=3)
+        self.btn_modifica.pack(side="left", padx=2)
         self.btn_modifica.bind("<Button-1>", lambda e: self.salva_modifica() if "disabled" not in self.btn_modifica.state() else None)
         self.btn_cancella = ttk.Label(
                 pannello_bottoni, text=" Cancella", image=self.icone_gui.get("chiudi"),
                 compound="left", cursor="X_cursor", font=("Arial", 9, "bold"),
                 background=self.COLOR_WIDGET_BG, foreground=self.COLOR_RED
         )
-        self.btn_cancella.pack(side="left", padx=3)
+        self.btn_cancella.pack(side="left", padx=2)
         self.btn_cancella.bind("<Button-1>", lambda e: self.cancella_voce() if "disabled" not in self.btn_cancella.state() else None)
         btn_ricorrenze = ttk.Label(
                 pannello_bottoni, text=" Ricorrenze", image=self.icone_gui.get("timer_sync"),
                 compound="left", cursor="hand2", font=("Arial", 9),
                 background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR
         )
-        btn_ricorrenze.pack(side="left", padx=3)
+        btn_ricorrenze.pack(side="left", padx=2)
         btn_ricorrenze.bind("<Button-1>", lambda e: self.mostra_ricorrenza_popup())
         btn_ricorrenze.bind("<Button-3>", lambda e: self.mostra_lista_ricorrenze()
                             if hasattr(self, "mostra_lista_ricorrenze") else None)
@@ -1973,7 +1973,7 @@ class GestioneSpese(tk.Tk):
                 compound="left", cursor="hand2", font=("Arial", 9),
                 background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR
         )
-        self.btn_gestisci_categorie.pack(side="left", padx=3)
+        self.btn_gestisci_categorie.pack(side="left", padx=2)
         self.btn_gestisci_categorie.bind("<Button-1>", lambda e: self.mostra_categorie_popup())
         self.btn_gestisci_categorie.bind("<Button-3>", lambda e: self.apri_categorie_suggerite()
                                          if hasattr(self, "apri_categorie_suggerite") else None)
@@ -1984,7 +1984,7 @@ class GestioneSpese(tk.Tk):
                 compound="left", cursor="hand2", font=("Arial", 9),
                 background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR
         )
-        self.btn_spalma_sel.pack(side="left", padx=3)
+        self.btn_spalma_sel.pack(side="left", padx=2)
         self.btn_spalma_sel.bind("<Button-1>", lambda e: self.avvia_spalma_da_selezione())
         self.btn_spalma_sel.bind("<Button-3>", lambda e: self.apri_gestione_spese_pianificate()
                                  if hasattr(self, "apri_gestione_spese_pianificate") else None)
@@ -2016,6 +2016,7 @@ class GestioneSpese(tk.Tk):
         self.after(5500, self._check_moduli_in_background)
         self.after(6000, self._check_messaggi_servizio_in_background)
         self.after(7000, self.community_pool_controlla_novita)
+        self.after(8000, self.avvisi_agenda)
         if _BOOT_MODULI_AGGIORNATI_NOMI:
             _n_moduli_agg_boot = len(_BOOT_MODULI_AGGIORNATI_NOMI)
             def _mostra_label_changelog_boot():
@@ -2409,13 +2410,13 @@ class GestioneSpese(tk.Tk):
     def _crea_lbl_webport(self):
         self._rimuovi_lbl_webport()
         cont = self._lbl_form_container
-        _prot = " (HTTPS)" if USA_SSL and os.path.exists(os.path.join(DB_DIR, "cert.pem")) else " (HTTP)"
+        _prot = " (HTTPS)" if USA_SSL and os.path.exists(SSL_CERT) else " (HTTP)"
         sep1 = tk.Frame(cont, height=1, bg="gray50")
         sep1.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=2)
         self.lbl_webport = ttk.Label(
             cont,
             image=self.icone_gui.get("mobile"),
-            text=f" Port: {PORTA}{_prot}",
+            text=f" Port: {PORTA}{_prot} · {self._testo_web_connessi()}",
             compound="left",
             font=("Arial", 7, "italic"),
             foreground=self.TEXT_COLOR,
@@ -2424,10 +2425,53 @@ class GestioneSpese(tk.Tk):
         )
         self.lbl_webport.pack(side=tk.RIGHT, padx=(0, 4))
         self.lbl_webport.bind("<Button-1>", lambda e: self.mostra_qr_popup_label())
-        self._add_tt(self.lbl_webport, "Mostra QR accesso web")
+        self._add_tt(self.lbl_webport, self._tooltip_web_connessi)
         sep2 = tk.Frame(cont, height=1, bg="gray50")
         sep2.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=2)
         self._webport_widgets = [sep1, self.lbl_webport, sep2]
+        self._prot_webport = _prot
+        self._aggiorna_web_connessi()
+
+    def _num_web_connessi(self):
+        try:
+            return int(self.web_connessi())
+        except Exception:
+            return 0
+
+    def _testo_web_connessi(self):
+        n = self._num_web_connessi()
+        return "1 collegato" if n == 1 else f"{n} collegati"
+
+    def _tooltip_web_connessi(self):
+        righe = ["Clic: mostra QR accesso web", ""]
+        try:
+            elenco = self.web_connessi_elenco()
+        except Exception:
+            elenco = []
+        if not elenco:
+            righe.append("Nessun dispositivo collegato")
+        else:
+            righe.append("Dispositivi collegati:")
+            for ip, t, info in elenco:
+                righe.append(f"{ip}{' · ' + info if info else ''}  (attivo alle {datetime.datetime.fromtimestamp(t).strftime('%H:%M:%S')})")
+        return "\n".join(righe)
+
+    def _aggiorna_web_connessi(self):
+        job = getattr(self, "_job_web_connessi", None)
+        if job:
+            try:
+                self.after_cancel(job)
+            except Exception:
+                pass
+            self._job_web_connessi = None
+        lbl = getattr(self, "lbl_webport", None)
+        if lbl is None:
+            return
+        try:
+            lbl.config(text=f" Port: {PORTA}{getattr(self, '_prot_webport', '')} · {self._testo_web_connessi()}")
+            self._job_web_connessi = self.after(5000, self._aggiorna_web_connessi)
+        except Exception:
+            pass
 
     def _rimuovi_lbl_webport(self):
         for w in getattr(self, "_webport_widgets", []):
@@ -2436,6 +2480,13 @@ class GestioneSpese(tk.Tk):
             except Exception:
                 pass
         self._webport_widgets = []
+        job = getattr(self, "_job_web_connessi", None)
+        if job:
+            try:
+                self.after_cancel(job)
+            except Exception:
+                pass
+            self._job_web_connessi = None
         if hasattr(self, "lbl_webport"):
             del self.lbl_webport
 
@@ -2595,6 +2646,21 @@ class GestioneSpese(tk.Tk):
                     righe.append(("Descrizione", _piano.get("descrizione")))
                 if _piano.get("conto"):
                     righe.append(("Conto", _piano.get("conto")))
+                _viva_pi = None
+                _id_sp_pi = _piano.get("id_spesa_collegata")
+                if _id_sp_pi:
+                    for _vv in self.spese.values():
+                        _viva_pi = next((_v for _v in _vv if campo(_v, "id_spesa", None) == _id_sp_pi), None)
+                        if _viva_pi is not None:
+                            break
+                if _viva_pi is not None and campo(_viva_pi, "ora", ""):
+                    righe.append(("Orario", campo(_viva_pi, "ora", "")))
+                _tag_pi = (campo(_viva_pi, "hashtag", []) if _viva_pi is not None else None) or _piano.get("hashtag") or []
+                if isinstance(_tag_pi, str):
+                    _tag_pi = [_tag_pi]
+                _tag_pi_fmt = ", ".join(f"#{t.lstrip('#')}" for t in _tag_pi if t)
+                if _tag_pi_fmt:
+                    righe.append(("Tag", _tag_pi_fmt))
                 try:
                     righe.append(("Importo totale", f"€ {_fmt_it(float(_piano.get('importo_totale', 0.0)))}"))
                 except (TypeError, ValueError):
@@ -5440,10 +5506,28 @@ class GestioneSpese(tk.Tk):
         except Exception as e:
             print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Nota: Aggiornamento grafico parziale (app iconizzata o occupata): {e}")
 
+    def _idx_da_id(self, data_obj, idx, sid):
+        # Le pagine web portano l'indice della voce al momento del caricamento: se nel frattempo le spese
+        # sono cambiate (desktop o altra pagina) l'indice punta a un'altra voce. Con l'id_spesa si ritrova
+        # la voce giusta; se l'id non esiste piu' ritorna None (nessuna modifica). Senza id: vecchio comportamento.
+        lista = self.spese.get(data_obj, [])
+        sid = str(sid or "").strip()
+        if not sid:
+            return idx if 0 <= idx < len(lista) else None
+        for i, v in enumerate(lista):
+            if str(campo(v, "id_spesa", "")) == sid:
+                return i
+        return None
+
     def salva_modifica_voce(self, params):
         from datetime import datetime
         v_data_str = params.get("vecchia_data", [""])[0]
         v_idx = int(params.get("vecchio_idx", ["0"])[0])
+        _d_chk = datetime.strptime(v_data_str, "%d-%m-%Y").date()
+        _i_chk = self._idx_da_id(_d_chk, v_idx, params.get("vecchio_sid", [""])[0])
+        if _i_chk is None:
+            raise ValueError("La voce e' stata modificata o eliminata nel frattempo: riapri la pagina e riprova.")
+        v_idx = _i_chk
         provenienza = params.get("provenienza", ["/lista"])[0]
         n_data_html = params.get("nuova_data", [""])[0]
         cat = params.get("categoria", [""])[0]
@@ -5503,6 +5587,8 @@ class GestioneSpese(tk.Tk):
             _metodo_web = _metodo_form[0].strip()
         else:
             _metodo_web = campo(originale, "metodo_pagamento", "")
+        _tag_form = params.get("hashtag", None)
+        _tag_web = self._normalizza_tags(_tag_form[0]) if _tag_form is not None else campo(originale, "hashtag", [])
         _id_ric_old = originale[4] if len(originale) == 5 else None
         nuova_voce = SpesaEntry(
             cat, descr, imp, tipo,
@@ -5511,7 +5597,7 @@ class GestioneSpese(tk.Tk):
             conto=_nome_c_web if _nome_c_web and _nome_c_web != "(nessuno)" else "",
             ora=campo(originale, "ora", ""),
             metodo_pagamento=_metodo_web,
-            hashtag=campo(originale, "hashtag", []),
+            hashtag=_tag_web,
             fairshare=campo(originale, "fairshare", None),
             pool_ref=campo(originale, "pool_ref", ""),
         )
@@ -5545,8 +5631,54 @@ class GestioneSpese(tk.Tk):
         except Exception:
             pass
 
+    # Registro dei refresh delle finestre secondarie: ogni finestra che mostra dati (spese, categorie,
+    # ricorrenze...) registra qui il proprio callback all'apertura. refresh_gui li richiama dopo ogni
+    # modifica (desktop o web), cosi' le finestre aperte non restano ferme su dati vecchi.
+    def registra_refresh_finestra(self, finestra, callback):
+        if not hasattr(self, "_refresh_finestre"):
+            self._refresh_finestre = []
+        self._refresh_finestre = [(w, cb) for (w, cb) in self._refresh_finestre if w is not finestra]
+        self._refresh_finestre.append((finestra, callback))
+
+    def _esegui_refresh_finestre(self):
+        # Accorpa piu' richieste ravvicinate in un solo giro (after e' sicuro anche se chiamato da un thread web)
+        if getattr(self, "_refresh_finestre_pendente", False):
+            return
+        self._refresh_finestre_pendente = True
+        def _giro():
+            self._refresh_finestre_pendente = False
+            vive = []
+            for (w, cb) in list(getattr(self, "_refresh_finestre", [])):
+                try:
+                    if not w.winfo_exists():
+                        continue
+                except Exception:
+                    continue
+                vive.append((w, cb))
+                try:
+                    cb()
+                except Exception as _e:
+                    print(f"[refresh finestra] {_e}")
+            self._refresh_finestre = vive
+        try:
+            self.after(150, _giro)
+        except Exception:
+            self._refresh_finestre_pendente = False
+
     # Aggiorna tutti i componenti visivi della GUI se la finestra non è minimizzata
     def refresh_gui(self):
+        # Chiamato da un thread del web (Flask): Tk va toccato solo dal thread principale, quindi si rimanda li'
+        try:
+            import threading as _th
+            if _th.current_thread() is not _th.main_thread():
+                self.after(0, self.refresh_gui)
+                return
+        except Exception:
+            pass
+        try:
+            self._esegui_refresh_finestre()
+        except Exception:
+            pass
         try:
             if self.state() == 'iconic':
                 return
@@ -6194,7 +6326,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "1b628c52817494729f8e042370c33e1c2a7f285507b48ea5641e22bda52382b4"
+        E_H_B = "3d52055302ef33a0413b644b43e5c7bd0d406524ef8d702f767a1433446fc0e5"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
@@ -7281,7 +7413,7 @@ if __name__ == "__main__":
             print(f"[{time.strftime('%H:%M:%S')}] .pyw locale non allineato all'ultimo commit: sincronizzazione moduli saltata per questo avvio.")
             show_warning_popup(
                 titolo="Aggiornamento disponibile", titolo_fg="#c9a84c",
-                corpo="È disponibile una nuova versione di OrbitaCasa.\n\nI moduli non verranno sincronizzati\n\n finché non aggiorni anche il programma.",
+                corpo=f"È disponibile una nuova versione di {NAME}.\n\nI moduli non verranno sincronizzati\n\n finché non aggiorni anche il programma.",
                 corpo_fg="#61AFEF", corpo_font_size=9, corpo_expand=True,
                 bg="#000000", accent="#c9a84c", width=420, height=140
             )
