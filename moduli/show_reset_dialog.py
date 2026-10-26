@@ -170,6 +170,7 @@ def _elenco_file_variabili(_app):
         ("StockBox",                          "Articoli, scorte e movimenti del magazzino (magazzino.json)", "MAGAZZINO_FILE", False),
         ("Scanner",                           "Impostazioni della finestra di scansione: ultimo scanner, scanner di rete salvati, risoluzione, colore, sorgente", "SCANNER_FILE", False),
         ("Casa Care",                         "Manutenzione e Risparmio Casa (manutenzione_casa.json)", "MANUTENZIONE_CASA_FILE", False),
+        ("Finanziamenti",                     "Finanziamenti, piano ammortamento e variazioni (finanziamenti.json)", "FIN_FILE", False),
         ("Schedulatore Email",                "Regole dello schedulatore email (schedule.json)", "SCHEDULE_FILE", False),
         ("Password di Accesso",               "Password impostata per l'accesso all'app (password.json)", "PW_FILE", False),
         ("Configurazione Generale",           "⚠ Tema, soglie e opzioni dell'app, incluse le impostazioni di rete (config.json)", "CONFIG_FILE", False),

@@ -1,40 +1,42 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import os
 import re
 import json
+import uuid
 import datetime
 
 from moduli.modello_spesa import campo
+from moduli.finanziamenti import (
+    _num,
+    _rata_francese,
+    _medie_storico,
+    _file_fin,
+    _carica_fin,
+    _salva_fin,
+    _aggiungi_mesi,
+    _mesi_residui,
+    _eventi_validi,
+    _piano_fin,
+    _residuo_dopo,
+    _serie,
+    _data_it,
+    _cronostoria,
+    _status_fin,
+    _fin_elenco,
+    _fin_salva,
+    _fin_elimina,
+    _fin_var_aggiungi,
+    _fin_var_elimina,
+    MAX_FIN,
+    MAX_VAR,
+    TIPI_VAR,
+)
 
 MESI_ITA = ["", "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
             "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
 STRATEGIE = ("Mantieni Rata", "Ricalcola Rata")
-_RE_MIGLIAIA = re.compile(r"^\d{1,3}(\.\d{3})+$")
-
-def _num(v, default=0.0):
-    """Accetta numeri o testo all'italiana ('1.234,56', '3,2', '180.000', '3.2')."""
-    if v is None:
-        return default
-    if isinstance(v, bool):
-        return default
-    if isinstance(v, (int, float)):
-        return float(v)
-    s = str(v).replace("€", "").replace("%", "").replace(" ", "").strip()
-    if not s:
-        return default
-    if "," in s:
-        s = s.replace(".", "").replace(",", ".")
-    elif _RE_MIGLIAIA.match(s):
-        s = s.replace(".", "")
-    try:
-        x = float(s)
-    except ValueError:
-        return default
-    if x != x or x in (float("inf"), float("-inf")):
-        return default
-    return x
-
 
 def _vuoto(v):
     return v is None or str(v).strip() == ""
@@ -44,17 +46,6 @@ def _data_rata(oggi, n):
     m = (oggi.month + n - 1) % 12 + 1
     a = oggi.year + (oggi.month + n - 1) // 12
     return f"{min(oggi.day, 28):02d}-{m:02d}-{a}"
-
-def _rata_francese(capitale, tasso_mensile, mesi):
-    if mesi <= 0:
-        return 0.0
-    try:
-        if tasso_mensile > 0:
-            f = (1 + tasso_mensile) ** mesi
-            return capitale * (tasso_mensile * f) / (f - 1)
-        return capitale / mesi
-    except (ZeroDivisionError, OverflowError):
-        return 0.0
 
 def _piano(capitale, mesi, tasso_mensile, spese, extra=0.0):
     oggi = datetime.date.today()
@@ -331,29 +322,21 @@ def _calcola_sostenibilita(d):
             "rata_oggi": righe[0]["rata"], "pct_oggi": righe[0]["pct"], "pct_fine": righe[-1]["pct"],
             "residuo_oggi": righe[0]["residuo"], "residuo_fine": righe[-1]["residuo"]}, 200
 
-def _medie_storico(self):
-    entrate, uscite = {}, {}
-    try:
-        for dt, voci in list(self.spese.items()):
-            k = (dt.year, dt.month)
-            for v in list(voci):
-                tipo = campo(v, "tipo", "")
-                imp = float(campo(v, "importo", 0.0))
-                if tipo == "Entrata":
-                    entrate[k] = entrate.get(k, 0.0) + imp
-                elif tipo == "Uscita":
-                    uscite[k] = uscite.get(k, 0.0) + imp
-    except Exception:
-        pass
-    e = sum(entrate.values()) / len(entrate) if entrate else 0.0
-    s = sum(uscite.values()) / len(uscite) if uscite else 0.0
-    return e, s
-
 def finanziamenti_web_calcola(self, d):
     if not isinstance(d, dict):
         return {"ok": False, "errore": "Richiesta non valida."}, 400
     try:
         tool = d.get("tool")
+        if tool == "fin_elenco":
+            return _fin_elenco(self), 200
+        if tool == "fin_salva":
+            return _fin_salva(d)
+        if tool == "fin_elimina":
+            return _fin_elimina(d)
+        if tool == "fin_var_aggiungi":
+            return _fin_var_aggiungi(d)
+        if tool == "fin_var_elimina":
+            return _fin_var_elimina(d)
         if tool == "simulazioni":
             return _calcola_simulazioni(d), 200
         if tool == "rata":
@@ -452,6 +435,16 @@ _PAGINA = r"""<!DOCTYPE html>
     .grafico { overflow-x:auto; margin-top:8px; }
     #msg { position:fixed; left:50%; bottom:30px; transform:translateX(-50%); background:var(--surface2); border:1px solid var(--border-active); padding:10px 16px; border-radius:12px; font-weight:700; font-size:0.9em; display:none; z-index:300; max-width:90vw; text-align:center; }
     #msg.err { border-color:var(--red); color:var(--red); }
+
+    .prog { height:8px; border-radius:6px; background:var(--surface3); overflow:hidden; margin:8px 0 4px; }
+    .prog > i { display:block; height:100%; background:var(--green); }
+    .badge { display:inline-block; font-size:0.68em; font-weight:800; padding:2px 8px; border-radius:20px; border:1px solid currentColor; vertical-align:middle; margin-left:6px; }
+    .badge.in_corso { color:var(--blue); } .badge.estinto { color:var(--green); } .badge.non_iniziato { color:var(--orange); }
+    .finhead { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+    .finhead h3 { margin:0; }
+    .iconbtn { background:var(--surface3); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:5px 9px; cursor:pointer; font-size:0.85em; margin-left:4px; }
+    .griglia.larga { grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
+    select { text-overflow:clip; }
     .vuoto { text-align:center; color:var(--text-mid); padding:18px 10px; font-size:0.9em; }
 </style>
 <script>
@@ -507,6 +500,155 @@ _PAGINA = r"""<!DOCTYPE html>
         document.querySelectorAll('.tab').forEach(function(t) { t.classList.toggle('on', t.dataset.t === nome); });
         document.querySelectorAll('.pannello').forEach(function(p) { p.classList.toggle('on', p.id === 'p_' + nome); });
         try { sessionStorage.setItem('fin_tab', nome); } catch (e) {}
+    }
+
+
+    var FIN = null;
+    var STATI = { in_corso: 'In corso', estinto: 'Estinto', non_iniziato: 'Da iniziare' };
+    function graficoFin(serie) {
+        var n = serie.length, W = Math.max(300, n * 34 + 20), H = 170, pt = 18, pb = 24, pl = 8;
+        var max = Math.max.apply(null, serie.map(function(x) { return x.residuo; })) || 1;
+        var cw = (W - pl * 2) / n, s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="Debito residuo anno per anno">';
+        serie.forEach(function(x, i) {
+            var h = (x.residuo / max) * (H - pt - pb), x0 = pl + i * cw + cw * 0.15, w = cw * 0.7;
+            s += '<rect x="' + x0 + '" y="' + (H - pb - h) + '" width="' + w + '" height="' + h + '" rx="2" fill="var(--blue)"><title>' + (i === 0 ? 'Oggi' : x.anno_solare) + ': ' + eur(x.residuo) + '</title></rect>' +
+                 '<text x="' + (x0 + w / 2) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="9" fill="var(--text-mid)">' + (i === 0 ? 'oggi' : (n > 14 && i % 2 ? '' : "'" + String(x.anno_solare).slice(2))) + '</text>';
+        });
+        return s + '</svg>';
+    }
+    function tabProiezione(serie) {
+        var h = '<div class="scroll"><table><thead><tr><th>Periodo</th><th>Debito residuo</th><th>Rate versate</th><th>di cui capitale</th><th>di cui interessi</th></tr></thead><tbody>';
+        serie.forEach(function(x, i) {
+            h += '<tr><td>' + (i === 0 ? 'Oggi' : 'Fine ' + x.anno_solare + ' (+' + i + ')') + '</td><td>' + eur(x.residuo) + '</td><td>' + (i ? eur(x.rata) : '-') + '</td><td>' + (i ? eur(x.cap) : '-') + '</td><td>' + (i ? eur(x.int) : '-') + '</td></tr>';
+        });
+        return h + '</tbody></table></div>';
+    }
+
+    var TIPI_VAR = { extra: 'Estinzione parziale', durata: 'Nuova durata residua', tasso: 'Nuovo tasso', rata: 'Nuova rata' };
+    function descVar(v) {
+        var d = v.data.split('-').reverse().join('-');
+        if (v.tipo === 'extra') return d + ' · Estinzione parziale ' + eur(v.valore) + ' (' + (v.strategia === 'accorcia' ? 'mantieni rata, accorcia' : 'ricalcola rata') + ')';
+        if (v.tipo === 'durata') return d + ' · Durata residua ' + Math.round(v.valore * 12) + ' mesi';
+        if (v.tipo === 'prolunga') return d + ' · ' + (v.valore > 0 ? 'Prolungato di ' : 'Accorciato di ') + Math.round(Math.abs(v.valore) * 12) + ' mesi';
+        if (v.tipo === 'tasso') return d + ' · Tasso ' + pct(v.valore);
+        return d + ' · Rata ' + eur(v.valore);
+    }
+
+    function tabCrono(c) {
+        var h = '<div class="scroll"><table><thead><tr><th>Data</th><th>Evento</th><th>Rata prima</th><th>Rata dopo</th><th>Debito dopo</th><th>Fine prevista</th><th>Interessi totali</th></tr></thead><tbody>';
+        c.forEach(function(x) {
+            var ev = x.tipo ? esc(descVar({ data: x.data.split('-').reverse().join('-'), tipo: x.tipo, valore: x.valore, strategia: x.strategia }).split(' · ').slice(1).join(' · ')) : '<b>' + esc(x.titolo) + '</b> · ' + esc(x.dettaglio);
+            h += '<tr><td>' + esc(x.data) + '</td><td style="white-space:normal;min-width:170px">' + ev + '</td><td>' + (x.rata_prima == null ? '-' : eur(x.rata_prima)) + '</td><td>' + eur(x.rata_dopo) + '</td><td>' + eur(x.debito) + '</td><td>' + esc(x.fine) + '</td><td>' + eur(x.int_totali) + '</td></tr>';
+        });
+        return h + '</tbody></table></div>';
+    }
+    function boxVar(f) {
+        var h = '<details class="sc"><summary>🔧 Variazioni (' + (f.variazioni || []).length + ')</summary><div>' +
+            '<div class="nota">Registra estinzioni parziali, cambi di durata, tasso o rata: status e proiezioni vengono ricalcolati. Per ripartire da un estratto della banca crea un nuovo finanziamento con debito residuo, prossima rata e mesi rimasti.</div>';
+        (f.variazioni || []).forEach(function(v, i) {
+            h += '<div class="nota" style="display:flex;justify-content:space-between;gap:8px"><span>' + esc(descVar(v)) + '</span><button class="iconbtn" onclick="eliminaVar(\'' + esc(f.id) + '\',' + i + ')">🗑️</button></div>';
+        });
+        h += '<div class="griglia larga"><div class="campo"><label>Data</label><input type="date" id="vD_' + esc(f.id) + '"></div>' +
+            '<div class="campo"><label>Tipo</label><select id="vT_' + esc(f.id) + '" onchange="aggiornaVar(\'' + esc(f.id) + '\')"><option value="extra">Estinzione parziale</option><option value="durata">Nuova durata residua (mesi)</option><option value="prolunga">Prolunga la durata</option><option value="accorcia">Accorcia la durata</option><option value="tasso">Cambio tasso</option><option value="rata">Cambio rata</option></select></div>' +
+            '<div class="campo"><label id="vL_' + esc(f.id) + '">Importo versato (€)</label><input id="vV_' + esc(f.id) + '" inputmode="decimal" autocomplete="off"></div>' +
+            '<div class="campo" id="vSW_' + esc(f.id) + '"><label>Dopo il versamento</label><select id="vS_' + esc(f.id) + '"><option value="ricalcola">Ricalcola la rata (durata uguale)</option><option value="accorcia">Mantieni la rata (finisce prima)</option></select></div></div>' +
+            '<button class="btn verde mini" onclick="aggiungiVar(\'' + esc(f.id) + '\')">Aggiungi variazione</button></div></details>';
+        return h;
+    }
+    function aggiornaVar(id) {
+        var t = $('vT_' + id).value;
+        $('vL_' + id).textContent = { extra: 'Importo versato (€)', durata: 'Durata residua (mesi)', prolunga: 'Mesi da aggiungere', accorcia: 'Mesi da togliere', tasso: 'Nuovo tasso annuo (%)', rata: 'Nuova rata (€)' }[t];
+        $('vSW_' + id).style.display = t === 'extra' ? '' : 'none';
+    }
+    async function aggiungiVar(id) {
+        var tipo = val('vT_' + id), v = val('vV_' + id);
+        if (tipo === 'accorcia') { tipo = 'prolunga'; v = '-' + String(v).replace('-', '').trim(); }
+        var r = await calcola({ tool: 'fin_var_aggiungi', id: id, data: val('vD_' + id), tipo: tipo, valore: v, strategia: val('vS_' + id) });
+        if (!r || !r.ok) { msg((r && r.errore) || 'Errore.', true); return; }
+        msg('Variazione aggiunta'); caricaFin();
+    }
+    async function eliminaVar(id, i) {
+        if (!confirm('Eliminare questa variazione?')) return;
+        var r = await calcola({ tool: 'fin_var_elimina', id: id, indice: i });
+        if (!r || !r.ok) { msg((r && r.errore) || 'Errore.', true); return; }
+        msg('Variazione eliminata'); caricaFin();
+    }
+    async function caricaFin() {
+        var r = await calcola({ tool: 'fin_elenco' });
+        if (!r || !r.ok) { msg((r && r.errore) || 'Errore di caricamento.', true); return; }
+        FIN = r;
+        var t = r.totali, h = '';
+        if (r.finanziamenti.length) {
+            var rosso = t.pct_entrate != null && t.pct_entrate >= 40, giallo = t.pct_entrate != null && t.pct_entrate >= 30;
+            h = '<div class="card"><h3>📌 Status complessivo</h3><div class="kpis">' +
+                '<div class="kpi"><div class="e">Finanziamenti attivi</div><div class="v">' + t.n_attivi + (t.n_estinti ? ' (+' + t.n_estinti + ' estinti)' : '') + '</div></div>' +
+                '<div class="kpi"><div class="e">Debito residuo</div><div class="v">' + eur(t.residuo) + '</div></div>' +
+                '<div class="kpi"><div class="e">Rate mensili</div><div class="v">' + eur(t.rata_mensile) + '</div></div>' +
+                '<div class="kpi"><div class="e">Interessi ancora da pagare</div><div class="v">' + eur(t.int_restanti) + '</div></div>' +
+                '<div class="kpi"><div class="e">Libero da debiti</div><div class="v">' + (t.fine_ultimo || '-') + '</div></div>' +
+                '<div class="kpi"><div class="e">Rate / entrate medie</div><div class="v ' + (rosso ? 'neg' : (giallo ? '' : 'pos')) + '">' + (t.pct_entrate == null ? 'n.d.' : pct1(t.pct_entrate)) + '</div></div></div>';
+            if (r.serie.length > 1) {
+                h += '<h3 style="margin-top:12px">📈 Proiezione del debito totale</h3><div class="grafico">' + graficoFin(r.serie) + '</div>' + tabProiezione(r.serie);
+            }
+            h += '</div>';
+        }
+        $('finTot').innerHTML = h;
+        var l = '';
+        if (!r.finanziamenti.length) l = '<div class="card vuoto">Nessun finanziamento salvato. Aggiungine uno qui sotto.</div>';
+        r.finanziamenti.forEach(function(f) {
+            var st = f.status;
+            l += '<div class="card"><div class="finhead"><h3>' + esc(f.nome) + (st ? '<span class="badge ' + st.stato + '">' + STATI[st.stato] + '</span>' : '') + '</h3><div>' +
+                 '<button class="iconbtn" onclick="modificaFin(\'' + esc(f.id) + '\')">✏️</button><button class="iconbtn" onclick="eliminaFin(\'' + esc(f.id) + '\')">🗑️</button></div></div>';
+            if (!st) { l += '<div class="nota neg">' + esc(f.errore) + '</div></div>'; return; }
+            l += '<div class="nota">' + eur(f.capitale) + ' al ' + pct(f.tasso) + ' · ' + f.mesi + ' mesi · dal ' + esc(f.data_inizio.split('-').reverse().join('-')) + '</div>' +
+                 '<div class="prog"><i style="width:' + Math.min(100, st.pct).toFixed(1) + '%"></i></div>' +
+                 '<div class="nota">Rimborsato ' + pct1(st.pct) + ' · rate ' + st.rate_pagate + ' / ' + st.rate_tot + '</div><div class="kpis">' +
+                 '<div class="kpi"><div class="e">Debito residuo</div><div class="v">' + eur(st.residuo) + '</div></div>' +
+                 '<div class="kpi"><div class="e">Rata mensile</div><div class="v">' + eur(st.rata_mensile) + '</div></div>' +
+                 '<div class="kpi"><div class="e">Prossima scadenza</div><div class="v">' + (st.prossima_data ? esc(st.prossima_data) + '<br><small>' + eur(st.prossima_importo) + (st.giorni_prossima != null ? ' · tra ' + st.giorni_prossima + ' gg' : '') + '</small>' : '-') + '</div></div>' +
+                 '<div class="kpi"><div class="e">Fine prevista</div><div class="v">' + esc(st.fine) + '<br><small>' + st.rate_rimaste + ' rate rimaste</small></div></div>' +
+                 '<div class="kpi"><div class="e">Interessi pagati</div><div class="v">' + eur(st.int_pagati) + '</div></div>' +
+                 '<div class="kpi"><div class="e">Interessi restanti</div><div class="v">' + eur(st.int_restanti) + '</div></div></div>';
+            if (st.risparmio_int != null) {
+                var dm = st.mesi_diff;
+                l += '<div class="verdetto g"><b>Effetto delle variazioni</b>Fine prevista ' + esc(st.fine) + ' invece di ' + esc(st.base_fine) +
+                     (dm ? ' (' + Math.abs(dm) + (dm > 0 ? ' mesi in meno' : ' mesi in più') + ')' : '') + ' · interessi ' + (st.risparmio_int >= 0 ? 'risparmiati ' : 'in più ') + eur(Math.abs(st.risparmio_int)) + '</div>';
+            }
+            if (f.crono && f.crono.length > 1) l += '<details class="sc" open><summary>🕓 Cronostoria</summary><div>' + tabCrono(f.crono) + '</div></details>';
+            l += boxVar(f);
+            if (st.stato !== 'estinto') l += '<details class="sc"><summary>📈 Proiezione anno per anno</summary><div>' + tabProiezione(f.proiezione) + '</div></details>';
+            l += '<details class="sc"><summary>📋 Piano di ammortamento</summary><div><div class="scroll"><table><thead><tr><th>Rata</th><th>Importo</th><th>Capitale</th><th>Interessi</th><th>Residuo</th></tr></thead><tbody>';
+            f.piano.forEach(function(p) {
+                l += '<tr class="' + (p.pagata ? 'extra' : '') + '"><td>' + p.n + ' (' + esc(p.data) + ')' + (p.pagata ? ' ✔' : '') + (p.extra > 0 ? ' · incl. extra ' + eur(p.extra) : '') + (p.cambio ? ' 🔄' : '') + '</td><td>' + eur(p.rata) + '</td><td>' + eur(p.cap) + '</td><td>' + eur(p.int) + '</td><td>' + eur(p.residuo) + '</td></tr>';
+            });
+            l += '</tbody></table></div></div></details></div>';
+        });
+        $('finLista').innerHTML = l;
+    }
+    function resetFin() {
+        ['fId','fN','fC','fT','fA','fD','fR','fS'].forEach(function(i) { $(i).value = ''; });
+        $('finFormTit').textContent = '➕ Aggiungi un finanziamento';
+    }
+    function modificaFin(id) {
+        var f = (FIN && FIN.finanziamenti || []).filter(function(x) { return x.id === id; })[0];
+        if (!f) return;
+        $('fId').value = f.id; $('fN').value = f.nome; $('fC').value = String(f.capitale).replace('.', ',');
+        $('fT').value = String(f.tasso).replace('.', ','); $('fA').value = String(f.mesi);
+        $('fD').value = f.data_inizio; $('fR').value = f.rata_fissa ? String(f.rata_fissa).replace('.', ',') : '';
+        $('fS').value = f.spese ? String(f.spese).replace('.', ',') : '';
+        $('finFormTit').textContent = '✏️ Modifica finanziamento';
+        $('fN').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    async function salvaFin() {
+        var r = await calcola({ tool: 'fin_salva', id: val('fId'), nome: val('fN'), capitale: val('fC'), tasso: val('fT'), mesi: val('fA'), data_inizio: val('fD'), rata: val('fR'), spese: val('fS') });
+        if (!r || !r.ok) { msg((r && r.errore) || 'Errore di salvataggio.', true); return; }
+        msg('Finanziamento salvato'); resetFin(); caricaFin();
+    }
+    async function eliminaFin(id) {
+        if (!confirm('Eliminare questo finanziamento?')) return;
+        var r = await calcola({ tool: 'fin_elimina', id: id });
+        if (!r || !r.ok) { msg((r && r.errore) || 'Errore.', true); return; }
+        msg('Eliminato'); caricaFin();
     }
 
     var INT_PIANO = ['Rata', 'Rata mensile', 'Quota capitale', 'Quota interessi', 'Debito residuo'];
@@ -658,7 +800,7 @@ _PAGINA = r"""<!DOCTYPE html>
 
     document.addEventListener('DOMContentLoaded', function() {
         applyTheme(localStorage.getItem('theme') || 'dark');
-        costruisciSim(); impostaSost();
+        costruisciSim(); impostaSost(); caricaFin();
         document.querySelectorAll('input').forEach(function(i) {
             i.addEventListener('keydown', function(e) {
                 if (e.key !== 'Enter') return;
@@ -666,8 +808,8 @@ _PAGINA = r"""<!DOCTYPE html>
                 var b = p.querySelector('.btn.verde'); if (b) b.click();
             });
         });
-        var t = 'sim'; try { t = sessionStorage.getItem('fin_tab') || 'sim'; } catch (e) {}
-        if (!$('p_' + t)) t = 'sim';
+        var t = 'fin'; try { t = sessionStorage.getItem('fin_tab') || 'fin'; } catch (e) {}
+        if (!$('p_' + t)) t = 'fin';
         vaiTab(t);
     });
 </script>
@@ -748,11 +890,32 @@ _PAGINA = r"""<!DOCTYPE html>
 </header>
 <main>
     <div class="tabs">
+        <button class="tab" data-t="fin" onclick="vaiTab('fin')">💼 I miei finanziamenti</button>
         <button class="tab" data-t="sim" onclick="vaiTab('sim')">📊 Simulazioni</button>
         <button class="tab" data-t="sost" onclick="vaiTab('sost')">🏠 Sostenibilità nel tempo</button>
         <button class="tab" data-t="killer" onclick="vaiTab('killer')">🎯 Estinzione anticipata</button>
         <button class="tab" data-t="rata" onclick="vaiTab('rata')">💰 Rata sostenibile</button>
     </div>
+
+    <section class="pannello" id="p_fin">
+        <div id="finTot"></div>
+        <div id="finLista"></div>
+        <div class="card">
+            <h3 id="finFormTit">➕ Aggiungi un finanziamento</h3>
+            <div class="nota">Salva i tuoi mutui e prestiti reali: lo status (rate pagate, debito residuo, prossima scadenza) si aggiorna da solo in base alla data di oggi. Se non conosci la rata esatta lasciala vuota: viene calcolata (ammortamento alla francese).</div>
+            <input type="hidden" id="fId">
+            <div class="griglia">
+                <div class="campo"><label>Nome (es. Mutuo casa)</label><input id="fN" autocomplete="off" maxlength="60"></div>
+                <div class="campo"><label>Capitale erogato (€)</label><input id="fC" inputmode="decimal" autocomplete="off"></div>
+                <div class="campo"><label>Tasso annuo (%)</label><input id="fT" inputmode="decimal" autocomplete="off"></div>
+                <div class="campo"><label>Durata (mesi)</label><input id="fA" inputmode="numeric" autocomplete="off"></div>
+                <div class="campo"><label>Data prima rata</label><input id="fD" type="date"></div>
+                <div class="campo"><label>Rata reale (€, opzionale)</label><input id="fR" inputmode="decimal" autocomplete="off"></div>
+                <div class="campo"><label>Spese mensili (€)</label><input id="fS" inputmode="decimal" autocomplete="off"></div>
+            </div>
+            <div class="btns"><button class="btn verde" onclick="salvaFin()">Salva</button><button class="btn" onclick="resetFin()">Annulla</button></div>
+        </div>
+    </section>
 
     <section class="pannello" id="p_sim">
         <div class="card">
@@ -826,7 +989,6 @@ _PAGINA = r"""<!DOCTYPE html>
 </body>
 </html>
 """
-
 
 def pagina_finanziamenti_web(self):
     e, s = _medie_storico(self)

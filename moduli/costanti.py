@@ -188,6 +188,7 @@ def carica_costanti(path_locale):
     g['MAGAZZINO_FILE'] = os.path.join(DB_DIR, "magazzino.json")
     g['SCANNER_FILE'] = os.path.join(DB_DIR, "scanner_impostazioni.json")
     g['ANIMALI_FILE'] = os.path.join(DB_DIR, "animali.json")
+    g['FIN_FILE'] = os.path.join(DB_DIR, "finanziamenti.json")
     g['GAMIFICATION_FILE'] = os.path.join(DB_DIR, "gamification.json")
     g['CREDENTIALS_FILE'] = os.path.join(DB_DIR, "webauthn_credentials.json")
         

@@ -49,6 +49,7 @@ def gestisci_backup_popup(self):
     MANUTENZIONE_CASA_FILE = _app.MANUTENZIONE_CASA_FILE
     MESSAGGI_VISTI_FILE = _app.MESSAGGI_VISTI_FILE
     COMMUNITY_POOL_LINK_FILE = _app.COMMUNITY_POOL_LINK_FILE
+    FIN_FILE = _app.FIN_FILE
     
     import os, time, subprocess, sys
     if hasattr(self, '_win_backup_istanza') and self._win_backup_istanza.winfo_exists():
@@ -91,6 +92,7 @@ def gestisci_backup_popup(self):
         "fondo_pensione.json":            "Fondo Pensione",
         "animali.json":                   "Pet Care",
         "manutenzione_casa.json":         "Manutenzione Casa",
+        "finanziamenti.json":             "Finanziamenti",
         "schedule.json":                  "Schedulatore",
         "webauthn_credentials.json":      "Passkey / WebAuthn",
         "messaggi_servizio_visti.json":   "Messaggi Servizio (Visti)",
@@ -348,7 +350,7 @@ def gestisci_backup_popup(self):
                 STUDIO_CASSA, STUDIO_MAGAZZINO, IMMOBIL_FILE, FR_FILE, PORTAFOGLIO_BANCARIO,
                 SCHEDULE_FILE, VEICOLI_FILE, GAMIFICATION_FILE, CREDENTIALS_FILE, PENSIONE_FILE,
                 ANIMALI_FILE, MANUTENZIONE_CASA_FILE, MESSAGGI_VISTI_FILE,
-                MAGAZZINO_FILE, SCANNER_FILE, COMMUNITY_POOL_LINK_FILE
+                MAGAZZINO_FILE, SCANNER_FILE, COMMUNITY_POOL_LINK_FILE, FIN_FILE
             ]
             try:
                 from moduli.community_pool import _safe

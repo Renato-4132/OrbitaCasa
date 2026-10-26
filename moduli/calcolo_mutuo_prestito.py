@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import json
 import os
+import re
+import threading
 import tkinter as tk
 from tkinter import ttk, filedialog
 
@@ -11,6 +14,1113 @@ def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
     return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
 
+import datetime
+
+from moduli.finanziamenti import (
+    _fin_elenco,
+    _fin_salva,
+    _fin_elimina,
+    _fin_var_aggiungi,
+    _fin_var_elimina,
+    _fin_esporta,
+    _fin_smarca,
+    _fin_riallinea,
+    _fin_elimina_esportate,
+    _fin_conti,
+    TIPI_VAR,
+)
+
+def _it(v, dec=2):
+    try:
+        s = format(float(v), f",.{dec}f")
+    except (TypeError, ValueError):
+        return "-"
+    return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+
+
+def _data_iso(testo):
+    t = str(testo or "").strip().replace("/", "-")
+    for fmt in ("%d-%m-%Y", "%Y-%m-%d"):
+        try:
+            return datetime.datetime.strptime(t, fmt).date().isoformat()
+        except ValueError:
+            continue
+    return None
+
+def _iso_a_it(iso):
+    try:
+        return datetime.date.fromisoformat(iso).strftime("%d-%m-%Y")
+    except Exception:
+        return str(iso or "")
+
+ETICHETTE_VAR = {
+    "extra": "Versamento extra (€)",
+    "durata": "Nuova durata residua (mesi)",
+    "prolunga": "Prolunga (+) / accorcia (-) di mesi",
+    "tasso": "Nuovo tasso annuo (%)",
+    "rata": "Nuova rata fissa (€)",
+}
+STRATEGIE_VAR = {
+    "ricalcola": "Ricalcola la rata (durata uguale)",
+    "accorcia": "Mantieni la rata (accorcia la durata)",
+}
+STATI = {"estinto": "Estinto", "non_iniziato": "Non iniziato", "in_corso": "In corso"}
+
+def _pulsante_fin(self, parent, testo, comando, icona=None):
+    img = self.icone_gui.get(icona) if icona and getattr(self, "icone_gui", None) else None
+    lb = ttk.Label(parent, compound="left", image=img, text=(" " + testo) if img else testo,
+                   background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2",
+                   padding=(10, 5))
+    lb.bind("<Button-1>", lambda e: comando())
+    return lb
+
+def _disegna_avanzamento(cv, pct, colore, sfondo, testo):
+    cv.delete("all")
+    w, h = max(cv.winfo_width(), 60), max(cv.winfo_height(), 20)
+    cv.create_rectangle(0, 0, w - 1, h - 1, fill=sfondo, outline="#888888")
+    if pct is None:
+        return
+    p = max(0.0, min(100.0, pct))
+    if p > 0:
+        cv.create_rectangle(1, 1, max(3, 1 + (w - 3) * p / 100), h - 2, fill=colore, outline="")
+    cv.create_text(w / 2, h / 2, text=f"{_it(p, 1)} %", fill=testo, font=("Arial", 9, "bold"))
+
+def _disegna_proiezione(cv, serie, colore, testo, titolo):
+    cv.delete("all")
+    w, h = max(cv.winfo_width(), 120), max(cv.winfo_height(), 80)
+    cv.create_text(8, 9, text=titolo, anchor="w", fill=testo, font=("Arial", 9, "bold"))
+    if not serie or len(serie) < 2:
+        cv.create_text(w / 2, h / 2, text="Nessuna proiezione disponibile", fill=testo, font=("Arial", 9, "italic"))
+        cv.unbind("<Motion>")
+        return
+    pl, pr, pt, pb = 10, 10, 26, 22
+    n = len(serie)
+    massimo = max(x["residuo"] for x in serie) or 1.0
+    cw = (w - pl - pr) / n
+    cv.create_line(pl, h - pb, w - pr, h - pb, fill="#888888")
+    for i, x in enumerate(serie):
+        alt = (x["residuo"] / massimo) * (h - pt - pb)
+        x0 = pl + i * cw + cw * 0.15
+        x1 = x0 + cw * 0.7
+        cv.create_rectangle(x0, h - pb - alt, x1, h - pb, fill=colore, outline="")
+        if i == 0:
+            et = "oggi"
+        elif n > 14 and i % 2:
+            et = ""
+        else:
+            et = "'" + str(x["anno_solare"])[2:]
+        if et:
+            cv.create_text((x0 + x1) / 2, h - 10, text=et, fill=testo, font=("Arial", 8))
+    tip = cv.create_text(w - pr, 9, text="", anchor="e", fill=testo, font=("Arial", 9))
+
+    def _hover(e):
+        i = int((e.x - pl) // cw) if cw > 0 else -1
+        if 0 <= i < n:
+            cv.itemconfigure(tip, text=f"{'Oggi' if i == 0 else serie[i]['anno_solare']}: {_it(serie[i]['residuo'])} €")
+        else:
+            cv.itemconfigure(tip, text="")
+    cv.bind("<Motion>", _hover)
+    cv.bind("<Leave>", lambda e: cv.itemconfigure(tip, text=""))
+
+DOMANDE_FIN = (
+    ("Estinguere una parte?", "Con la liquidità che ho conviene estinguere una parte del finanziamento? Quanto, "
+                              "lasciando un cuscinetto adeguato in banca?"),
+    ("+200 € al mese", "Se verso 200 € in più al mese sulla rata, quando finisco di pagare e quanto risparmio di interessi?"),
+    ("Quale per primo?", "Se ho più finanziamenti, quale mi conviene estinguere per primo e perché?"),
+    ("Chiudere tutto?", "Potrei estinguere tutto il finanziamento adesso? Cosa mi resterebbe in banca e per quanti mesi di spese?"),
+)
+
+def _fin_liquidita(self):
+    try:
+        import __main__ as _app
+        pb = getattr(_app, "PORTAFOGLIO_BANCARIO", None)
+        if not pb or not os.path.exists(pb):
+            return []
+        with open(pb, "r", encoding="utf-8") as fh:
+            db = json.load(fh)
+        out = []
+        for c in (db.get("conti") or []) if isinstance(db, dict) else []:
+            try:
+                s = float(self._saldo_effettivo(c, db))
+            except Exception:
+                s = float(c.get("saldo", 0.0) or 0.0)
+            out.append((c.get("nome", "?"), bool(c.get("principale")), s))
+        return out
+    except Exception:
+        return []
+
+def _fin_blocco_contabile(self, oggi):
+    L, mesi = ["CONTI (saldo attuale):"], {}
+    conti = _fin_liquidita(self)
+    L += [f"   {n}{' (principale)' if p else ''}: {_it(s)} €" for n, p, s in conti] or ["   nessun conto registrato"]
+    try:
+        for dt, voci in list(self.spese.items()):
+            if isinstance(dt, datetime.datetime):
+                dt = dt.date()
+            if not isinstance(dt, datetime.date):
+                continue
+            for v in list(voci):
+                tipo, imp = campo(v, "tipo", ""), float(campo(v, "importo", 0.0))
+                if tipo not in ("Entrata", "Uscita"):
+                    continue
+                m = mesi.setdefault((dt.year, dt.month), {"E": 0.0, "U": 0.0, "cat": {}})
+                m["E" if tipo == "Entrata" else "U"] += imp
+                if tipo == "Uscita":
+                    c = campo(v, "categoria", "") or "Senza categoria"
+                    m["cat"][c] = m["cat"].get(c, 0.0) + imp
+    except Exception:
+        pass
+    corr = (oggi.year, oggi.month)
+    chiusi = sorted(k for k in mesi if k < corr)[-12:]
+    if chiusi:
+        ent = sum(mesi[k]["E"] for k in chiusi) / len(chiusi)
+        usc = sum(mesi[k]["U"] for k in chiusi) / len(chiusi)
+        L.append(f"MEDIE sugli ultimi {len(chiusi)} mesi completi: entrate {_it(ent)} € al mese, uscite {_it(usc)} € al mese, "
+                 f"avanzo {_it(ent - usc)} € al mese.")
+        L.append(f"CUSCINETTO: 3 mesi di spese = {_it(3 * usc)} €, 6 mesi = {_it(6 * usc)} €.")
+    L.append("ENTRATE E USCITE MESE PER MESE (l'ultimo mese è quello in corso, incompleto):")
+    for k in sorted(mesi)[-13:]:
+        top = sorted(mesi[k]["cat"].items(), key=lambda x: -x[1])[:5]
+        L.append(f"   {k[1]:02d}/{k[0]}: entrate {_it(mesi[k]['E'])} €, uscite {_it(mesi[k]['U'])} €; maggiori spese: "
+                 + ", ".join(f"{c} {_it(i, 0)} €" for c, i in top))
+    return L
+
+def _fin_sim(f, base, k, eventi):
+    from moduli.finanziamenti import _piano_fin, _data_it as _dit
+    nuovo, err = _piano_fin(dict(f, variazioni=list(f.get("variazioni") or []) + eventi))
+    if err or not nuovo:
+        return None
+    rate = [r["rata_base"] for r in nuovo[k:] if r["rata_base"] > 0]
+    return (rate[0] if rate else 0.0, _dit(nuovo[-1]["data"]), len(base) - len(nuovo),
+            sum(r["int"] for r in base[k:]) - sum(r["int"] for r in nuovo[k:]))
+
+def _fin_blocco_finanziamenti(self, oggi):
+    from moduli.finanziamenti import _carica_fin, _status_fin, _eventi_validi
+    L = ["FINANZIAMENTI:"]
+    attivi = []
+    for f in _carica_fin():
+        try:
+            res, err = _status_fin(f, oggi)
+        except Exception:
+            continue
+        if err or not res:
+            L.append(f"   {f.get('nome', '?')}: piano non calcolabile ({err})")
+            continue
+        st, base, k = res
+        tasso_ora = float(f["tasso"])
+        for e in _eventi_validi(f):
+            if e["tipo"] == "tasso" and e["data"] <= oggi:
+                tasso_ora = e["valore"]
+        st["tasso_ora"] = tasso_ora
+        L.append(f"   {f.get('nome', '?')}: capitale {_it(f['capitale'])} €, tasso iniziale {_it(f['tasso'])} %, in vigore {_it(tasso_ora)} %, "
+                 f"inizio {_iso_a_it(f.get('data_inizio'))}, stato {STATI.get(st['stato'], st['stato'])}, rate {st['rate_pagate']}/"
+                 f"{st['rate_tot']}, rata {_it(st['rata_mensile'])} €, residuo {_it(st['residuo'])} €, fine {st['fine']}, "
+                 f"interessi ancora da pagare {_it(st['int_restanti'])} €")
+        for e in _eventi_validi(f):
+            L.append(f"      variazione {e['data'].strftime('%d-%m-%Y')}: {e['tipo']} {_it(e['valore'])} ({e['strategia']})")
+        if st["stato"] != "estinto":
+            attivi.append((f, st, base, k))
+    if not attivi:
+        return L + ["   nessun finanziamento attivo"]
+    L.append("SIMULAZIONI PRECALCOLATE (estinzione parziale OGGI; 'mantieni rata' = finisce prima, 'ricalcola rata' = stessa "
+             "fine e rata più bassa; interessi risparmiati rispetto al piano attuale):")
+    for f, st, base, k in attivi[:5]:
+        L.append(f"   {f.get('nome', '?')} (tasso in vigore {_it(st['tasso_ora'])} %):")
+        res_ = st["residuo"]
+        for x in sorted({y for y in (500, 1000, 2000, 5000, 10000, 20000, 50000) if y < res_} | {round(res_, 2)}):
+            parti = []
+            for strat, nome in (("accorcia", "mantieni rata"), ("ricalcola", "ricalcola rata")):
+                if x >= res_ - 0.5 and strat == "ricalcola":
+                    continue
+                s = _fin_sim(f, base, k, [{"data": oggi.isoformat(), "tipo": "extra", "valore": float(x), "strategia": strat}])
+                if s:
+                    parti.append(f"{nome}: rata {_it(s[0])} €, fine {s[1]}, {s[2]} mesi prima, risparmio interessi {_it(s[3])} €")
+            L.append(f"      {_it(x, 0) if x < res_ else 'estinzione totale ' + _it(x)} €: " + " | ".join(parti))
+        for m_ in (100, 200, 300, 500):
+            ev = [{"data": base[i]["data"].isoformat(), "tipo": "extra", "valore": float(m_), "strategia": "accorcia"}
+                  for i in range(k, len(base))]
+            s = _fin_sim(f, base, k, ev)
+            if s:
+                L.append(f"      versando {m_} € in più ogni mese (rata invariata): fine {s[1]}, {s[2]} mesi prima, "
+                         f"risparmio interessi {_it(s[3])} €")
+    return L
+
+
+def _fin_salva_pdf(self, parent, testo, nome_file):
+    import __main__ as _app
+    file = filedialog.asksaveasfilename(
+        defaultextension=".pdf", filetypes=[("PDF", "*.pdf")], initialdir=_app.EXPORT_FILES,
+        initialfile=os.path.splitext(nome_file)[0] + ".pdf", title="Salva Report in PDF",
+        confirmoverwrite=False, parent=parent)
+    if not file:
+        return
+    if os.path.exists(file) and not self.show_custom_askyesno(
+            "Sovrascrivere file?", f"Il file '{os.path.basename(file)}' \nesiste già. Vuoi sovrascriverlo?"):
+        return
+    try:
+        import pymupdf as fitz
+        righe = testo.split("\n")
+        page_w, page_h, margin = 842, 595, 30
+        fs = min(7.0, (page_w - 2 * margin) / (0.61 * max(1, max(len(r) for r in righe))))
+        doc = fitz.open()
+        page = doc.new_page(width=page_w, height=page_h)
+        y = margin
+        for riga in righe:
+            if y > page_h - margin:
+                page = doc.new_page(width=page_w, height=page_h)
+                y = margin
+            page.insert_text((margin, y), riga, fontname="cour", fontsize=fs)
+            y += fs + 2
+        doc.save(file)
+        doc.close()
+        self.show_toast("PDF salvato.")
+    except Exception as ex:
+        self.show_custom_warning("Errore PDF", str(ex))
+
+
+_RE_IMPORTA = re.compile(r"\b(carica|importa|inserisci|aggiungi|registra|crea)\b.*\b(mutuo|finanziamento|prestito)\b",
+                        re.IGNORECASE | re.DOTALL)
+
+_PROMPT_IMPORTA = """Leggi il documento allegato (contratto, piano di ammortamento o proposta di un mutuo o finanziamento) \
+ed estrai i dati. Rispondi SOLO con un oggetto JSON, senza testo prima o dopo e senza Markdown, con queste chiavi:
+nome: breve descrizione (es. "Mutuo UniCredit" oppure "Prestito auto Findomestic"), stringa
+capitale: importo finanziato iniziale in euro, numero
+tasso: TAN annuo in percentuale, numero (es. 2.35)
+mesi: durata totale in mesi, numero intero
+data_inizio: data della prima rata, formato YYYY-MM-DD
+rata: importo della rata mensile in euro, numero
+spese: spesa mensile accessoria (assicurazione, incasso rata) in euro, numero
+Se un dato non è presente nel documento usa null: non inventare e non calcolare."""
+
+
+_REGOLE_FIN = """REGOLE DI RISPOSTA:
+1. NON usare simboli Markdown (*, #, -, `, []).
+2. Usa il minuscolo per il corpo del testo. Usa le MAIUSCOLE esclusivamente per i titoli di sezione, se servono.
+3. Scrivi tutti gli importi in formato italiano (virgola come separatore decimale, punto per le migliaia), es. 1.234,56€.
+4. Rispondi SOLO sulla base dei dati sopra e dell'eventuale documento allegato. Per estinzioni e versamenti extra usa le SIMULAZIONI PRECALCOLATE: non rifare i piani di
+   ammortamento. Se l'importo richiesto non c'è, indica che è una stima tra i valori vicini della tabella.
+5. Per dire quanto estinguere considera i saldi dei conti, il cuscinetto in mesi di spese e l'avanzo medio mensile.
+6. Spiega la differenza tra mantieni la rata (interessi risparmiati maggiori) e ricalcola la rata (più respiro ogni mese).
+7. Nessun consiglio di investimento specifico. Ricorda, quando serve, di verificare con la banca: importo esatto di estinzione,
+   penali, ratei, detrazione del 19% sugli interessi del mutuo prima casa che si ridurrebbe.
+8. Sii diretto e sintetico (massimo 200 parole)."""
+
+
+def _fin_chat(self, parent, bg, fg, prima_di=None, corrente=None, importa=None):
+    import __main__ as _app
+    box = tk.LabelFrame(parent, text=" Chiedi all'IA sui tuoi finanziamenti ", bg=bg, fg=fg, padx=6, pady=4)
+    box.pack(side=tk.BOTTOM, fill=tk.X, pady=(8, 0), **({"before": prima_di} if prima_di is not None else {}))
+    if not hasattr(self, "_fin_chat_storico"):
+        self._fin_chat_storico = []
+    cont = tk.Frame(box, bg=bg)
+    cont.pack(fill=tk.X)
+    sb = ttk.Scrollbar(cont, orient="vertical")
+    sb.pack(side=tk.RIGHT, fill=tk.Y)
+    area = tk.Text(cont, height=6, wrap="word", font=("Arial", 9), padx=6, pady=4, borderwidth=0, highlightthickness=1,
+                   highlightbackground=getattr(self, "COLOR_HIGHLIGHT", "#888888"), state="disabled",
+                   bg=getattr(self, "COLOR_WHITE", "#ffffff"), fg=getattr(self, "COLOR_BLACK", "#000000"),
+                   yscrollcommand=sb.set)
+    area.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    sb.config(command=area.yview)
+    area.tag_configure("tu", font=("Arial", 9, "bold"), foreground=getattr(self, "COLOR_HIGHLIGHT", "#1565c0"))
+
+    def stampa(testo, tag=None):
+        area.config(state="normal")
+        area.insert("end", testo + "\n", tag) if tag else area.insert("end", testo + "\n")
+        area.config(state="disabled")
+        area.see("end")
+    if self._fin_chat_storico:
+        for t, tag in self._fin_chat_storico:
+            stampa(t, tag)
+    else:
+        stampa("Scegli una domanda qui sotto o scrivi la tua: l'IA usa i tuoi conti, le entrate e le uscite e i piani dei finanziamenti.\n"
+               "Hai un contratto o un piano della banca? Con Allega (o il tasto Carica finanziamento) l'IA legge il documento e "
+               "precompila il nuovo finanziamento: scrivi «carica finanziamento» (vale per mutui, prestiti e finanziamenti).")
+
+    chips = tk.Frame(box, bg=bg)
+    chips.pack(fill=tk.X, pady=(6, 2))
+    inp_f = tk.Frame(box, bg=bg)
+    inp_f.pack(fill=tk.X, pady=(2, 0))
+    bt = tk.Frame(inp_f, bg=bg)
+    bt.pack(side=tk.RIGHT, padx=(6, 0))
+    entry = tk.Text(inp_f, height=2, wrap="word", font=("Arial", 9), padx=6, pady=3, borderwidth=0, highlightthickness=1,
+                    highlightbackground=getattr(self, "COLOR_HIGHLIGHT", "#888888"),
+                    bg=getattr(self, "COLOR_WHITE", "#ffffff"), fg=getattr(self, "COLOR_BLACK", "#000000"))
+    entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    riga_st = tk.Frame(box, bg=bg)
+    riga_st.pack(fill=tk.X)
+    lbl_st = tk.Label(riga_st, text="", bg=bg, fg=fg, anchor="e", font=("Arial", 8, "italic"))
+    lbl_st.pack(side=tk.RIGHT)
+    lbl_all = tk.Label(riga_st, text="", bg=bg, fg=fg, anchor="w", cursor="hand2", font=("Arial", 8))
+    st = {"in_corso": False, "allegato": None}
+
+    def _aggiorna_allegato():
+        if st["allegato"]:
+            nome, dati, _m = st["allegato"]
+            lbl_all.config(text=f"Allegato: {nome} ({max(1, len(dati) // 1024)} KB) - clic per rimuovere")
+        else:
+            lbl_all.config(text="")
+
+    def allega():
+        if st["in_corso"]:
+            return
+        p = filedialog.askopenfilename(
+            parent=box.winfo_toplevel(), title="Allega un documento",
+            filetypes=[("Documenti e immagini", "*.pdf *.jpg *.jpeg *.png *.webp"), ("Tutti i file", "*.*")])
+        if not p:
+            return
+        mime = {".pdf": "application/pdf", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+                ".png": "image/png", ".webp": "image/webp"}.get(os.path.splitext(p)[1].lower())
+        if not mime:
+            self.show_custom_warning("Formato non supportato", "Puoi allegare PDF, JPG, PNG o WEBP.")
+            return
+        if os.path.getsize(p) > 10 * 1024 * 1024:
+            self.show_custom_warning("File troppo grande", "Il documento supera i 10 MB: allega un file più leggero.")
+            return
+        with open(p, "rb") as fh:
+            st["allegato"] = (os.path.basename(p), fh.read(), mime)
+        _aggiorna_allegato()
+
+    _pulsante_fin(self, riga_st, "Allega", allega, "aggiungi").pack(side=tk.LEFT)
+    lbl_all.pack(side=tk.LEFT, padx=8)
+    lbl_all.bind("<Button-1>", lambda e: (st.update(allegato=None), _aggiorna_allegato()))
+
+    def _importa_dati(domanda):
+        nome_f, dati, mime = st["allegato"]
+        st["in_corso"] = True
+        lbl_st.config(text="Gemini legge il documento...")
+        etic = f"\nTU: {domanda}  [allegato: {nome_f}]"
+        stampa(etic, "tu")
+        self._fin_chat_storico.append((etic, "tu"))
+
+        def _num(v):
+            try:
+                return float(str(v).replace(",", ".")) if v not in (None, "") else None
+            except ValueError:
+                return None
+
+        def lavora():
+            preset, risp = None, ""
+            try:
+                client = _app.genai_client.Client(api_key=_app.API_KEY)
+                part = _app.genai_client.types.Part.from_bytes(data=dati, mime_type=mime)
+                resp = client.models.generate_content(model=_app.GEMINI, contents=[part, _PROMPT_IMPORTA])
+                testo = (resp.text or "").strip()
+                d = json.loads(testo[testo.find("{"): testo.rfind("}") + 1])
+                cap, tas, mesi = _num(d.get("capitale")), _num(d.get("tasso")), _num(d.get("mesi"))
+                spese, rata = _num(d.get("spese")), _num(d.get("rata"))
+                try:
+                    di = datetime.date.fromisoformat(str(d.get("data_inizio"))).strftime("%d-%m-%Y")
+                except ValueError:
+                    di = ""
+                nome = str(d.get("nome") or "").strip()
+                if not any((cap, tas, mesi)):
+                    risp = "GEMINI: nel documento non ho trovato i dati di un finanziamento (capitale, tasso, durata)."
+                else:
+                    preset = {k: v for k, v in (
+                        ("nome", nome), ("capitale", _it(cap) if cap else ""), ("tasso", _it(tas) if tas else ""),
+                        ("mesi", str(int(mesi)) if mesi else ""), ("data_inizio", di),
+                        ("spese", _it(spese) if spese else "")) if v}
+                    righe = ["GEMINI: ho letto il documento e precompilato il form \"Nuovo finanziamento\": "
+                             "controlla i dati e premi Salva."]
+                    mancanti = [e for k, e in (("nome", "nome"), ("capitale", "capitale"), ("tasso", "tasso"),
+                                               ("mesi", "durata"), ("data_inizio", "data prima rata")) if k not in preset]
+                    if mancanti:
+                        righe.append("Non ho trovato: " + ", ".join(mancanti) + " (compilali a mano).")
+                    if rata:
+                        righe.append(f"Rata indicata nel documento: {_it(rata)} €. Dopo il salvataggio confrontala con "
+                                     "la rata calcolata dall'app: se differisce, il tasso può essere variabile "
+                                     "oppure la rata include altre voci.")
+                    risp = "\n".join(righe)
+            except Exception as err:
+                t = str(err)
+                if "RESOURCE_EXHAUSTED" in t or "429" in t:
+                    risp = ("GEMINI: quota giornaliera gratuita esaurita: riprova domani." if "PerDay" in t
+                            else "GEMINI: troppe richieste in poco tempo: attendi qualche secondo e riprova.")
+                else:
+                    risp = "GEMINI: non sono riuscito a leggere i dati dal documento.\n" + t
+
+            def fine():
+                st["in_corso"] = False
+                self._fin_chat_storico.append((risp, None))
+                if area.winfo_exists():
+                    lbl_st.config(text="")
+                    stampa(risp)
+                    if preset:
+                        importa(False, preset)
+            try:
+                self.after(0, fine)
+            except Exception:
+                pass
+        threading.Thread(target=lavora, daemon=True).start()
+        return "break"
+
+    def invia(domanda=None, _e=None):
+        domanda = (domanda or entry.get("1.0", "end")).strip()
+        if st["in_corso"]:
+            self.show_toast("Attendi la risposta precedente...", duration=1500)
+            return "break"
+        if not domanda:
+            return "break"
+        if not getattr(_app, "API_KEY", None):
+            self.show_custom_warning("Configurazione AI Necessaria",
+                                     "Serve una chiave API Gemini (gratuita): vai in Impostazioni e clicca su 'Ottieni'.")
+            return "break"
+        if importa and _RE_IMPORTA.search(domanda):
+            if not st["allegato"]:
+                self.show_custom_warning("Nessun documento",
+                                         "Allega prima il contratto o il piano di ammortamento con il pulsante Allega, "
+                                         "poi scrivi «carica finanziamento».")
+                return "break"
+            entry.delete("1.0", "end")
+            return _importa_dati(domanda)
+        entry.delete("1.0", "end")
+        st["in_corso"] = True
+        lbl_st.config(text="Gemini sta pensando...")
+        etic = "\nTU: " + domanda + (f"  [allegato: {st['allegato'][0]}]" if st["allegato"] else "")
+        stampa(etic, "tu")
+        self._fin_chat_storico.append((etic, "tu"))
+        cron = "\n".join(t for t, _ in self._fin_chat_storico[-9:-1])
+        sel = corrente() if corrente else None
+        focus = (f"FINANZIAMENTO SELEZIONATO DALL'UTENTE NELL'APP: {sel['nome']}\n"
+                 "Se la domanda dice 'questo', 'il finanziamento' o non specifica quale, riferisciti a quello selezionato "
+                 "tenendo conto anche degli altri. Se la domanda è un confronto o riguarda tutti i finanziamenti "
+                 "('quale per primo', 'tutto', 'in totale'), analizzali tutti.\n\n") if sel else ""
+        alleg = st["allegato"]
+        doc = (f"DOCUMENTO ALLEGATO DALL'UTENTE ({alleg[0]}): è allegato a questa richiesta. Leggilo e usalo insieme ai dati "
+               "dell'app; se le cifre del documento non coincidono con quelle dell'app, segnala quali. Se il documento "
+               "non è leggibile o non riguarda finanziamenti o conti, dillo.\n\n") if alleg else ""
+        def lavora():
+            try:
+                oggi = datetime.date.today()
+                ctx = "\n".join([f"OGGI È: {oggi.strftime('%d/%m/%Y')}"] + _fin_blocco_contabile(self, oggi)
+                                + _fin_blocco_finanziamenti(self, oggi))
+                prompt = (f"Sei un assistente esperto di finanza personale integrato nell'app {os.path.basename(_app.PATH_LOCALE)}.\n"
+                          f"DATI ESPORTATI DALL'APP:\n{ctx}\n\n"
+                          + (f"CONVERSAZIONE PRECEDENTE:\n{cron}\n\n" if cron else "")
+                          + doc + focus + f"DOMANDA DELL'UTENTE:\n{domanda}\n\n{_REGOLE_FIN}")
+                contents = prompt if not alleg else [
+                    _app.genai_client.types.Part.from_bytes(data=alleg[1], mime_type=alleg[2]), prompt]
+                client = _app.genai_client.Client(api_key=_app.API_KEY)
+                resp = client.models.generate_content(model=_app.GEMINI, contents=contents)
+                risp = resp.text or "Nessuna risposta generata."
+            except Exception as err:
+                t = str(err)
+                if "RESOURCE_EXHAUSTED" in t or "429" in t:
+                    risp = ("quota giornaliera gratuita di gemini esaurita: riprova domani." if "PerDay"
+                            in t else "troppe richieste in poco tempo: attendi qualche secondo e riprova.")
+                else:
+                    risp = f"ERRORE:\n{t}"
+
+            def fine():
+                st["in_corso"] = False
+                self._fin_chat_storico.append(("GEMINI: " + risp, None))
+                if area.winfo_exists():
+                    lbl_st.config(text="")
+                    stampa("GEMINI: " + risp)
+            try:
+                self.after(0, fine)
+            except Exception:
+                pass
+        threading.Thread(target=lavora, daemon=True).start()
+        return "break"
+
+    def nuova():
+        self._fin_chat_storico.clear()
+        area.config(state="normal")
+        area.delete("1.0", "end")
+        area.config(state="disabled")
+        st["allegato"] = None
+        _aggiorna_allegato()
+    for i, (etichetta, domanda) in enumerate(DOMANDE_FIN):
+        lb = tk.Label(chips, text=etichetta, bg=getattr(self, "COLOR_WIDGET_BG", bg), fg=fg, cursor="hand2",
+                      font=("Arial", 8), padx=6, pady=3)
+        lb.grid(row=0, column=i, sticky="ew", padx=2, pady=2)
+        lb.bind("<Button-1>", lambda e, q=domanda: invia(q))
+    def _chip_importa(_e=None):
+        if not st["allegato"]:
+            allega()
+        if st["allegato"]:
+            invia("carica finanziamento")
+    lb_imp = tk.Label(chips, text="Carica finanziamento da file", bg=getattr(self, "COLOR_WIDGET_BG", bg), fg=fg, cursor="hand2",
+                      font=("Arial", 8, "bold"), padx=6, pady=3)
+    lb_imp.grid(row=0, column=len(DOMANDE_FIN), sticky="ew", padx=2, pady=2)
+    lb_imp.bind("<Button-1>", _chip_importa)
+    chips.columnconfigure(tuple(range(len(DOMANDE_FIN) + 1)), weight=1)
+    _pulsante_fin(self, bt, "Chiedi", invia, "info").pack(side=tk.TOP)
+    _pulsante_fin(self, bt, "Nuova", nuova, "delete").pack(side=tk.TOP, pady=(2, 0))
+    entry.bind("<Return>", lambda e: invia())
+    entry.bind("<Shift-Return>", lambda e: None)
+    return box
+
+def crea_tab_finanziamenti(self, notebook, indice=None):
+    bg = self.COLOR_TOPLEVEL
+    fg = self.TEXT_COLOR
+    frame = ttk.Frame(notebook, padding=8)
+    img = self.icone_gui.get("home") if getattr(self, "icone_gui", None) else None
+    kw = {"image": img, "text": "  I miei finanziamenti  ", "compound": "left"} if img \
+        else {"text": "I miei finanziamenti"}
+    if indice is None:
+        notebook.add(frame, **kw)
+    else:
+        notebook.insert(indice, frame, **kw)
+
+    stato = {"dati": [], "sel": None}
+
+    corpo = tk.Frame(frame, bg=bg)
+    corpo.pack(fill=tk.BOTH, expand=True)
+    sx = tk.Frame(corpo, bg=bg, width=470)
+    sx.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
+    sx.pack_propagate(False)
+    dx = tk.Frame(corpo, bg=bg)
+    dx.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+    cols = ("nome", "residuo", "rata", "pagate", "fine")
+    wrap_tv = tk.Frame(sx, bg=bg)
+    wrap_tv.pack(fill=tk.BOTH, expand=True)
+    tv = ttk.Treeview(wrap_tv, columns=cols, show="headings", height=10, selectmode="browse")
+    for c, t, w, a in (("nome", "Finanziamento", 115, "w"), ("residuo", "Residuo", 90, "e"),
+                       ("rata", "Rata", 75, "e"), ("pagate", "Rate", 70, "center"),
+                       ("fine", "Fine", 92, "center")):
+        tv.heading(c, text=t)
+        tv.column(c, width=w, anchor=a, stretch=(c == "nome"))
+    tv.tag_configure("estinto", foreground="gray")
+    tv.tag_configure("errore", foreground="#c62828")
+    sb_tv = ttk.Scrollbar(wrap_tv, orient="vertical", command=tv.yview)
+    tv.configure(yscrollcommand=sb_tv.set)
+    tv.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    sb_tv.pack(side=tk.LEFT, fill=tk.Y)
+
+    lbl_tot = tk.Label(sx, bg=bg, fg=fg, justify="left", anchor="w", font=("Arial", 9, "bold"),
+                       wraplength=450)
+    lbl_tot.pack(fill=tk.X, pady=(6, 4))
+    barra = tk.Frame(sx, bg=bg)
+    barra.pack(fill=tk.X)
+
+    nb = ttk.Notebook(dx)
+    nb.pack(fill=tk.BOTH, expand=True)
+
+    f_stato = tk.Frame(nb, bg=bg, padx=10, pady=10)
+    nb.add(f_stato, text="Stato")
+    lbl_stato = tk.Label(f_stato, bg=bg, fg=fg, justify="left", anchor="nw", font=("Arial", 10))
+    lbl_stato.pack(fill=tk.BOTH, expand=True)
+    cv_prog = tk.Canvas(f_stato, bg=bg, height=22, highlightthickness=0)
+    cv_prog.pack(fill=tk.X, before=lbl_stato, pady=(0, 8))
+
+    f_proj = tk.Frame(nb, bg=bg, padx=6, pady=6)
+    nb.add(f_proj, text="Proiezione")
+    cv_proj_sel = tk.Canvas(f_proj, bg=bg, height=140, highlightthickness=0)
+    cv_proj_sel.pack(fill=tk.X, pady=(0, 8))
+    cv_proj_tot = tk.Canvas(f_proj, bg=bg, height=140, highlightthickness=0)
+    cv_proj_tot.pack(fill=tk.X)
+    grafici = {"pct": None, "sel": None}
+    BLU, VERDE = "#3d7fd4", "#3a9068"
+
+    def _ridisegna_grafici(*_):
+        sfondo = getattr(self, "COLOR_WIDGET_BG", bg)
+        _disegna_avanzamento(cv_prog, grafici["pct"], VERDE, sfondo, fg)
+        f = _corrente()
+        nome = f["nome"] if f else ""
+        _disegna_proiezione(cv_proj_sel, grafici["sel"], BLU, fg,
+                            f"Debito residuo anno per anno - {nome}" if nome else "Debito residuo anno per anno")
+        _disegna_proiezione(cv_proj_tot, stato.get("serie"), BLU, fg,
+                            "Debito totale (tutti i finanziamenti attivi)")
+    for _cv in (cv_prog, cv_proj_sel, cv_proj_tot):
+        _cv.bind("<Configure>", _ridisegna_grafici)
+
+    def _tree(parent, colonne):
+        wrap = tk.Frame(parent, bg=bg)
+        wrap.pack(fill=tk.BOTH, expand=True)
+        t = ttk.Treeview(wrap, columns=[c[0] for c in colonne], show="headings")
+        for c, tit, w, a in colonne:
+            t.heading(c, text=tit)
+            t.column(c, width=w, anchor=a)
+        sb = ttk.Scrollbar(wrap, orient="vertical", command=t.yview)
+        t.configure(yscrollcommand=sb.set)
+        t.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        sb.pack(side=tk.LEFT, fill=tk.Y)
+        return t
+
+    f_piano = tk.Frame(nb, bg=bg, padx=4, pady=4)
+    nb.add(f_piano, text="Piano")
+    tv_piano = _tree(f_piano, (("n", "N°", 40, "center"), ("data", "Data", 90, "center"),
+                               ("rata", "Rata", 90, "e"), ("cap", "Capitale", 90, "e"),
+                               ("int", "Interessi", 90, "e"), ("res", "Residuo", 100, "e"),
+                               ("esp", "Esportata", 100, "center")))
+    tv_piano.tag_configure("pagata", foreground="gray")
+    tv_piano.tag_configure("riallinea", foreground="#e65100")
+    tv_piano.tag_configure("cambio", background="#fff9c4", foreground="#000000")
+    tv_piano.tag_configure("extra", background="#e1f5fe", foreground="#000000")
+
+    barra_sel = tk.Frame(f_piano, bg=bg)
+    tk.Label(barra_sel, text="Seleziona:", bg=bg, fg=fg, font=("Arial", 8)).pack(side=tk.LEFT)
+    for _t, _cmd in (("tutte", lambda e=None: tv_piano.selection_set(tv_piano.get_children())),
+                     ("nessuna", lambda e=None: tv_piano.selection_remove(tv_piano.get_children()))):
+        _l = tk.Label(barra_sel, text=_t, bg=bg, fg=fg, cursor="hand2", font=("Arial", 8, "underline"))
+        _l.pack(side=tk.LEFT, padx=(6, 0))
+        _l.bind("<Button-1>", _cmd)
+
+    barra_piano = tk.Frame(f_piano, bg=bg)
+    barra_piano.pack(side=tk.BOTTOM, fill=tk.X, pady=(2, 0), before=tv_piano.master)
+    barra_sel.pack(side=tk.BOTTOM, fill=tk.X, pady=(4, 0), before=tv_piano.master)
+
+    f_var = tk.Frame(nb, bg=bg, padx=4, pady=4)
+    nb.add(f_var, text="Variazioni")
+    tv_var = _tree(f_var, (("data", "Data", 90, "center"), ("tipo", "Variazione", 230, "w"),
+                           ("valore", "Valore", 90, "e"), ("strat", "Modalità", 220, "w")))
+    barra_var = tk.Frame(f_var, bg=bg)
+    barra_var.pack(fill=tk.X, pady=(6, 0))
+
+    f_crono = tk.Frame(nb, bg=bg, padx=4, pady=4)
+    nb.add(f_crono, text="Cronostoria")
+    tv_crono = _tree(f_crono, (("data", "Data", 90, "center"), ("evento", "Evento", 210, "w"),
+                               ("prima", "Rata prima", 85, "e"), ("dopo", "Rata dopo", 85, "e"),
+                               ("debito", "Debito", 95, "e"), ("fine", "Nuova fine", 85, "center"),
+                               ("int", "Interessi tot.", 95, "e")))
+
+    def _corrente():
+        i = stato["sel"]
+        return stato["dati"][i] if i is not None and 0 <= i < len(stato["dati"]) else None
+
+    def _msg(titolo, testo):
+        self.show_custom_warning(titolo, testo)
+
+    def _svuota_dettaglio():
+        lbl_stato.config(text="Seleziona un finanziamento dall'elenco oppure creane uno nuovo.")
+        grafici.update(pct=None, sel=None)
+        for t in (tv_piano, tv_var, tv_crono):
+            t.delete(*t.get_children())
+
+    def _descr_var(e):
+        t = e.get("tipo")
+        v = e.get("valore", 0)
+        if t in ("extra", "rata"):
+            val = f"{_it(v)} €"
+        elif t == "tasso":
+            val = f"{_it(v)} %"
+        else:
+            val = f"{round(v * 12)} mesi"
+        strat = STRATEGIE_VAR.get(e.get("strategia"), "") if t == "extra" else ""
+        return ETICHETTE_VAR.get(t, t), val, strat
+
+    def _mostra_dettaglio(*_):
+        sel = tv.selection()
+        stato["sel"] = tv.index(sel[0]) if sel else None
+        f = _corrente()
+        if not f:
+            _svuota_dettaglio()
+            return
+        if f.get("errore"):
+            _svuota_dettaglio()
+            lbl_stato.config(text=f"⚠ {f['errore']}")
+        else:
+            s = f["status"]
+            righe = [
+                f"{f['nome']}",
+                f"Stato: {STATI.get(s['stato'], s['stato'])}  -  rate pagate {s['rate_pagate']} di {s['rate_tot']}",
+                f"Capitale: {_it(f['capitale'])} €   Tasso: {_it(f['tasso'])} %   Inizio: {_iso_a_it(f['data_inizio'])}",
+                f"Rimborsato: {_it(s['rimborsato'])} € ({_it(s['pct'], 1)} %)   Residuo: {_it(s['residuo'])} €",
+                f"Rata mensile: {_it(s['rata_mensile'])} €   Fine prevista: {s['fine']}",
+                f"Interessi pagati: {_it(s['int_pagati'])} €   restanti: {_it(s['int_restanti'])} €   "
+                f"totali: {_it(s['int_totali'])} €",
+                f"Costo totale (rate): {_it(s['costo_totale'])} €",
+            ]
+            if s.get("prossima_data"):
+                g = s.get("giorni_prossima")
+                quando = "oggi" if g == 0 else (f"tra {g} giorni" if g and g > 0 else f"{abs(g or 0)} giorni fa")
+                righe.append(f"Prossima rata: {s['prossima_data']} ({quando}) - {_it(s['prossima_importo'])} €")
+            if "risparmio_int" in s:
+                m = s["mesi_diff"]
+                righe.append(f"Effetto delle variazioni: interessi {_it(s['risparmio_int'])} € in meno, "
+                             f"{abs(m)} mesi {'prima' if m >= 0 else 'dopo'} (senza variazioni: fine {s['base_fine']})")
+            lbl_stato.config(text="\n".join(righe))
+            grafici.update(pct=s["pct"], sel=f.get("proiezione"))
+        tv_piano.delete(*tv_piano.get_children())
+        for r in f.get("piano", []):
+            tags = ("pagata",) if r["pagata"] else ()
+            if r.get("extra"):
+                tags = tags + ("extra",)
+            elif r.get("cambio"):
+                tags = tags + ("cambio",)
+            esp_txt = "Sì" if r.get("esportata") else ("No" if r["pagata"] else "-")
+            if r.get("riallinea"):
+                esp_txt = "Da riallineare"
+                tags = tags + ("riallinea",)
+            tv_piano.insert("", "end", iid=str(r["n"]), tags=tags,
+                            values=(r["n"], r["data"], _it(r["rata"]), _it(r["cap"]),
+                                    _it(r["int"]), _it(r["residuo"]), esp_txt))
+        tv_var.delete(*tv_var.get_children())
+        for i, e in enumerate(f.get("variazioni", [])):
+            t, v, st = _descr_var(e)
+            tv_var.insert("", "end", iid=str(i), values=(_iso_a_it(e.get("data")), t, v, st))
+        tv_crono.delete(*tv_crono.get_children())
+        for c in f.get("crono", []):
+            d = _descr_var(c)
+            ev = "Inizio" if c.get("titolo") == "Inizio" else f"{d[0]}: {d[1]}"
+            tv_crono.insert("", "end", values=(c["data"], ev,
+                                               _it(c["rata_prima"]) if c.get("rata_prima") is not None else "-",
+                                               _it(c["rata_dopo"]), _it(c["debito"]), c["fine"], _it(c["int_totali"])))
+        _ridisegna_grafici()
+
+    def aggiorna(seleziona_id=None):
+        res = _fin_elenco(self)
+        stato["dati"] = res["finanziamenti"]
+        stato["serie"] = res["serie"]
+        tv.delete(*tv.get_children())
+        pos = None
+        for i, f in enumerate(stato["dati"]):
+            if f.get("errore"):
+                tv.insert("", "end", tags=("errore",), values=(f["nome"], "errore", "", "", ""))
+            else:
+                s = f["status"]
+                tv.insert("", "end", tags=("estinto",) if s["stato"] == "estinto" else (),
+                          values=(f["nome"], _it(s["residuo"]) + " €", _it(s["rata_mensile"]),
+                                  f"{s['rate_pagate']}/{s['rate_tot']}", s["fine"]))
+            if seleziona_id and f.get("id") == seleziona_id:
+                pos = i
+        t = res["totali"]
+        testo = (f"Attivi: {t['n_attivi']}   Estinti: {t['n_estinti']}\n"
+                 f"Debito residuo: {_it(t['residuo'])} €   Rate al mese: {_it(t['rata_mensile'])} €\n"
+                 f"Interessi ancora da pagare: {_it(t['int_restanti'])} €")
+        if t.get("pct_entrate") is not None:
+            testo += f"\nLe rate pesano il {_it(t['pct_entrate'], 1)} % sulle entrate medie mensili"
+        lbl_tot.config(text=testo)
+        items = tv.get_children()
+        if items:
+            tv.selection_set(items[pos if pos is not None else 0])
+            tv.focus(items[pos if pos is not None else 0])
+        _mostra_dettaglio()
+
+    def _dialogo(titolo, campi, su_ok, dimensioni="380x"):
+        win = tk.Toplevel(frame, bg=bg)
+        win.title(titolo)
+        win.transient(frame.winfo_toplevel())
+        win.resizable(False, False)
+        vars_ = {}
+        griglia = tk.Frame(win, bg=bg, padx=14, pady=12)
+        griglia.pack()
+        for r, (chiave, etich, tipo, valore, opzioni) in enumerate(campi):
+            tk.Label(griglia, text=etich, bg=bg, fg=fg, anchor="w").grid(row=r, column=0, sticky="w", pady=3)
+            v = tk.StringVar(value=valore)
+            vars_[chiave] = v
+            if tipo == "combo":
+                w = ttk.Combobox(griglia, textvariable=v, values=opzioni, state="readonly", width=34,
+                                 style="Border.TCombobox")
+            elif tipo == "data":
+                w = tk.Frame(griglia, bg=bg)
+                ent = ttk.Entry(w, textvariable=v, width=14)
+                ent.pack(side=tk.LEFT)
+                img_cal = self.icone_gui.get("calendario")
+                b_cal = tk.Label(w, image=img_cal, bg=bg, cursor="hand2", padx=2)
+                if img_cal is None:
+                    b_cal.config(text="📅")
+                else:
+                    b_cal.image = img_cal
+                b_cal.pack(side=tk.LEFT, padx=(6, 0))
+
+                def _apri_cal(_e=None, ent=ent, v=v):
+                    self.mostra_calendario_popup(ent, v)
+                    try:
+                        pc = getattr(self, "popup_calendario", None)
+                        if pc is not None and pc.winfo_exists():
+                            pc.attributes("-topmost", True)
+                            pc.lift()
+                    except tk.TclError:
+                        pass
+                b_cal.bind("<Button-1>", _apri_cal)
+            else:
+                w = ttk.Entry(griglia, textvariable=v, width=36)
+            w.grid(row=r, column=1, padx=(10, 0), pady=3, sticky="w")
+            vars_[chiave + "_w"] = w
+        err = tk.Label(win, bg=bg, fg="#c62828", wraplength=380, justify="left")
+        err.pack(padx=14)
+        bt = tk.Frame(win, bg=bg, pady=10)
+        bt.pack()
+
+        def conferma(*_):
+            msg = su_ok({k: v.get() for k, v in vars_.items() if not k.endswith("_w")})
+            if msg:
+                err.config(text=msg)
+            else:
+                win.destroy()
+        _pulsante_fin(self, bt, "Salva", conferma, "salva").pack(side=tk.LEFT, padx=6)
+        _pulsante_fin(self, bt, "Annulla", win.destroy, "chiudi").pack(side=tk.LEFT, padx=6)
+        win.bind("<Return>", conferma)
+        win.bind("<Escape>", lambda e: win.destroy())
+        win.update_idletasks()
+        top = frame.winfo_toplevel()
+        x = top.winfo_rootx() + (top.winfo_width() - win.winfo_width()) // 2
+        y = top.winfo_rooty() + (top.winfo_height() - win.winfo_height()) // 2
+        win.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+        return win
+
+    def nuovo(modifica=False, preset=None):
+        f = _corrente() if modifica else None
+        if modifica and not f:
+            return
+        oggi = datetime.date.today().strftime("%d-%m-%Y")
+        pre = preset or {}
+        campi = [
+            ("nome", "Nome", "entry", f["nome"] if f else pre.get("nome", ""), None),
+            ("capitale", "Capitale (€)", "entry", _it(f["capitale"]) if f else pre.get("capitale", ""), None),
+            ("tasso", "Tasso annuo (%)", "entry", _it(f["tasso"]) if f else pre.get("tasso", ""), None),
+            ("mesi", "Durata (mesi)", "entry", str(f["mesi"]) if f else pre.get("mesi", ""), None),
+            ("data_inizio", "Data prima rata", "data", _iso_a_it(f["data_inizio"]) if f else pre.get("data_inizio", oggi), None),
+            ("rata", "Rata fissa (€, vuoto = automatica)", "entry",
+             _it(f["rata_fissa"]) if f and f.get("rata_fissa") else "", None),
+            ("spese", "Spese mensili (€)", "entry", _it(f["spese"]) if f and f.get("spese") else pre.get("spese", ""), None),
+            ("conto", "Conto (per esportazione rate)", "combo", (f.get("conto") if f else "") or "(nessuno)",
+             ["(nessuno)"] + _fin_conti()),
+        ]
+
+        def ok(v):
+            iso = _data_iso(v["data_inizio"])
+            if not iso:
+                return "Data della prima rata non valida."
+            d = dict(v, data_inizio=iso, id=f["id"] if f else "")
+            esito, codice = _fin_salva(d)
+            if codice != 200:
+                return esito.get("errore", "Dati non validi.")
+            aggiorna(esito["id"])
+            return None
+        _dialogo("Modifica finanziamento" if f else "Nuovo finanziamento", campi, ok)
+
+    def elimina():
+        f = _corrente()
+        if not f:
+            return
+        if not self.show_custom_askyesno("Elimina finanziamento",
+                                         f"Eliminare «{f['nome']}» e tutte le sue variazioni?"):
+            return
+        n_esp = sum(1 for r in f.get("piano", []) if r.get("esportata"))
+        if n_esp and self.show_custom_askyesno("Elimina finanziamento",
+                f"Eliminare dalle spese anche le {n_esp} rate già esportate?"):
+            _fin_elimina_esportate(self, {"id": f["id"]})
+        esito, codice = _fin_elimina({"id": f["id"]})
+        if codice != 200:
+            _msg("Errore", esito.get("errore", "Impossibile eliminare."))
+        aggiorna()
+
+    def nuova_variazione():
+        f = _corrente()
+        if not f or f.get("errore"):
+            return
+        nomi_tipo = [ETICHETTE_VAR[k] for k in TIPI_VAR]
+        nomi_strat = list(STRATEGIE_VAR.values())
+        campi = [
+            ("data", "Data variazione", "data", datetime.date.today().strftime("%d-%m-%Y"), None),
+            ("tipo", "Variazione", "combo", nomi_tipo[0], nomi_tipo),
+            ("valore", "Valore", "entry", "", None),
+            ("strategia", "Dopo il versamento extra", "combo", nomi_strat[0], nomi_strat),
+        ]
+
+        def ok(v):
+            iso = _data_iso(v["data"])
+            if not iso:
+                return "Data della variazione non valida."
+            tipo = next(k for k in TIPI_VAR if ETICHETTE_VAR[k] == v["tipo"])
+            strat = next(k for k, t in STRATEGIE_VAR.items() if t == v["strategia"])
+            esito, codice = _fin_var_aggiungi({"id": f["id"], "data": iso, "tipo": tipo,
+                                                   "valore": v["valore"], "strategia": strat})
+            if codice != 200:
+                return esito.get("errore", "Variazione non valida.")
+            aggiorna(f["id"])
+            nb.select(f_var)
+            return None
+        _dialogo("Nuova variazione", campi, ok)
+
+    def elimina_variazione():
+        f = _corrente()
+        sel = tv_var.selection()
+        if not f or not sel:
+            return
+        esito, codice = _fin_var_elimina({"id": f["id"], "indice": sel[0]})
+        if codice != 200:
+            _msg("Errore", esito.get("errore", "Impossibile eliminare la variazione."))
+        aggiorna(f["id"])
+
+    def esporta_rate(tutte):
+        f = _corrente()
+        if not f or f.get("errore"):
+            return
+        sel = [int(i) for i in tv_piano.selection()]
+        if not tutte and not sel:
+            _msg("Esporta rate", "Seleziona almeno una rata nel piano.")
+            return
+        esito, codice = _fin_esporta(self, {"id": f["id"], "numeri": sel, "tutte": tutte})
+        if codice != 200:
+            _msg("Esporta rate", esito.get("errore", "Impossibile esportare le rate."))
+            return
+        aggiorna(f["id"])
+        self.show_toast(f"{esito['n']} rate esportate nelle spese ({_it(esito['totale'])} €).")
+
+    def riallinea_rate():
+        f = _corrente()
+        if not f or f.get("errore"):
+            return
+        aggiorna(f["id"])
+        f = _corrente()
+        if not f or f.get("errore"):
+            return
+        n = sum(1 for r in f.get("piano", []) if r.get("riallinea"))
+        if not n and not f.get("orfane"):
+            _msg("Riallinea esportate", "Le rate esportate sono già allineate al piano.")
+            return
+        if n and not self.show_custom_askyesno("Riallinea esportate",
+                f"Aggiornare {n} spese già esportate (importo, data, descrizione e conto) in base al piano attuale?"):
+            return
+        esito, codice = _fin_riallinea(self, {"id": f["id"]})
+        if codice != 200:
+            _msg("Riallinea esportate", esito.get("errore", "Impossibile riallineare."))
+            return
+        aggiorna(f["id"])
+        if esito["n"]:
+            self.show_toast(f"{esito['n']} spese riallineate al piano.")
+        if esito["orfane"]:
+            _msg("Riallinea esportate",
+                 f"{esito['orfane']} rate esportate non esistono più nel piano attuale: "
+                 "le relative spese vanno eliminate a mano.")
+
+    def elimina_rate():
+        f = _corrente()
+        if not f or f.get("errore"):
+            return
+        aggiorna(f["id"])
+        f = _corrente()
+        if not f or f.get("errore"):
+            return
+        sel = [int(i) for i in tv_piano.selection()]
+        esportate = [r["n"] for r in f.get("piano", []) if r.get("esportata")]
+        scelte = [n for n in sel if n in esportate] if sel else esportate
+        if not scelte:
+            _msg("Elimina esportate", "Nessuna rata esportata tra quelle scelte.")
+            return
+        quali = "le rate selezionate" if sel else "tutte le rate esportate"
+        if not self.show_custom_askyesno("Elimina esportate",
+                f"Eliminare dalle spese {len(scelte)} rate esportate ({quali})?\nL'operazione non si può annullare."):
+            return
+        esito, codice = _fin_elimina_esportate(self, {"id": f["id"], "numeri": scelte})
+        if codice != 200:
+            _msg("Elimina esportate", esito.get("errore", "Impossibile eliminare."))
+            return
+        aggiorna(f["id"])
+        self.show_toast(f"{esito['spese']} spese eliminate.")
+
+    def smarca_rate():
+        f = _corrente()
+        if not f or f.get("errore"):
+            return
+        sel = [int(i) for i in tv_piano.selection()]
+        esito, codice = _fin_smarca(self, {"id": f["id"], "numeri": sel})
+        if codice != 200:
+            _msg("Smarca esportate", esito.get("errore", "Impossibile smarcare."))
+            return
+        aggiorna(f["id"])
+        self.show_toast(f"{esito['n']} rate smarcate come non esportate.")
+
+    def _bottone(parent, testo, cmd, icona, px=6):
+        b = _pulsante_fin(self, parent, testo, cmd, icona)
+        b.pack(side=tk.LEFT, padx=(0, px))
+        return b
+
+    _bottone(barra, "Nuovo", lambda: nuovo(False), "aggiungi")
+    _bottone(barra, "Modifica", lambda: nuovo(True), "modifica")
+    _bottone(barra, "Elimina", elimina, "delete")
+    _fin_chat(self, dx, bg, fg, prima_di=nb, corrente=_corrente, importa=nuovo)
+    _bottone(barra_piano, "Esporta selezionate", lambda: esporta_rate(False), "archivia", 2)
+    _bottone(barra_piano, "Esporta pagate", lambda: esporta_rate(True), "archivia", 2)
+    _bottone(barra_piano, "Riallinea esportate", riallinea_rate, "sync", 2)
+    _bottone(barra_piano, "Smarca esportate", smarca_rate, "reset", 2)
+    _bottone(barra_piano, "Elimina esportate", elimina_rate, "delete", 2)
+    _bottone(barra_var, "Aggiungi variazione", nuova_variazione, "aggiungi")
+    _bottone(barra_var, "Elimina variazione", elimina_variazione, "delete")
+
+    def testo_report():
+        f = _corrente()
+        if not f:
+            return None
+        L = 117
+        sep, sep2 = "═" * L, "─" * L
+        out = [sep, f"{'REPORT FINANZIARIO - I MIEI FINANZIAMENTI':^{L}}", sep, ""]
+        out.append("RIEPILOGO FINANZIAMENTI")
+        out.append(sep2)
+        out.append(f"{'Finanziamento':<32} | {'Residuo (€)':>14} | {'Rata (€)':>12} | {'Rate':>9} | {'Fine':>10} | Stato")
+        out.append(sep2)
+        for x in stato["dati"]:
+            if x.get("errore"):
+                out.append(f"{x['nome'][:32]:<32} | {x['errore']}")
+                continue
+            s = x["status"]
+            out.append(f"{x['nome'][:32]:<32} | {_it(s['residuo']):>14} | {_it(s['rata_mensile']):>12} | "
+                       f"{str(s['rate_pagate']) + '/' + str(s['rate_tot']):>9} | {s['fine']:>10} | "
+                       f"{STATI.get(s['stato'], s['stato'])}")
+        out.append(sep2)
+        out.append("")
+        out.append(f"DETTAGLIO: {f['nome'].upper()}")
+        out.append(sep2)
+        if f.get("errore"):
+            out.append(f"⚠ {f['errore']}")
+            return "\n".join(out) + "\n"
+        s = f["status"]
+        coppie = [
+            ("Capitale", f"{_it(f['capitale'])} €"),
+            ("Tasso annuo", f"{_it(f['tasso'])} %"),
+            ("Data prima rata", _iso_a_it(f["data_inizio"])),
+            ("Rate pagate", f"{s['rate_pagate']} di {s['rate_tot']}"),
+            ("Rimborsato", f"{_it(s['rimborsato'])} € ({_it(s['pct'], 1)} %)"),
+            ("Debito residuo", f"{_it(s['residuo'])} €"),
+            ("Rata mensile", f"{_it(s['rata_mensile'])} €"),
+            ("Fine prevista", s["fine"]),
+            ("Interessi pagati", f"{_it(s['int_pagati'])} €"),
+            ("Interessi restanti", f"{_it(s['int_restanti'])} €"),
+            ("Interessi totali", f"{_it(s['int_totali'])} €"),
+            ("Costo totale (rate)", f"{_it(s['costo_totale'])} €"),
+        ]
+        if s.get("prossima_data"):
+            coppie.append(("Prossima rata", f"{s['prossima_data']} - {_it(s['prossima_importo'])} €"))
+        if "risparmio_int" in s:
+            m = s["mesi_diff"]
+            coppie.append(("Effetto variazioni", f"interessi {_it(s['risparmio_int'])} € in meno, "
+                                                 f"{abs(m)} mesi {'prima' if m >= 0 else 'dopo'}"))
+        for k, v in coppie:
+            out.append(f" > {k + ':':<26} {v}")
+        if f.get("variazioni"):
+            out += ["", "VARIAZIONI", sep2]
+            for e in f["variazioni"]:
+                t, v, st = _descr_var(e)
+                out.append(f" {_iso_a_it(e.get('data'))}  {t:<38} {v:>14}  {st}")
+        if f.get("crono"):
+            out += ["", "CRONOSTORIA", sep2,
+                    f"{'Data':<11} | {'Evento':<52} | {'Rata prima':>11} | {'Rata dopo':>11} | {'Debito (€)':>14} | {'Nuova fine':>10}",
+                    sep2]
+            for cr in f["crono"]:
+                d = _descr_var(cr)
+                ev = "Inizio" if cr.get("titolo") == "Inizio" else f"{d[0]}: {d[1]}"
+                prima = _it(cr["rata_prima"]) if cr.get("rata_prima") is not None else "-"
+                out.append(f"{cr['data']:<11} | {ev[:52]:<52} | {prima:>11} | {_it(cr['rata_dopo']):>11} | "
+                           f"{_it(cr['debito']):>14} | {cr['fine']:>10}")
+        out += ["", "PIANO DI AMMORTAMENTO", sep2,
+                f"{'N°':>4} | {'Data':<10} | {'Rata (€)':>12} | {'Capitale (€)':>14} | {'Interessi (€)':>14} | {'Residuo (€)':>15} |",
+                sep2]
+        for r in f["piano"]:
+            segno = "pagata" if r["pagata"] else ("extra" if r.get("extra") else "")
+            out.append(f"{r['n']:>4} | {r['data']:<10} | {_it(r['rata']):>12} | {_it(r['cap']):>14} | "
+                       f"{_it(r['int']):>14} | {_it(r['residuo']):>15} | {segno}")
+        out.append(sep)
+        out.append("")
+        out.append(f"Report generato il: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
+        return "\n".join(out) + "\n"
+
+    frame.testo_report = testo_report
+    tv.bind("<<TreeviewSelect>>", _mostra_dettaglio)
+    tv.bind("<Double-1>", lambda e: nuovo(True) if tv.identify_row(e.y) else None)
+    tv.bind("<Delete>", lambda e: elimina())
+    tv_var.bind("<Delete>", lambda e: elimina_variazione())
+
+    frame.aggiorna = aggiorna
+    aggiorna()
+    frame.colonna_sx = sx
+    return frame
 
 def calcolo_mutuo_prestito(self):
     _w = getattr(self, '_win_finanziamenti', None)
@@ -254,6 +1364,48 @@ def calcolo_mutuo_prestito(self):
             popola_piano(trees_piani[i], None, None, None, None, None, None, labels_piani[i])
             self.tutti_i_risultati[i] = None
         aggiorna_tab_analisi(self.tutti_i_risultati)
+    def anteprima_testo(contenuto_testo, nome_file):
+        preview_window = tk.Toplevel(root, bg=self.COLOR_TOPLEVEL)
+        preview_window.title("Report Finanziamenti")
+        window_width, window_height = 1100, 630
+        preview_window.geometry(f"{window_width}x{window_height}+{int(preview_window.winfo_screenwidth()/2 - window_width/2)}+{int(preview_window.winfo_screenheight()/2 - window_height/2)}")
+        preview_window.minsize(window_width, window_height)
+        preview_window.bind("<Escape>", lambda e: preview_window.destroy())
+        preview_window.transient(root)
+        preview_window.focus_set()
+        text_frame = ttk.Frame(preview_window, padding=10)
+        text_frame.pack(fill=tk.BOTH, expand=True)
+        txt_preview = tk.Text(text_frame, wrap=tk.NONE, height=30, width=140, font=('Courier New', 9))
+        txt_preview.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        v_scroll = ttk.Scrollbar(text_frame, orient="vertical", command=txt_preview.yview, style="Vertical.TScrollbar")
+        v_scroll.pack(side=tk.RIGHT, fill='y')
+        txt_preview.config(yscrollcommand=v_scroll.set)
+        txt_preview.insert(tk.END, contenuto_testo)
+        txt_preview.config(state="disabled")
+        def salva_effettivamente():
+            file = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("File di testo", "*.txt")],
+                                                initialdir=EXPORT_FILES, initialfile=nome_file,
+                                                title="Salva Report Finanziario", confirmoverwrite=False,
+                                                parent=preview_window)
+            if file:
+                if os.path.exists(file):
+                    if not self.show_custom_askyesno("Sovrascrivere file?",
+                                                     f"Il file '{os.path.basename(file)}' \nesiste già. Vuoi sovrascriverlo?"):
+                        return
+                try:
+                    with open(file, "w", encoding="utf-8") as f:
+                        f.write(contenuto_testo)
+                    self.show_toast("Report salvato correttamente!")
+                except Exception as e:
+                    self.show_custom_warning("Errore", f"Impossibile salvare il file: {e}")
+        button_frame = tk.Frame(preview_window, bg=self.COLOR_TOPLEVEL, pady=10)
+        button_frame.pack()
+        for icona, testo, cmd in (("salva", "Salva PDF", lambda: _fin_salva_pdf(self, preview_window, contenuto_testo, nome_file)),
+                                  ("salva", "Salva TXT", salva_effettivamente),
+                                  ("stampa", "Stampa", lambda: self._stampa_lista_diretta(contenuto_testo, self.show_custom_warning)),
+                                  ("chiudi", "Chiudi", preview_window.destroy)):
+            _pulsante_fin(self, button_frame, testo, cmd, icona).pack(side=tk.LEFT, padx=5)
+
     def esporta_dati_con_preview():
         import datetime
         oggi = datetime.date.today()
@@ -264,6 +1416,13 @@ def calcolo_mutuo_prestito(self):
                 idx_notebook = self.notebook.index(self.notebook.select())
             except Exception:
                 return
+        if notebook.select() == str(fin_frame):
+            testo_fin = fin_frame.testo_report()
+            if not testo_fin:
+                self.show_custom_warning("Esportazione", "Seleziona un finanziamento da esportare.")
+                return
+            anteprima_testo(testo_fin, f"Analisi_Finanziamenti_{datetime.date.today().strftime('%d-%m-%Y')}.txt")
+            return
         has_sim = hasattr(self, 'tutti_i_risultati') and any(self.tutti_i_risultati)
         has_killer = hasattr(self, 'killer_stats') and self.killer_stats
         has_rata_sost = hasattr(self, 'rata_sostenibile_risultato') and self.rata_sostenibile_risultato is not None
@@ -600,7 +1759,11 @@ def calcolo_mutuo_prestito(self):
         button_frame = tk.Frame(preview_window, bg=self.COLOR_TOPLEVEL, pady=10)
         button_frame.pack()
         img_salva_rep = self.icone_gui.get("salva")
-        btn_salva_rep = ttk.Label(button_frame, compound="left", image=img_salva_rep, text=" Salva Report" if img_salva_rep else "Salva Report", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
+        btn_salva_pdf = ttk.Label(button_frame, compound="left", image=img_salva_rep, text=" Salva PDF" if img_salva_rep else "Salva PDF", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
+        btn_salva_pdf.pack(side=tk.LEFT, padx=5)
+        btn_salva_pdf.bind("<Button-1>", lambda e: _fin_salva_pdf(
+            self, preview_window, contenuto_testo, f"Analisi_Mutuo_Killer_{datetime.date.today().strftime('%d-%m-%Y')}.txt"))
+        btn_salva_rep = ttk.Label(button_frame, compound="left", image=img_salva_rep, text=" Salva TXT" if img_salva_rep else "Salva TXT", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
         btn_salva_rep.pack(side=tk.LEFT, padx=5)
         btn_salva_rep.bind("<Button-1>", lambda e: salva_effettivamente())
         img_stampa_rep = self.icone_gui.get("stampa")
@@ -698,7 +1861,7 @@ def calcolo_mutuo_prestito(self):
                 tot_interessi_killer += interessi_mese
                 risparmio_rate_anno_corrente += (rata_originale - rata_corrente)
                 versamento_extra = extra_annuo if (m_rata == mese_versamento) else 0
-                rata_mese_corrente = rata_corrente  # rata in vigore per il versamento di QUESTO mese
+                rata_mese_corrente = rata_corrente
                 if versamento_extra > 0 and strategia == "Ricalcola Rata":
                     m_res = mesi_rimanenti - mese_corrente
                     if m_res > 0:
@@ -710,7 +1873,6 @@ def calcolo_mutuo_prestito(self):
                             rata_corrente = dn / m_res
                         else:
                             rata_corrente = 0
-                        # rata_corrente aggiornata vale solo dai mesi SUCCESSIVI in poi
                 abb_pot = (rata_mese_corrente - interessi_mese) + versamento_extra
                 if abb_pot >= debito:
                     versato_reale = debito + interessi_mese
@@ -1051,7 +2213,6 @@ def calcolo_mutuo_prestito(self):
     sb_k.pack(side=tk.RIGHT, fill=tk.Y)
     tree_k_piano.configure(yscrollcommand=sb_k.set)
 
-    # ---- Tab "Sostenibilità nel Tempo" ----
     def _sost_medie_mensili_da_storico():
         entrate_per_mese = {}
         uscite_per_mese = {}
@@ -1191,8 +2352,6 @@ def calcolo_mutuo_prestito(self):
         widget.bind("<Enter>", mostra, add="+")
         widget.bind("<Leave>", nascondi, add="+")
 
-    # colonne a larghezza fissa (minsize sopra): l'etichetta deve stare su UNA riga sola
-    # dentro questa larghezza, altrimenti l'unità di misura (€/%) va a capo e disallinea le caselle
     _SOST_ENTRY_CHARS = 12
     _SOST_LBL_WRAP = 132
 
@@ -1585,6 +2744,8 @@ def calcolo_mutuo_prestito(self):
 
     _sost_toggle_stress()
 
+    fin_frame = crea_tab_finanziamenti(self, notebook)
+
     common_button_frame = tk.Frame(root,bg=self.COLOR_TOPLEVEL, padx=10, pady=10)
     common_button_frame.grid(row=1, column=0, sticky="ew")
     img_esp_riep = self.icone_gui.get("stampa")
@@ -1595,6 +2756,20 @@ def calcolo_mutuo_prestito(self):
     btn_chiudi_riep = ttk.Label(common_button_frame, compound="left", image=img_chiudi_riep, text=" Chiudi" if img_chiudi_riep else "Chiudi", background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
     btn_chiudi_riep.pack(side=tk.LEFT, padx=5)
     btn_chiudi_riep.bind("<Button-1>", lambda e: (self.after(0, self.imp_entry.focus_set), common_button_frame.winfo_toplevel().destroy()))
+    barra_fin = tk.Frame(fin_frame.colonna_sx, bg=self.COLOR_TOPLEVEL)
+    barra_fin.pack(side=tk.BOTTOM, fill=tk.X, pady=(6, 0),
+                   before=fin_frame.colonna_sx.winfo_children()[0])
+    _pulsante_fin(self, barra_fin, "Esporta Riepilogo", esporta_dati_con_preview, "stampa").pack(side=tk.LEFT, padx=(0, 6))
+    _pulsante_fin(self, barra_fin, "Chiudi",
+                  lambda: (self.after(0, self.imp_entry.focus_set), root.destroy()), "chiudi").pack(side=tk.LEFT)
+
+    def _barra_comune_visibile(event=None):
+        if notebook.select() == str(fin_frame):
+            common_button_frame.grid_remove()
+        else:
+            common_button_frame.grid()
+    notebook.bind("<<NotebookTabChanged>>", _barra_comune_visibile)
+    _barra_comune_visibile()    
 
     root.deiconify()
 
