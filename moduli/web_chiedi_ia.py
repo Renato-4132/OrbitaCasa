@@ -44,7 +44,7 @@ _REGOLE = """REGOLE DI RISPOSTA:
     corrispondente: quel valore è già filtrato per quel conto/persona in quel periodo, non
     confonderlo con il totale storico dello stesso conto riportato altrove.
 7. Prima di dire che un dato non è disponibile, controlla TUTTE le sezioni del contesto (spese,
-   conti, trasferimenti tra conti, veicoli, immobili, fondo pensione, fondo risparmio, spese
+   conti, trasferimenti tra conti, veicoli, immobili, finanziamenti e mutui, fondo pensione, fondo risparmio, spese
    pianificate, fairshare, utenze, studio, promemoria, rubrica, automazioni): l'informazione
    richiesta potrebbe trovarsi in una sezione diversa da quella più ovvia. Dichiara l'assenza del
    dato solo se davvero non compare in nessuna sezione.
@@ -56,6 +56,12 @@ _REGOLE = """REGOLE DI RISPOSTA:
 8. I trasferimenti tra conti (sezione "TRASFERIMENTI TRA CONTI") NON sono entrate né uscite: sono
    spostamenti di denaro tra i conti dell'utente e non vanno mai sommati o confusi con i totali di
    entrate/uscite delle altre sezioni.
+9. Se la domanda chiede un consiglio o una strategia (es. "come potrei risparmiare", "conviene", "cosa posso fare"),
+   NON rifiutarti dicendo di non avere funzionalità: parti dai dati dell'utente (finanziamenti, tassi, rate, variazioni già fatte,
+   simulazioni di estinzione parziale, spese per categoria) e proponi 2 o 3 azioni concrete con numeri, aggiungendo le
+   indicazioni generali di finanza personale pertinenti (es. estinzioni parziali, surroga o rinegoziazione, confronto di offerte).
+   Chiudi con una frase breve che sono indicazioni generali e non una consulenza finanziaria. Per gli elenchi usa frasi separate
+   o numeri, mai asterischi o trattini.
 """
 
 
@@ -152,14 +158,15 @@ def chiedi_ia_web_risposta(self, dati, files=None):
                 blocco_all += f"\n--- {nome_t} ---\n{testo_t}\n--- fine {nome_t} ---\n"
             blocco_all += "\n"
         else:
-            intro = ("Rispondi ESCLUSIVAMENTE sulla base dei dati del database forniti sotto. Se un dato\n"
-                     "richiesto non è disponibile nel contesto, dillo chiaramente invece di inventare numeri.\n\n")
+            intro = ("Rispondi sulla base dei dati del database forniti sotto. Se un dato richiesto non è\n"
+                     "disponibile nel contesto, dillo chiaramente invece di inventare numeri. Per le domande di\n"
+                     "consiglio o strategia segui la regola 9.\n\n")
             blocco_all = ""
         prompt = (
             f"Sei un assistente esperto di finanza personale integrato nell'app {nome_app}.\n"
             + intro +
             "DATI DEL DATABASE (spese, conti, trasferimenti tra conti, e tutti i moduli collegati: veicoli,\n"
-            "immobili, fondo pensione, fondo risparmio, spese pianificate, fairshare, utenze, studio,\n"
+            "immobili, finanziamenti e mutui, fondo pensione, fondo risparmio, spese pianificate, fairshare, utenze, studio,\n"
             "promemoria, rubrica, automazioni — se una sezione non compare qui sotto significa che quel\n"
             "modulo non ha ancora dati registrati):\n"
             f"{contesto}\n\n{blocco_all}{cronologia_txt}DOMANDA DELL'UTENTE:\n{domanda}\n\n{_REGOLE}"

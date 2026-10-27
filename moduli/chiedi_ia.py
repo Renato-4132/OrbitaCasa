@@ -187,6 +187,104 @@ def _blocco_fondo_pensione(data, _fmt_it):
                      f"differenza rispetto al controvalore (rendimento/perdita stimati): {_fmt_it(rendimento)}€")
     return righe
 
+def _data_it_iso(d):
+    try:
+        a, m, g = str(d).split("-")
+        return f"{g}-{m}-{a}"
+    except ValueError:
+        return str(d or "?")
+
+def _simula_estinzione(grezzi, st, oggi):
+    try:
+        from moduli.finanziamenti import _piano_fin
+        base, e0 = _piano_fin(grezzi)
+        if e0 or not base:
+            return None
+        extra = float(round(max(500.0, st["residuo"] * 0.10), -2))
+        if extra >= st["residuo"]:
+            return None
+        out = {"extra": extra}
+        for strat in ("accorcia", "ricalcola"):
+            var = list(grezzi.get("variazioni") or []) + [
+                {"data": oggi.isoformat(), "tipo": "extra", "valore": extra, "strategia": strat}]
+            r, e = _piano_fin(dict(grezzi, variazioni=var))
+            if e or not r:
+                return None
+            out[strat] = (sum(x["int"] for x in base) - sum(x["int"] for x in r),
+                          (len(base) - len(r)) * (3 if grezzi.get("periodo") == 3 else 1),
+                          r[min(len([x for x in r if x["data"] <= oggi]), len(r) - 1)]["rata_base"]
+                          / (3 if grezzi.get("periodo") == 3 else 1))
+        return out
+    except Exception:
+        return None
+
+def _blocco_finanziamenti(self, _fmt_it):
+    try:
+        import datetime as _dt
+        from moduli.finanziamenti import _fin_elenco, _carica_fin
+        res = _fin_elenco(self)
+        grezzi_per_id = {x.get("id"): x for x in _carica_fin()}
+        oggi_fin = _dt.date.today()
+    except Exception:
+        return []
+    fin = res.get("finanziamenti") or []
+    if not fin:
+        return []
+    righe = ["", "FINANZIAMENTI, MUTUI E PRESTITI (piani di ammortamento; le rate non sono entrate):"]
+    tot = res.get("totali") or {}
+    righe.append(f"   Attivi: {tot.get('n_attivi', 0)} - Estinti: {tot.get('n_estinti', 0)} - "
+                 f"Debito residuo totale: {_fmt_it(tot.get('residuo', 0.0))}€ - "
+                 f"Rata mensile complessiva: {_fmt_it(tot.get('rata_mensile', 0.0))}€ - "
+                 f"Interessi ancora da pagare: {_fmt_it(tot.get('int_restanti', 0.0))}€")
+    if tot.get("pct_entrate") is not None:
+        righe.append(f"   Peso delle rate sulle entrate medie mensili ({_fmt_it(tot.get('entrate_medie', 0.0))}€): "
+                     f"{_fmt_it(tot['pct_entrate'])}%")
+    nomi_tipo = {"extra": "estinzione parziale", "tasso": "nuovo tasso", "rata": "nuova rata",
+                 "durata": "nuova durata residua", "prolunga": "variazione durata"}
+    for f in fin:
+        per = "trimestrali" if f.get("periodo") == 3 else "mensili"
+        conto = f" - Conto: {f['conto']}" if f.get("conto") else ""
+        righe.append(f"   - {f.get('nome', '?')}: capitale {_fmt_it(float(f.get('capitale') or 0))}€ al "
+                     f"{_fmt_it(float(f.get('tasso') or 0))}% per {f.get('mesi', '?')} mesi, rate {per}, "
+                     f"prima rata {_data_it_iso(f.get('data_inizio'))}{conto}")
+        st = f.get("status")
+        if not st:
+            righe.append(f"      Dati non validi: {f.get('errore', 'n/d')}")
+            continue
+        stato = {"estinto": "ESTINTO", "non_iniziato": "non ancora iniziato"}.get(st["stato"], "in corso")
+        righe.append(f"      Stato: {stato} - rate pagate {st['rate_pagate']}/{st['rate_tot']} "
+                     f"(restano {st['rate_rimaste']}) - debito residuo {_fmt_it(st['residuo'])}€ - "
+                     f"rimborsato {_fmt_it(st['rimborsato'])}€ ({_fmt_it(st['pct'])}%)")
+        if st["stato"] != "estinto":
+            righe.append(f"      Rata attuale: {_fmt_it(st['rata_periodo'])}€ - prossima scadenza "
+                         f"{st['prossima_data']} di {_fmt_it(st['prossima_importo'])}€ - ultima rata prevista {st['fine']}")
+        righe.append(f"      Interessi: pagati {_fmt_it(st['int_pagati'])}€, restanti {_fmt_it(st['int_restanti'])}€, "
+                     f"totali {_fmt_it(st['int_totali'])}€ - costo totale delle rate {_fmt_it(st['costo_totale'])}€")
+        if st["stato"] != "estinto" and grezzi_per_id.get(f.get("id")):
+            sim = _simula_estinzione(grezzi_per_id[f["id"]], st, oggi_fin)
+            if sim:
+                ac, ri = sim["accorcia"], sim["ricalcola"]
+                righe.append(f"      Simulazione, se estinguessi subito {_fmt_it(sim['extra'])}€ in più: "
+                             f"mantenendo la rata {('riduci la durata di ' + str(ac[1]) + ' mesi') if ac[1] > 0 else 'la durata resta invariata'} e risparmi {_fmt_it(ac[0])}€ di interessi; "
+                             f"ricalcolando la rata scende a {_fmt_it(ri[2])}€ e risparmi {_fmt_it(ri[0])}€ di interessi")
+        if st.get("base_fine"):
+            righe.append(f"      Effetto delle variazioni: senza variazioni finiva il {st['base_fine']}, "
+                         f"interessi risparmiati {_fmt_it(st.get('risparmio_int', 0.0))}€")
+        var = f.get("variazioni") or []
+        if var:
+            parti = []
+            for v in var:
+                val = float(v.get("valore") or 0)
+                if v.get("tipo") in ("durata", "prolunga"):
+                    txt = f"{round(val * 12)} mesi"
+                elif v.get("tipo") == "tasso":
+                    txt = f"{_fmt_it(val)}%"
+                else:
+                    txt = f"{_fmt_it(val)}€"
+                parti.append(f"{_data_it_iso(v.get('data'))} {nomi_tipo.get(v.get('tipo'), v.get('tipo'))} {txt}")
+            righe.append("      Variazioni: " + "; ".join(parti))
+    return righe
+
 def _blocco_fondo_risparmio(data, _fmt_it):
     if not data:
         return []
@@ -759,6 +857,7 @@ def _costruisci_contesto_database(self, _app, _fmt_it):
     )
     righe += _blocco_scadenze_ricorrenti_mese(self, oggi, _fmt_it)
     righe += _blocco_fondo_pensione(_leggi_json(getattr(_app, 'PENSIONE_FILE', None)), _fmt_it)
+    righe += _blocco_finanziamenti(self, _fmt_it)
     righe += _blocco_fondo_risparmio(_leggi_json(getattr(_app, 'FR_FILE', None)), _fmt_it)
     righe += _blocco_immobili(_leggi_json(getattr(_app, 'IMMOBIL_FILE', None)), _fmt_it)
     righe += _blocco_fairshare(self.carica_fairshare_state(), _fmt_it)
@@ -822,7 +921,7 @@ def chiedi_ia_database(self):
               font=("Segoe UI", 12, "bold")).pack(side="left")
 
     tk.Label(popup, text="Fai qualsiasi domanda statistica o di ricerca su spese, entrate, categorie, conti, veicoli,\n"
-                         "immobili, fondo pensione, fondo risparmio, spese pianificate e altri dati dell'app:",
+                         "immobili, finanziamenti e mutui, fondo pensione, fondo risparmio, spese pianificate e altri dati dell'app:",
              bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
              font=("Segoe UI", 9, "bold"), justify="left").pack(anchor="w", padx=18, pady=(6, 2))
 
@@ -1044,11 +1143,12 @@ def chiedi_ia_database(self):
         def _componi_prompt(contesto):
             return f"""
         Sei un assistente esperto di finanza personale integrato nell'app {nome_app}.
-        Rispondi ESCLUSIVAMENTE sulla base dei dati del database forniti sotto. Se un dato
-        richiesto non è disponibile nel contesto, dillo chiaramente invece di inventare numeri.
+        Rispondi sulla base dei dati del database forniti sotto. Se un dato richiesto non è
+        disponibile nel contesto, dillo chiaramente invece di inventare numeri. Per le domande di consiglio
+        o strategia segui la regola 9.
 
         DATI DEL DATABASE (spese, conti, trasferimenti tra conti, e tutti i moduli collegati: veicoli,
-        immobili, fondo pensione, fondo risparmio, spese pianificate, fairshare, utenze, studio,
+        immobili, finanziamenti e mutui, fondo pensione, fondo risparmio, spese pianificate, fairshare, utenze, studio,
         promemoria, rubrica, automazioni — se una sezione non compare qui sotto significa che quel
         modulo non ha ancora dati registrati):
         {contesto}
@@ -1083,7 +1183,7 @@ def chiedi_ia_database(self):
             corrispondente: quel valore è già filtrato per quel conto/persona in quel periodo, non
             confonderlo con il totale storico dello stesso conto riportato altrove.
         7. Prima di dire che un dato non è disponibile, controlla TUTTE le sezioni del contesto (spese,
-           conti, trasferimenti tra conti, veicoli, immobili, fondo pensione, fondo risparmio, spese
+           conti, trasferimenti tra conti, veicoli, immobili, finanziamenti e mutui, fondo pensione, fondo risparmio, spese
            pianificate, fairshare, utenze, studio, promemoria, rubrica, automazioni): l'informazione
            richiesta potrebbe trovarsi in una sezione diversa da quella più ovvia. Dichiara l'assenza del
            dato solo se davvero non compare in nessuna sezione.
@@ -1095,6 +1195,12 @@ def chiedi_ia_database(self):
         8. I trasferimenti tra conti (sezione "TRASFERIMENTI TRA CONTI") NON sono entrate né uscite: sono
            spostamenti di denaro tra i conti dell'utente e non vanno mai sommati o confusi con i totali di
            entrate/uscite delle altre sezioni.
+        9. Se la domanda chiede un consiglio o una strategia (es. "come potrei risparmiare", "conviene", "cosa posso fare"),
+           NON rifiutarti dicendo di non avere funzionalità: parti dai dati dell'utente (finanziamenti, tassi, rate, variazioni già fatte,
+           simulazioni di estinzione parziale, spese per categoria) e proponi 2 o 3 azioni concrete con numeri, aggiungendo le
+           indicazioni generali di finanza personale pertinenti (es. estinzioni parziali, surroga o rinegoziazione, confronto di offerte).
+           Chiudi con una frase breve che sono indicazioni generali e non una consulenza finanziaria. Per gli elenchi usa frasi separate
+           o numeri, mai asterischi o trattini.
         """
 
         def _chiedi_a_gemini(prompt):
