@@ -600,11 +600,11 @@ _PAGINA = r"""<!DOCTYPE html>
             l += '<div class="card"><div class="finhead"><h3>' + esc(f.nome) + (st ? '<span class="badge ' + st.stato + '">' + STATI[st.stato] + '</span>' : '') + '</h3><div>' +
                  '<button class="iconbtn" onclick="modificaFin(\'' + esc(f.id) + '\')">✏️</button><button class="iconbtn" onclick="eliminaFin(\'' + esc(f.id) + '\')">🗑️</button></div></div>';
             if (!st) { l += '<div class="nota neg">' + esc(f.errore) + '</div></div>'; return; }
-            l += '<div class="nota">' + eur(f.capitale) + ' al ' + pct(f.tasso) + ' · ' + f.mesi + ' mesi · dal ' + esc(f.data_inizio.split('-').reverse().join('-')) + '</div>' +
+            l += '<div class="nota">' + eur(f.capitale) + ' al ' + pct(f.tasso) + ' · ' + f.mesi + ' mesi' + (f.periodo === 3 ? ' · rate trimestrali' : '') + ' · dal ' + esc(f.data_inizio.split('-').reverse().join('-')) + '</div>' +
                  '<div class="prog"><i style="width:' + Math.min(100, st.pct).toFixed(1) + '%"></i></div>' +
                  '<div class="nota">Rimborsato ' + pct1(st.pct) + ' · rate ' + st.rate_pagate + ' / ' + st.rate_tot + '</div><div class="kpis">' +
                  '<div class="kpi"><div class="e">Debito residuo</div><div class="v">' + eur(st.residuo) + '</div></div>' +
-                 '<div class="kpi"><div class="e">Rata mensile</div><div class="v">' + eur(st.rata_mensile) + '</div></div>' +
+                 '<div class="kpi"><div class="e">Rata mensile</div><div class="v">' + eur(st.rata_mensile) + (st.periodo === 3 ? '<br><small>' + eur(st.rata_periodo) + ' a trimestre</small>' : '') + '</div></div>' +
                  '<div class="kpi"><div class="e">Prossima scadenza</div><div class="v">' + (st.prossima_data ? esc(st.prossima_data) + '<br><small>' + eur(st.prossima_importo) + (st.giorni_prossima != null ? ' · tra ' + st.giorni_prossima + ' gg' : '') + '</small>' : '-') + '</div></div>' +
                  '<div class="kpi"><div class="e">Fine prevista</div><div class="v">' + esc(st.fine) + '<br><small>' + st.rate_rimaste + ' rate rimaste</small></div></div>' +
                  '<div class="kpi"><div class="e">Interessi pagati</div><div class="v">' + eur(st.int_pagati) + '</div></div>' +
@@ -627,6 +627,7 @@ _PAGINA = r"""<!DOCTYPE html>
     }
     function resetFin() {
         ['fId','fN','fC','fT','fA','fD','fR','fS'].forEach(function(i) { $(i).value = ''; });
+        $('fP').value = 'Mensile';
         $('finFormTit').textContent = '➕ Aggiungi un finanziamento';
     }
     function modificaFin(id) {
@@ -634,13 +635,14 @@ _PAGINA = r"""<!DOCTYPE html>
         if (!f) return;
         $('fId').value = f.id; $('fN').value = f.nome; $('fC').value = String(f.capitale).replace('.', ',');
         $('fT').value = String(f.tasso).replace('.', ','); $('fA').value = String(f.mesi);
+        $('fP').value = f.periodo === 3 ? 'Trimestrale' : 'Mensile';
         $('fD').value = f.data_inizio; $('fR').value = f.rata_fissa ? String(f.rata_fissa).replace('.', ',') : '';
         $('fS').value = f.spese ? String(f.spese).replace('.', ',') : '';
         $('finFormTit').textContent = '✏️ Modifica finanziamento';
         $('fN').scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
     async function salvaFin() {
-        var r = await calcola({ tool: 'fin_salva', id: val('fId'), nome: val('fN'), capitale: val('fC'), tasso: val('fT'), mesi: val('fA'), data_inizio: val('fD'), rata: val('fR'), spese: val('fS') });
+        var r = await calcola({ tool: 'fin_salva', id: val('fId'), nome: val('fN'), capitale: val('fC'), tasso: val('fT'), mesi: val('fA'), periodo: val('fP'), data_inizio: val('fD'), rata: val('fR'), spese: val('fS') });
         if (!r || !r.ok) { msg((r && r.errore) || 'Errore di salvataggio.', true); return; }
         msg('Finanziamento salvato'); resetFin(); caricaFin();
     }
@@ -909,6 +911,7 @@ _PAGINA = r"""<!DOCTYPE html>
                 <div class="campo"><label>Capitale erogato (€)</label><input id="fC" inputmode="decimal" autocomplete="off"></div>
                 <div class="campo"><label>Tasso annuo (%)</label><input id="fT" inputmode="decimal" autocomplete="off"></div>
                 <div class="campo"><label>Durata (mesi)</label><input id="fA" inputmode="numeric" autocomplete="off"></div>
+                <div class="campo"><label>Periodicità rate</label><select id="fP"><option value="Mensile">Mensile</option><option value="Trimestrale">Trimestrale</option></select></div>
                 <div class="campo"><label>Data prima rata</label><input id="fD" type="date"></div>
                 <div class="campo"><label>Rata reale (€, opzionale)</label><input id="fR" inputmode="decimal" autocomplete="off"></div>
                 <div class="campo"><label>Spese mensili (€)</label><input id="fS" inputmode="decimal" autocomplete="off"></div>

@@ -190,8 +190,9 @@ def _fin_sim(f, base, k, eventi):
     nuovo, err = _piano_fin(dict(f, variazioni=list(f.get("variazioni") or []) + eventi))
     if err or not nuovo:
         return None
+    p = nuovo[0].get("per", 1)
     rate = [r["rata_base"] for r in nuovo[k:] if r["rata_base"] > 0]
-    return (rate[0] if rate else 0.0, _dit(nuovo[-1]["data"]), len(base) - len(nuovo),
+    return (rate[0] / p if rate else 0.0, _dit(nuovo[-1]["data"]), (len(base) - len(nuovo)) * p,
             sum(r["int"] for r in base[k:]) - sum(r["int"] for r in nuovo[k:]))
 
 def _fin_blocco_finanziamenti(self, oggi):
@@ -213,7 +214,7 @@ def _fin_blocco_finanziamenti(self, oggi):
                 tasso_ora = e["valore"]
         st["tasso_ora"] = tasso_ora
         L.append(f"   {f.get('nome', '?')}: capitale {_it(f['capitale'])} €, tasso iniziale {_it(f['tasso'])} %, in vigore {_it(tasso_ora)} %, "
-                 f"inizio {_iso_a_it(f.get('data_inizio'))}, stato {STATI.get(st['stato'], st['stato'])}, rate {st['rate_pagate']}/"
+                 f"inizio {_iso_a_it(f.get('data_inizio'))}, rate {'trimestrali' if st['periodo'] == 3 else 'mensili'}, stato {STATI.get(st['stato'], st['stato'])}, rate {st['rate_pagate']}/"
                  f"{st['rate_tot']}, rata {_it(st['rata_mensile'])} €, residuo {_it(st['residuo'])} €, fine {st['fine']}, "
                  f"interessi ancora da pagare {_it(st['int_restanti'])} €")
         for e in _eventi_validi(f):
@@ -237,7 +238,7 @@ def _fin_blocco_finanziamenti(self, oggi):
                     parti.append(f"{nome}: rata {_it(s[0])} €, fine {s[1]}, {s[2]} mesi prima, risparmio interessi {_it(s[3])} €")
             L.append(f"      {_it(x, 0) if x < res_ else 'estinzione totale ' + _it(x)} €: " + " | ".join(parti))
         for m_ in (100, 200, 300, 500):
-            ev = [{"data": base[i]["data"].isoformat(), "tipo": "extra", "valore": float(m_), "strategia": "accorcia"}
+            ev = [{"data": base[i]["data"].isoformat(), "tipo": "extra", "valore": float(m_) * base[0].get("per", 1), "strategia": "accorcia"}
                   for i in range(k, len(base))]
             s = _fin_sim(f, base, k, ev)
             if s:
@@ -720,7 +721,9 @@ def crea_tab_finanziamenti(self, notebook, indice=None):
                 f"Stato: {STATI.get(s['stato'], s['stato'])}  -  rate pagate {s['rate_pagate']} di {s['rate_tot']}",
                 f"Capitale: {_it(f['capitale'])} €   Tasso: {_it(f['tasso'])} %   Inizio: {_iso_a_it(f['data_inizio'])}",
                 f"Rimborsato: {_it(s['rimborsato'])} € ({_it(s['pct'], 1)} %)   Residuo: {_it(s['residuo'])} €",
-                f"Rata mensile: {_it(s['rata_mensile'])} €   Fine prevista: {s['fine']}",
+                f"Rata mensile: {_it(s['rata_mensile'])} €"
+                + (f" (rata trimestrale {_it(s['rata_periodo'])} €)" if s.get("periodo") == 3 else "")
+                + f"   Fine prevista: {s['fine']}",
                 f"Interessi pagati: {_it(s['int_pagati'])} €   restanti: {_it(s['int_restanti'])} €   "
                 f"totali: {_it(s['int_totali'])} €",
                 f"Costo totale (rate): {_it(s['costo_totale'])} €",
@@ -865,8 +868,10 @@ def crea_tab_finanziamenti(self, notebook, indice=None):
             ("capitale", "Capitale (€)", "entry", _it(f["capitale"]) if f else pre.get("capitale", ""), None),
             ("tasso", "Tasso annuo (%)", "entry", _it(f["tasso"]) if f else pre.get("tasso", ""), None),
             ("mesi", "Durata (mesi)", "entry", str(f["mesi"]) if f else pre.get("mesi", ""), None),
+            ("periodo", "Periodicità delle rate", "combo", "Trimestrale" if f and f.get("periodo") == 3 else "Mensile",
+             ["Mensile", "Trimestrale"]),
             ("data_inizio", "Data prima rata", "data", _iso_a_it(f["data_inizio"]) if f else pre.get("data_inizio", oggi), None),
-            ("rata", "Rata fissa (€, vuoto = automatica)", "entry",
+            ("rata", "Rata fissa (€ per rata, vuoto = automatica)", "entry",
              _it(f["rata_fissa"]) if f and f.get("rata_fissa") else "", None),
             ("spese", "Spese mensili (€)", "entry", _it(f["spese"]) if f and f.get("spese") else pre.get("spese", ""), None),
             ("conto", "Conto (per esportazione rate)", "combo", (f.get("conto") if f else "") or "(nessuno)",

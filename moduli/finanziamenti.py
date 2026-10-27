@@ -103,6 +103,12 @@ def _aggiungi_mesi(d, n):
 
 TIPI_VAR = ("extra", "durata", "prolunga", "tasso", "rata")
 
+def _periodo(f):
+    try:
+        return 3 if int(f.get("periodo") or 1) == 3 else 1
+    except (TypeError, ValueError):
+        return 1
+
 def _mesi_residui(debito, tm, rata):
     if debito <= 0.005:
         return 0
@@ -127,9 +133,10 @@ def _eventi_validi(f):
 
 def _piano_fin(f, log=None):
     cap = float(f["capitale"])
-    tm = float(f["tasso"]) / 1200
-    mesi = int(f["mesi"])
-    spese = float(f.get("spese") or 0.0)
+    p = _periodo(f)
+    tm = float(f["tasso"]) / 1200 * p
+    mesi = -(-int(f["mesi"]) // p)
+    spese = float(f.get("spese") or 0.0) * p
     inizio = datetime.date.fromisoformat(f["data_inizio"])
     rata_fissa = float(f.get("rata") or 0.0)
     custom = rata_fissa > 0
@@ -143,7 +150,7 @@ def _piano_fin(f, log=None):
     righe, debito, n = [], cap, 0
     while debito > 0.005 and n < 600:
         n += 1
-        data = _aggiungi_mesi(inizio, n - 1)
+        data = _aggiungi_mesi(inizio, (n - 1) * p)
         extra_n = 0.0
         while ei < len(eventi) and eventi[ei]["data"] <= data:
             e = eventi[ei]
@@ -153,17 +160,17 @@ def _piano_fin(f, log=None):
             if not vincolo:
                 mesi_rim = _mesi_residui(debito, tm, rata)
             if t == "tasso":
-                tm = v / 1200
+                tm = v / 1200 * p
                 if vincolo:
                     rata = _rata_francese(debito, tm, max(mesi_rim, 1))
             elif t == "rata":
                 rata, vincolo = v, False
             elif t == "durata":
-                mesi_rim = max(1, int(round(v * 12)))
+                mesi_rim = max(1, int(round(v * 12 / p)))
                 vincolo = True
                 rata = _rata_francese(debito, tm, mesi_rim)
             elif t == "prolunga":
-                mesi_rim = max(1, mesi_rim + int(round(v * 12)))
+                mesi_rim = max(1, mesi_rim + int(round(v * 12 / p)))
                 vincolo = True
                 rata = _rata_francese(debito, tm, mesi_rim)
             elif t == "extra":
@@ -181,7 +188,7 @@ def _piano_fin(f, log=None):
                             "debito_dopo": debito})
         if debito <= 0.005:
             righe.append({"n": n, "data": data, "rata": extra_n, "rata_base": 0.0, "cap": extra_n,
-                          "int": 0.0, "residuo": 0.0, "extra": extra_n})
+                          "int": 0.0, "residuo": 0.0, "extra": extra_n, "per": p})
             break
         interessi = debito * tm
         quota = rata - interessi
@@ -192,7 +199,7 @@ def _piano_fin(f, log=None):
         debito -= quota
         base = quota + interessi + spese
         righe.append({"n": n, "data": data, "rata": base + extra_n, "rata_base": base, "cap": quota + extra_n,
-                      "int": interessi, "residuo": max(debito, 0.0), "extra": extra_n})
+                      "int": interessi, "residuo": max(debito, 0.0), "extra": extra_n, "per": p})
         mesi_rim -= 1
     if debito > 0.005:
         return righe, "Il finanziamento non si estingue entro 50 anni."
@@ -208,15 +215,17 @@ def _residuo_dopo(righe, cap, idx):
 def _serie(piani, oggi, max_anni=40):
     n_anni = 0
     for righe, k, _ in piani:
-        n_anni = max(n_anni, -(-max(len(righe) - k, 0) // 12))
+        rpa = 12 // (righe[0].get("per", 1) if righe else 1)
+        n_anni = max(n_anni, -(-max(len(righe) - k, 0) // rpa))
     n_anni = min(n_anni, max_anni)
     out = []
     for y in range(n_anni + 1):
         residuo = rata = inter = quota = 0.0
         for righe, k, cap in piani:
-            residuo += _residuo_dopo(righe, cap, k + 12 * y)
+            rpa = 12 // (righe[0].get("per", 1) if righe else 1)
+            residuo += _residuo_dopo(righe, cap, k + rpa * y)
             if y > 0:
-                tratto = righe[k + 12 * (y - 1):k + 12 * y]
+                tratto = righe[k + rpa * (y - 1):k + rpa * y]
                 rata += sum(r["rata"] for r in tratto)
                 inter += sum(r["int"] for r in tratto)
                 quota += sum(r["cap"] for r in tratto)
@@ -233,7 +242,7 @@ def _cronostoria(f):
         return []
     out = [{"data": _data_it(datetime.date.fromisoformat(f["data_inizio"])), "titolo": "Inizio",
             "dettaglio": f"{f['capitale']:,.2f} € al {f['tasso']:.2f} % per {int(f['mesi'])} mesi".replace(",", "X").replace(".", ",").replace("X", "."),
-            "rata_prima": None, "rata_dopo": righe[0]["rata_base"], "debito": float(f["capitale"]),
+            "rata_prima": None, "rata_dopo": righe[0]["rata_base"] / _periodo(f), "debito": float(f["capitale"]),
             "fine": _data_it(righe[-1]["data"]), "int_totali": sum(r["int"] for r in righe)}]
     log = []
     _piano_fin(f, log)
@@ -245,8 +254,8 @@ def _cronostoria(f):
         if e_i or not r_i:
             continue
         out.append({"data": _data_it(e["data"]), "tipo": e["tipo"], "valore": e["valore"],
-                    "strategia": e["strategia"], "rata_prima": e["rata_prima"] + float(f.get("spese") or 0),
-                    "rata_dopo": e["rata_dopo"] + float(f.get("spese") or 0), "debito": e["debito_dopo"],
+                    "strategia": e["strategia"], "rata_prima": e["rata_prima"] / _periodo(f) + float(f.get("spese") or 0),
+                    "rata_dopo": e["rata_dopo"] / _periodo(f) + float(f.get("spese") or 0), "debito": e["debito_dopo"],
                     "debito_prima": e["debito_prima"], "fine": _data_it(r_i[-1]["data"]),
                     "int_totali": sum(r["int"] for r in r_i)})
     return out
@@ -273,7 +282,9 @@ def _status_fin(f, oggi):
         "residuo": residuo, "rimborsato": cap - residuo,
         "pct": (100.0 * (cap - residuo) / cap) if cap > 0 else 0.0,
         "int_pagati": int_pagati, "int_restanti": int_resto, "int_totali": int_pagati + int_resto,
-        "rata_mensile": righe[min(k, tot - 1)]["rata_base"] if tot else 0.0,
+        "rata_mensile": righe[min(k, tot - 1)]["rata_base"] / _periodo(f) if tot else 0.0,
+        "rata_periodo": righe[min(k, tot - 1)]["rata_base"] if tot else 0.0,
+        "periodo": _periodo(f),
         "prossima_data": _data_it(prossima["data"]) if prossima else "",
         "prossima_importo": prossima["rata"] if prossima else 0.0,
         "giorni_prossima": (prossima["data"] - oggi).days if prossima else None,
@@ -286,7 +297,7 @@ def _status_fin(f, oggi):
             st["base_fine"] = _data_it(base[-1]["data"])
             st["base_int"] = sum(r["int"] for r in base)
             st["risparmio_int"] = st["base_int"] - st["int_totali"]
-            st["mesi_diff"] = len(base) - tot
+            st["mesi_diff"] = (len(base) - tot) * _periodo(f)
     return (st, righe, k), None
 
 def _fin_elenco(self):
@@ -308,7 +319,7 @@ def _fin_elenco(self):
             res, err = None, "Dati non validi."
         voce = {"id": f.get("id"), "nome": f.get("nome", ""), "capitale": f.get("capitale"),
                 "tasso": f.get("tasso"), "mesi": f.get("mesi"), "data_inizio": f.get("data_inizio"),
-                "rata_fissa": f.get("rata") or 0, "spese": f.get("spese") or 0,
+                "rata_fissa": f.get("rata") or 0, "spese": f.get("spese") or 0, "periodo": _periodo(f),
                 "variazioni": f.get("variazioni") or [], "conto": f.get("conto") or ""}
         if err or not res:
             voce["errore"] = err or "Dati non validi."
@@ -578,8 +589,15 @@ def _fin_salva(d):
         return {"ok": False, "errore": "Controlla i dati: capitale 1–2.000.000 €, tasso 0–35 %, "
                                        "durata da 1 a 600 mesi, rata e spese non negative."}, 400
     conto = str(d.get("conto") or "").strip()
+    if "periodo" in d:
+        per = 3 if str(d.get("periodo") or "").strip().lower().startswith(("tri", "3")) else 1
+    else:
+        fid0 = str(d.get("id") or "")
+        per = next((_periodo(x) for x in _carica_fin() if fid0 and x.get("id") == fid0), 1)
     f = {"nome": nome, "capitale": cap, "tasso": tasso, "mesi": max(1, int(round(mesi_in))),
          "data_inizio": data_in, "rata": rata, "spese": spese}
+    if per == 3:
+        f["periodo"] = 3
     if conto and conto != "(nessuno)":
         f["conto"] = conto
     _, err = _piano_fin(f)
