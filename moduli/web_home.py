@@ -35,6 +35,12 @@ def _utente_e_ultimo_accesso():
 
 def _riepilogo_mese(self, anno, mese):
     entrate = uscite = 0.0
+    try:
+        from moduli import web_pianificate as _wp
+        _pian_on = _wp.attivo("mese")
+        _pian_ids = _wp.ids_in_piano(self) if _pian_on else set()
+    except Exception:
+        _wp, _pian_on, _pian_ids = None, False, set()
     for d, voci in list(self.spese.items()):
         if d.year != anno or d.month != mese:
             continue
@@ -46,7 +52,14 @@ def _riepilogo_mese(self, anno, mese):
             if str(v[3]) == "Entrata":
                 entrate += imp
             else:
+                if _pian_ids and campo(v, "id_spesa", None) in _pian_ids:
+                    continue
                 uscite += imp
+    if _pian_on and _wp is not None:
+        try:
+            uscite += _wp.totale_quote(self, anno, mese)
+        except Exception:
+            pass
     return entrate, uscite
 
 
@@ -98,6 +111,7 @@ def pagina_home_web(self):
         ("Portafoglio", [
             ("/portafoglio_web", "🏦", "Portafoglio bancario", ""),
             ("/finanziamenti_web", "🧮", "Mutui e prestiti", ""),
+            ("/spese_pianificate_web", "📌", "Spese pianificate", ""),
             ("/fondo_risparmio_web", "💰", "Fondo risparmio", ""),
             ("/gestione_categorie", "⚙️", "Categorie", ""),
         ]),
@@ -168,6 +182,13 @@ def calendario_web_mese(self, anno, mese):
     ultimo = calendar.monthrange(anno, mese)[1]
     giorni = {}
     ent_t = usc_t = 0.0
+    usc_escluse = 0.0
+    try:
+        from moduli import web_pianificate as _wp
+        _pian_on = _wp.attivo("mese")
+        _pian_ids = _wp.ids_in_piano(self) if _pian_on else set()
+    except Exception:
+        _wp, _pian_on, _pian_ids = None, False, set()
     for d, voci in list(self.spese.items()):
         if d.year != anno or d.month != mese:
             continue
@@ -183,6 +204,8 @@ def calendario_web_mese(self, anno, mese):
                 e += imp
             else:
                 u += imp
+                if _pian_ids and campo(v, "id_spesa", None) in _pian_ids:
+                    usc_escluse += imp
             tags = campo(v, "hashtag", []) or []
             if isinstance(tags, str):
                 tags = [tags]
@@ -225,7 +248,24 @@ def calendario_web_mese(self, anno, mese):
                 g["ev"] = [_voce_json(d, v, oggi) for v in vv]
     except Exception:
         pass
+    pian = {"presenti": False, "on": _pian_on, "righe": [], "tot_str": _fmt_it(0)}
+    if _wp is not None:
+        try:
+            qs = _wp.quote(self, anno, mese)
+            pian = {
+                "presenti": bool(_wp.piani(self)),
+                "on": _pian_on,
+                "righe": [{"cat": (x["piano"].get("categoria") or x["piano"].get("nome") or "Pianificata"),
+                           "desc": x["piano"].get("descrizione") or "",
+                           "quota_str": _fmt_it(x["quota"])} for x in qs],
+                "tot_str": _fmt_it(sum(x["quota"] for x in qs)),
+            }
+            if _pian_on:
+                usc_t = usc_t - usc_escluse + sum(x["quota"] for x in qs)
+        except Exception:
+            pass
     return {"ok": True, "anno": anno, "mese": mese, "oggi": datetime.date.today().isoformat(),
+            "pian": pian,
             "giorni": giorni, "ent": round(ent_t, 2), "usc": round(usc_t, 2),
             "ent_str": _fmt_it(ent_t), "usc_str": _fmt_it(usc_t),
             "saldo_str": _fmt_it(abs(ent_t - usc_t)), "saldo_pos": ent_t - usc_t >= 0}
@@ -358,6 +398,7 @@ _MENU = r"""<button class="menu-btn" onclick="toggleMenu()">⚙️</button>
             <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
                 <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/spese_pianificate_web">📌 Spese Pianificate</a>
                 <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>
@@ -547,7 +588,7 @@ _CAL = (_HEAD.replace("__TITOLO__", "🗓️ Calendario") + _CSS + r"""
     }
     async function carica() {
         try {
-            var r = await fetch('/api/calendario/mese?anno=' + Y + '&mese=' + M, {cache: 'no-store'});
+            var r = await fetch('/api/calendario/mese?anno=' + Y + '&mese=' + M + (PIAN ? '&pian=1' : ''), {cache: 'no-store'});
             if (r.status === 401) { location.href = '/login'; return; }
             DATI = await r.json();
         } catch (e) { msg('Connessione non riuscita', true); return; }
@@ -563,7 +604,27 @@ _CAL = (_HEAD.replace("__TITOLO__", "🗓️ Calendario") + _CSS + r"""
         var t = new Date(); Y = t.getFullYear(); M = t.getMonth() + 1;
         SEL = ''; nascondi(); salvaStato(); carica();
     }
+    var PIAN = false;
+    function togglePianificate(attivo) { PIAN = attivo; carica(); }
+    function disegnaPian() {
+        var b = $('pianBox'), p = DATI.pian;
+        if (!p || !p.presenti) { b.innerHTML = ''; return; }
+        var h = '<div class="riep" style="display:block;margin-top:12px;text-align:left;">' +
+            '<div style="font-weight:800;font-size:0.9em;margin-bottom:4px;">📌 Spese pianificate del mese <span style="font-weight:600;opacity:0.7;">· ' +
+            (p.on ? 'incluse nei totali' : 'non incluse nei totali') + '</span></div>';
+        if (!p.righe.length) h += '<div style="font-size:0.82em;opacity:0.7;padding:6px 0;">Nessuna quota da accantonare in questo mese.</div>';
+        p.righe.forEach(function(x) {
+            h += '<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--border);font-size:0.85em;">' +
+                '<span>' + esc(x.cat) + (x.desc ? ' <small style="opacity:0.7">· ' + esc(x.desc) + '</small>' : '') + '</span>' +
+                '<b class="neg" style="white-space:nowrap;">€ −' + x.quota_str + '</b></div>';
+        });
+        if (p.righe.length > 1) h += '<div style="display:flex;justify-content:space-between;padding-top:8px;border-top:2px solid var(--border);font-size:0.88em;"><b>Totale quote</b><b>€ −' + p.tot_str + '</b></div>';
+        h += '<button onclick="togglePianificate(' + (p.on ? 'false' : 'true') + ')" style="margin-top:10px;width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface3);color:var(--text);font-family:inherit;font-weight:700;cursor:pointer;">' +
+            '📌 ' + (p.on ? 'Escludi dai totali' : 'Includi nei totali') + '</button></div>';
+        b.innerHTML = h;
+    }
     function disegna() {
+        disegnaPian();
         $('titolo').textContent = MESI_N[M - 1] + ' ' + Y;
         $('r_e').textContent = '€ ' + DATI.ent_str;
         $('r_u').textContent = '€ ' + DATI.usc_str;
@@ -698,6 +759,7 @@ _CAL = (_HEAD.replace("__TITOLO__", "🗓️ Calendario") + _CSS + r"""
     </div>
     <div class="sett"><div>Lun</div><div>Mar</div><div>Mer</div><div>Gio</div><div>Ven</div><div>Sab</div><div>Dom</div></div>
     <div class="griglia" id="griglia"></div>
+    <div id="pianBox"></div>
 </main>
 <div id="velo" onclick="if (event.target === this) chiudi()"><div id="sheet"></div></div>
 <div id="confModal" class="modal-overlay">

@@ -13,6 +13,12 @@ from moduli.web_utils import _fmt_it, _saldo_effettivo_web
 # Html Grafici Web
 def get_dati_entrate_uscite_tutti_gli_anni_json(self, conto_filtro=None):
     totali_annuali = {}
+    try:
+        from moduli import web_pianificate as _wp
+        _pian_on = _wp.attivo("anno")
+        _pian_ids = _wp.ids_in_piano(self) if _pian_on else set()
+    except Exception:
+        _wp, _pian_on, _pian_ids = None, False, set()
     for giorno, voci in self.spese.items():
         try:
             anno = giorno.year
@@ -34,7 +40,12 @@ def get_dati_entrate_uscite_tutti_gli_anni_json(self, conto_filtro=None):
             if tipo == "Entrata":
                 totali_annuali[anno]['Entrate'] += importo
             elif tipo == "Uscita":
+                if _pian_ids and campo(voce, "id_spesa", None) in _pian_ids:
+                    continue
                 totali_annuali[anno]['Uscite'] += importo
+    if _pian_on and _wp is not None:
+        for _a, _q in _wp.quote_per_anno(self, conto_filtro).items():
+            totali_annuali.setdefault(_a, {'Entrate': 0.0, 'Uscite': 0.0})['Uscite'] += _q
     anni_ordinati = sorted(totali_annuali.keys()) 
     data_entrate = [totali_annuali[anno]['Entrate'] for anno in anni_ordinati]
     data_uscite = [totali_annuali[anno]['Uscite'] for anno in anni_ordinati]
@@ -57,6 +68,12 @@ def get_dati_entrate_uscite_tutti_gli_anni_json(self, conto_filtro=None):
 
 def get_dati_saldo_annuale_json(self, conto_filtro=None):
     saldo_per_anno = {} 
+    try:
+        from moduli import web_pianificate as _wp
+        _pian_on = _wp.attivo("anno")
+        _pian_ids = _wp.ids_in_piano(self) if _pian_on else set()
+    except Exception:
+        _wp, _pian_on, _pian_ids = None, False, set()
     for d, voci in self.spese.items():
         anno = d.year
         if anno not in saldo_per_anno:
@@ -69,7 +86,12 @@ def get_dati_saldo_annuale_json(self, conto_filtro=None):
             if tipo == "entrata":
                 saldo_per_anno[anno] += importo
             elif tipo == "uscita":
+                if _pian_ids and campo(voce, "id_spesa", None) in _pian_ids:
+                    continue
                 saldo_per_anno[anno] -= importo
+    if _pian_on and _wp is not None:
+        for _a, _q in _wp.quote_per_anno(self, conto_filtro).items():
+            saldo_per_anno[_a] = saldo_per_anno.get(_a, 0.0) - _q
     if conto_filtro:
         import __main__ as _app
         PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
@@ -110,6 +132,12 @@ def get_dati_entrate_uscite_json(self, conto_filtro=None):
     anno_corrente = oggi.year
     entrate_mensili = [0.0] * 12
     uscite_mensili = [0.0] * 12
+    try:
+        from moduli import web_pianificate as _wp
+        _pian_on = _wp.attivo("anno")
+        _pian_ids = _wp.ids_in_piano(self) if _pian_on else set()
+    except Exception:
+        _wp, _pian_on, _pian_ids = None, False, set()
     for data, entries in self.spese.items():
         if data.year == anno_corrente:
             mese_indice = data.month - 1  
@@ -121,7 +149,12 @@ def get_dati_entrate_uscite_json(self, conto_filtro=None):
                 if tipo == 'Entrata':
                     entrate_mensili[mese_indice] += importo
                 else: 
+                    if _pian_ids and campo(entry, "id_spesa", None) in _pian_ids:
+                        continue
                     uscite_mensili[mese_indice] += importo
+    if _pian_on and _wp is not None:
+        for _x in _wp.quote(self, anno_corrente, None, conto_filtro):
+            uscite_mensili[_x["mese"] - 1] += _x["quota"]
     mesi = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic']
     dati = {
         'labels': mesi,
@@ -136,6 +169,12 @@ def get_dati_saldo_json(self, conto_filtro=None):
     oggi = datetime.date.today()
     anno_corrente = oggi.year
     saldo_mensile_netto = [0.0] * 12
+    try:
+        from moduli import web_pianificate as _wp
+        _pian_on = _wp.attivo("anno")
+        _pian_ids = _wp.ids_in_piano(self) if _pian_on else set()
+    except Exception:
+        _wp, _pian_on, _pian_ids = None, False, set()
     for data, entries in self.spese.items():
         if data.year == anno_corrente:
             mese_indice = data.month - 1
@@ -148,7 +187,12 @@ def get_dati_saldo_json(self, conto_filtro=None):
                 if tipo == 'Entrata':
                     saldo_mensile_netto[mese_indice] += importo
                 else:
+                    if _pian_ids and campo(entry, "id_spesa", None) in _pian_ids:
+                        continue
                     saldo_mensile_netto[mese_indice] -= importo
+    if _pian_on and _wp is not None:
+        for _x in _wp.quote(self, anno_corrente, None, conto_filtro):
+            saldo_mensile_netto[_x["mese"] - 1] -= _x["quota"]
     if conto_filtro:
         import __main__ as _app
         PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
@@ -902,6 +946,7 @@ def pagina_portafoglio_web(self):
             <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
                 <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/spese_pianificate_web">📌 Spese Pianificate</a>
                 <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>

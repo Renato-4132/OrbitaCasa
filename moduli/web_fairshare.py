@@ -174,6 +174,7 @@ def html_fairshare_web(self):
             <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
                 <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/spese_pianificate_web">📌 Spese Pianificate</a>
                 <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>

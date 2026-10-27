@@ -339,6 +339,7 @@ def documenti_pdf_web(self):
             <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
                 <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/spese_pianificate_web">📌 Spese Pianificate</a>
                 <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>
@@ -908,6 +909,7 @@ def documenti_personali_web(self):
             <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
                 <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/spese_pianificate_web">📌 Spese Pianificate</a>
                 <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>
@@ -1408,6 +1410,7 @@ def genera_html_utenze(self, percorso_db, anno):
             <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
                 <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/spese_pianificate_web">📌 Spese Pianificate</a>
                 <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>
@@ -1769,6 +1772,7 @@ def genera_html_consultazione(self, file_selezionato=None):
             <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
                 <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/spese_pianificate_web">📌 Spese Pianificate</a>
                 <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>

@@ -64,6 +64,12 @@ def html_form(self, data_iniziale=""):
     except Exception:
         _agganci_m = {}
     _uso_ordinale_m = {}
+    try:
+        from moduli import web_pianificate as _wp
+        _pian_on = _wp.attivo("mese")
+        _pian_ids = _wp.ids_in_piano(self) if _pian_on else set()
+    except Exception:
+        _wp, _pian_on, _pian_ids = None, False, set()
     for d, lista in self.spese.items():
         if d.month == oggi.month and d.year == oggi.year:
             for voce in lista:
@@ -77,7 +83,7 @@ def html_form(self, data_iniziale=""):
                 if not cat or cat == "Categoria Rimossa" or cat not in self.categorie:
                     continue
                 if tipo == "Entrata": entrate_mese += importo
-                else: uscite_mese += importo
+                elif not (_pian_ids and campo(voce, "id_spesa", None) in _pian_ids): uscite_mese += importo
                 movimenti_mese_corrente.append({
                     "data": d,
                     "cat": cat,
@@ -89,6 +95,11 @@ def html_form(self, data_iniziale=""):
                     "ora": campo(voce, "ora", "") or "",
                     "tag": ", ".join(f"#{str(t).lstrip('#')}" for t in (campo(voce, "hashtag", []) or []) if t)
                 })
+    if _pian_on and _wp is not None:
+        try:
+            uscite_mese += _wp.totale_quote(self, oggi.year, oggi.month)
+        except Exception:
+            pass
     movimenti_mese_corrente.sort(key=lambda x: x["data"], reverse=True)
     ultimi_movimenti_html = ""
     if not movimenti_mese_corrente:
@@ -429,6 +440,7 @@ def html_form(self, data_iniziale=""):
             <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
                 <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/spese_pianificate_web">📌 Spese Pianificate</a>
                 <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>
@@ -956,6 +968,12 @@ def pagina_risultati_avanzati(self, params):
     _agganci_r = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
     _uso_ordinale_r = {}
     risultati_categorizzati = defaultdict(list)
+    try:
+        from moduli import web_pianificate as _wp
+        _pian_on = _wp.attivo("mese" if mese else "anno")
+        _pian_ids = _wp.ids_in_piano(self)
+    except Exception:
+        _wp, _pian_on, _pian_ids = None, False, set()
     for data in sorted(self.spese.keys(), reverse=True):
         if anno and str(data.year) != anno:
             continue
@@ -1000,10 +1018,40 @@ def pagina_risultati_avanzati(self, params):
                 "conto": nome_conto_voce,
                 "metodo": campo(voce, "metodo_pagamento", "") or "",
                 "ora": campo(voce, "ora", "") or "",
-                "tag": ", ".join(f"#{str(t).lstrip('#')}" for t in (campo(voce, "hashtag", []) or []) if t)
+                "tag": ", ".join(f"#{str(t).lstrip('#')}" for t in (campo(voce, "hashtag", []) or []) if t),
+                "in_piano": bool(_pian_ids) and tipo_voce.strip().lower() != "entrata" and campo(voce, "id_spesa", None) in _pian_ids,
             })
+    quote_trovate = []
+    if _wp is not None and tipo in ("", "uscita"):
+        for _x in _wp.tutte_le_quote(self):
+            _p = _x["piano"]
+            _cat_p = _p.get("categoria") or _p.get("nome") or "Pianificata"
+            _desc_p = _p.get("descrizione") or _p.get("nome") or ""
+            _tag_p = [str(t).lstrip("#").lower() for t in (_p.get("hashtag", []) or []) if t]
+            if anno and str(_x["anno"]) != anno:
+                continue
+            if mese and f"{_x['mese']:02d}" != mese:
+                continue
+            if categoria_filtro and _cat_p.strip().lower() != categoria_filtro:
+                continue
+            if not (min_importo <= _x["quota"] <= max_importo):
+                continue
+            if conto_filtro and (_p.get("conto") or "") != conto_filtro:
+                continue
+            if metodo_filtro and (_p.get("metodo_pagamento") or "").strip().lower() != metodo_filtro:
+                continue
+            if tag_filtri and not all(any(tf in tv for tv in _tag_p) for tf in tag_filtri):
+                continue
+            if query and not (query in str(_desc_p).lower() or query in _cat_p.lower()
+                              or query in "pianificata" or query in str(_x["quota"])):
+                continue
+            quote_trovate.append((_x, _cat_p, _desc_p))
+    quote_trovate.sort(key=lambda t: (t[0]["anno"], t[0]["mese"]), reverse=True)
     entrate_totali = sum(v["imp"] for vlist in risultati_categorizzati.values() for v in vlist if v["tipo"].lower() == "entrata")
-    uscite_totali = sum(v["imp"] for vlist in risultati_categorizzati.values() for v in vlist if v["tipo"].lower() != "entrata")
+    uscite_totali = sum(v["imp"] for vlist in risultati_categorizzati.values() for v in vlist
+                        if v["tipo"].lower() != "entrata" and not (_pian_on and v.get("in_piano")))
+    if _pian_on:
+        uscite_totali += sum(t[0]["quota"] for t in quote_trovate)
     saldo = entrate_totali - uscite_totali
     colore_saldo = "#4caf82" if saldo >= 0 else "#e05a5a"
     segno_saldo = "+" if saldo >= 0 else ""
@@ -1051,6 +1099,39 @@ def pagina_risultati_avanzati(self, params):
             </button>
             <div class="cat-content">
                 <ul class="voce-list">{voce_html}</ul>
+            </div>
+        </div>"""
+    if quote_trovate:
+        _MESI_P = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio",
+                   "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
+        _tot_q = sum(t[0]["quota"] for t in quote_trovate)
+        _righe_q = ""
+        for _x, _cat_p, _desc_p in quote_trovate:
+            _p = _x["piano"]
+            _extra_q = " · ".join(f"{ico} {html_escape.escape(str(v))}" for ico, v in (
+                ("🏦", _p.get("conto")), ("💳", _p.get("metodo_pagamento")),
+                ("🏷️", " ".join(_p.get("hashtag", []) or []))) if v)
+            _righe_q += f"""
+            <li class="voce-item">
+                <div class="voce-actions"><span class="voce-data">{_MESI_P[_x['mese'] - 1]} {_x['anno']}</span></div>
+                <div class="voce-body">
+                    <span class="voce-imp" style="color:#e05a5a">€ −{_fmt_it(_x['quota'])}</span>
+                    <span class="voce-tipo" style="color:#e05a5a">Pianificata</span>
+                    <div class="voce-desc">{html_escape.escape(str(_cat_p))}{(' · ' + html_escape.escape(str(_desc_p))) if _desc_p else ''}</div>
+                    {f'<div class="voce-desc" style="opacity:0.7;">{_extra_q}</div>' if _extra_q else ''}
+                </div>
+            </li>"""
+        _stato_q = "incluse nei totali" if _pian_on else "non incluse nei totali"
+        schede_html += f"""
+        <div class="cat-block">
+            <button class="cat-toggle" onclick="toggleCategoria(this)">
+                <span class="freccia">▶</span>
+                <span class="cat-name">📌 Quote pianificate <small style="opacity:0.7">({_stato_q})</small></span>
+                <span class="cat-totale" style="color:#e05a5a">€ −{_fmt_it(_tot_q)} · {len(quote_trovate)} quote</span>
+            </button>
+            <div class="cat-content">
+                <ul class="voce-list">{_righe_q}</ul>
+                {_wp.html_toggle(self, "mese" if mese else "anno")}
             </div>
         </div>"""
     nessun_risultato = "" if schede_html else "<div class='empty-msg'>Nessuna voce trovata.</div>"
@@ -1239,6 +1320,7 @@ def pagina_risultati_avanzati(self, params):
             <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
                 <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/spese_pianificate_web">📌 Spese Pianificate</a>
                 <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>

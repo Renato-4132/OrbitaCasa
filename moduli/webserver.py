@@ -305,6 +305,7 @@ def _crea_flask_app(self):
         if ok:
             tk_app.registra_accesso(ip=ip, user_agent=ua)
             tk_app.ultimo_accesso_web = time.time()
+
             resp = make_response(redirect("/", code=303))
             resp.set_cookie(f"session_id_{_app.PORTA}", tk_app.web_token,
                             max_age=tk_app.timeout_sessione,
@@ -633,6 +634,17 @@ def _crea_flask_app(self):
     @richiede_login
     def api_finanziamenti_calcola():
         r, code = tk_app.finanziamenti_web_calcola(request.get_json(silent=True) or {})
+        return Response(json.dumps(r, ensure_ascii=False), status=code, mimetype="application/json")
+
+    @flask_app.route("/spese_pianificate_web")
+    @richiede_login
+    def spese_pianificate_web():
+        return html_resp(tk_app.pagina_spese_pianificate_web())
+
+    @flask_app.route("/api/spese_pianificate", methods=["POST"])
+    @richiede_login
+    def api_spese_pianificate():
+        r, code = tk_app.spese_pianificate_web_api(request.get_json(silent=True) or {})
         return Response(json.dumps(r, ensure_ascii=False), status=code, mimetype="application/json")
 
     @flask_app.route("/ricorrenze_web")
@@ -2302,6 +2314,7 @@ def html_info_sys(self):
             <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
                 <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/spese_pianificate_web">📌 Spese Pianificate</a>
                 <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>

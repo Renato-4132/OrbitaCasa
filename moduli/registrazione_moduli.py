@@ -464,6 +464,8 @@ def registra_tutti_i_moduli(GestioneSpese):
               promemoria_web_fatto, promemoria_web_elimina, promemoria_web_posticipa)
     from moduli.web_finanziamenti import (pagina_finanziamenti_web, finanziamenti_web_calcola,)
     _registra(pagina_finanziamenti_web, finanziamenti_web_calcola)
+    from moduli.web_spese_pianificate import (pagina_spese_pianificate_web, spese_pianificate_web_api,)
+    _registra(pagina_spese_pianificate_web, spese_pianificate_web_api)
     from moduli.web_ricorrenze import (
         pagina_ricorrenze_web, ricorrenze_web_elenco, ricorrenze_web_dettaglio,
         ricorrenze_web_crea, ricorrenze_web_elimina,)

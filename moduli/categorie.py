@@ -1727,15 +1727,26 @@ def get_dati_categorie_json(self, conto_filtro=None):
     oggi = datetime.date.today()
     anno_corrente = oggi.year
     spese_per_categoria = {}
+    try:
+        from moduli import web_pianificate as _wp
+        _pian_on = _wp.attivo("anno")
+        _pian_ids = _wp.ids_in_piano(self) if _pian_on else set()
+    except Exception:
+        _wp, _pian_on, _pian_ids = None, False, set()
     for data, entries in self.spese.items():
         if data.year == anno_corrente:
             for entry in entries:
                 if conto_filtro and self._conto_effettivo(entry) != conto_filtro:
                     continue
                 if campo(entry, "tipo", "") == "Uscita":
+                    if _pian_ids and campo(entry, "id_spesa", None) in _pian_ids:
+                        continue
                     categoria = campo(entry, "categoria", "")
                     importo = campo(entry, "importo", 0.0)
                     spese_per_categoria[categoria] = spese_per_categoria.get(categoria, 0.0) + importo
+    if _pian_on and _wp is not None:
+        for _cat, _q in _wp.quote_per_categoria(self, anno_corrente, None, conto_filtro).items():
+            spese_per_categoria[_cat] = spese_per_categoria.get(_cat, 0.0) + _q
     labels = list(spese_per_categoria.keys())
     spese = [round(v, 2) for v in spese_per_categoria.values()]
     colori = ['#' + ''.join([random.choice('0123456789ABCDEF') for j in range(6)]) for i in range(len(labels))]

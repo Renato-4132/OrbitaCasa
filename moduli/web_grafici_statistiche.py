@@ -57,6 +57,14 @@ def pagina_grafici_web(self, conto_filtro=""):
     except Exception:
         dati_saldo_annuale = fallback_saldo_annuale
 
+    try:
+        from moduli import web_pianificate as _wp_g
+        pian_toggle_g = _wp_g.html_toggle(self, "anno")
+        _pian_hidden = _wp_g.campo_nascosto()
+    except Exception:
+        pian_toggle_g = ""
+        _pian_hidden = ""
+
     return f"""<!DOCTYPE html>
 <html>
 <head>
@@ -239,6 +247,7 @@ def pagina_grafici_web(self, conto_filtro=""):
             <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
                 <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/spese_pianificate_web">📌 Spese Pianificate</a>
                 <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>
@@ -285,6 +294,7 @@ def pagina_grafici_web(self, conto_filtro=""):
 </header>
 <main class="main-container">
     <form method="get" action="/grafici_web" style="margin-bottom:12px;">
+        {_pian_hidden}
         <select name="conto" onchange="this.form.submit()"
             style="width:100%; padding:11px 14px; border-radius:12px; border:1px solid var(--border);
                    background:var(--surface); color:var(--text); font-family:'DM Sans',sans-serif;
@@ -292,6 +302,7 @@ def pagina_grafici_web(self, conto_filtro=""):
             {conto_options_g}
         </select>
     </form>
+    {pian_toggle_g}
     <div class="tab-bar">
         <button class="tab-btn" onclick="openTab('tabStoricoEU', this)">📅 Storico</button>
         <button class="tab-btn" onclick="openTab('tabMensileEU', this)">🗓️ Mensile</button>
@@ -778,6 +789,7 @@ def html_scadenze_mese(self):
             <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
                 <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/spese_pianificate_web">📌 Spese Pianificate</a>
                 <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>
@@ -901,6 +913,10 @@ def html_lista_spese_mensili(self, conto_filtro=""):
     current_month_expenses = []
     tot_entrate = 0.0
     tot_uscite = 0.0
+    from moduli import web_pianificate as _wp
+    _pian_on = _wp.attivo("mese")
+    _pian_hidden = _wp.campo_nascosto()
+    _pian_ids = _wp.ids_in_piano(self) if _pian_on else set()
     for d, voci in self.spese.items():
         if d.month == oggi.month and d.year == oggi.year:
             for idx, voce in enumerate(voci):
@@ -923,8 +939,10 @@ def html_lista_spese_mensili(self, conto_filtro=""):
                 current_month_expenses.append((d, idx, categoria, descrizione, importo, tipo, nome_conto_voce))
                 if tipo.strip().lower() == "entrata":
                     tot_entrate += importo
-                else:
+                elif not (_pian_ids and campo(voce, "id_spesa", None) in _pian_ids):
                     tot_uscite += importo
+    if _pian_on:
+        tot_uscite += _wp.totale_quote(self, oggi.year, oggi.month, conto_filtro or None)
     saldo_mese = tot_entrate - tot_uscite
     icona_meteo = "☀️" if saldo_mese >= 0 else "⛈️"
     colore_saldo = "#4caf82" if saldo_mese >= 0 else "#e05a5a"
@@ -991,6 +1009,7 @@ def html_lista_spese_mensili(self, conto_filtro=""):
                     </div>
                 </div>
             </div>"""
+    schede_html += _wp.html_blocco(self, "mese", oggi.year, oggi.month, conto_filtro or None)
     return f"""<!DOCTYPE html>
 <html>
 <head>
@@ -1138,6 +1157,7 @@ def html_lista_spese_mensili(self, conto_filtro=""):
             <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
                 <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/spese_pianificate_web">📌 Spese Pianificate</a>
                 <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>
@@ -1184,6 +1204,7 @@ def html_lista_spese_mensili(self, conto_filtro=""):
 </header>
 <main>
     <form method="get" action="/lista" style="margin-bottom:12px;">
+        {_pian_hidden}
         <select name="conto" onchange="this.form.submit()"
             style="width:100%; padding:11px 14px; border-radius:12px; border:1px solid var(--border);
                    background:var(--surface); color:var(--text); font-family:'DM Sans',sans-serif;
@@ -1336,6 +1357,11 @@ def stats_mensili_html(self, conto_filtro=""):
     raw_uscite_dettaglio = {}
     entrate_count = {}
     uscite_count = {}
+    from moduli import web_pianificate as _wp
+    _pian_on = _wp.attivo("mese")
+    _pian_hidden = _wp.campo_nascosto()
+    _pian_ids = _wp.ids_in_piano(self) if _pian_on else set()
+    _uscite_escluse = 0.0
     for d, voci in self.spese.items():
         if d.month == oggi.month and d.year == oggi.year:
             for voce in voci:
@@ -1358,9 +1384,13 @@ def stats_mensili_html(self, conto_filtro=""):
                     entrate_count[categoria] = entrate_count.get(categoria, 0) + 1
                 else:
                     uscite += importo
+                    if _pian_ids and campo(voce, "id_spesa", None) in _pian_ids:
+                        _uscite_escluse += importo
                     uscite_categorie[categoria] = uscite_categorie.get(categoria, 0.0) + importo
                     raw_uscite_dettaglio.setdefault(categoria, []).append((d, descrizione, importo, _extra_det))
                     uscite_count[categoria] = uscite_count.get(categoria, 0) + 1
+    if _pian_on:
+        uscite = uscite - _uscite_escluse + _wp.totale_quote(self, oggi.year, oggi.month, conto_filtro or None)
     saldo = entrate - uscite
     saldo_colore = "#4caf82" if saldo >= 0 else "#e05a5a"
     meteo_saldo = "☀️" if saldo >= 0 else "🌧️"
@@ -1411,6 +1441,7 @@ def stats_mensili_html(self, conto_filtro=""):
         return html_content
     categorie_uscite_html  = genera_html_categorie(uscite_categorie,  raw_uscite_dettaglio,  "uscite",  uscite_count)
     categorie_entrate_html = genera_html_categorie(entrate_categorie, raw_entrate_dettaglio, "entrate", entrate_count)
+    categorie_uscite_html += _wp.html_blocco(self, "mese", oggi.year, oggi.month, conto_filtro or None)
     COMMON_HEAD = """
 <script>
     (function() {
@@ -1560,6 +1591,7 @@ def stats_mensili_html(self, conto_filtro=""):
             <div class="nav-group-items">
                 <a href="/portafoglio_web">🏦 Portafoglio Bancario</a>
                 <a href="/finanziamenti_web">🧮 Mutui e Prestiti</a>
+                <a href="/spese_pianificate_web">📌 Spese Pianificate</a>
                 <a href="/fondo_risparmio_web">💰 Fondo Risparmio</a>
                 <a href="/gestione_categorie">⚙️ Gestione Categorie</a>
             </div>
@@ -1606,6 +1638,7 @@ def stats_mensili_html(self, conto_filtro=""):
 </header>
 <main>
     <form method="get" action="/stats" style="margin-bottom:12px;">
+        {_pian_hidden}
         <select name="conto" onchange="this.form.submit()"
             style="width:100%; padding:11px 14px; border-radius:12px; border:1px solid var(--border);
                    background:var(--surface); color:var(--text); font-family:'DM Sans',sans-serif;
