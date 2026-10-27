@@ -497,7 +497,7 @@
                 <div class="p-3 bg-slate-800/50 rounded-lg border border-indigo-500">📥 <strong>Importazione & Automazione</strong><br><span class="text-slate-400">Estratti PDF/CSV · Gmail · Ricorrenze · SmartCat · QR Code</span></div>
                 <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700">📊 <strong>Controllo & Analisi</strong><br><span class="text-slate-400">Saldo Bancario · Grafici Drill-Down · Budget · Categorie · Report</span></div>
                 <div class="p-3 bg-slate-800/50 rounded-lg border border-indigo-500">🎯 <strong>Risparmio & Proiezioni</strong><br><span class="text-slate-400">Simulatore · Fondo Risparmio · Metodo 50/30/20 · Proiezione 31/12 · Inflazione</span></div>
-                <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700">🏠 <strong>Gestione Avanzata</strong><br><span class="text-slate-400">Immobili · Veicoli · MyBusiness · Mutui · FairShare · Utenze · Mercati</span></div>
+                <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700">🏠 <strong>Gestione Avanzata</strong><br><span class="text-slate-400">Immobili · Veicoli · MyBusiness · Finanziamenti · FairShare · Utenze · Mercati</span></div>
                 <div class="p-3 bg-slate-800/50 rounded-lg border border-indigo-500">🔒 <strong>Privacy & Sicurezza</strong><br><span class="text-slate-400">Zero Cloud · Backup · Password · Crash Recovery · Retention</span></div>
                 <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700">🤖 <strong>Gemini & OpenAI</strong><br><span class="text-indigo-400 font-bold">AI opzionale: condividi solo ciò che scegli</span></div>
                 <div class="p-3 bg-slate-800/50 rounded-lg border border-indigo-500">🏅 <strong>Licenza Gratuita a Punti</strong><br><span class="text-slate-400">Usa l'app normalmente: ogni azione fa guadagnare punti, ogni nuovo livello raggiunto estende in automatico la tua licenza gratuita.</span></div>
@@ -662,7 +662,7 @@
                                 </li>
                                 <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
                                     <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">31</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Ammortamento Mutui</strong><br><span style="color:#94a3b8;">Calcola rate e interessi reali · Piani Ammortamento.</span></span>
+                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Finanziamenti, Mutui e Prestiti</strong><br><span style="color:#94a3b8;">Rate, estinzioni, piano di ammortamento e simulatori.</span></span>
                                 </li>
                                 <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
                                     <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">32</span>
@@ -694,7 +694,7 @@
                                 </li>
                                 <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
                                     <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">39</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Webserver Remoto</strong><br><span style="color:#94a3b8;">Consulta i dati dallo smartphone in rete locale/remota, con agenda e chat IA.</span></span>
+                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Webserver Remoto</strong><br><span style="color:#94a3b8;">Consulta i dati dallo smartphone, con agenda, chat IA e Mutui e Prestiti.</span></span>
                                 </li>
                                 <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
                                     <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">40</span>
@@ -1039,7 +1039,7 @@
                 <strong>Prerequisito Python:</strong> ⚠️ IMPORTANTE ⚠️ Durante l'installazione (v3.13+), spunta <b class="text-orange-400">"Add Python to PATH"</b>.
               </div>
               <p style="font-size:11px;color:#475569;margin:12px 0 0;font-style:italic;">Librerie (solo in caso di errori all'avvio):</p>
-              <div class="code-box" style="font-size:10px;margin-top:6px;">pip install tkcalendar google-genai requests segno pypiwin32 cryptography pystray pymupdf flask tkinterdnd2 yfinance</div>
+              <div class="code-box" style="font-size:10px;margin-top:6px;">pip install tkcalendar google-genai requests flask Pillow segno pywin32 cryptography pystray pymupdf yfinance tkinterdnd2 webauthn</div>
             </div>
           </div>
           <button class="acc-btn" id="btn-docker" onclick="accToggle('docker')">
@@ -1177,7 +1177,7 @@
             <div class="story-scroll">
                 <p class="story-kicker">Dietro le quinte</p>
                 <h2 id="storyTitle">La storia di OrbitaCasa</h2>
-                <p class="story-sub">Da una scrivania tappezzata di post-it a più di 80.000 righe di codice.</p>
+                <p class="story-sub">Da una scrivania tappezzata di post-it a più di 100.000 righe di codice.</p>
 
                 <h3>Chi c'è dietro</h3>
                 <p>Mi chiamo Renato e programmo da 40 anni, e in tutto questo tempo ho scritto tante di quelle cose che i pivelli leoni da tastiera di oggi nemmeno se le immaginano.<br>
@@ -1199,7 +1199,7 @@
                    Non si trattava più di fare due conti: volevo sapere dove fossero le fatture, capire davvero dove andavano i soldi e tenere traccia dei consumi.<br>
                    Dopo più di una bolletta stratosferica per colpa di una perdita, la cosa era diventata personale.</p>
                 <p>Il buon Vittorio, su Finanza Cafona, ci ha dedicato una recensione top e l'effetto è stato devastante: in tanti l'hanno installata.<br>
-                   Tra notti insonni, un saggio copia-incolla e un pizzico di IA, siamo arrivati a più di 80.000 righe di codice.</p>
+                   Tra notti insonni, un saggio copia-incolla e un pizzico di IA, siamo arrivati a più di 100.000 righe di codice.</p>
 
                 <h3>Cosa sa fare oggi</h3>
                 <p>Nel frattempo siamo cresciuti.<br>
@@ -1207,7 +1207,7 @@
                    Serve a gestire:</p>
                 <ul>
                     <li>Conti personali e famiglia.</li>
-                    <li>Finanziamenti, immobili, parco auto e mezzi e micro-attività.</li>
+                    <li>Finanziamenti personali con gestione delle rate, immobili, parco auto e mezzi e micro-attività.</li>
                     <li>Fondi risparmio, gestione della manutenzione casa, gestione dei nostri cari animaletti domestici.</li>
                     <li><strong>Organizzazione chirurgica:</strong> ogni spesa è puntualmente assegnata a uno specifico conto o a un tag dedicato, con in più la possibilità di dilazionare le spese in automatico fino al raggiungimento della quota prefissata.</li>
                     <li><strong>Importazione e archiviazione documentale:</strong> potete importare gli estratti conto per i vostri movimenti, e archiviare in un unico posto documenti, fatture e bollette, anche scansionandoli direttamente dallo scanner di casa.</li>
@@ -1336,8 +1336,8 @@
         },
         { 
           img: 'mutui',        
-          title: 'Piano di Ammortamento',    
-          desc: 'Calcola rate, interessi residui e anticipa i pagamenti. Supporta mutui a tasso fisso e variabile con piano completo scaricabile.' 
+          title: 'Finanziamenti e Ammortamento',    
+          desc: 'Segui rate, estinzioni parziali e debito residuo dei tuoi finanziamenti, con piano di ammortamento e simulatori.' 
         },
         { 
           img: 'qrcode',       
