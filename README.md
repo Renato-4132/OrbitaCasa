@@ -113,7 +113,7 @@ Non paghi mai, ma la licenza non è "per sempre" a prescindere: **più usi l'app
 37. **Gestione Veicoli** — Scadenze bollo/assicurazione/revisione, consumi, costo al km, spese per veicolo
 38. **Gestione MyBusiness** — Agenda, preventivi, fatturazione, magazzino
 39. **Gestione Associativa e Multiconto** — Associazione tra entità contabili e conti bancari
-40. **Ammortamento Mutui** — Rate, interessi reali, piani di ammortamento completi
+40. **Finanziamenti, Mutui e Prestiti** — Rate, variazioni ed estinzioni, piano di ammortamento e simulatori, anche da browser
 41. **Algoritmo FairShare** — Ripartizione equa spese tra più persone, quote calcolate al centesimo
 42. **Conti Personali FairShare** — Conto individuale per tracciare spese nel gruppo
 43. **Estratto Analitico & Dare/Avere** — Chi deve cosa a chi, con filtri per stato e ordinamento
@@ -123,7 +123,7 @@ Non paghi mai, ma la licenza non è "per sempre" a prescindere: **più usi l'app
 47. **Manutenzione e Risparmio Casa** — Calendario manutenzioni periodiche per impianti ed elettrodomestici
 48. **Confronto Prezzi** — Ottimizza la spesa alimentare nel tempo
 49. **Analizzatore Semantico IA** — Analisi intelligente e confronto multi-documento
-50. **Webserver Remoto** — Consulta i dati da smartphone anche in remoto, con agenda e chat IA
+50. **Webserver Remoto** — Consulta i dati da smartphone anche in remoto, con agenda, chat IA e pagina Mutui e Prestiti
 51. **Sistema di Backup Evoluto (PRG)** — Snapshot, backup incrementali e rollback integrato
 52. **Fondo Pensione** — Piano, versamenti per tipologia, valorizzazioni e riscatti/anticipazioni.
 53. **Portafoglio Bancario Multi-Conto** — Riepilogo di tutti i conti con distribuzione per categoria
@@ -181,7 +181,7 @@ Script `.command` che installa Python da solo (se manca) e scarica OrbitaCasa da
 
 1. Crea una cartella dedicata (il nome della cartella sarà il tuo **Nome Profilo**).
 2. Inserisci il file `OrbitaCasa.pyw` all'interno.
-3. Il Software installerà in automatico le dipendenze: tkcalendar google-genai requests segno pypiwin32 cryptography pystray pymupdf yfinance tkinterdnd2
+3. Il Software installerà in automatico le dipendenze: tkcalendar google-genai requests flask Pillow segno pywin32 (solo Windows) cryptography pystray pymupdf yfinance tkinterdnd2 webauthn
 
 </details>
 
@@ -207,7 +207,7 @@ Per bug, suggerimenti o supporto: helporbitacasa@gmail.com
 **La storia di OrbitaCasa**
 
 <details>
-<summary><b>Dietro le quinte — Da una scrivania tappezzata di post-it a più di 80.000 righe di codice</b></summary>
+<summary><b>Dietro le quinte — Da una scrivania tappezzata di post-it a più di 100.000 righe di codice</b></summary>
 
 **Chi c'è dietro**
 
@@ -235,7 +235,7 @@ Non si trattava più di fare due conti: volevo sapere dove fossero le fatture, c
 Dopo più di una bolletta stratosferica per colpa di una perdita, la cosa era diventata personale.
 
 Il buon Vittorio, su Finanza Cafona, ci ha dedicato una recensione top e l'effetto è stato devastante: in tanti l'hanno installata.
-Tra notti insonni, un saggio copia-incolla e un pizzico di IA, siamo arrivati a più di 80.000 righe di codice.
+Tra notti insonni, un saggio copia-incolla e un pizzico di IA, siamo arrivati a più di 100.000 righe di codice.
 
 **Cosa sa fare oggi**
 
@@ -244,7 +244,7 @@ OrbitaCasa vanta ora oltre 70 funzioni diverse, un manuale di oltre 100 pagine e
 Serve a gestire:
 
 - Conti personali e famiglia.
-- Finanziamenti, immobili, parco auto e mezzi e micro-attività.
+- Finanziamenti personali con gestione delle rate, immobili, parco auto e mezzi e micro-attività.
 - Fondi risparmio, gestione della manutenzione casa, gestione dei nostri cari animaletti domestici.
 - **Organizzazione chirurgica:** ogni spesa è puntualmente assegnata a uno specifico conto o a un tag dedicato, con in più la possibilità di dilazionare le spese in automatico fino al raggiungimento della quota prefissata.
 - **Importazione e archiviazione documentale:** potete importare gli estratti conto per i vostri movimenti, e archiviare in un unico posto documenti, fatture e bollette, anche scansionandoli direttamente dallo scanner di casa.
