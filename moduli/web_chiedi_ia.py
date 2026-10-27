@@ -44,7 +44,7 @@ _REGOLE = """REGOLE DI RISPOSTA:
     corrispondente: quel valore è già filtrato per quel conto/persona in quel periodo, non
     confonderlo con il totale storico dello stesso conto riportato altrove.
 7. Prima di dire che un dato non è disponibile, controlla TUTTE le sezioni del contesto (spese,
-   conti, trasferimenti tra conti, veicoli, immobili, finanziamenti e mutui, fondo pensione, fondo risparmio, spese
+   conti, trasferimenti tra conti, veicoli, immobili, finanziamenti e mutui, target di spesa, budget per categoria e sforamenti, fondo pensione, fondo risparmio, spese
    pianificate, fairshare, utenze, studio, promemoria, rubrica, automazioni): l'informazione
    richiesta potrebbe trovarsi in una sezione diversa da quella più ovvia. Dichiara l'assenza del
    dato solo se davvero non compare in nessuna sezione.
@@ -166,7 +166,7 @@ def chiedi_ia_web_risposta(self, dati, files=None):
             f"Sei un assistente esperto di finanza personale integrato nell'app {nome_app}.\n"
             + intro +
             "DATI DEL DATABASE (spese, conti, trasferimenti tra conti, e tutti i moduli collegati: veicoli,\n"
-            "immobili, finanziamenti e mutui, fondo pensione, fondo risparmio, spese pianificate, fairshare, utenze, studio,\n"
+            "immobili, finanziamenti e mutui, target di spesa, budget per categoria e sforamenti, fondo pensione, fondo risparmio, spese pianificate, fairshare, utenze, studio,\n"
             "promemoria, rubrica, automazioni — se una sezione non compare qui sotto significa che quel\n"
             "modulo non ha ancora dati registrati):\n"
             f"{contesto}\n\n{blocco_all}{cronologia_txt}DOMANDA DELL'UTENTE:\n{domanda}\n\n{_REGOLE}"

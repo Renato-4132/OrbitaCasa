@@ -187,6 +187,120 @@ def _blocco_fondo_pensione(data, _fmt_it):
                      f"differenza rispetto al controvalore (rendimento/perdita stimati): {_fmt_it(rendimento)}€")
     return righe
 
+def _blocco_budget(self, oggi, _fmt_it):
+    bc = getattr(self, "budget_categorie", None) or {}
+    ba = getattr(self, "budget_annuale_categorie", None) or {}
+    bm_tot = float(getattr(self, "budget_mensile", 0.0) or 0.0)
+    ba_tot = float(getattr(self, "budget_annuale", 0.0) or 0.0)
+    bc = {k: float(v) for k, v in bc.items() if v and float(v) > 0}
+    ba = {k: float(v) for k, v in ba.items() if v and float(v) > 0}
+    if not (bc or ba or bm_tot > 0 or ba_tot > 0):
+        return []
+    nomi_mesi = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno",
+                 "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"]
+    per_mese, entr_mese = {}, {}
+    u_reali, n_reali = {}, {}
+    try:
+        for dt, voci in list(self.spese.items()):
+            k = (dt.year, dt.month)
+            for v in list(voci):
+                try:
+                    imp = float(campo(v, "importo", 0.0))
+                except (TypeError, ValueError):
+                    continue
+                tipo = campo(v, "tipo", "")
+                if tipo == "Uscita":
+                    cat = campo(v, "categoria", "") or "Senza categoria"
+                    d = per_mese.setdefault(k, {})
+                    d[cat] = d.get(cat, 0.0) + imp
+                    if dt <= oggi:
+                        u_reali[k] = u_reali.get(k, 0.0) + imp
+                        n_reali[k] = n_reali.get(k, 0) + 1
+                elif tipo == "Entrata":
+                    entr_mese[k] = entr_mese.get(k, 0.0) + imp
+    except Exception:
+        return []
+    righe = []
+    k_oggi = (oggi.year, oggi.month)
+    if bm_tot > 0 or ba_tot > 0:
+        righe += ["", "TARGET DI SPESA (tetto complessivo di uscite, DIVERSO dai budget per categoria; conta solo le uscite "
+                      "già avvenute fino a oggi; residuo = target - uscite; i target sono quelli attuali, applicati anche ai mesi passati):"]
+        righe.append(f"   Target mensile: {_fmt_it(bm_tot) + '€' if bm_tot > 0 else 'non impostato'} - "
+                     f"Target annuale: {_fmt_it(ba_tot) + '€' if ba_tot > 0 else 'non impostato'}")
+        for anno in (oggi.year, oggi.year - 1):
+            tot_u = sum(u_reali.get((anno, m), 0.0) for m in range(1, 13))
+            if not tot_u and anno != oggi.year:
+                continue
+            if bm_tot > 0:
+                righe.append(f"   Mesi {anno} (uscite, % del target mensile, residuo):")
+                sopra = 0
+                for m in range(1, 13):
+                    if (anno, m) > k_oggi or not n_reali.get((anno, m)):
+                        continue
+                    u = u_reali.get((anno, m), 0.0)
+                    flag = " - OLTRE TARGET" if u > bm_tot else ""
+                    sopra += 1 if u > bm_tot else 0
+                    righe.append(f"      - {nomi_mesi[m - 1]} {anno}: uscite {_fmt_it(u)}€ "
+                                 f"({_fmt_it(100.0 * u / bm_tot)}%), residuo {_fmt_it(bm_tot - u)}€{flag}")
+                righe.append(f"      Mesi oltre il target mensile nel {anno}: {sopra}")
+            if ba_tot > 0:
+                righe.append(f"   Anno {anno}: uscite {_fmt_it(tot_u)}€ su target annuale {_fmt_it(ba_tot)}€ "
+                             f"({_fmt_it(100.0 * tot_u / ba_tot)}%), residuo {_fmt_it(ba_tot - tot_u)}€"
+                             + (" - OLTRE TARGET" if tot_u > ba_tot else ""))
+                if anno == oggi.year:
+                    chiusi = [u_reali.get((anno, m), 0.0) for m in range(1, oggi.month)]
+                    if chiusi:
+                        media = sum(chiusi) / len(chiusi)
+                        proiez = sum(chiusi) + sum(max(u_reali.get((anno, m), 0.0), media) for m in range(oggi.month, 13))
+                        righe.append(f"   Proiezione fine anno {anno}: {_fmt_it(proiez)}€ "
+                                     f"({'oltre' if proiez > ba_tot else 'entro'} il target annuale; mesi chiusi + per ogni mese "
+                                     f"restante il maggiore tra il registrato e la media dei mesi chiusi {_fmt_it(media)}€)")
+    if not (bc or ba):
+        return righe
+    righe += ["", "BUDGET PER CATEGORIA E SFORAMENTI (soglie per singola categoria, DIVERSE dal target di spesa complessivo; "
+                  "le spese contano per intero nel mese di data, comprese quelle future già registrate; "
+                  "le soglie sono quelle attuali, applicate anche ai mesi passati):"]
+    if bc:
+        righe.append("   Budget mensili per categoria - situazione del mese corrente "
+                     f"({nomi_mesi[oggi.month - 1]} {oggi.year}):")
+        spese_ora = per_mese.get(k_oggi, {})
+        for cat, b in sorted(bc.items()):
+            t = spese_ora.get(cat, 0.0)
+            stato = f"SFORATO di {_fmt_it(t - b)}€" if t > b else "nei limiti"
+            righe.append(f"      - {cat}: speso {_fmt_it(t)}€ su {_fmt_it(b)}€ ({_fmt_it(100.0 * t / b)}%) - {stato}")
+        righe.append("   Sforamenti mensili per categoria negli ultimi 12 mesi (mese: categoria, speso/budget, eccedenza):")
+        mesi = []
+        a, m = oggi.year, oggi.month
+        for _ in range(12):
+            mesi.append((a, m))
+            m -= 1
+            if m == 0:
+                a, m = a - 1, 12
+        n_sf = 0
+        for (a, m) in mesi:
+            d = per_mese.get((a, m), {})
+            for cat, b in sorted(bc.items()):
+                t = d.get(cat, 0.0)
+                if t > b:
+                    n_sf += 1
+                    righe.append(f"      - {nomi_mesi[m - 1]} {a}: {cat}, {_fmt_it(t)}€/{_fmt_it(b)}€, "
+                                 f"eccedenza {_fmt_it(t - b)}€")
+        if not n_sf:
+            righe.append("      Nessuno sforamento negli ultimi 12 mesi.")
+    if ba:
+        righe.append(f"   Budget annuali per categoria ({oggi.year}, e anno precedente per confronto):")
+        for anno in (oggi.year, oggi.year - 1):
+            tot = {}
+            for (a, _m), d in per_mese.items():
+                if a == anno:
+                    for cat, v in d.items():
+                        tot[cat] = tot.get(cat, 0.0) + v
+            for cat, b in sorted(ba.items()):
+                t = tot.get(cat, 0.0)
+                stato = f"SFORATO di {_fmt_it(t - b)}€" if t > b else "nei limiti"
+                righe.append(f"      - {anno} {cat}: speso {_fmt_it(t)}€ su {_fmt_it(b)}€ - {stato}")
+    return righe
+
 def _data_it_iso(d):
     try:
         a, m, g = str(d).split("-")
@@ -413,7 +527,6 @@ def _blocco_utenze(data, _fmt_it):
 
 def _blocco_promemoria(data):
     try:
-        # testo rigenerato ogni volta, cosi' l'agenda non resta ferma all'ultimo salvataggio
         from moduli.gestisci_promemoria import _carica as _pm_carica, _testo_riepilogo as _pm_testo
         testo = _pm_testo(_pm_carica()[0])
     except Exception:
@@ -857,6 +970,7 @@ def _costruisci_contesto_database(self, _app, _fmt_it):
     )
     righe += _blocco_scadenze_ricorrenti_mese(self, oggi, _fmt_it)
     righe += _blocco_fondo_pensione(_leggi_json(getattr(_app, 'PENSIONE_FILE', None)), _fmt_it)
+    righe += _blocco_budget(self, oggi, _fmt_it)
     righe += _blocco_finanziamenti(self, _fmt_it)
     righe += _blocco_fondo_risparmio(_leggi_json(getattr(_app, 'FR_FILE', None)), _fmt_it)
     righe += _blocco_immobili(_leggi_json(getattr(_app, 'IMMOBIL_FILE', None)), _fmt_it)
@@ -921,7 +1035,7 @@ def chiedi_ia_database(self):
               font=("Segoe UI", 12, "bold")).pack(side="left")
 
     tk.Label(popup, text="Fai qualsiasi domanda statistica o di ricerca su spese, entrate, categorie, conti, veicoli,\n"
-                         "immobili, finanziamenti e mutui, fondo pensione, fondo risparmio, spese pianificate e altri dati dell'app:",
+                         "immobili, finanziamenti e mutui, target di spesa, budget per categoria e sforamenti, fondo pensione, fondo risparmio, spese pianificate e altri dati dell'app:",
              bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
              font=("Segoe UI", 9, "bold"), justify="left").pack(anchor="w", padx=18, pady=(6, 2))
 
@@ -1148,7 +1262,7 @@ def chiedi_ia_database(self):
         o strategia segui la regola 9.
 
         DATI DEL DATABASE (spese, conti, trasferimenti tra conti, e tutti i moduli collegati: veicoli,
-        immobili, finanziamenti e mutui, fondo pensione, fondo risparmio, spese pianificate, fairshare, utenze, studio,
+        immobili, finanziamenti e mutui, target di spesa, budget per categoria e sforamenti, fondo pensione, fondo risparmio, spese pianificate, fairshare, utenze, studio,
         promemoria, rubrica, automazioni — se una sezione non compare qui sotto significa che quel
         modulo non ha ancora dati registrati):
         {contesto}
@@ -1183,7 +1297,7 @@ def chiedi_ia_database(self):
             corrispondente: quel valore è già filtrato per quel conto/persona in quel periodo, non
             confonderlo con il totale storico dello stesso conto riportato altrove.
         7. Prima di dire che un dato non è disponibile, controlla TUTTE le sezioni del contesto (spese,
-           conti, trasferimenti tra conti, veicoli, immobili, finanziamenti e mutui, fondo pensione, fondo risparmio, spese
+           conti, trasferimenti tra conti, veicoli, immobili, finanziamenti e mutui, target di spesa, budget per categoria e sforamenti, fondo pensione, fondo risparmio, spese
            pianificate, fairshare, utenze, studio, promemoria, rubrica, automazioni): l'informazione
            richiesta potrebbe trovarsi in una sezione diversa da quella più ovvia. Dichiara l'assenza del
            dato solo se davvero non compare in nessuna sezione.
