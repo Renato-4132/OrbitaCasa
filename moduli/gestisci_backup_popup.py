@@ -50,6 +50,7 @@ def gestisci_backup_popup(self):
     MESSAGGI_VISTI_FILE = _app.MESSAGGI_VISTI_FILE
     COMMUNITY_POOL_LINK_FILE = _app.COMMUNITY_POOL_LINK_FILE
     FIN_FILE = _app.FIN_FILE
+    MAIL_ELABORATE_FILE = _app.MAIL_ELABORATE_FILE
     
     import os, time, subprocess, sys
     if hasattr(self, '_win_backup_istanza') and self._win_backup_istanza.winfo_exists():
@@ -98,6 +99,7 @@ def gestisci_backup_popup(self):
         "messaggi_servizio_visti.json":   "Messaggi Servizio (Visti)",
         "communitypool_link.json":        "CommunityPool (link)",
         "communitypool.json":             "CommunityPool (config)",
+        "mail_elaborate.json":            "Mail Elaborate (Sync Email)",
         "snapshot_db.zip":                "Snapshot DB Completo",
     }
     win = tk.Toplevel(self, bg=self.COLOR_BACKGROUND)
@@ -350,7 +352,8 @@ def gestisci_backup_popup(self):
                 STUDIO_CASSA, STUDIO_MAGAZZINO, IMMOBIL_FILE, FR_FILE, PORTAFOGLIO_BANCARIO,
                 SCHEDULE_FILE, VEICOLI_FILE, GAMIFICATION_FILE, CREDENTIALS_FILE, PENSIONE_FILE,
                 ANIMALI_FILE, MANUTENZIONE_CASA_FILE, MESSAGGI_VISTI_FILE,
-                MAGAZZINO_FILE, SCANNER_FILE, COMMUNITY_POOL_LINK_FILE, FIN_FILE
+                MAGAZZINO_FILE, SCANNER_FILE, COMMUNITY_POOL_LINK_FILE, FIN_FILE,
+                MAIL_ELABORATE_FILE
             ]
             try:
                 from moduli.community_pool import _safe

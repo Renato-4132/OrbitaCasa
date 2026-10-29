@@ -912,32 +912,62 @@ def html_form(self, data_iniziale=""):
             }});
     }}
 
+    const SYNC_LABEL = "🔄 Sync Gmail";
+    let _syncTimer = null;
+
+    function _syncBtn(testo, disabilita) {{
+        const btn = document.getElementById("btn_sync_web");
+        if (!btn) return;
+        btn.textContent = testo;
+        btn.disabled = !!disabilita;
+    }}
+
+    function _syncPoll() {{
+        fetch("/api/sync_stato", {{cache: "no-store", credentials: "same-origin"}})
+            .then(function (r) {{ return r.ok ? r.json() : null; }})
+            .then(function (s) {{
+                if (!s) return;
+                if (s.in_corso) {{
+                    _syncBtn("⏳ Sync in corso… " + s.acquisite + " acquisite", true);
+                    _syncTimer = setTimeout(_syncPoll, 1500);
+                    return;
+                }}
+                const recente = s.terminata && (s.adesso - s.terminata) < 20;
+                let visto = null;
+                try {{ visto = sessionStorage.getItem("sync_visto"); }} catch (e) {{}}
+                if (recente && visto !== String(s.terminata)) {{
+                    try {{ sessionStorage.setItem("sync_visto", String(s.terminata)); }} catch (e) {{}}
+                    _syncBtn((s.errore ? "⚠️ " : "✅ ") + String(s.messaggio || "").slice(0, 60), true);
+                    setTimeout(function () {{ _syncBtn(SYNC_LABEL, false); }}, 6000);
+                }} else {{
+                    _syncBtn(SYNC_LABEL, false);
+                }}
+            }})
+            .catch(function () {{ _syncTimer = setTimeout(_syncPoll, 3000); }});
+    }}
+
     function avviaSyncWeb() {{
         const btn = document.getElementById("btn_sync_web");
         if (btn.disabled) return;
-        btn.disabled = true;
-        btn.textContent = "⏳ Sincronizzazione in corso...";
+        _syncBtn("⏳ Avvio sincronizzazione…", true);
         fetch("/avvia_sync_web", {{method: "POST"}})
-            .then(r => r.json())
-            .then(data => {{
+            .then(function (r) {{ return r.json(); }})
+            .then(function (data) {{
                 if (data.ok) {{
-                    btn.textContent = "✅ Avviata sull\u2019app!";
+                    clearTimeout(_syncTimer);
+                    _syncTimer = setTimeout(_syncPoll, 600);
                 }} else {{
-                    btn.textContent = "⚠️ " + (data.errore || "Configurazione mancante");
+                    _syncBtn("⚠️ " + (data.errore || "Configurazione mancante"), true);
+                    setTimeout(function () {{ _syncBtn(SYNC_LABEL, false); }}, 3500);
                 }}
-                setTimeout(() => {{
-                    btn.disabled = false;
-                    btn.textContent = "🔄 Sincronizza Email (Gmail)";
-                }}, 3500);
             }})
-            .catch(() => {{
-                btn.textContent = "❌ Errore connessione";
-                setTimeout(() => {{
-                    btn.disabled = false;
-                    btn.textContent = "🔄 Sincronizza Email (Gmail)";
-                }}, 2500);
+            .catch(function () {{
+                _syncBtn("❌ Errore connessione", true);
+                setTimeout(function () {{ _syncBtn(SYNC_LABEL, false); }}, 2500);
             }});
     }}
+
+    _syncPoll();
 </script>
 </body>
 </html>"""

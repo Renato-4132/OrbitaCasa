@@ -125,9 +125,6 @@ def _crea_flask_app(self):
         if hasattr(tk_app, "_esegui_refresh_finestre"):
             tk_app.after(0, tk_app._esegui_refresh_finestre)
 
-    # ── Aggiornamento automatico delle pagine web quando i dati cambiano (dal desktop o da un'altra pagina) ──
-    # La "versione" dei dati e' ricavata dalle date di modifica dei file .json del database: nessun aggancio
-    # da mantenere nel desktop. Il polling NON rinnova la sessione web (niente touch()).
     _VER_CACHE = {"t": 0.0, "v": ""}
     _VER_ESCLUSI = {"login_web.json", "login_web_fail.json", "login_lcl.json", "messaggi_servizio_visti.json",
                     "update.json", "controllo_fm.json", "schedule.json", "api.json", "password.json",
@@ -1002,8 +999,18 @@ def _crea_flask_app(self):
             return Response(json.dumps({"ok": False, "errore": "Chiave API Gemini mancante"}), status=200, mimetype="application/json")
         if not PAROLE_CHIAVE:
             return Response(json.dumps({"ok": False, "errore": "Nessuna email mittente configurata"}), status=200, mimetype="application/json")
-        tk_app.after(0, lambda: tk_app.avvia_sincronizzazione(manuale=True))
-        return Response(json.dumps({"ok": True}), status=200, mimetype="application/json")
+        from moduli.avvia_sincronizzazione import avvia_in_background
+        gia_in_corso = not avvia_in_background(tk_app, mostra_popup=True)
+        return Response(json.dumps({"ok": True, "gia_in_corso": gia_in_corso}), status=200, mimetype="application/json")
+
+    @flask_app.route("/api/sync_stato")
+    def api_sync_stato():
+        if not is_logged():
+            return Response(json.dumps({"ok": False}), status=401, mimetype="application/json")
+        from moduli.avvia_sincronizzazione import stato_sincronizzazione
+        r = Response(json.dumps(stato_sincronizzazione(tk_app)), mimetype="application/json")
+        r.headers["Cache-Control"] = "no-store"
+        return r
 
     @flask_app.route("/carica_pdf_web", methods=["POST"])
     @richiede_login

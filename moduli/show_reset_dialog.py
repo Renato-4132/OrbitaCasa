@@ -18,6 +18,13 @@ TARGET = "#target-spesa"
 A_CALDO = (BUDGET, TARGET, PIANI, FS_PARTECIPANTI, FS_PAGAMENTI)
 CHIAVI_BUDGET = ("budget_categorie", "budget_annuale_categorie")
 CHIAVI_TARGET = ("target_mese", "target_anno")
+NOMI_A_CALDO = (
+    "MAIL_ELABORATE_FILE", "MESSAGGI_VISTI_FILE", "RIMANDA_FILE",
+    "CONTROLLO_F_M", "LOG_IMPORTAZIONI", "LOGIN_WEB", "LOGIN_WEB_FAIL",
+    "LOGIN_LCL", "ACCESS_CONTROL_WEB", "SCANNER_FILE", "CREDENTIALS_FILE",
+    "DOC_DIR", "DOC_PERS_DIR", "EXPORT_FATTURE_DIR", "EXPORT_FILES",
+)
+FILE_A_CALDO = ("error_log.txt", "communitypool_visto.json", "backup")
 
 def _leggi_db_fairshare(db_file):
     with open(db_file, "r", encoding="utf-8") as f:
@@ -178,10 +185,11 @@ def _elenco_file_variabili(_app):
         ("Log Importazioni",                  "Registro delle operazioni di importazione (log_importazioni.txt)", "LOG_IMPORTAZIONI", False),
         ("Login Web - Accessi Riusciti",      "Storico dei login riusciti dall'interfaccia web (login_web.json)", "LOGIN_WEB", False),
         ("Login Web - Accessi Falliti",       "Storico dei tentativi di login falliti dal web (login_web_fail.json)", "LOGIN_WEB_FAIL", False),
-        ("Login Web - Passkey / WebAuthn",    "Credenziali passkey/WebAuthn salvate (webauthn_credentials.json)", "CREDENTIALS_FILE", False),
+        ("Login Web - Passkey / WebAuthn",    "Passkey registrate per il login web (webauthn_credentials.json): azzerandole, ogni dispositivo dovrà registrarle di nuovo. Il login con password non cambia", "CREDENTIALS_FILE", False),
         ("Login Locale",                      "Storico degli accessi dall'app desktop (login_lcl.json)", "LOGIN_LCL", False),
         ("Controllo Accessi Web",             "Whitelist/blacklist IP per l'accesso web (web_access_control.json)", "ACCESS_CONTROL_WEB", False),
         ("Messaggi di Servizio (Visti)",      "Elenco degli ID dei messaggi di servizio già letti: azzerandolo, tutti i messaggi ancora validi verranno rinotificati (messaggi_servizio_visti.json)", "MESSAGGI_VISTI_FILE", False),
+        ("Mail Elaborate (Sync Email)",       "Elenco delle mail Gmail già scaricate dalla sincronizzazione: azzerandolo, le mail ancora non lette nel periodo impostato verranno riscaricate (mail_elaborate.json)", "MAIL_ELABORATE_FILE", False),
     ]
     voci = []
     for etichetta, descrizione, nome_costante, is_dir in voci_raw:
@@ -262,6 +270,12 @@ def show_reset_dialog(self):
     import __main__ as _app
     DB_DIR = _app.DB_DIR
     EXPORT_FILES = _app.EXPORT_FILES
+    percorsi_caldo = {getattr(_app, n, None) for n in NOMI_A_CALDO}
+    percorsi_caldo.discard(None)
+
+    def _e_a_caldo(p):
+        return (p.endswith(A_CALDO) or p in percorsi_caldo
+                or os.path.basename(p) in FILE_A_CALDO)
 
     if hasattr(self, '_win_reset_istanza') and self._win_reset_istanza.winfo_exists():
         self._win_reset_istanza.lift()
@@ -302,7 +316,7 @@ def show_reset_dialog(self):
     lbl_count = tk.Label(toolbar, text="", bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR, font=("Arial", 9))
     lbl_count.pack(side="right")
 
-    tk.Label(win, text="Seleziona i dati da azzerare. L'operazione non è reversibile. Budget, Target, Spese Pianificate e FairShare si aggiornano subito; per gli altri dati l'app viene riavviata.",
+    tk.Label(win, text="Seleziona i dati da azzerare. L'operazione non è reversibile. Budget, Target, Spese Pianificate, FairShare, mail elaborate, log, passkey, backup e cartelle documenti/export si azzerano subito; per gli altri dati l'app viene riavviata.",
              bg=self.COLOR_BACKGROUND, fg=self.TEXT_COLOR, font=("Arial", 9), wraplength=w_win - 40,
              justify="left").pack(anchor="w", padx=14, pady=(0, 6))
 
@@ -473,7 +487,7 @@ def show_reset_dialog(self):
         elenco = "\n".join(f"• {e}" for e, _p, _d in selezionati[:12])
         if len(selezionati) > 12:
             elenco += f"\n… e altri {len(selezionati) - 12}"
-        a_caldo = all(p.endswith(A_CALDO) for _e, p, _d in selezionati)
+        a_caldo = all(_e_a_caldo(p) for _e, p, _d in selezionati)
         esito = ("I dati vengono azzerati subito, senza riavvio." if a_caldo else "L'app verrà riavviata.")
         msg = f"Azzerare {len(selezionati)} elemento/i selezionato/i?\n\n{elenco}\n\n{esito} L'operazione non è reversibile."
         if not self.show_custom_askyesno("Conferma Reset", msg):
@@ -491,6 +505,8 @@ def show_reset_dialog(self):
                 elif is_dir:
                     if os.path.isdir(percorso):
                         shutil.rmtree(percorso)
+                    if _e_a_caldo(percorso):
+                        os.makedirs(percorso, exist_ok=True)
                 else:
                     if os.path.exists(percorso):
                         os.remove(percorso)

@@ -9,12 +9,59 @@ from tkinter import ttk
 from moduli.modello_spesa import campo, METODI_PAGAMENTO
 from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa
 
+def _data_giorno(giorno):
+    if isinstance(giorno, datetime.date):
+        return giorno
+    try:
+        return datetime.datetime.strptime(str(giorno), "%Y-%m-%d").date()
+    except Exception:
+        return None
+
+
+def _elimina_documenti_allegati(voci, registry_file, doc_dir):
+    if not voci or not os.path.exists(registry_file):
+        return 0
+    with open(registry_file, "r", encoding="utf-8") as f:
+        reg = json.load(f)
+    eliminati = 0
+    for giorno, voce in voci:
+        d = _data_giorno(giorno)
+        if d is None:
+            continue
+        o_s = d.strftime("%d%m%Y")
+        o_i = str(int(round(float(campo(voce, "importo", 0.0)) * 100)))
+        o_t = campo(voce, "tipo", "")
+        desc = str(campo(voce, "descrizione", "")).strip()
+        candidati = [k for k in reg if k.startswith(o_s) and o_i in k and o_t in k]
+        if not candidati:
+            continue
+        # preferisce il documento con la stessa descrizione; altrimenti il primo che combacia
+        scelto = next((k for k in candidati
+                       if isinstance(reg[k], dict) and str(reg[k].get("descrizione_esatta", "")).strip() == desc),
+                      candidati[0])
+        percorso = os.path.join(doc_dir, scelto)
+        try:
+            if os.path.exists(percorso):
+                os.remove(percorso)
+        except OSError as e:
+            print(f"Documento non eliminato ({scelto}): {e}")
+            continue
+        reg.pop(scelto, None)
+        eliminati += 1
+    if eliminati:
+        with open(registry_file, "w", encoding="utf-8") as f:
+            json.dump(reg, f, indent=4, ensure_ascii=False)
+    return eliminati
+
+
 def apri_cancella_spese_treeview_unica(self):
     if hasattr(self, '_cancella_spese_popup') and self._cancella_spese_popup and self._cancella_spese_popup.winfo_exists():
         self._cancella_spese_popup.lift()
         return
     import __main__ as _app
     PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
+    REGISTRY_FILE = _app.REGISTRY_FILE
+    DOC_DIR = _app.DOC_DIR
     NOMI_MESI_ITALIANO = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", 
                           "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
     if not hasattr(self, 'spese') or not isinstance(self.spese, dict):
@@ -124,7 +171,24 @@ def apri_cancella_spese_treeview_unica(self):
             popola_treeview_spese()
             self.show_custom_warning("Attenzione", "Le spese selezionate erano gia' state modificate o eliminate dal web. Nessuna cancellazione eseguita.")
             return
+        voci_con_doc = [(g, v) for g, lista in self.spese_cancellate_tmp.items() for v in lista
+                        if "ALL·" in str(campo(v, "descrizione", ""))]
+        elimina_doc = False
+        if voci_con_doc:
+            n_doc = len(voci_con_doc)
+            elimina_doc = self.show_custom_askyesno(
+                "Elimina Allegati",
+                f"{n_doc} dei movimenti selezionati " + ("ha" if n_doc == 1 else "hanno") +
+                " un documento allegato.\n\n"
+                f"Vuoi eliminare anche {'il file PDF' if n_doc == 1 else f'i {n_doc} file PDF'}?"
+            )
         self.spese = spese_da_mantenere
+        doc_eliminati = 0
+        if elimina_doc:
+            try:
+                doc_eliminati = _elimina_documenti_allegati(voci_con_doc, REGISTRY_FILE, DOC_DIR)
+            except Exception as e_doc:
+                self.show_custom_warning("Errore", f"Registro: {e_doc}")
         self.selezionate_iid.clear()
         popola_treeview_spese()
         if hasattr(self, 'refresh_gui'): self.refresh_gui()
@@ -134,7 +198,10 @@ def apri_cancella_spese_treeview_unica(self):
                 for _voce in lista_voci_canc:
                     self.annulla_azione_gamification("movimento")
         self._sync_fairshare_e_aggiorna()
-        self.show_custom_warning("Successo", f"✓ {num_selezionate} spese sono state cancellate.")
+        _msg_ok = f"✓ {num_selezionate} spese sono state cancellate."
+        if elimina_doc:
+            _msg_ok += f"\n✓ {doc_eliminati} documenti eliminati."
+        self.show_custom_warning("Successo", _msg_ok)
     def popola_treeview_spese():
         self.spese_treeview.delete(*self.spese_treeview.get_children())
         self.spese_treeview._metodo_lookup = {}

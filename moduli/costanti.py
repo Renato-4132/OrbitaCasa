@@ -189,6 +189,7 @@ def carica_costanti(path_locale):
     g['SCANNER_FILE'] = os.path.join(DB_DIR, "scanner_impostazioni.json")
     g['ANIMALI_FILE'] = os.path.join(DB_DIR, "animali.json")
     g['FIN_FILE'] = os.path.join(DB_DIR, "finanziamenti.json")
+    g['MAIL_ELABORATE_FILE'] = os.path.join(DB_DIR, "mail_elaborate.json")
     g['GAMIFICATION_FILE'] = os.path.join(DB_DIR, "gamification.json")
     g['CREDENTIALS_FILE'] = os.path.join(DB_DIR, "webauthn_credentials.json")
         
@@ -263,7 +264,21 @@ def carica_costanti(path_locale):
         "manda_push_enabled": False,
         "email_user": "",
         "app_password": "",
-        "parole_chiave": ["no-reply-ML@aceaenergia.it, no-reply.acque@acque.net, contotelefonico@fatturazione.windtre.it"],
+        "parole_chiave": "no-reply-ML@aceaenergia.it, no-reply.acque@acque.net, contotelefonico@fatturazione.windtre.it",
+        "regole_mail": [],
+        "sync_opzioni": {
+            "data_movimento": "mail",
+            "cat_bollette": "Zona @Web/Bank",
+            "segna_letta": True,
+            "solo_non_lette": True,
+            "giorni_indietro": 30,
+            "controllo_doppioni": True,
+            "importo_mancante": "ripiego",
+            "cat_estratti": "Generica",
+            "conto_estratti": "",
+            "pausa_sec": 5,
+            "copia_fatture_gmail": True,
+        },
         "gemini_api_key": "",
         "sync_intervallo_min": 720,
         "check_double": False,

@@ -18,6 +18,67 @@ def _fmt_it(v, spec=",.2f"):
     return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
 
 
+def _data_giorno_doc(giorno):
+    if isinstance(giorno, datetime.date):
+        return giorno
+    try:
+        return datetime.datetime.strptime(str(giorno), "%Y-%m-%d").date()
+    except Exception:
+        return None
+
+
+def _elimina_documenti_allegati(voci, registry_file, doc_dir):
+    if not voci or not os.path.exists(registry_file):
+        return 0
+    with open(registry_file, "r", encoding="utf-8") as f:
+        reg = json.load(f)
+    eliminati = 0
+    for giorno, voce in voci:
+        d = _data_giorno_doc(giorno)
+        if d is None:
+            continue
+        o_s = d.strftime("%d%m%Y")
+        o_i = str(int(round(float(campo(voce, "importo", 0.0)) * 100)))
+        o_t = campo(voce, "tipo", "")
+        desc = str(campo(voce, "descrizione", "")).strip()
+        candidati = [k for k in reg if k.startswith(o_s) and o_i in k and o_t in k]
+        if not candidati:
+            continue
+        scelto = next((k for k in candidati
+                       if isinstance(reg[k], dict) and str(reg[k].get("descrizione_esatta", "")).strip() == desc),
+                      candidati[0])
+        percorso = os.path.join(doc_dir, scelto)
+        try:
+            if os.path.exists(percorso):
+                os.remove(percorso)
+        except OSError as e:
+            print(f"Documento non eliminato ({scelto}): {e}")
+            continue
+        reg.pop(scelto, None)
+        eliminati += 1
+    if eliminati:
+        with open(registry_file, "w", encoding="utf-8") as f:
+            json.dump(reg, f, indent=4, ensure_ascii=False)
+    return eliminati
+
+
+def _chiedi_ed_elimina_documenti(self, voci):
+    con_doc = [(g, v) for g, v in voci if "ALL·" in str(campo(v, "descrizione", ""))]
+    if not con_doc:
+        return None
+    n = len(con_doc)
+    if not self.show_custom_askyesno(
+            "Elimina Allegati",
+            f"{n} dei movimenti eliminati " + ("ha" if n == 1 else "hanno") + " un documento allegato.\n\n"
+            f"Vuoi eliminare anche {'il file PDF' if n == 1 else f'i {n} file PDF'}?"):
+        return 0
+    try:
+        return _elimina_documenti_allegati(con_doc, _app.REGISTRY_FILE, _app.DOC_DIR)
+    except Exception as e:
+        self.show_custom_warning("Errore", f"Registro: {e}")
+        return 0
+
+
 def _aggiorna_cat_ricorrenze(self, vecchio, nuovo):
     for r in getattr(self, "ricorrenze", {}).values():
         if isinstance(r, dict) and r.get("cat") == vecchio:
@@ -801,6 +862,7 @@ def cancella_categoria(self):
     self._classi_categorie().pop(cat, None)
     self._conti_risparmio_cat().pop(cat, None)
     _aggiorna_cat_ricorrenze(self, cat, self.CATEGORIA_RIMOSSA)
+    voci_eliminate = []
     for giorno in list(self.spese):
         nuove_spese = []
         for voce in self.spese[giorno]:
@@ -810,18 +872,21 @@ def cancella_categoria(self):
                     nuove_spese.append(
                         voce.sostituisci(categoria=self.CATEGORIA_RIMOSSA)
                     )
+                else:
+                    voci_eliminate.append((giorno, voce))
             else:
                 nuove_spese.append(voce)
         if nuove_spese:
             self.spese[giorno] = nuove_spese
         else:
             del self.spese[giorno]
+    n_doc = _chiedi_ed_elimina_documenti(self, voci_eliminate) if elimina_importi else None
     self.save_db()
     self.refresh_gui()
     self.on_categoria_changed()
     self.aggiorna_combobox_categorie()
     self.reset_campi_categoria()
-    self.show_toast(f"Categoria '{cat}' cancellata.")
+    self.show_toast(f"Categoria '{cat}' cancellata." + (f" {n_doc} documenti eliminati." if n_doc else ""))
     if hasattr(self, 'ricorrenza_popup') and self.ricorrenza_popup.winfo_exists():
         if hasattr(self, 'ric_cat_menu'):
             self.ric_cat_menu['values'] = sorted(self.categorie)
@@ -1516,6 +1581,7 @@ def cancella_categorie_selezionate(self):
     if not self.show_custom_askyesno("Elimina", testo_conferma):
         return
     sel_set = set(selezionate)
+    voci_eliminate = []
     for cat in selezionate:
         if cat in self.categorie:
             self.categorie.remove(cat)
@@ -1533,6 +1599,8 @@ def cancella_categorie_selezionate(self):
                     nuove_spese.append(
                         voce.sostituisci(categoria=self.CATEGORIA_RIMOSSA)
                     )
+                else:
+                    voci_eliminate.append((giorno, voce))
             else:
                 nuove_spese.append(voce)
         if nuove_spese:
@@ -1541,15 +1609,17 @@ def cancella_categorie_selezionate(self):
             del self.spese[giorno]
     if var_elimina is not None:
         var_elimina.set(False)
+    n_doc = _chiedi_ed_elimina_documenti(self, voci_eliminate) if elimina_movimenti else None
     self.save_db()
     self.refresh_gui()
     self.aggiorna_combobox_categorie()
     self.on_categoria_changed()
     self.reset_campi_categoria()
+    _extra_doc = f" {n_doc} documenti eliminati." if n_doc else ""
     if len(selezionate) == 1:
-        self.show_toast(f"Categoria '{selezionate[0]}' cancellata.")
+        self.show_toast(f"Categoria '{selezionate[0]}' cancellata." + _extra_doc)
     else:
-        self.show_toast(f"{len(selezionate)} categorie cancellate.")
+        self.show_toast(f"{len(selezionate)} categorie cancellate." + _extra_doc)
     if hasattr(self, 'ricorrenza_popup') and self.ricorrenza_popup.winfo_exists():
         if hasattr(self, 'ric_cat_menu'):
             self.ric_cat_menu['values'] = sorted(self.categorie)

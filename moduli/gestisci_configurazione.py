@@ -8,6 +8,9 @@ import tkinter as tk
 from tkinter import ttk, Toplevel
 
 def gestisci_configurazione(self):
+    from moduli.sync_mail_opzioni import (
+        leggi_opzioni, leggi_regole, normalizza_mittenti, TabImportazione,
+    )
     esistente = getattr(self, "_config_popup", None)
     if esistente is not None:
         try:
@@ -83,9 +86,14 @@ def gestisci_configurazione(self):
             close_behavior_iniziale = False
     pk_raw = config.get("parole_chiave", DEFAULT_CONFIG.get("parole_chiave", ["no-reply-ML@aceaenergia.it, no-reply.acque@acque.net, contotelefonico@fatturazione.windtre.it"]))
     if isinstance(pk_raw, list):
-        parole_chiave_iniziale = ", ".join(pk_raw)
+        parole_chiave_iniziale = ", ".join(normalizza_mittenti(pk_raw))
     else:
         parole_chiave_iniziale = pk_raw
+    _stato_importazione = {
+        "opzioni": leggi_opzioni(config),
+        "regole": leggi_regole(config),
+    }
+    _tab_imp = [None]   # TabImportazione, creato più sotto
         
     sync_intervallo_iniziale = config.get("sync_intervallo_min", DEFAULT_CONFIG.get("sync_intervallo_min", 720))
     
@@ -213,7 +221,11 @@ def gestisci_configurazione(self):
         self.var_app_password.set(DEFAULT_CONFIG.get("app_password", ""))
         self.var_gemini_api_key.set(DEFAULT_CONFIG.get("gemini_api_key", ""))
         self.var_gemini_model.set(DEFAULT_CONFIG.get("gemini_model", "gemini-2.5-flash"))
-        self.var_parole_chiave.set(", ".join(DEFAULT_CONFIG.get("parole_chiave", ["no-reply-ML@aceaenergia.it, no-reply.acque@acque.net, contotelefonico@fatturazione.windtre.it"])))
+        self.var_parole_chiave.set(", ".join(normalizza_mittenti(DEFAULT_CONFIG.get("parole_chiave", "no-reply-ML@aceaenergia.it, no-reply.acque@acque.net, contotelefonico@fatturazione.windtre.it"))))
+        _stato_importazione["opzioni"] = leggi_opzioni(DEFAULT_CONFIG)
+        _stato_importazione["regole"] = leggi_regole(DEFAULT_CONFIG)
+        if _tab_imp[0] is not None:
+            _tab_imp[0].ripristina_tutto(_stato_importazione["opzioni"], _stato_importazione["regole"])
         self.show_custom_info("Reset", "Impostazioni ripristinate ai valori predefinite. Clicca su Salva per applicare.")
         self.var_sync_intervallo.set(DEFAULT_CONFIG.get("sync_intervallo_min", 720))
         self.var_check_double.set(DEFAULT_CONFIG.get("check_double", False))
@@ -228,6 +240,12 @@ def gestisci_configurazione(self):
     def salva_e_chiudi():
         if not self._licenza_valida():
             self.show_toast("Salvataggio non disponibile senza licenza attiva.", duration=3000)
+            return
+        if _tab_imp[0] is not None and not _tab_imp[0].raccogli():
+            try:
+                notebook.select(tab_import)
+            except tk.TclError:
+                pass
             return
         try:
             anni = self.var_anni_da_mantenere.get()
@@ -346,6 +364,8 @@ def gestisci_configurazione(self):
                 "gemini_api_key": gemini_api_key_attuale,
                 "gemini_model": gemini_model_attuale,
                 "parole_chiave": parole_chiave_pulite,
+                "regole_mail": _stato_importazione["regole"],
+                "sync_opzioni": _stato_importazione["opzioni"],
                 "sync_intervallo_min": int(self.var_sync_intervallo.get() or 720),
                 "close_behavior": self.var_close_behavior.get(),
             }
@@ -418,7 +438,7 @@ def gestisci_configurazione(self):
         except Exception as e:
             self.show_custom_info("Errore di Salvataggio", f"Impossibile salvare la configurazione: {e}")                
     def mostra_help_configurazione():
-        fixed_width = 1000
+        fixed_width = 1300
         fixed_height = 600
         help_window = Toplevel(config_window)
         help_window.title("❓ Aiuto Dettagliato Configurazione")
@@ -455,14 +475,40 @@ def gestisci_configurazione(self):
                                  highlightbackground=self.COLOR_TOPLEVEL, 
                                  highlightthickness=4, bd=0)
             container.pack(fill="both", expand=True, padx=15, pady=15)
-            lbl = tk.Label(container, text=contenuto_testo, 
-                           font=("Arial", 10), 
-                           bg=self.COLOR_WHITE, 
-                           fg=self.COLOR_BLACK, 
-                           justify=tk.LEFT, 
-                           anchor='nw', 
-                           wraplength=900)
+            cv = tk.Canvas(container, bg=self.COLOR_WHITE, highlightthickness=0, bd=0)
+            sb = ttk.Scrollbar(container, orient="vertical", style="Vertical.TScrollbar", command=cv.yview)
+            cv.configure(yscrollcommand=sb.set)
+            sb.pack(side="right", fill="y")
+            cv.pack(side="left", fill="both", expand=True)
+            inner = tk.Frame(cv, bg=self.COLOR_WHITE)
+            id_inner = cv.create_window((0, 0), window=inner, anchor="nw")
+            lbl = tk.Label(inner, text=contenuto_testo,
+                           font=("Arial", 10),
+                           bg=self.COLOR_WHITE,
+                           fg=self.COLOR_BLACK,
+                           justify=tk.LEFT,
+                           anchor='nw',
+                           wraplength=880)
             lbl.pack(fill='both', expand=True, padx=15, pady=15)
+            def _aggiorna_scroll(e=None):
+                h = max(inner.winfo_reqheight(), cv.winfo_height())
+                cv.configure(scrollregion=(0, 0, cv.winfo_width(), h))
+            def _ridimensiona(e):
+                cv.itemconfig(id_inner, width=e.width)
+                _aggiorna_scroll()
+            inner.bind("<Configure>", _aggiorna_scroll)
+            cv.bind("<Configure>", _ridimensiona)
+            def _rotella(e):
+                if getattr(e, "num", None) == 4:
+                    cv.yview_scroll(-3, "units")
+                elif getattr(e, "num", None) == 5:
+                    cv.yview_scroll(3, "units")
+                elif getattr(e, "delta", 0):
+                    cv.yview_scroll(-1 if e.delta > 0 else 1, "units")
+            for w_ in (cv, inner, lbl):
+                w_.bind("<MouseWheel>", _rotella)
+                w_.bind("<Button-4>", _rotella)
+                w_.bind("<Button-5>", _rotella)
             return frame_tab
         testo_tab1 = (
             "• FLUSSO LOGIN/ICONIZZA: Se attivo, l'applicazione si riduce automaticamente a icona nella tray bar dopo l'accesso.\n\n"
@@ -517,7 +563,7 @@ def gestisci_configurazione(self):
             "• SYNC EMAIL: Attiva la lettura automatica della posta per scaricare i movimenti ricevuti via Gmail.\n\n"
             "• APP PASSWORD: Non è la password della mail, ma il codice a 16 cifre generato nelle impostazioni di sicurezza Google.\n"
             "  🌐 Generala qui: https://myaccount.google.com/apppasswords\n\n"
-            "• PAROLE CHIAVE: Filtri (separati da virgola) usati per identificare le Email pertinenti (Es. contotelefonico@fatturazione.windtre.it).\n\n"
+            "• PAROLE CHIAVE: Filtri (separati da virgola) usati per identificare le Email pertinenti (Es. contotelefonico@fatturazione.windtre.it). Categoria, conto, metodo e tag di ogni mittente si impostano nel tab «Importazione Email».\n\n"
             "• API KEY GEMINI: Inserisci la tua chiave personale di Google AI per abilitare l'analisi automatica dei documenti.\n\n"
             "• MODELLO GEMINI: Seleziona il modello AI da utilizzare per l'analisi (es. gemini-2.5-flash, gemini-2.0-flash).\n\n"
             "• FREQUENZA SYNC: Imposta ogni quanti minuti il programma deve controllare la posta.\n"
@@ -534,6 +580,25 @@ def gestisci_configurazione(self):
         crea_tab_bianco("Carosello & Alert", testo_tab3, "alert")
         crea_tab_bianco("Database & Backup", testo_tab4, "salva")
         crea_tab_bianco("Connettività & Sync", testo_tab5, "sync")
+        testo_tab6 = (
+            "REGOLE PER MITTENTE (tabella a sinistra)\n"
+            "• Ogni riga assegna Categoria, Conto, Metodo di pagamento, Tag e Tipo ai movimenti importati da quel mittente. Doppio clic per modificare.\n"
+            "• Il mittente deve coincidere con uno dei Filtri Email. Un campo vuoto usa il comportamento predefinito. Il Tipo forzato vale per le bollette.\n"
+            "• «Una regola per ogni filtro» crea una regola vuota per ogni indirizzo dei Filtri Email che non ne ha già una.\n\n"
+            "OPZIONI DI IMPORTAZIONE (a destra, si applicano con Salva)\n"
+            "• DATA DEL MOVIMENTO: per le bollette usa la data della mail, di oggi o la scadenza. Gli estratti conto mantengono la data del PDF.\n"
+            "• CATEGORIA PREDEFINITA BOLLETTE: usata se la regola non ha una categoria; se non esiste viene creata.\n"
+            "• CERCA: solo mail non lette, oppure tutte (le già importate vengono saltate). GIORNI DA CONTROLLARE: quanti giorni indietro cercare (1-365).\n"
+            "• SE L'IMPORTO NON SI TROVA: registra con 0,01 € oppure salta la mail (scrive SALTATA nel log).\n"
+            "• PAUSA TRA UNA MAIL E L'ALTRA: secondi di attesa per non superare i limiti di Gemini (0-10).\n"
+            "• ESTRATTI CONTO - CATEGORIA, CONTO, METODO, TAG: valori predefiniti per i movimenti degli estratti conto. Se la regola del mittente ha già il suo valore, vince la regola.\n"
+            "• SEGNA LA MAIL COME LETTA: dopo l'importazione la mail viene marcata come letta in Gmail.\n"
+            "• CONTROLLO DOPPIONI: non registra un movimento con stessa descrizione e stesso importo di uno già presente.\n"
+            "• COPIA PDF IN FATTURE_GMAIL: conserva una copia dei PDF allegati; il PDF resta comunque nell'archivio documenti.\n"
+            "• RIPRISTINA OPZIONI PREDEFINITE: riporta le opzioni ai valori iniziali senza toccare le regole.\n"
+            "  👉 Passa il mouse su ogni voce per vedere il suggerimento dettagliato."
+        )
+        crea_tab_bianco("Importazione Email", testo_tab6, "email")
         footer_frame = ttk.Frame(main_container)
         footer_frame.pack(fill="x", side="bottom")
         ttk.Separator(footer_frame, orient='horizontal').pack(fill="x", pady=5)                  
@@ -565,6 +630,7 @@ def gestisci_configurazione(self):
     tab_timeout  = ttk.Frame(notebook, padding="10 10 10 5")
     tab_dati     = ttk.Frame(notebook, padding="10 10 10 5")
     tab_sync     = ttk.Frame(notebook, padding="10 10 10 5")
+    tab_import   = ttk.Frame(notebook, padding="10 10 10 5")
 
     def _add_tab_cfg(frame, ico_key, testo):
         img = self.icone_gui.get(ico_key)
@@ -578,6 +644,9 @@ def gestisci_configurazione(self):
     _add_tab_cfg(tab_timeout, "timer", "Timeout & Avvisi")
     _add_tab_cfg(tab_dati, "salva", "Dati & Backup")
     _add_tab_cfg(tab_sync, "sync", "Sync Email & AI")
+    _add_tab_cfg(tab_import, "email", "Importazione Email")
+    _tab_imp[0] = TabImportazione(self, tab_import, config_window, _stato_importazione,
+                                  lambda: self.var_parole_chiave.get())
 
     for _tab in (tab_generali, tab_rete, tab_timeout, tab_dati, tab_sync):
         _tab.columnconfigure(0, weight=1, uniform="col")
@@ -957,8 +1026,8 @@ def gestisci_configurazione(self):
     config_window.protocol("WM_DELETE_WINDOW", chiudi_config)
     config_window.withdraw()
     config_window.update_idletasks()
-    width = 1300
-    height = 500
+    width = 1366
+    height = 630
     config_window.minsize(width, height)
     screen_w = self.winfo_screenwidth()
     screen_h = self.winfo_screenheight()
