@@ -90,13 +90,46 @@ def _crea_flask_app(self):
         except Exception:
             pass
 
+    def _novnc_peer():
+        try:
+            import ipaddress
+            porta_nv = int(os.environ.get("OC_NOVNC_PORT", "5800"))
+            peers = set()
+            for fn, v6 in (("/proc/net/tcp", False), ("/proc/net/tcp6", True)):
+                try:
+                    with open(fn) as fh:
+                        next(fh)
+                        for riga in fh:
+                            c = riga.split()
+                            if len(c) < 4 or c[3] != "01":
+                                continue
+                            if int(c[1].rsplit(":", 1)[1], 16) != porta_nv:
+                                continue
+                            raw = bytes.fromhex(c[2].rsplit(":", 1)[0])
+                            if v6:
+                                raw = b"".join(raw[i:i + 4][::-1] for i in range(0, 16, 4))
+                            else:
+                                raw = raw[::-1]
+                            ip = ipaddress.ip_address(raw)
+                            if getattr(ip, "ipv4_mapped", None):
+                                ip = ip.ipv4_mapped
+                            if ip.is_loopback:
+                                continue
+                            peers.add(str(ip))
+                except (OSError, StopIteration):
+                    pass
+            return peers
+        except Exception:
+            return set()
+
     def _web_connessi():
         try:
             limite = time.time() - float(tk_app.timeout_sessione)
             with _CLIENT_LOCK:
                 for k in [k for k, v in _CLIENT_WEB.items() if v[0] < limite]:
                     del _CLIENT_WEB[k]
-                return len(_CLIENT_WEB)
+                n_web = len(_CLIENT_WEB)
+            return n_web + len(_novnc_peer())
         except Exception:
             return 0
 
@@ -104,8 +137,10 @@ def _crea_flask_app(self):
         try:
             limite = time.time() - float(tk_app.timeout_sessione)
             with _CLIENT_LOCK:
-                return sorted(((k.split("|", 1)[0], v[0], v[1]) for k, v in _CLIENT_WEB.items() if v[0] >= limite),
-                              key=lambda x: -x[1])
+                elenco = [(k.split("|", 1)[0], v[0], v[1]) for k, v in _CLIENT_WEB.items() if v[0] >= limite]
+            ora = time.time()
+            elenco += [(ip, ora, "Desktop (noVNC)") for ip in _novnc_peer()]
+            return sorted(elenco, key=lambda x: -x[1])
         except Exception:
             return []
 
