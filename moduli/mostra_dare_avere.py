@@ -541,6 +541,8 @@ def mostra_dare_avere(self):
         setattr(self, '_dare_avere_popup', None),
         setattr(self, '_dare_avere_aggiorna', None)
     ) if e.widget is popup else None)
+    if hasattr(self, "registra_refresh_finestra"):
+        self.registra_refresh_finestra(popup, _aggiorna_tutto)
     pulsanti = [
         ("salva",     " Esporta",   lambda e: anteprima_esporta(),                         "LEFT"),
         ("reset",     " Aggiorna",  _aggiorna_tutto,                                       "LEFT"),

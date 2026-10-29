@@ -6,13 +6,6 @@ import datetime
 import tkinter as tk
 from tkinter import filedialog
 
-# Schema:
-#   Ctrl+lettera        azioni principali e strumenti quotidiani
-#   Alt+lettera         moduli (casa, lavoro, finanze extra) ed export
-#   Ctrl+Shift+lettera  categorie, dati, backup, web e sistema
-#   F1..F11             aiuto, ricerca, impostazioni, hub, form movimenti
-# Ogni voce: (sequenza Tk, etichetta, metodo dell'app, descrizione)
-
 SCORCIATOIE_GRUPPI = [
     ("Generali", [
         ("<F1>",              "F1",           "mostra_popup_scorciatoie", "Scorciatoie"),
@@ -150,7 +143,6 @@ def configura_scorciatoie(self):
             print(f"[Scorciatoie] Metodo non trovato: {metodo_nome} ({tk_key})")
             continue
         self.bind_all(tk_key, lambda e, f=metodo: f())
-        # Con Caps Lock attivo Tk riceve la lettera minuscola: lega anche quella variante
         if "Shift-" in tk_key:
             ultimo = tk_key[-2]
             if ultimo.isalpha() and ultimo.isupper():
@@ -266,7 +258,7 @@ def _scorciatoie_stampa(self):
     import tempfile
     tmp = os.path.join(tempfile.gettempdir(), "scorciatoie_stampa.pdf")
     try:
-        import pymupdf  # noqa: F401
+        import pymupdf 
         if _scorciatoie_genera_pdf(self, tmp):
             self.stampa_pdf(tmp, self.show_custom_warning)
             return
@@ -301,7 +293,6 @@ def mostra_popup_scorciatoie(self, event=None):
         colonne.append(f)
 
     gruppi = _gruppi_visualizzati()
-    # distribuzione bilanciata: i gruppi più lunghi per primi nella colonna meno piena
     righe = [0] * N_COL
     assegna = [[] for _ in range(N_COL)]
     for idx in sorted(range(len(gruppi)), key=lambda i: -len(gruppi[i][1])):

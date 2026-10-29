@@ -159,6 +159,7 @@ def mostra_piramide(self):
                     ("Controlla",       "Check manuale",              _g("controlla_ricorrenti_manual")),
                     ("Editor",          "Regole di categorizzazione", _g("mostra_editor_memoria_categorie")),
                     ("Analisi Cat.",    "Dettaglio, trend, simulazione", _g("analisi_categorie")),
+                    ("Migra Movimenti Cat.", "Migrazione classi categorie", lambda: self.apri_gestione_categorie(tab="sposta"))
                 ],
             },
         ],

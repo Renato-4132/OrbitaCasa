@@ -10,7 +10,7 @@ from tkinter import ttk, filedialog
 import datetime
 
 import __main__ as _app
-from moduli.modello_spesa import campo
+from moduli.modello_spesa import campo, SpesaEntry, METODI_PAGAMENTO_EMOJI, metodo_pagamento_pulito
 from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa
 
 def _fmt_it(v, spec=",.2f"):
@@ -346,6 +346,8 @@ def mostra_categorie_popup(self):
     _crea_btn_cat(fr_strumenti, "btn_cat_avanzate", "documenti", " Editor", lambda: apri_gestione_categorie(self))
     _crea_btn_cat(fr_strumenti, "btn_analisi_cat", "timer", " Analisi",
                   lambda: self.analisi_categorie(self.cat_mod_sel.get() or None))
+    _crea_btn_cat(fr_strumenti, "btn_sposta_cat", "filtri", " Migra",
+                  lambda: apri_gestione_categorie(self, tab="sposta"))
     fr_strumenti.grid_remove()
     fr_toggle = ttk.Frame(aggiungi_cat_frame)
     fr_toggle.grid(row=5, column=0, columnspan=4, pady=(2, 0), sticky="")
@@ -1195,7 +1197,7 @@ def apri_gestione_categorie(self, event=None, tab=None):
         for v in self.cat_av_vars.values():
             v.set(False)
         self.reset_campi_categoria()
-        self.nb_cat_av.select(self.tab_cat_av_sugg if tab == "suggerite" else self.tab_cat_av_elenco)
+        _seleziona_tab_editor(self, tab)
         return
     popup = tk.Toplevel(self, bg=self.COLOR_TOPLEVEL)
     self.cat_av_popup = popup
@@ -1203,7 +1205,7 @@ def apri_gestione_categorie(self, event=None, tab=None):
     popup.transient(self)
     popup.title("Editor Categorie")
     popup.resizable(True, True)
-    larghezza, altezza = 1180, 600
+    larghezza, altezza = 1300, 660
     x = self.winfo_rootx() + (self.winfo_width() // 2) - (larghezza // 2)
     y = self.winfo_rooty() + (self.winfo_height() // 2) - (altezza // 2)
     popup.geometry(f"{larghezza}x{altezza}+{max(0, x)}+{max(0, y)}")
@@ -1231,7 +1233,9 @@ def apri_gestione_categorie(self, event=None, tab=None):
     self.tab_cat_av_elenco = ttk.Frame(self.nb_cat_av)
     self.tab_cat_av_sugg = ttk.Frame(self.nb_cat_av)
     self.nb_cat_av.add(self.tab_cat_av_elenco, text="  Categorie  ")
+    self.tab_cat_av_sposta = ttk.Frame(self.nb_cat_av)
     self.nb_cat_av.add(self.tab_cat_av_sugg, text="  Suggerite  ")
+    self.nb_cat_av.add(self.tab_cat_av_sposta, text="Migra Categorie")
     tab_e = self.tab_cat_av_elenco
     tab_e.columnconfigure(0, weight=1)
     tab_e.rowconfigure(0, weight=1)
@@ -1420,22 +1424,687 @@ def apri_gestione_categorie(self, event=None, tab=None):
         ])
         e.grid(row=riga, column=1, sticky="w", padx=2, pady=5)
     fr_b1 = ttk.Frame(form)
-    fr_b1.grid(row=6, column=0, columnspan=2, pady=(14, 2))
+    fr_b1.grid(row=6, column=0, columnspan=2, pady=(8, 2))
     _btn(fr_b1, "check", " Aggiungi", lambda: self.add_categoria())
     _btn(fr_b1, "salva", " Salva", lambda: self.modifica_categoria())
     fr_b2 = ttk.Frame(form)
     fr_b2.grid(row=7, column=0, columnspan=2, pady=(4, 8))
     btn_annulla_cat = _btn(fr_b2, "chiudi", " Annulla", lambda: self.reset_campi_categoria())
     _btn(fr_b2, "timer", " Analisi", lambda: self.analisi_categorie(self.cat_mod_sel.get() or None))
+    _btn(fr_b2, "filtri", " Sposta voci", lambda: self.nb_cat_av.select(self.tab_cat_av_sposta))
     _tt_cat(btn_annulla_cat,
             "Annulla la modifica: svuota i campi e toglie la selezione dalla categoria scelta, senza salvare nulla.")
 
     _costruisci_tab_suggerite(self, self.tab_cat_av_sugg)
-    self.nb_cat_av.bind("<<NotebookTabChanged>>",
-        lambda e: self._ricostruisci_sugg_av() if self.nb_cat_av.select() == str(self.tab_cat_av_sugg) else None)
+    self._sposta_tab = costruisci_sposta_voci(self, self.tab_cat_av_sposta)
+    self._sposta_ultima_cat = None
+    self._sposta_cat_snap = set(self.categorie)
+    self.nb_cat_av.bind("<<NotebookTabChanged>>", lambda e: _on_tab_editor(self))
     self.reset_campi_categoria()
     popup.deiconify()
-    self.nb_cat_av.select(self.tab_cat_av_sugg if tab == "suggerite" else self.tab_cat_av_elenco)
+    _seleziona_tab_editor(self, tab)
+
+NON_CAMBIARE = "(non cambiare)"
+NESSUNO = "(nessuno)"
+NOMI_MESI = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
+             "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
+
+def _data_giorno(giorno):
+    if isinstance(giorno, datetime.date):
+        return giorno
+    try:
+        return datetime.datetime.strptime(str(giorno), "%Y-%m-%d").date()
+    except Exception:
+        return None
+
+def _nuovi_tag(attuali, tag):
+    risultato = list(attuali or [])
+    presenti = {t.lower() for t in risultato}
+    for t in tag:
+        if t.lower() not in presenti:
+            risultato.append(t)
+            presenti.add(t.lower())
+    return risultato
+
+def applica_modifiche_voci(spese, ids, categoria=None, adegua_tipo=False, categorie_tipi=None,
+                           metodo=None, conto=None, tag=None, tipo=None):
+    tag = list(tag or [])
+    modificate = 0
+    tipo_cambiato = 0
+    for giorno in list(spese.keys()):
+        lista = spese[giorno]
+        for i, voce in enumerate(lista):
+            if not isinstance(voce, SpesaEntry) or str(voce.id_spesa) not in ids:
+                continue
+            kw = {}
+            if categoria is not None and voce.categoria != categoria:
+                kw["categoria"] = categoria
+            if categoria is not None and adegua_tipo and categorie_tipi:
+                tipo_dest = categorie_tipi.get(categoria)
+                if tipo_dest and str(voce.tipo).capitalize() != tipo_dest:
+                    kw["tipo"] = tipo_dest
+            if tipo is not None and str(voce.tipo).capitalize() != tipo:
+                kw["tipo"] = tipo
+            if metodo is not None and voce.metodo_pagamento != metodo:
+                kw["metodo_pagamento"] = metodo
+            if conto is not None and voce.conto != conto:
+                kw["conto"] = conto
+            if tag:
+                nuovi = _nuovi_tag(voce.hashtag, tag)
+                if nuovi != list(voce.hashtag):
+                    kw["hashtag"] = nuovi
+            if kw:
+                lista[i] = voce.sostituisci(**kw)
+                modificate += 1
+                if "tipo" in kw:
+                    tipo_cambiato += 1
+    return modificate, tipo_cambiato
+
+def costruisci_sposta_voci(self, parent, categoria=None, su_chiudi=None):
+    PORTAFOGLIO_BANCARIO = _app.PORTAFOGLIO_BANCARIO
+
+    bg = self.COLOR_TOPLEVEL
+    sel_ids = set()
+    ultimo_click = {"iid": None}
+    righe_info = {}
+
+    radice = tk.Frame(parent, bg=bg)
+    radice.pack(fill="both", expand=True)
+    finestra = radice.winfo_toplevel()
+
+    def _riga(parent):
+        r = tk.Frame(parent, bg=bg)
+        r.pack(fill="x", padx=10, pady=2)
+        return r
+
+    def _et(r, testo, pad=(10, 4)):
+        tk.Label(r, text=testo, bg=bg, fg=self.TEXT_COLOR).pack(side="left", padx=pad)
+
+    def _combo(r, var, valori, w):
+        cb = ttk.Combobox(r, values=valori, textvariable=var, style="Border.TCombobox",
+                          state="readonly", width=w)
+        cb.pack(side="left")
+        return cb
+
+    try:
+        with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as _fp:
+            nomi_conti = [c.get("nome", "") for c in json.load(_fp).get("conti", [])]
+    except Exception:
+        nomi_conti = []
+    anni = set()
+    for g in self.spese.keys():
+        d = _data_giorno(g)
+        if d:
+            anni.add(str(d.year))
+    anni = [""] + sorted(anni, reverse=True)
+    cats_ord = sorted(self.categorie, key=lambda c: c.lower())
+
+    v_ricerca = tk.StringVar()
+    v_cat = tk.StringVar(value=categoria if categoria in self.categorie else "")
+    v_tipo = tk.StringVar()
+    v_anno = tk.StringVar()
+    v_mese = tk.StringVar()
+    v_conto = tk.StringVar()
+    v_metodo = tk.StringVar()
+    v_tagf = tk.StringVar()
+    v_partec = tk.StringVar()
+    v_imp_da = tk.StringVar()
+    v_imp_a = tk.StringVar()
+    v_data_da = tk.StringVar()
+    v_data_a = tk.StringVar()
+    v_futuro = tk.BooleanVar(value=True)
+    vars_filtro = (v_ricerca, v_cat, v_tipo, v_anno, v_mese, v_conto, v_metodo, v_tagf,
+                   v_partec, v_imp_da, v_imp_a, v_data_da, v_data_a)
+
+    f1 = tk.Frame(radice, bg=bg)
+    f1.pack(fill="x", padx=10, pady=(10, 2))   
+    img_cerca = self.icone_gui.get("search")
+    lbl_cerca = ttk.Label(f1, image=img_cerca, text=" Ricerca:", compound="left",
+                          background=bg, font=("Arial", 9, "bold"))
+    lbl_cerca.image = img_cerca
+    lbl_cerca.pack(side="left")
+    ent_ricerca = ttk.Entry(f1, textvariable=v_ricerca)
+    ent_ricerca.pack(side="left", fill="x", expand=True, padx=8)
+    img_reset = self.icone_gui.get("reset")
+    btn_reset_ricerca = ttk.Label(f1, image=img_reset, text=" Reset", compound="left",
+                                  background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
+                                  cursor="hand2", padding=(6, 2), font=("Arial", 9))
+    btn_reset_ricerca.image = img_reset
+    btn_reset_ricerca.pack(side="left", padx=4)
+    btn_reset_ricerca.bind("<Button-1>", lambda e: (v_ricerca.set(""), ent_ricerca.focus_set()))
+    ttk.Checkbutton(f1, text="Includi futuri", variable=v_futuro).pack(side="left", padx=(4, 0))
+    stato_f = {"aperta": False}
+    head = tk.Frame(radice, bg=bg)
+    head.pack(fill="x", padx=10, pady=(0, 2))
+    lbl_freccia = tk.Label(head, bg=bg, fg="#DC3545", cursor="hand2", font=("Arial", 11, "bold"), width=2)
+    lbl_freccia.pack(side="left")
+    lbl_head = tk.Label(head, bg=bg, fg=self.TEXT_COLOR, cursor="hand2", font=("Arial", 9, "bold"), anchor="w")
+    lbl_head.pack(side="left")
+
+    body = tk.Frame(radice, bg=bg)
+    f2 = tk.Frame(body, bg=bg)
+    f2.pack(fill="x", padx=10, pady=2)
+    _et(f2, "Categoria:", (4, 4))
+    cb_filtro_cat = _combo(f2, v_cat, [""] + cats_ord, 30)
+    _et(f2, "Tipo:")
+    _combo(f2, v_tipo, ["", "Entrata", "Uscita"], 8)
+    _et(f2, "Anno:")
+    _combo(f2, v_anno, anni, 7)
+    _et(f2, "Mese:")
+    _combo(f2, v_mese, [""] + NOMI_MESI, 11)
+    f2b = tk.Frame(body, bg=bg)
+    f2b.pack(fill="x", padx=10, pady=2)
+    _et(f2b, "Conto:", (4, 4))
+    _combo(f2b, v_conto, [""] + nomi_conti, 14)
+    _et(f2b, "Metodo:")
+    _combo(f2b, v_metodo, [""] + [metodo_pagamento_pulito(m) for m in METODI_PAGAMENTO_EMOJI], 14)
+    _et(f2b, "Tag:")
+    ttk.Entry(f2b, textvariable=v_tagf, width=26).pack(side="left")
+
+    _app_nome = getattr(_app, "PROFILO_ATTIVO", "Principale")
+    _gestore_m = _app_nome if _app_nome != "Principale" else os.path.basename(os.getcwd())
+    _regs_m = [(p.get("nome", "") if isinstance(p, dict) else p) for p in getattr(self, "nomi_partecipanti", [])]
+    _partec_lista = [""]
+    try:
+        if self._gestore_partecipa() and _gestore_m not in _regs_m:
+            _partec_lista.append(f"PER· {_gestore_m}")
+    except Exception:
+        pass
+    _partec_lista += [
+        f"CNT· {p['nome']}" if p.get("tipo") == "contenitore" else
+        f"CTP· {p['nome']}" if p.get("tipo") == "personale" else
+        f"PER· {p['nome']}"
+        for p in sorted((p for p in getattr(self, "nomi_partecipanti", []) if isinstance(p, dict) and p.get("nome")),
+                        key=lambda p: p["nome"].lower())
+    ]
+
+    f2c = tk.Frame(body, bg=bg)
+    f2c.pack(fill="x", padx=10, pady=2)
+    _et(f2c, "Partecipanti:", (4, 4))
+    _combo(f2c, v_partec, _partec_lista, 18)
+    _et(f2c, "Importo da (€):")
+    ttk.Entry(f2c, textvariable=v_imp_da, width=9).pack(side="left")
+    _et(f2c, "a:", (6, 4))
+    ttk.Entry(f2c, textvariable=v_imp_a, width=9).pack(side="left")
+    img_cal_m = self.icone_gui.get("calendario")
+
+    def _cal_btn_m(entry, var):
+        b = tk.Label(f2c, image=img_cal_m, bg=bg, cursor="hand2", padx=2,
+                     text="" if img_cal_m else "📅", fg=self.TEXT_COLOR)
+        b.image = img_cal_m
+        b.pack(side="left", padx=(2, 0))
+        b.bind("<Button-1>", lambda e: self.mostra_calendario_popup_semplice(entry, var))
+    _et(f2c, "Dal:")
+    ent_data_da = ttk.Entry(f2c, textvariable=v_data_da, width=11)
+    ent_data_da.pack(side="left")
+    _cal_btn_m(ent_data_da, v_data_da)
+    _et(f2c, "Al:", (8, 4))
+    ent_data_a = ttk.Entry(f2c, textvariable=v_data_a, width=11)
+    ent_data_a.pack(side="left")
+    _cal_btn_m(ent_data_a, v_data_a)
+    tk.Label(f2c, text="(GG-MM-AAAA)", bg=bg, fg="gray", font=("Arial", 8, "italic")).pack(side="left", padx=(4, 0))
+
+    def _partec_pulito(v):
+        v = (v or "").strip()
+        for _ico in ("CNT· ", "PER· ", "CTP· ", "CNT·", "PER·", "CTP·"):
+            if v.startswith(_ico):
+                return v[len(_ico):].strip()
+        return v
+
+    def _num_filtro(testo):
+        try:
+            return float(str(testo).strip().replace(",", ".")) if str(testo).strip() else None
+        except ValueError:
+            return None
+
+    def _data_filtro(testo):
+        try:
+            return datetime.datetime.strptime(str(testo).strip(), "%d-%m-%Y").date() if str(testo).strip() else None
+        except ValueError:
+            return None
+
+    def aggiorna_testata(*_):
+        attivi = []
+        for etich, v in (("Categoria ", v_cat), ("", v_tipo), ("Anno ", v_anno), ("", v_mese),
+                         ("Conto ", v_conto), ("Metodo ", v_metodo), ("Partecipante ", v_partec)):
+            if v.get():
+                attivi.append(f"{etich}{v.get()}")
+        if v_tagf.get().strip():
+            attivi.append("#" + v_tagf.get().strip().lstrip("#"))
+        if v_imp_da.get().strip() or v_imp_a.get().strip():
+            attivi.append(f"Importo {v_imp_da.get().strip() or '…'} → {v_imp_a.get().strip() or '…'}")
+        if v_data_da.get().strip() or v_data_a.get().strip():
+            attivi.append(f"{v_data_da.get().strip() or '…'} → {v_data_a.get().strip() or '…'}")
+        testo = ("filtri attivi: " + ", ".join(attivi)) if attivi else "nessun filtro attivo"
+        lbl_freccia.config(text="▾" if stato_f["aperta"] else "▸")
+        lbl_head.config(text=f"Filtri avanzati  ({testo})",
+                        fg=getattr(self, "COLOR_HIGHLIGHT", self.TEXT_COLOR) if attivi else self.TEXT_COLOR)
+
+    def apri_chiudi_filtri(*_):
+        stato_f["aperta"] = not stato_f["aperta"]
+        if stato_f["aperta"]:
+            body.pack(fill="x", before=tree_frame)
+        else:
+            body.pack_forget()
+        aggiorna_testata()
+
+    for _w in (lbl_freccia, lbl_head):
+        _w.bind("<Button-1>", apri_chiudi_filtri)
+    for _v in (v_cat, v_tipo, v_anno, v_mese, v_conto, v_metodo, v_tagf,
+               v_partec, v_imp_da, v_imp_a, v_data_da, v_data_a):
+        _v.trace_add("write", aggiorna_testata)
+    aggiorna_testata()
+
+    tree_frame = tk.Frame(radice, bg=bg)
+    tree_frame.pack(fill="both", expand=True, padx=10, pady=(6, 4))
+    sb = ttk.Scrollbar(tree_frame, orient="vertical", style="Vertical.TScrollbar")
+    sb.pack(side="right", fill="y")
+    colonne = ("Giorno", "Categoria", "Descrizione", "Tipo", "Importo", "Conto", "Metodo", "Ora", "Hashtag")
+    tree = ttk.Treeview(tree_frame, columns=colonne, show=("tree", "headings"),
+                        yscrollcommand=sb.set, height=6, selectmode="none")
+    tree.pack(side="left", fill="both", expand=True)
+    sb.config(command=tree.yview)
+    self.spese_treeview_sposta = tree
+    tree.heading("#0", text="Sel.", anchor="center")
+    tree.column("#0", width=40, anchor="center", stretch=False)
+    larghezze = {"Giorno": 90, "Categoria": 150, "Descrizione": 220, "Tipo": 60, "Importo": 100,
+                 "Conto": 110, "Metodo": 110, "Ora": 50, "Hashtag": 150}
+    for c in colonne:
+        tree.heading(c, text=c, anchor="center")
+        tree.column(c, width=larghezze[c], anchor="e" if c == "Importo" else ("w" if c in ("Giorno", "Categoria", "Descrizione") else "center"),
+                    stretch=(c == "Descrizione"))
+    tree.tag_configure("entrata", foreground="green")
+    tree.tag_configure("uscita", foreground="red")
+    tree.tag_configure("futuro", foreground="#E5C07B", font=("Arial", 9, "italic"))
+    tree.tag_configure("empty", foreground="gray", font=("Arial", 10, "italic"))
+    tree.tag_configure("bloccato", foreground="gray", font=("Arial", 9, "italic"))
+    tree._metodo_lookup = {}
+    n_bloccate = {"n": 0}
+
+    lbl_conta = tk.Label(radice, text="", bg=bg, fg="dodgerblue", font=("Arial", 9, "bold"), anchor="w")
+    lbl_conta.pack(fill="x", padx=12)
+
+    def aggiorna_conta():
+        testo = f"Selezionate: {len(sel_ids)}   |   Visualizzate: {len(righe_info)}"
+        if n_bloccate["n"]:
+            testo += f"   |   Bloccate (FairShare/ricorrenti/pool): {n_bloccate['n']}"
+        lbl_conta.config(text=testo)
+
+    def _contesto_fs():
+        try:
+            from moduli.fairshare import _contesto_fairshare
+            return _contesto_fairshare(self)
+        except Exception:
+            return None
+
+    def _ids_pool():
+        try:
+            from moduli.community_pool import _carica_link
+            return {str(k) for k in _carica_link().get("voci", {})}
+        except Exception:
+            return set()
+
+    def _bloccata(d, voce, ctx, ids_pool=frozenset()):
+        if campo(voce, "id_ricorrenza", None) is not None:
+            return True
+        if campo(voce, "fairshare", None):
+            return True
+        if campo(voce, "pool_ref", "") or str(campo(voce, "id_spesa", "")) in ids_pool:
+            return True
+        if "#communitypool" in [str(t).lower() for t in (campo(voce, "hashtag", []) or [])]:
+            return True
+        if ctx is None:
+            return False
+        try:
+            from moduli.fairshare import _debito_da_voce
+            if d and _debito_da_voce(self, d, voce, ctx) is not None:
+                return True
+        except Exception:
+            pass
+        rx = ctx.get("rx_per")
+        if rx and str(campo(voce, "tipo", "")).strip() == "Entrata" and rx.search(str(campo(voce, "descrizione", ""))):
+            return True
+        return False
+
+    def passa_filtri(voce, d, cat, desc, tipo, metodo, conto, tag_txt):
+        if not v_futuro.get() and d and d > datetime.date.today():
+            return False
+        ric = v_ricerca.get().strip().lower()
+        if ric:
+            campi = [cat, desc, tipo, str(campo(voce, "importo", 0.0)), conto, metodo, tag_txt]
+            if not any(ric in str(c).lower() for c in campi):
+                return False
+        if v_cat.get() and cat != v_cat.get():
+            return False
+        if v_tipo.get() and tipo != v_tipo.get():
+            return False
+        if v_anno.get() and (not d or str(d.year) != v_anno.get()):
+            return False
+        if v_mese.get() and (not d or d.month != NOMI_MESI.index(v_mese.get()) + 1):
+            return False
+        if v_conto.get() and conto != v_conto.get():
+            return False
+        if v_metodo.get() and metodo != v_metodo.get():
+            return False
+        ft = v_tagf.get().strip().lower().lstrip("#")
+        if ft and ft not in tag_txt.lower():
+            return False
+        fp = _partec_pulito(v_partec.get()).lower()
+        if fp and not any(f"{_i}{fp}" in str(desc).lower() for _i in ("per·", "ctp·", "cnt·")):
+            return False
+        imp = float(campo(voce, "importo", 0.0))
+        i_da, i_a = _num_filtro(v_imp_da.get()), _num_filtro(v_imp_a.get())
+        if i_da is not None and imp < i_da:
+            return False
+        if i_a is not None and imp > i_a:
+            return False
+        d_da, d_a = _data_filtro(v_data_da.get()), _data_filtro(v_data_a.get())
+        if d_da and (not d or d < d_da):
+            return False
+        if d_a and (not d or d > d_a):
+            return False
+        return True
+
+    def popola():
+        tree.delete(*tree.get_children())
+        righe_info.clear()
+        tree._metodo_lookup = {}
+        try:
+            giorni = sorted(self.spese.keys(), key=lambda g: _data_giorno(g) or datetime.date.min, reverse=True)
+        except Exception:
+            giorni = list(self.spese.keys())
+        agganci = costruisci_mappa_conti_da_trasferimenti(PORTAFOGLIO_BANCARIO)
+        uso = {}
+        n_bloccate["n"] = 0
+        ctx_fs = _contesto_fs()
+        ids_pool = _ids_pool()
+        for giorno in giorni:
+            d = _data_giorno(giorno)
+            for indice, voce in enumerate(self.spese.get(giorno, [])):
+                try:
+                    cat = campo(voce, "categoria", "")
+                    desc = campo(voce, "descrizione", "")
+                    tipo = str(campo(voce, "tipo", "")).capitalize()
+                    importo = float(campo(voce, "importo", 0.0))
+                    metodo = campo(voce, "metodo_pagamento", "")
+                    ora = campo(voce, "ora", "")
+                    tags = campo(voce, "hashtag", [])
+                    tag_txt = " ".join(tags)
+                    conto = self._conto_effettivo(voce) or (
+                        conto_da_mappa(agganci, uso, d.strftime("%d-%m-%Y"), importo, tipo) if d else "")
+                    if not passa_filtri(voce, d, cat, desc, tipo, metodo, conto, tag_txt):
+                        continue
+                    idsp = str(campo(voce, "id_spesa", ""))
+                    iid = f"{d.strftime('%Y-%m-%d') if d else giorno}_{indice}"
+                    if d and d > datetime.date.today():
+                        col = "futuro"
+                    else:
+                        col = "entrata" if tipo == "Entrata" else "uscita"
+                    bloccata = _bloccata(d, voce, ctx_fs, ids_pool)
+                    sel = idsp in sel_ids and not bloccata
+                    tree.insert("", "end", iid=iid, text="[–]" if bloccata else ("[X]" if sel else "[ ]"),
+                                values=(d.strftime("%d/%m/%Y") if d else str(giorno), cat, desc, tipo,
+                                        f"{_app._fmt_it(importo)} €", conto, metodo, ora, tag_txt),
+                                tags=("bloccato",) if bloccata else (col,))
+                    if bloccata:
+                        n_bloccate["n"] += 1
+                    else:
+                        righe_info[iid] = idsp
+                    tree._metodo_lookup[iid] = {
+                        "metodo": metodo, "conto": conto, "ora": ora, "hashtag": list(tags),
+                        "id_ricorrenza": campo(voce, "id_ricorrenza", ""),
+                        "data": d.strftime("%d-%m-%Y") if d else "", "categoria": cat,
+                        "importo": importo, "tipo": tipo, "id_spesa": idsp,
+                    }
+                except Exception:
+                    continue
+        if not tree.get_children():
+            tree.insert("", "end", iid="NO_DATA", text="", values=("", "Nessun movimento.", "", "", "", "", "", "", ""),
+                        tags=("empty",))
+        aggiorna_conta()
+
+    def _imposta_sel(iid, stato):
+        idsp = righe_info.get(iid)
+        if not idsp:
+            return
+        if stato:
+            sel_ids.add(idsp)
+        else:
+            sel_ids.discard(idsp)
+        tree.item(iid, text="[X]" if stato else "[ ]")
+
+    def clic(event):
+        iid = tree.identify_row(event.y)
+        if not iid or iid not in righe_info:
+            return
+        if (event.state & 0x0001) and ultimo_click["iid"] in righe_info:
+            figli = list(tree.get_children(""))
+            a, b = figli.index(ultimo_click["iid"]), figli.index(iid)
+            stato = righe_info[ultimo_click["iid"]] in sel_ids
+            for k in figli[min(a, b):max(a, b) + 1]:
+                _imposta_sel(k, stato)
+        else:
+            _imposta_sel(iid, righe_info[iid] not in sel_ids)
+        ultimo_click["iid"] = iid
+        aggiorna_conta()
+    tree.bind("<Button-1>", clic)
+
+    def filtri_cambiati(*_):
+        sel_ids.clear()
+        ultimo_click["iid"] = None
+        popola()
+    for v in vars_filtro + (v_futuro,):
+        v.trace_add("write", filtri_cambiati)
+
+    pannello = ttk.LabelFrame(radice, text="Applica ai movimenti selezionati")
+    pannello.pack(fill="x", padx=10, pady=(4, 4))
+    p1 = tk.Frame(pannello, bg=bg)
+    p1.pack(fill="x", padx=6, pady=3)
+    p2 = tk.Frame(pannello, bg=bg)
+    p2.pack(fill="x", padx=6, pady=3)
+
+    v_dest = tk.StringVar(value=NON_CAMBIARE)
+    v_adegua = tk.BooleanVar(value=True)
+    v_tipo_new = tk.StringVar(value=NON_CAMBIARE)
+    v_metodo_new = tk.StringVar(value=NON_CAMBIARE)
+    v_conto_new = tk.StringVar(value=NON_CAMBIARE)
+    v_tag_new = tk.StringVar()
+
+    _et(p1, "Sposta nella categoria:", (0, 4))
+    cb_dest = _combo(p1, v_dest, [NON_CAMBIARE] + cats_ord, 22)
+    cb_adegua = ttk.Checkbutton(p1, text="Adegua Entrata/Uscita alla categoria", variable=v_adegua)
+    cb_adegua.pack(side="left", padx=(10, 0))
+    _et(p1, "Metodo:", (24, 4))
+    _combo(p1, v_metodo_new, [NON_CAMBIARE, NESSUNO] + [metodo_pagamento_pulito(m) for m in METODI_PAGAMENTO_EMOJI], 16)
+    _et(p1, "Conto:", (14, 4))
+    _combo(p1, v_conto_new, [NON_CAMBIARE, NESSUNO] + nomi_conti, 16)
+
+    _et(p2, "Imposta tipo:", (0, 4))
+    _combo(p2, v_tipo_new, [NON_CAMBIARE, "Entrata", "Uscita"], 14)
+    _et(p2, "Tag:", (24, 4))
+    e_tag = ttk.Entry(p2, textvariable=v_tag_new, width=34)
+    e_tag.pack(side="left", padx=6)
+    _bg_tag = ttk.Style().lookup("TEntry", "fieldbackground") or "white"
+    lbl_ph_tag = tk.Label(e_tag, text=NON_CAMBIARE, bg=_bg_tag, fg=self.TEXT_COLOR,
+                          cursor="xterm",
+                          bd=0, highlightthickness=0, padx=0, pady=0)
+    lbl_ph_tag.bind("<Button-1>", lambda e: e_tag.focus_set())
+    stato_tag = {"focus": False}
+
+    def _placeholder_tag(*_):
+        if v_tag_new.get() or stato_tag["focus"]:
+            lbl_ph_tag.place_forget()
+        else:
+            lbl_ph_tag.place(x=3, y=3, relheight=1.0, height=-6, anchor="nw")
+
+    def _tag_focus(acceso):
+        stato_tag["focus"] = acceso
+        _placeholder_tag()
+    e_tag.bind("<FocusIn>", lambda e: _tag_focus(True), add="+")
+    e_tag.bind("<FocusOut>", lambda e: _tag_focus(False), add="+")
+    v_tag_new.trace_add("write", _placeholder_tag)
+    _placeholder_tag()
+
+    def _stato_adegua(*_):
+        cb_adegua.config(state="disabled" if v_tipo_new.get() != NON_CAMBIARE else "normal")
+    v_tipo_new.trace_add("write", _stato_adegua)
+
+    def _leggi_metodo():
+        v = v_metodo_new.get()
+        return None if v == NON_CAMBIARE else ("" if v == NESSUNO else v)
+
+    def _leggi_conto():
+        v = v_conto_new.get()
+        return None if v == NON_CAMBIARE else ("" if v == NESSUNO else v)
+
+    def applica():
+        if not sel_ids:
+            self.show_custom_warning("Attenzione", "Seleziona almeno un movimento.")
+            return
+        dest = v_dest.get()
+        categoria_new = None if dest == NON_CAMBIARE else dest
+        tipo_new = None if v_tipo_new.get() == NON_CAMBIARE else v_tipo_new.get()
+        metodo_new = _leggi_metodo()
+        conto_new = _leggi_conto()
+        tag_new = self._normalizza_tags(v_tag_new.get())
+        usa_tag = bool(tag_new)
+        if categoria_new is None and tipo_new is None and metodo_new is None and conto_new is None and not usa_tag:
+            self.show_custom_warning("Attenzione", "Non hai scelto nessuna modifica da applicare.")
+            return
+        n_tipo = 0
+        for lista in self.spese.values():
+            for v in lista:
+                if str(campo(v, "id_spesa", "")) not in sel_ids:
+                    continue
+                tipo_dest = self.categorie_tipi.get(categoria_new) if categoria_new else None
+                if categoria_new and tipo_new is None and v_adegua.get() and tipo_dest and str(campo(v, "tipo", "")).capitalize() != tipo_dest:
+                    n_tipo += 1
+        righe = [f"Stai per modificare {len(sel_ids)} movimenti:", ""]
+        if categoria_new:
+            righe.append(f"• Categoria → {categoria_new}")
+            if n_tipo and tipo_new is None:
+                righe.append(f"   ({n_tipo} cambieranno anche tipo in {self.categorie_tipi.get(categoria_new)})")
+        if tipo_new is not None:
+            righe.append(f"• Tipo → {tipo_new}")
+        if metodo_new is not None:
+            righe.append(f"• Metodo → {metodo_new or 'nessuno'}")
+        if conto_new is not None:
+            righe.append(f"• Conto → {conto_new or 'nessuno'}")
+        if tag_new:
+            righe.append(f"• Tag aggiunti: {' '.join(tag_new)}")
+        righe += ["", "Procedere?"]
+        if not self.show_custom_askyesno("Conferma modifica", "\n".join(righe)):
+            return
+        modificate, tipo_cambiato = applica_modifiche_voci(
+            self.spese, set(sel_ids), categoria=categoria_new, adegua_tipo=v_adegua.get() and tipo_new is None,
+            categorie_tipi=self.categorie_tipi, metodo=metodo_new, conto=conto_new,
+            tag=tag_new, tipo=tipo_new)
+        sel_ids.clear()
+        if hasattr(self, "_cache_tutti_tag"):
+            del self._cache_tutti_tag
+        if modificate:
+            self.save_db()
+            self.refresh_gui()
+            if hasattr(self, "_sync_fairshare_e_aggiorna"):
+                self._sync_fairshare_e_aggiorna()
+        popola()
+        msg = f"✓ {modificate} movimenti aggiornati." if modificate else "Nessun movimento è stato modificato (valori già uguali)."
+        if tipo_cambiato:
+            msg += f" ({tipo_cambiato} con tipo adeguato)"
+        self.show_toast(msg, duration=3000, parent=finestra)
+
+    def seleziona_visibili():
+        for iid in righe_info:
+            _imposta_sel(iid, True)
+        aggiorna_conta()
+
+    def deseleziona():
+        for iid in righe_info:
+            _imposta_sel(iid, False)
+        sel_ids.clear()
+        aggiorna_conta()
+
+    def reset_filtri():
+        for v in vars_filtro:
+            v.set("")
+        v_futuro.set(True)
+
+    bf = tk.Frame(radice, bg=bg)
+    bf.pack(pady=(4, 10))
+
+    def _bottone(testo, icona, cmd):
+        img = self.icone_gui.get(icona)
+        b = ttk.Label(bf, compound="left", image=img, text=(" " + testo) if img else testo,
+                      background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR, cursor="hand2", padding=(10, 5))
+        b.pack(side="left", padx=5)
+        b.bind("<Button-1>", lambda e: cmd())
+    _bottone("Applica alle selezionate", "salva", applica)
+    _bottone("Seleziona visibili", "check", seleziona_visibili)
+    _bottone("Deseleziona", "reset", deseleziona)
+    _bottone("Reset filtri", "reset", reset_filtri)
+    if su_chiudi:
+        _bottone("Chiudi", "chiudi", su_chiudi)
+
+    def _refresh_esterno():
+        try:
+            ids = set(sel_ids)
+            popola()
+            sel_ids.clear()
+            sel_ids.update(i for i in ids if i in righe_info.values())
+            for iid, idsp in righe_info.items():
+                if idsp in sel_ids:
+                    _imposta_sel(iid, True)
+            aggiorna_conta()
+        except tk.TclError:
+            pass
+    if hasattr(self, "registra_refresh_finestra"):
+        self.registra_refresh_finestra(finestra, _refresh_esterno)
+    if hasattr(self, "_bind_tooltip_metodo"):
+        self._bind_tooltip_metodo(tree, col_desc=2)
+    popola()
+
+    def imposta_categoria(cat):
+        if cat and cat in self.categorie and v_cat.get() != cat:
+            v_cat.set(cat)
+
+    def ricarica():
+        try:
+            if not radice.winfo_exists():
+                return
+            nuove = sorted(self.categorie, key=lambda c: c.lower())
+            cb_filtro_cat["values"] = [""] + nuove
+            cb_dest["values"] = [NON_CAMBIARE] + nuove
+            if v_cat.get() and v_cat.get() not in self.categorie:
+                v_cat.set("")
+            if v_dest.get() != NON_CAMBIARE and v_dest.get() not in self.categorie:
+                v_dest.set(NON_CAMBIARE)
+            _refresh_esterno()
+        except tk.TclError:
+            pass
+
+    return {"frame": radice, "imposta_categoria": imposta_categoria, "ricarica": ricarica}
+
+def _seleziona_tab_editor(self, tab):
+    mappa = {"suggerite": self.tab_cat_av_sugg, "sposta": self.tab_cat_av_sposta}
+    self.nb_cat_av.select(mappa.get(tab, self.tab_cat_av_elenco))
+
+def _on_tab_editor(self):
+    try:
+        corrente = self.nb_cat_av.select()
+    except tk.TclError:
+        return
+    if corrente == str(self.tab_cat_av_sugg):
+        self._ricostruisci_sugg_av()
+    elif corrente == str(self.tab_cat_av_sposta):
+        sposta = getattr(self, "_sposta_tab", None)
+        if not sposta:
+            return
+        cat = self.cat_mod_sel.get() or None
+        if cat and cat != getattr(self, "_sposta_ultima_cat", None):
+            self._sposta_ultima_cat = cat
+            sposta["imposta_categoria"](cat)
+        else:
+            sposta["ricarica"]()
 
 _ICONE_CAT_REGOLE = (
     ("home", ["Casa", "Affitto", "Mutuo", "Immobile", "Arredamento", "Pulizie", "Tassa", "Pellet", "Caldaia", "Utenze", "Bollette", "Consumi"]),
@@ -1557,6 +2226,10 @@ def _aggiorna_albero_cat_avanz(self):
             if w is not None:
                 w.bind("<Button-1>", lambda e, n=nome: _seleziona_cat_av(self, n))
         self.cat_av_rows[nome] = (f, chk, lbl) + tuple(col_cols) + ((li,) if li is not None else ())
+    sposta = getattr(self, "_sposta_tab", None)
+    if sposta and set(self.categorie) != getattr(self, "_sposta_cat_snap", None):
+        self._sposta_cat_snap = set(self.categorie)
+        sposta["ricarica"]()
     _conta_cat_av(self)
 
 def cancella_categorie_selezionate(self):

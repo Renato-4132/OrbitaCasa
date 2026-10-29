@@ -219,7 +219,9 @@ def registra_tutti_i_moduli(GestioneSpese):
 
     from moduli.community_pool import apri_community_pool, community_pool_sync, community_pool_controlla_novita
     _registra(apri_community_pool, community_pool_sync, community_pool_controlla_novita)
-
+    
+    from moduli.community_pool import installa_blocco_modifica; installa_blocco_modifica(GestioneSpese)
+    
     from moduli.calcolo_mutuo_prestito import calcolo_mutuo_prestito
     _registra(calcolo_mutuo_prestito)
 

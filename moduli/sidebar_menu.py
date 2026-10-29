@@ -373,7 +373,8 @@ def pop_categorie(self):
     self._add_m_item(m, "Gestione Categorie", "filtri", self.mostra_categorie_popup)
     self._add_m_item(m, "Editor Categorie", "documenti", self.apri_gestione_categorie)
     self._add_m_item(m, "Editor Categorie Estratti", "filtri", self.mostra_editor_memoria_categorie)
-    self._mostra_popup(m, 220)
+    self._add_m_item(m, "Migra Movimenti Categorie", "filtri", lambda: self.apri_gestione_categorie(tab="sposta"))
+    self._mostra_popup(m, 300)
 
 def web_info(self):
     m = MenuPersonalizzato(

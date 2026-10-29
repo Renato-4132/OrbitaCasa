@@ -1637,3 +1637,65 @@ def _descrivi_evento(ev, stato, et):
     if t == "quota_annullata":
         return f"{chi} ha annullato la sua proposta su '{desc}'"
     return ""
+    
+def _voce_bloccata(e):
+    if campo(e, "pool_ref", ""):
+        return True
+    try:
+        return _carica_link()["voci"].get(campo(e, "id_spesa", ""), {}).get("ruolo") == "origine"
+    except Exception:
+        return False
+        
+def installa_blocco_modifica(GestioneSpese):
+    def _sblocca(self):
+        try:
+            self.imp_entry.config(state="normal")
+        except Exception:
+            pass
+
+    def _voce_pool(self):
+        try:
+            d, i = self.modifica_idx
+            return _voce_bloccata(self.spese[d][i])
+        except Exception:
+            return False
+
+    def _avvolgi_carica(nome):
+        orig = getattr(GestioneSpese, nome)
+        def f(self, *a, **k):
+            _sblocca(self)
+            r = orig(self, *a, **k)
+            if _voce_pool(self):
+                self.imp_entry.config(state="readonly")
+                self.set_tipo_spesa_editable(False)
+            return r
+        f.__name__ = nome
+        setattr(GestioneSpese, nome, f)
+
+    _avvolgi_carica("avvia_modifica_da_selezione")
+    _avvolgi_carica("on_table_click")
+
+    _orig_reset = GestioneSpese.reset_modifica_form
+    def reset_modifica_form(self, *a, **k):
+        _sblocca(self)
+        return _orig_reset(self, *a, **k)
+    GestioneSpese.reset_modifica_form = reset_modifica_form
+
+    _orig_web = GestioneSpese.salva_modifica_voce
+    def salva_modifica_voce(self, params):
+        msg = None
+        try:
+            d = datetime.datetime.strptime(params.get("vecchia_data", [""])[0], "%d-%m-%Y").date()
+            i = self._idx_da_id(d, int(params.get("vecchio_idx", ["0"])[0]), params.get("vecchio_sid", [""])[0])
+            v = self.spese[d][i] if i is not None else None
+            if v is not None and _voce_bloccata(v):
+                imp = float(params.get("importo", ["0"])[0])
+                tipo = params.get("tipo", ["Uscita"])[0]
+                if abs(imp - float(campo(v, "importo", 0))) > 0.004 or tipo != campo(v, "tipo", ""):
+                    msg = "Importo e tipo di una quota o di un rientro del Pool non si modificano: seguono il contributo registrato nel Pool."
+        except Exception:
+            pass
+        if msg:
+            raise ValueError(msg)
+        return _orig_web(self, params)
+    GestioneSpese.salva_modifica_voce = salva_modifica_voce

@@ -296,6 +296,23 @@ def _crea_flask_app(self):
             pass
         return resp
 
+    _CSS_NO_SPIN = ('<style id="__nospin__">input[type=number]{-moz-appearance:textfield;appearance:textfield}'
+                    'input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button'
+                    '{-webkit-appearance:none;margin:0}</style>')
+
+    @flask_app.after_request
+    def _inietta_no_spin(resp):
+        try:
+            if (request.method == "GET" and resp.status_code == 200 and resp.mimetype == "text/html"
+                    and not resp.direct_passthrough):
+                corpo = resp.get_data(as_text=True)
+                if "</head>" in corpo and "__nospin__" not in corpo:
+                    i = corpo.find("</head>")
+                    resp.set_data(corpo[:i] + _CSS_NO_SPIN + corpo[i:])
+        except Exception:
+            pass
+        return resp
+
     def richiede_login(f):
         from functools import wraps
         @wraps(f)
@@ -970,6 +987,7 @@ def _crea_flask_app(self):
                 '<body style="background:#050505;color:#e05a5a;font-family:sans-serif;padding:2rem;">'
                 f'⚠️ {e}<br><br><a style="color:#ccc" href="{dest}">Torna indietro</a></body></html>', 409)
         tk_app.save_db()
+        tk_app.after(0, tk_app._sync_fairshare_e_aggiorna)
         aggiorna_ui()
         tk_app.refresh_portafoglio_web()
         return redirect(destinazione, code=303)

@@ -84,6 +84,14 @@ def apri_cancella_spese_treeview_unica(self):
         "ricerca_rapida": ""
     }
     stato_f = {"aperta": False, "sosp": False}
+    iid_bloccati = set()
+    def _ruoli_pool():
+        try:
+            from moduli.community_pool import _carica_link
+            return {str(k): (v.get("ruolo", "") if isinstance(v, dict) else "")
+                    for k, v in _carica_link().get("voci", {}).items()}
+        except Exception:
+            return {}
     if not hasattr(self, 'selezionate_iid'):
         self.selezionate_iid = set()
     self.selezionate_iid.clear() 
@@ -120,6 +128,7 @@ def apri_cancella_spese_treeview_unica(self):
     def toggle_selection_treeview(event):
         row_id = self.spese_treeview.identify_row(event.y)
         if not row_id or row_id in ("EMPTY_MSG", "FILTER_MSG"): return
+        if row_id in iid_bloccati: return
         is_selected = row_id in self.selezionate_iid
         current_tags = list(self.spese_treeview.item(row_id, 'tags'))
         type_tag = [t for t in current_tags if t in ('entrata', 'uscita', 'futuro', 'sforato')] 
@@ -135,9 +144,19 @@ def apri_cancella_spese_treeview_unica(self):
             self.show_custom_warning("Attenzione", "Seleziona almeno una spesa da cancellare.")
             return
         num_selezionate = len(self.selezionate_iid)
+        _lk0 = getattr(self.spese_treeview, "_metodo_lookup", {}) or {}
+        _ruoli0 = _ruoli_pool()
+        n_orig_pool = sum(1 for _i in self.selezionate_iid
+                          if _ruoli0.get(str((_lk0.get(_i) or {}).get("id_spesa", ""))) == "origine")
+        _avviso_pool = (
+            f"Tra queste {n_orig_pool} " + ("è una spesa pubblicata" if n_orig_pool == 1 else "sono spese pubblicate") +
+            " nel CommunityPool: al prossimo sync " + ("verrà ritirata o chiusa" if n_orig_pool == 1 else "verranno ritirate o chiuse") +
+            " e le quote in attesa saranno rifiutate.\n\n"
+        ) if n_orig_pool else ""
         testo_messaggio = (
             f"⚠️ CONFERMA CANCELLAZIONE DEFINITIVA\n\n"
             f"Stai per cancellare {num_selezionate} elementi selezionati.\n\n"
+            f"{_avviso_pool}"
             f"ATTENZIONE: Questa azione è IRREVERSIBILE e i dati non potranno più essere recuperati.\n"
             f"Sei assolutamente sicuro di voler procedere con l'eliminazione?"
         )
@@ -205,6 +224,8 @@ def apri_cancella_spese_treeview_unica(self):
     def popola_treeview_spese():
         self.spese_treeview.delete(*self.spese_treeview.get_children())
         self.spese_treeview._metodo_lookup = {}
+        iid_bloccati.clear()
+        _ruoli_p = _ruoli_pool()
         if not self.spese:
             self.spese_treeview.insert("", "end", iid="FILTER_MSG",
                                        text="",
@@ -324,6 +345,13 @@ def apri_cancella_spese_treeview_unica(self):
                     if matches:
                         importo_formattato = f"{_app._fmt_it(float(importo))} €"
                         iid = f"{giorno_interno}_{indice}" 
+                        pool_bloccata = (
+                            _ruoli_p.get(str(campo(voce, "id_spesa", ""))) in ("quota", "rientro")
+                            or bool(campo(voce, "pool_ref", ""))
+                        )
+                        if pool_bloccata:
+                            iid_bloccati.add(iid)
+                            self.selezionate_iid.discard(iid)
                         is_selected = iid in self.selezionate_iid
                         if d and d > datetime.date.today():
                             color_tag = 'futuro'
@@ -334,10 +362,10 @@ def apri_cancella_spese_treeview_unica(self):
                                     and (d.year, d.month) == (oggi_sf.year, oggi_sf.month)
                                     and categoria in getattr(self, "_budget_sforati", set())):
                                 color_tag = 'sforato'
-                        tags = [color_tag]
+                        tags = ['bloccato'] if pool_bloccata else [color_tag]
                         if is_selected:
                             tags.append('selezionata')
-                        checkbox_text = "[X]" if is_selected else "[ ]" 
+                        checkbox_text = "[–]" if pool_bloccata else ("[X]" if is_selected else "[ ]")
                         self.spese_treeview.insert(
                             "", "end", iid=iid,
                             text=checkbox_text,
@@ -391,7 +419,7 @@ def apri_cancella_spese_treeview_unica(self):
         self.selezionate_iid.clear()
         items_to_select = []
         for iid in all_children:
-            if iid in ("EMPTY_MSG", "FILTER_MSG", "NO_DATA"):
+            if iid in ("EMPTY_MSG", "FILTER_MSG", "NO_DATA") or iid in iid_bloccati:
                 continue
             self.selezionate_iid.add(iid)
             items_to_select.append(iid)
@@ -682,6 +710,7 @@ def apri_cancella_spese_treeview_unica(self):
     self.spese_treeview.tag_configure('futuro', foreground='#E5C07B', font=('Arial', 9, 'italic'))
     self.spese_treeview.tag_configure('sforato', foreground='#C08081', font=('Arial', 9, 'bold'))
     self.spese_treeview.tag_configure('empty', foreground='gray', font=('Arial', 10, 'italic'))
+    self.spese_treeview.tag_configure('bloccato', foreground='gray', font=('Arial', 9, 'italic'))
     def vai_a_spesa_doppio_clic(event):
         iid = self.spese_treeview.identify_row(event.y)
         if not iid or iid in ("EMPTY_MSG", "FILTER_MSG"): return

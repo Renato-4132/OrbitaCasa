@@ -1541,6 +1541,27 @@ def modifica_voce_form(self, params):
         for m in METODI_PAGAMENTO
     )
     _tag_corrente = " ".join(campo(voce, "hashtag", []) or [])
+    try:
+        from moduli.community_pool import _voce_bloccata
+        _bloccata_pool = _voce_bloccata(voce)
+    except Exception:
+        _bloccata_pool = False
+    _ro_importo = ' readonly style="opacity:.6"' if _bloccata_pool else ''
+    _dis_tipo = ' disabled style="opacity:.6"' if _bloccata_pool else ''
+    _name_tipo = '' if _bloccata_pool else 'name="tipo"'
+    _hid_tipo = f'<input type="hidden" name="tipo" value="{html.escape(str(tipo))}">' if _bloccata_pool else ''
+    _nota_pool = '<div style="color:#c9a84c;font-size:.8em;margin:-4px 0 10px">🔒 Importo e tipo di una voce del Pool non si modificano.</div>' if _bloccata_pool else ''
+    _nota_ric = ''
+    try:
+        _rid = voce[4] if len(voce) == 5 else None
+        _ric = self.ricorrenze.get(_rid) if _rid else None
+        if _ric:
+            _nota_ric = ('<div style="color:#c9a84c;font-size:.85em;margin-bottom:12px;line-height:1.4">'
+                         f'🔁 Voce ricorrente: {html.escape(str(_ric["tipo"]))} x{html.escape(str(_ric["n"]))} '
+                         f'da {html.escape(str(_ric["data_inizio"]))}. Stai modificando solo questa occorrenza. '
+                         'La ricorrenza intera si gestisce dal pannello Ricorrenze.</div>')
+    except Exception:
+        _nota_ric = ''
     return f"""<!DOCTYPE html>
 <html>
 <head>
@@ -1645,6 +1666,7 @@ def modifica_voce_form(self, params):
 <div class="card">
     <div class="card-head">✏️ Modifica Voce</div>
     <div class="card-body">
+        {_nota_ric}
         <form method="post" action="/salva_modifica">
             <input type="hidden" name="vecchia_data" value="{data_str}">
             <input type="hidden" name="vecchio_idx" value="{idx}">
@@ -1658,7 +1680,8 @@ def modifica_voce_form(self, params):
                 </div>
                 <div class="form-group">
                     <label>Tipo</label>
-                    <select name="tipo">
+                    {_hid_tipo}
+                    <select {_name_tipo}{_dis_tipo}>
                         <option value="Entrata" {"selected" if tipo == "Entrata" else ""}>Entrata</option>
                         <option value="Uscita"  {"selected" if tipo != "Entrata" else ""}>Uscita</option>
                     </select>
@@ -1677,7 +1700,8 @@ def modifica_voce_form(self, params):
 
             <div class="form-group">
                 <label>Importo (€)</label>
-                <input name="importo" type="number" step="0.01" value="{importo}" required>
+                <input name="importo" type="number" step="0.01" value="{importo}" required{_ro_importo}>
+                {_nota_pool}
             </div>
 
             <div class="form-group" id="conto_group_mod" style="display:{mostra_conto_mod}">
