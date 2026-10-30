@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import re
 import json
 import random
 import calendar
@@ -60,6 +61,59 @@ def _elimina_documenti_allegati(voci, registry_file, doc_dir):
         with open(registry_file, "w", encoding="utf-8") as f:
             json.dump(reg, f, indent=4, ensure_ascii=False)
     return eliminati
+
+
+def _sincronizza_documenti_allegati(cambi, registry_file, doc_dir):
+    if not cambi or not os.path.exists(registry_file):
+        return 0
+    with open(registry_file, "r", encoding="utf-8") as f:
+        reg = json.load(f)
+
+    def _san(s, n):
+        s = re.sub(r"[^\w\.-]", "", str(s).strip().replace(" ", "_"))
+        return s[:n].upper()
+
+    aggiornati = 0
+    for giorno, voce_old, voce_new in cambi:
+        d = _data_giorno_doc(giorno)
+        if d is None:
+            continue
+        o_s = d.strftime("%d%m%Y")
+        o_i = str(int(round(float(campo(voce_old, "importo", 0.0)) * 100)))
+        o_t = campo(voce_old, "tipo", "")
+        desc = str(campo(voce_old, "descrizione", "")).strip()
+        candidati = [k for k in reg if k.startswith(o_s) and o_i in k and o_t in k]
+        if not candidati:
+            continue
+        scelto = next((k for k in candidati
+                       if isinstance(reg[k], dict) and str(reg[k].get("descrizione_esatta", "")).strip() == desc),
+                      candidati[0])
+        val = reg[scelto]
+        if not isinstance(val, dict):
+            continue
+        cat_new = campo(voce_new, "categoria", "")
+        tipo_new = campo(voce_new, "tipo", "")
+        d_p = str(val.get("descrizione_esatta", desc)).replace("ALL·", "").strip()
+        nuovo = f"{o_s}_{_san(d_p, 30)}_{tipo_new}_{_san(cat_new, 20)}_{o_i}.pdf"
+        if nuovo != scelto:
+            vecchio_p = os.path.join(doc_dir, scelto)
+            nuovo_p = os.path.join(doc_dir, nuovo)
+            if nuovo in reg or os.path.exists(nuovo_p):
+                continue
+            try:
+                if os.path.exists(vecchio_p):
+                    os.rename(vecchio_p, nuovo_p)
+            except OSError as e:
+                print(f"Documento non rinominato ({scelto}): {e}")
+                continue
+            reg.pop(scelto, None)
+        val.update({"categoria_esatta": cat_new, "tipo_esatto": tipo_new})
+        reg[nuovo] = val
+        aggiornati += 1
+    if aggiornati:
+        with open(registry_file, "w", encoding="utf-8") as f:
+            json.dump(reg, f, indent=4, ensure_ascii=False)
+    return aggiornati
 
 
 def _chiedi_ed_elimina_documenti(self, voci):
@@ -1467,7 +1521,7 @@ def _nuovi_tag(attuali, tag):
     return risultato
 
 def applica_modifiche_voci(spese, ids, categoria=None, adegua_tipo=False, categorie_tipi=None,
-                           metodo=None, conto=None, tag=None, tipo=None):
+                           metodo=None, conto=None, tag=None, tipo=None, cambi_allegati=None, cambi_piani=None):
     tag = list(tag or [])
     modificate = 0
     tipo_cambiato = 0
@@ -1494,7 +1548,15 @@ def applica_modifiche_voci(spese, ids, categoria=None, adegua_tipo=False, catego
                 if nuovi != list(voce.hashtag):
                     kw["hashtag"] = nuovi
             if kw:
-                lista[i] = voce.sostituisci(**kw)
+                nuova_voce = voce.sostituisci(**kw)
+                lista[i] = nuova_voce
+                if cambi_piani is not None:
+                    _kp = {k: kw[k] for k in ("categoria", "conto", "metodo_pagamento", "hashtag") if k in kw}
+                    if _kp:
+                        cambi_piani[str(voce.id_spesa)] = _kp
+                if cambi_allegati is not None and ("categoria" in kw or "tipo" in kw) \
+                        and "ALL·" in str(voce.descrizione):
+                    cambi_allegati.append((giorno, voce, nuova_voce))
                 modificate += 1
                 if "tipo" in kw:
                     tipo_cambiato += 1
@@ -1995,10 +2057,22 @@ def costruisci_sposta_voci(self, parent, categoria=None, su_chiudi=None):
         righe += ["", "Procedere?"]
         if not self.show_custom_askyesno("Conferma modifica", "\n".join(righe)):
             return
+        cambi_all = []
+        cambi_piani = {}
         modificate, tipo_cambiato = applica_modifiche_voci(
             self.spese, set(sel_ids), categoria=categoria_new, adegua_tipo=v_adegua.get() and tipo_new is None,
             categorie_tipi=self.categorie_tipi, metodo=metodo_new, conto=conto_new,
-            tag=tag_new, tipo=tipo_new)
+            tag=tag_new, tipo=tipo_new, cambi_allegati=cambi_all, cambi_piani=cambi_piani)
+        if cambi_all:
+            try:
+                _sincronizza_documenti_allegati(cambi_all, _app.REGISTRY_FILE, _app.DOC_DIR)
+            except Exception as e:
+                self.show_custom_warning("Errore", f"Registro non aggiornato: {e}")
+        if cambi_piani:
+            for _p in (getattr(self, "pianificate", None) or {}).get("piani", []):
+                _kp = cambi_piani.get(str(_p.get("id_spesa_collegata")))
+                if _kp:
+                    _p.update(_kp)
         sel_ids.clear()
         if hasattr(self, "_cache_tutti_tag"):
             del self._cache_tutti_tag
