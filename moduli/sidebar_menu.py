@@ -373,8 +373,6 @@ def contrai_sidebar_manuale(self):
     self.sidebar_espansa = False
     if hasattr(self, 'lbl_logo_testo'):
         self.lbl_logo_testo.pack_forget()
-    if hasattr(self, 'lbl_tipo_percentuale'): 
-        self.lbl_tipo_percentuale.pack(side=tk.LEFT, padx=4)
     if hasattr(self, '_search_entry'):
         self._search_entry.pack_forget()
     if hasattr(self, '_search_results_frame'):
@@ -383,16 +381,6 @@ def contrai_sidebar_manuale(self):
             w.destroy()
     if hasattr(self, '_search_var'):
         self._search_var.set("")
-    for btn, testo in [
-        (self.btn_oggi_stats, " Oggi"),
-        (self.btn_giorno, " Giorno"),
-        (self.btn_mese, " Mese"),
-        (self.btn_anno, " Anno"),
-        (self.btn_totali, " Totali"),
-        (self.btn_importa_popup, "Import IA"),
-        (self.btn_chiedi_ia_popup, "Chiedi IA"),
-    ]:
-        btn.configure(text=testo)
     self._ricerca_globale_var.set("")
     self.ricerca_globale_entry.pack_forget()
     _adatta_sidebar_differito(self)
@@ -683,8 +671,6 @@ def espandi_sidebar(self):
     if hasattr(self, 'lbl_logo_testo'):
         self.lbl_logo_testo.pack(side="left", padx=(0, 6))
 
-    if hasattr(self, 'lbl_tipo_percentuale'): 
-        self.lbl_tipo_percentuale.pack_forget()
     if hasattr(self, '_search_entry'):
         self._search_entry.pack(after=self.lbl_logo_container, fill="x", padx=6, pady=(2, 4))
     if hasattr(self, '_search_results_frame'):
@@ -692,8 +678,6 @@ def espandi_sidebar(self):
     if hasattr(self, '_search_var'):
         self._search_var.set("")
     self.after(100, lambda: self._search_entry.focus_set() if hasattr(self, '_search_entry') else None)
-    for btn, testo in [(self.btn_oggi_stats, " Oggi"), (self.btn_giorno, " Giorno"), (self.btn_mese, " Mese"), (self.btn_anno, " Anno"), (self.btn_totali, " Totali"), (self.btn_importa_popup, "Import IA"), (self.btn_chiedi_ia_popup, "Chiedi IA")]:
-        btn.configure(text="")
     _adatta_sidebar_differito(self)
             
 def _add_m_item(self, target, label, icon_key, command, acc=""): 
