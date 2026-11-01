@@ -198,6 +198,7 @@ SEZIONI = [
             V("Analisi Categorie",              "timer",     "analisi_categorie"),
         ]),
         ("Modifica", [
+            V("Suggerisci Categorie",           "filtri",    "apri_categorie_suggerite"),
             V("Gestione Categorie",             "filtri",    "mostra_categorie_popup"),
             V("Editor Categorie",               "documenti", "apri_gestione_categorie"),
             V("Editor Categorie Estratti",      "filtri",    "mostra_editor_memoria_categorie", alias=("Editor Memoria Categorie",)),
