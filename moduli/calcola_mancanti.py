@@ -431,12 +431,14 @@ def calcola_mancanti(self):
                   lambda e: analizza_annuali() if notebook.index("current") == 1 else None)
     popup.deiconify()
 
-def get_lista_categorie_mancanti(self):
+def get_lista_categorie_mancanti(self, year=None, month=None):
     import __main__ as _app
     SOGLIA_CHECKOUT = _app.SOGLIA_CHECKOUT
 
     from datetime import datetime
     oggi = datetime.today().date()
+    if year is not None and month is not None:
+        oggi = oggi.replace(year=int(year), month=int(month), day=1)
     def converti_data(d):
         if isinstance(d, str):
             try:
