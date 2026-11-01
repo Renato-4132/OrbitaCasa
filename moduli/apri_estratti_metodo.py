@@ -32,7 +32,7 @@ def apri_estratti_metodo(self, metodo=None, mese=None, anno=None, conto=None):
     win.title("Estratti per Metodo di Pagamento e Conti")
     win.withdraw()
     self.update_idletasks()
-    w, h = 1300, 620
+    w, h = 1366, 620
     x = self.winfo_rootx() + (self.winfo_width() // 2) - (w // 2)
     y = self.winfo_rooty() + (self.winfo_height() // 2) - (h // 2)
     win.geometry(f"{w}x{h}+{x}+{y}")
