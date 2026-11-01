@@ -189,7 +189,7 @@ def _mostra_popup_changelog(self, changelog_text):
     btn_chiudi_win.image = img_chiudi_win
     btn_chiudi_win.pack(side="left", padx=5)
     btn_chiudi_win.bind("<Button-1>", lambda e: win.destroy())
-    w, h = 1000, 480
+    w, h = 1366, 630
     x = (self.winfo_screenwidth() // 2) - (w // 2)
     y = (self.winfo_screenheight() // 2) - (h // 2)
     win.geometry(f"{w}x{h}+{x}+{y}")
