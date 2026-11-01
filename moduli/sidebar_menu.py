@@ -379,12 +379,6 @@ def contrai_sidebar_manuale(self):
         self._search_results_frame.pack_forget()
         for w in self._search_results_frame.winfo_children():
             w.destroy()
-    if hasattr(self, '_search_var'):
-        self._search_var.set("")
-    self._ricerca_globale_var.set("")
-    self.ricerca_globale_entry.pack_forget()
-    _adatta_sidebar_differito(self)
-
 
 def _chiudi_overlay_ricerca(self):
     ov = getattr(self, "_search_overlay", None)
