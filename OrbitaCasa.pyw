@@ -2118,13 +2118,16 @@ class GestioneSpese(tk.Tk):
         self.after(550, lambda: self._controlla_sforamento_budget_annuo(mostra_toast=False))
         self.after(600, self.aggiorna_streak_gamification)
 
-    def aggiorna_vista_ricorrenti(self, includi_futuri=False):
+    def aggiorna_vista_ricorrenti(self, includi_futuri=False, year=None, month=None):
         from datetime import datetime
         oggi = datetime.today().date()
+        _oggi_reale = oggi
+        if year is not None and month is not None:
+            oggi = oggi.replace(year=int(year), month=int(month), day=1)
         for i in self.tree_ricorrenti.get_children():
             self.tree_ricorrenti.delete(i)
         self.tree_ricorrenti._metodo_lookup = {}
-        mancanti = self.get_lista_categorie_mancanti()
+        mancanti = self.get_lista_categorie_mancanti(year, month)
         for cat in mancanti:
             importi = []
             date_occ = []
@@ -2140,7 +2143,7 @@ class GestioneSpese(tk.Tk):
                 diff_mesi = (oggi.year - dd.year) * 12 + (oggi.month - dd.month)
                 if diff_mesi < 1 or diff_mesi > 12:
                     continue
-                if not includi_futuri and dd > oggi:
+                if not includi_futuri and dd > _oggi_reale:
                     continue
                 for voce in sp:
                     if len(voce) > 2 and str(voce[0]).strip().title() == cat:
@@ -4154,7 +4157,7 @@ class GestioneSpese(tk.Tk):
         self.after(100, self.draw_heatmap_mese)
         self.after(100, self.draw_estratto_metodo)
         self.after(100, self.draw_estratto_conto)
-        self.after(100, lambda: self.aggiorna_vista_ricorrenti(self.considera_ricorrenze_var.get()))
+        self.after(100, lambda: self.aggiorna_vista_ricorrenti(self.considera_ricorrenze_var.get(), year, month))
         
 
     # Applicazione Filtro Mese/Anno (Estratto Conto) e Aggiornamento Viste Statistiche
@@ -6326,7 +6329,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "3d52055302ef33a0413b644b43e5c7bd0d406524ef8d702f767a1433446fc0e5"
+        E_H_B = "34f03728f19c70cc3caa476f14f6147c429616e97e6931c5e16dbcbbfb4235f0"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
