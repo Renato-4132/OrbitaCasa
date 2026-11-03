@@ -1951,14 +1951,15 @@ def analizza_pdf_web(self, pdf_bytes, filename_originale="documento.pdf"):
     }
     with open(REGISTRY_FILE, 'w', encoding='utf-8') as rf:
         json.dump(registry, rf, indent=4, ensure_ascii=False)
-    self.spese.setdefault(data_oggi, []).append(SpesaEntry.nuova(categoria, desc_spesa, importo, direzione))
+    nuova_voce = SpesaEntry.nuova(categoria, desc_spesa, importo, direzione)
+    self.spese.setdefault(data_oggi, []).append(nuova_voce)
     self.save_db()
     self.after(0, self.refresh_gui)
     with open(LOG_IMPORTAZIONI, "a", encoding="utf-8") as log:
         log.write(
             f"{datetime.now().strftime('%d/%m/%Y %H:%M'):<17} | {'WEB-PDF':<8} | "
             f"{data_oggi.strftime('%d/%m/%Y'):<10} | {desc_spesa:<50} | "
-            f"{_app._fmt_it(abs(importo)):>10} € | {direzione:<7} | {categoria}\n"
+            f"{_app._fmt_it(abs(importo)):>10} € | {direzione:<7} | {categoria} | — | {nuova_voce.id_spesa}\n"
         )
     return {
         "ok":        True,

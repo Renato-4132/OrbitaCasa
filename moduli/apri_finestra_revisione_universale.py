@@ -347,7 +347,10 @@ def apri_finestra_revisione_universale(self, movimenti):
                         f"{_app._fmt_it(abs(importo)):>10} € | "
                         f"{direzione:<7} | "
                         f"{cat} | "
-                        f"{conto_log}\n"
+                        f"{conto_log} | "
+                        f"{voce.id_spesa} | "
+                        f"{metodo_voce or '—'} | "
+                        f"{' '.join(tag_lista) or '—'}\n"
                     )
             except Exception as e:
                 print(f"Errore log importazione: {e}")

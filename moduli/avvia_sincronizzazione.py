@@ -204,10 +204,14 @@ def _avvia_sincronizzazione_interna(self, manuale=False, mostra_popup=False):
     elaborate = _carica_elaborate(file_elaborate)
     giorni_conserva = max(90, opz["giorni_indietro"] * 2)
 
-    def _log_riga(tipo_log, data_mov, desc, importo, direzione, categoria):
+    def _log_riga(tipo_log, data_mov, desc, importo, direzione, categoria, voce=None):
+        conto = getattr(voce, "conto", "") or "—"
+        id_spesa = getattr(voce, "id_spesa", "")
+        metodo = getattr(voce, "metodo_pagamento", "") or "—"
+        tag = " ".join(getattr(voce, "hashtag", []) or []) or "—"
         try:
             with open(LOG_IMPORTAZIONI, "a", encoding="utf-8") as log:
-                log.write(f"{datetime.now().strftime('%d/%m/%Y %H:%M'):<17} | {tipo_log:<8} | {data_mov.strftime('%d/%m/%Y'):<10} | {desc:<50} | {_app._fmt_it(abs(importo)):>10} € | {direzione:<7} | {categoria}\n")
+                log.write(f"{datetime.now().strftime('%d/%m/%Y %H:%M'):<17} | {tipo_log:<8} | {data_mov.strftime('%d/%m/%Y'):<10} | {desc:<50} | {_app._fmt_it(abs(importo)):>10} € | {direzione:<7} | {categoria} | {conto} | {id_spesa} | {metodo} | {tag}\n")
         except Exception as e_log:
             print(f"Log importazioni non scritto: {e_log}")
 
@@ -479,11 +483,12 @@ def _avvia_sincronizzazione_interna(self, manuale=False, mostra_popup=False):
                                                 esiste_mov = True
                                                 break
                                     if not esiste_mov:
-                                        self.spese.setdefault(data_mov, []).append(SpesaEntry.nuova(
+                                        nuova_voce = SpesaEntry.nuova(
                                             cat, "🤖 " + d["desc"], abs(importo_mov), tipo,
-                                            conto=conto_estr, metodo_pagamento=metodo_estr, hashtag=list(tag_estr)))
+                                            conto=conto_estr, metodo_pagamento=metodo_estr, hashtag=list(tag_estr))
+                                        self.spese.setdefault(data_mov, []).append(nuova_voce)
                                         self.operazioni_scaricate_sessione += 1
-                                        _log_riga("ESTRATTO", data_mov, d["desc"], importo_mov, tipo, cat)
+                                        _log_riga("ESTRATTO", data_mov, d["desc"], importo_mov, tipo, cat, nuova_voce)
                                 except Exception as _e_mov:
                                     print(f"Movimento estratto scartato (dati incompleti): {_e_mov}")
                                     continue
@@ -557,12 +562,13 @@ def _avvia_sincronizzazione_interna(self, manuale=False, mostra_popup=False):
                         if not esiste:
                             _assicura_categoria(categoria, direzione)
                             desc_spesa = f"ALL· {desc}" if pdf_data else desc
-                            self.spese.setdefault(data_dt, []).append(SpesaEntry.nuova(
+                            nuova_voce = SpesaEntry.nuova(
                                 categoria, desc_spesa, abs(importo), direzione,
                                 conto=regola.get("conto", ""), metodo_pagamento=regola.get("metodo", ""),
-                                hashtag=_tags_regola(regola)))
+                                hashtag=_tags_regola(regola))
+                            self.spese.setdefault(data_dt, []).append(nuova_voce)
                             self.operazioni_scaricate_sessione += 1
-                            _log_riga("MAIL", data_dt, desc_spesa, importo, direzione, categoria)
+                            _log_riga("MAIL", data_dt, desc_spesa, importo, direzione, categoria, nuova_voce)
                             if pdf_data:
                                 azienda_safe = re.sub(r'[\\/*?:"<>|]', "-", azienda).strip()
                                 fattura_safe = re.sub(r'[\\/*?:"<>|]', "-", str(dati.get('fattura') or 'mancante')).strip()
