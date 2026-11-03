@@ -479,12 +479,12 @@ def _avvia_sincronizzazione_interna(self, manuale=False, mostra_popup=False):
                                     esiste_mov = False
                                     if opz["controllo_doppioni"]:
                                         for s in self.spese.get(data_mov, []):
-                                            if s[1] in (d["desc"], "🤖 " + d["desc"]) and abs(s[2] - abs(importo_mov)) < 0.01:
+                                            if s[1] == d["desc"] and abs(s[2] - abs(importo_mov)) < 0.01:
                                                 esiste_mov = True
                                                 break
                                     if not esiste_mov:
                                         nuova_voce = SpesaEntry.nuova(
-                                            cat, "🤖 " + d["desc"], abs(importo_mov), tipo,
+                                            cat, d["desc"], abs(importo_mov), tipo,
                                             conto=conto_estr, metodo_pagamento=metodo_estr, hashtag=list(tag_estr))
                                         self.spese.setdefault(data_mov, []).append(nuova_voce)
                                         self.operazioni_scaricate_sessione += 1
@@ -517,7 +517,7 @@ def _avvia_sincronizzazione_interna(self, manuale=False, mostra_popup=False):
                         REGOLE: 
                         1. Se non trovi l'importo, scrivi 0.01. 
                         2. Determina Entrata/Uscita. 
-                        3. Il campo "azienda" deve contenere SOLO il nome, senza icone, emoji o prefissi tipo '🤖'."""
+                        3. Il campo "azienda" deve contenere SOLO il nome, senza icone o emoji."""
                         response = client.models.generate_content(
                             model=GEMINI,
                             contents=[prompt, f"Oggetto: {oggetto}\nCorpo: {corpo}"] + 
