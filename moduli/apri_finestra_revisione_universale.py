@@ -213,6 +213,7 @@ def apri_finestra_revisione_universale(self, movimenti):
         entry_tag.grid(row=0, column=6, padx=4, sticky="ew")
         combo_metodo = ttk.Combobox(riga, values=[""] + METODI_PAGAMENTO,
                                     state="readonly", width=10, style="Border.TCombobox")
+        combo_metodo.set(mov.get("metodo", ""))
         combo_metodo.grid(row=0, column=7, padx=4, sticky="ew")
         righe.append((mov, var_check, var_data, var_desc, var_imp, entry_data, combo, combo_conto, var_tag, combo_metodo))
         riga_frames.append(riga)

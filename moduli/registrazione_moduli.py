@@ -325,6 +325,9 @@ def registra_tutti_i_moduli(GestioneSpese):
     
     from moduli.apri_finestra_revisione_universale import apri_finestra_revisione_universale
     _registra(apri_finestra_revisione_universale)
+
+    from moduli.riconciliazione import apri_riconciliazione, apri_controllo_estratto
+    _registra(apri_riconciliazione, apri_controllo_estratto)
     
     from moduli.analisi_categorie import analisi_categorie
     _registra(analisi_categorie)

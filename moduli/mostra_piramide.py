@@ -120,6 +120,7 @@ def mostra_piramide(self):
                     ("Ricerca",      "Cerca tra tutte le operazioni", _g("cerca_operazioni")),
                     ("Tag",          "Tag delle operazioni",          _g("apri_gestione_tag")),
                     ("Confronta",    "Analisi comparativa",           _g("open_compare_window")),
+                    ("Controllo",    "Riconcilia estratto",           _g("apri_controllo_estratto")),
                 ],
             },
             {
@@ -139,6 +140,7 @@ def mostra_piramide(self):
                     ("Andamento",     "Grafico proiezioni",  _g("apri_andamento_risparmio")),
                     ("Fairshare",     "Dare e avere",        _g("mostra_dare_avere")),
                     ("Ricorrenze",    "Crea/modifica",       _g("mostra_ricorrenza_popup")),
+                    ("Fondo Pens.",   "Previdenza e proiezioni",       _g("apri_fondo_pensione")),
                 ],
             },
             {

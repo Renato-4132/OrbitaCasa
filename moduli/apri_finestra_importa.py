@@ -33,7 +33,7 @@ def _estrai_json(raw):
         raise
 
 # Importazione universale IA: invia CSV o PDF a Gemini che estrae i movimenti e apre la finestra di revisione
-def apri_finestra_importa(self, path=None):
+def apri_finestra_importa(self, path=None, solo_controllo=False):
     import __main__ as _app
     API_KEY = _app.API_KEY
     GEMINI = _app.GEMINI
@@ -105,7 +105,10 @@ def apri_finestra_importa(self, path=None):
             pass
     def _apri_revisione(movimenti):
         try:
-            self.apri_finestra_revisione_universale(movimenti)
+            if solo_controllo:
+                self.apri_riconciliazione(movimenti)
+            else:
+                self.apri_finestra_revisione_universale(movimenti)
         except Exception as e_rev:
             self.show_custom_warning("Errore", f"Impossibile aprire la revisione:\n{str(e_rev)[:200]}")
     def elabora_ia():

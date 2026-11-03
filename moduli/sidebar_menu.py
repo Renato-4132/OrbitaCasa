@@ -165,6 +165,7 @@ SEZIONI = [
             V("Bilancio Grafico PDF",           "grafico_linea","genera_report_pdf"),
             V("Analisi e Bilanci",              "report",       "popup_scelta_estratto"),
             V("Estratti per Metodo e Conti",    "ccv",          "apri_estratti_metodo"),
+            V("Controllo Estratto Conto",       "check",        "apri_controllo_estratto", alias=("Riconciliazione", "Controllo Estratto")),
         ]),
         ("Ricerca e confronti", [
             V("Ricerca Globale",                "search",       "cerca_operazioni"),
