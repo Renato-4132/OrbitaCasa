@@ -1541,10 +1541,23 @@ class GestioneSpese(tk.Tk):
         self.btn_importa_popup.pack(side="left", padx=6)
         self.btn_importa_popup.bind("<ButtonRelease-1>", lambda e: self.apri_finestra_importa())
         add_tt(self.btn_importa_popup, "Importa dati tramite IA")
+        self.btn_controlla_estratto = ttk.Label(
+            data_frame,
+            text="Riconcilia",
+            image=self.icone_gui.get("carica"),
+            compound="left",
+            cursor="hand2",
+            font=("Arial", 9, "bold"),
+            background=self.COLOR_WIDGET_BG,
+            foreground=self.COLOR_GREEN
+        )
+        self.btn_controlla_estratto.pack(side="left", padx=6)
+        self.btn_controlla_estratto.bind("<ButtonRelease-1>", lambda e: self.apri_controllo_estratto())
+        add_tt(self.btn_controlla_estratto, "Confronta un estratto conto della banca con i movimenti nel database")
         self.btn_chiedi_ia_popup = ttk.Label(
             data_frame,
             text="Chiedi IA",
-            image=self.icone_gui.get("ia") or self.icone_gui.get("report"),
+            image=self.icone_gui.get("sparkles"),
             compound="left",
             cursor="hand2",
             font=("Arial", 9, "bold"),
@@ -6329,7 +6342,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "34f03728f19c70cc3caa476f14f6147c429616e97e6931c5e16dbcbbfb4235f0"
+        E_H_B = "175ae3ed98778ef827450cf680d761bbfa9850655188ec726e3cdf3dc7574c85"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
