@@ -145,7 +145,8 @@ def _fmt(v):
 
 def apri_riconciliazione(self, movimenti):
     import tkinter as tk
-    from tkinter import ttk
+    from tkinter import ttk, filedialog
+    import __main__ as _app
     righe = [m for m in movimenti if m.get("data") and m.get("importo") is not None]
     if not righe:
         self.show_custom_warning("Controllo estratto", "Nessuna riga utilizzabile nell'estratto.")
@@ -207,7 +208,7 @@ def apri_riconciliazione(self, movimenti):
                        ("tag", "Tag", 100, "w"),
                        ("db", "Corrispondenza nel database", 320, "w")):
         tree.heading(c, text=t)
-        tree.column(c, width=w, anchor=a)
+        tree.column(c, width=w, minwidth=w, anchor=a, stretch=(c == "db"))
     vsb = ttk.Scrollbar(frm, orient="vertical", command=tree.yview)
     tree.configure(yscrollcommand=vsb.set)
     tree.pack(side="left", fill="both", expand=True)
@@ -323,9 +324,9 @@ def apri_riconciliazione(self, movimenti):
                        ("tag", "Tag", 100, "w"),
                        ("db", "Corrispondenza nel database", 320, "w")):
         tree.heading(c, text=t, command=lambda _c=c: sort_by_column(tree, _c, False))
-        tree.column(c, width=w, anchor=a)
+        tree.column(c, width=w, minwidth=w, anchor=a, stretch=(c == "db"))
         
-    stato = {"mancanti": []}
+    stato = {"mancanti": [], "testata": []}
 
     def ricalcola(*_):
         conto = var_conto.get()
@@ -403,11 +404,150 @@ def apri_riconciliazione(self, movimenti):
                                  f"= differenza {_fmt(q['differenza'])} €")
         else:
             lbl_quad.config(text="")
+        testata = [f"Estratto di: {var_metodo.get()} | Conto: {var_conto.get()} | "
+                   f"Tolleranza: {g}g | Mostra: {var_filtro.get()}",
+                   f"Estratto: {len(righe)} righe | {len(ok)} riconciliate | "
+                   f"{len(mancanti)} mancanti ({_fmt(tot_manc)} €) | "
+                   f"{len(in_piu)} in più nel DB ({_fmt(tot_piu)} €)"]
+        if es["addebiti_carta"]:
+            testata[1] += f" | {len(es['addebiti_carta'])} addebiti carta"
+        if es["quadratura"]:
+            testata.append(lbl_quad.cget("text"))
+        stato["testata"] = testata
 
     cb_conto.bind("<<ComboboxSelected>>", ricalcola)
     cb_f.bind("<<ComboboxSelected>>", ricalcola)
     cb_met.bind("<<ComboboxSelected>>", ricalcola)
     sp.bind("<<ComboboxSelected>>", ricalcola)
+
+    def _righe_allineate():
+        dati = [[str(x) for x in tree.item(i, "values")] for i in tree.get_children()]
+        if not dati:
+            return []
+        max_c = {"descrizione": 32, "conto": 14, "metodo": 12, "tag": 16, "db": 38}
+        def tronca(t, n):
+            return t if len(t) <= n else t[:n - 1] + "…"
+        dati = [[tronca(x, max_c.get(cols[k], 99)) for k, x in enumerate(d)] for d in dati]
+        facoltative = ("conto", "metodo", "tag")
+        usa = [k for k, c in enumerate(cols)
+               if not (c in facoltative and all(d[k] in ("", "—") for d in dati))]
+        larg = {k: max(len(col_labels[cols[k]]), *(len(d[k]) for d in dati)) for k in usa}
+        def cella(v, k):
+            return v[k].rjust(larg[k]) if cols[k] == "importo" else v[k].ljust(larg[k])
+        def fmt(v):
+            return " | ".join(cella(v, k) for k in usa).rstrip()
+        return [fmt([col_labels[c] for c in cols]), "-+-".join("-" * larg[k] for k in usa)] + [fmt(d) for d in dati]
+
+    def _crea_pdf(dest, lines):
+        import pymupdf as fitz
+        doc = fitz.open()
+        page_w, page_h, margin = 842, 595, 30
+        max_len = max((len(l) for l in lines), default=1)
+        font_size = max(4, min(7, (page_w - 2 * margin) / (max_len * 0.6)))
+        line_height = font_size + 2
+        page = doc.new_page(width=page_w, height=page_h)
+        y = margin
+        for line in lines:
+            if y > (page_h - margin):
+                page = doc.new_page(width=page_w, height=page_h)
+                y = margin
+            page.insert_text((margin, y), line, fontname="cour", fontsize=font_size)
+            y += line_height
+        doc.save(dest)
+        doc.close()
+
+    def anteprima_esporta():
+        EXPORT_FILES = _app.EXPORT_FILES
+        if hasattr(anteprima_esporta, '_win') and anteprima_esporta._win.winfo_exists():
+            anteprima_esporta._win.lift()
+            anteprima_esporta._win.focus_force()
+            return
+        lines = _righe_allineate()
+        if not lines:
+            self.show_custom_warning("Errore", "Nessun dato da esportare.")
+            return
+        now = datetime.datetime.now()
+        import textwrap
+        w_tab = max(len(l) for l in lines)
+        testata = [r for t in stato["testata"] if t for r in textwrap.wrap(t, width=max(w_tab, 60))]
+        testo = (f"CONTROLLO ESTRATTO CONTO - {now.strftime('%d/%m/%Y %H:%M')}\n\n"
+                 + "\n".join(testata) + "\n\n"
+                 + "\n".join(lines) + "\n")
+        nome_base = f"Controllo_Estratto_{now.day:02d}-{now.month:02d}-{now.year}"
+        prev_win = tk.Toplevel(win, bg=self.COLOR_TOPLEVEL)
+        anteprima_esporta._win = prev_win
+        prev_win.withdraw()
+        prev_win.title("Esportazione Controllo Estratto")
+        prev_win.bind("<Escape>", lambda e: prev_win.destroy())
+        prev_win.transient(win)
+        def centra_prev():
+            if not prev_win.winfo_exists():
+                return
+            w_a, h_a = 1100, 600
+            x = win.winfo_rootx() + (win.winfo_width() // 2) - (w_a // 2)
+            y = win.winfo_rooty() + (win.winfo_height() // 2) - (h_a // 2)
+            prev_win.geometry(f"{w_a}x{h_a}+{x}+{y}")
+            prev_win.minsize(w_a, h_a)
+            prev_win.deiconify()
+        prev_win.after(0, centra_prev)
+        def do_pdf():
+            f_path = filedialog.asksaveasfilename(
+                defaultextension=".pdf", filetypes=[("PDF", "*.pdf")],
+                initialdir=EXPORT_FILES, initialfile=nome_base + ".pdf",
+                confirmoverwrite=False, parent=prev_win)
+            if f_path:
+                try:
+                    _crea_pdf(f_path, [l.replace("→", "->") for l in testo.split("\n")])
+                    self.show_toast("PDF salvato.")
+                except Exception as ex:
+                    self.show_custom_warning("Errore PDF", str(ex))
+        def do_txt():
+            f_path = filedialog.asksaveasfilename(
+                defaultextension=".txt", filetypes=[("TXT", "*.txt")],
+                initialdir=EXPORT_FILES, initialfile=nome_base + ".txt",
+                confirmoverwrite=False, parent=prev_win)
+            if f_path:
+                try:
+                    with open(f_path, "w", encoding="utf-8") as fh:
+                        fh.write(testo)
+                    self.show_toast("File TXT salvato.")
+                except Exception as ex:
+                    self.show_custom_warning("Errore", f"Impossibile salvare il TXT: {ex}")
+        txt_area_frame = tk.Frame(prev_win, bg=self.COLOR_TOPLEVEL)
+        txt_area_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        v_scroll = ttk.Scrollbar(txt_area_frame, orient="vertical")
+        v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        h_scroll = ttk.Scrollbar(prev_win, orient="horizontal")
+        txt_area = tk.Text(txt_area_frame, font=("Courier New", 9),
+                           bg=self.COLOR_WHITE, fg=self.COLOR_BLACK,
+                           wrap="none",
+                           yscrollcommand=v_scroll.set,
+                           xscrollcommand=h_scroll.set)
+        txt_area.pack(fill=tk.BOTH, expand=True)
+        v_scroll.config(command=txt_area.yview)
+        h_scroll.config(command=txt_area.xview)
+        h_scroll.pack(fill=tk.X, padx=10)
+        txt_area.insert("1.0", testo)
+        txt_area.config(state="disabled")
+        bf = tk.Frame(prev_win, bg=self.COLOR_TOPLEVEL)
+        bf.pack(fill=tk.X, pady=8)
+        for lbl_txt, ico, cmd in [(" PDF", "salva", do_pdf), (" TXT", "salva", do_txt),
+                                  (" Stampa", "stampa", lambda: self._stampa_lista_diretta(
+                                      testo, self.show_custom_warning))]:
+            img = self.icone_gui.get(ico)
+            b = ttk.Label(bf, compound="left", image=img, text=lbl_txt,
+                          background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
+                          cursor="hand2", padding=(10, 5))
+            b.image = img
+            b.pack(side=tk.LEFT, padx=5)
+            b.bind("<Button-1>", lambda e, c=cmd: c())
+        img_c = self.icone_gui.get("chiudi")
+        bc = ttk.Label(bf, compound="left", image=img_c, text=" Chiudi",
+                       background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
+                       cursor="hand2", padding=(10, 5))
+        bc.image = img_c
+        bc.pack(side=tk.RIGHT, padx=10)
+        bc.bind("<Button-1>", lambda e: prev_win.destroy())
 
     def importa_mancanti():
         sel = stato["mancanti"]
@@ -423,12 +563,19 @@ def apri_riconciliazione(self, movimenti):
     bar.pack(fill="x", padx=10, pady=(0, 10))
     img_imp = self.icone_gui.get("carica")
     img_chi = self.icone_gui.get("chiudi")
-    b1 = ttk.Label(bar, image=img_imp, text=" Importa i mancanti…", compound="left",
+    b1 = ttk.Label(bar, image=img_imp, text=" Importa Mancanti", compound="left",
                    cursor="hand2", background=self.COLOR_WIDGET_BG,
                    foreground=self.TEXT_COLOR, font=("Arial", 10, "bold"), padding=(12, 4))
     b1.image = img_imp
     b1.pack(side="left")
     b1.bind("<Button-1>", lambda e: importa_mancanti())
+    img_sal = self.icone_gui.get("salva")
+    b3 = ttk.Label(bar, image=img_sal, text=" Esporta", compound="left",
+                   cursor="hand2", background=self.COLOR_WIDGET_BG,
+                   foreground=self.TEXT_COLOR, font=("Arial", 10, "bold"), padding=(12, 4))
+    b3.image = img_sal
+    b3.pack(side="left", padx=(10, 0))
+    b3.bind("<Button-1>", lambda e: anteprima_esporta())
     b2 = ttk.Label(bar, image=img_chi, text=" Chiudi", compound="left",
                    cursor="hand2", background=self.COLOR_WIDGET_BG,
                    foreground=self.TEXT_COLOR, font=("Arial", 10, "bold"), padding=(12, 4))
