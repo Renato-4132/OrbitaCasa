@@ -2540,9 +2540,9 @@ def get_dati_categorie_storiche_json(self, conto_filtro=None):
     }
     return json.dumps(chart_data)
 
-def get_dati_categorie_json(self, conto_filtro=None):
+def get_dati_categorie_json(self, conto_filtro=None, anno=None):
     oggi = datetime.date.today()
-    anno_corrente = oggi.year
+    anno_corrente = int(anno) if anno else oggi.year
     spese_per_categoria = {}
     try:
         from moduli import web_pianificate as _wp

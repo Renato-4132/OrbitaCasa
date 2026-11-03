@@ -14,7 +14,7 @@ def html_fairshare_web(self):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>(function() {{ if (localStorage.getItem('theme') === 'light') document.documentElement.classList.add('light'); }})();</script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700;800&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="/static_lib/chart.js" onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js';document.head.appendChild(s);"></script>
 <style>
     :root {{
         --bg:#050505; --surface:#0f0f0f; --surface2:#161616; --surface3:#1e1e1e;

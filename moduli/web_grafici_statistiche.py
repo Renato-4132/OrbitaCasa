@@ -8,8 +8,318 @@ from moduli.modello_spesa import campo
 from moduli.mappa_conti_trasferimenti import costruisci_mappa_conti_da_trasferimenti, conto_da_mappa
 from moduli.web_utils import _fmt_it
 
+_CSS_GRAFICI = r""":root { --orange:#eb6834; }
+:root.light { --orange:#d85a28; }
+.g-seg { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; margin-bottom:10px; }
+.g-seg .g-btn { padding:10px 4px; font-size:0.8em; white-space:nowrap; }
+.g-btn {
+    padding:10px 12px; cursor:pointer; font-family:'DM Sans',sans-serif; font-size:0.85em; font-weight:700;
+    color:var(--text-mid); background:var(--surface2); border:1px solid var(--border);
+    border-radius:10px; transition:all 0.15s; line-height:1.4;
+}
+.g-btn:hover { background:var(--surface3); color:var(--text); }
+.g-btn.active { color:var(--gold); background:var(--surface); border-color:var(--gold); }
+.g-btn:disabled { opacity:0.35; cursor:default; }
+.g-small { padding:7px 14px; font-size:0.78em; }
+.g-period { display:flex; align-items:center; gap:6px; margin-bottom:12px; }
+.g-spacer { flex:1; }
+.g-yearnav { display:flex; align-items:center; gap:6px; }
+.g-year { min-width:46px; text-align:center; font-weight:700; font-size:0.9em; }
+.g-tiles { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+.g-tile { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:12px 14px; }
+.g-tile-l { font-size:0.75em; color:var(--text-mid); }
+.g-tile-v { font-size:1.25em; font-weight:800; margin-top:2px; font-variant-numeric:tabular-nums; }
+.g-hero { grid-column:1 / -1; }
+.g-hero .g-tile-v { font-size:2.2em; line-height:1.15; }
+.g-note { font-size:0.78em; color:var(--text-mid); margin-top:4px; min-height:1.2em; }
+.g-panel {
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
+    padding:16px; position:relative; overflow:hidden;
+}
+.g-panel::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px;
+    background:linear-gradient(90deg, transparent, var(--gold), var(--blue), transparent);
+}
+.g-legend { display:flex; flex-wrap:wrap; gap:14px; margin-bottom:10px; font-size:0.75em; color:var(--text-mid); min-height:1.2em; }
+.g-legend span { display:flex; align-items:center; gap:5px; }
+.g-sq { width:10px; height:10px; border-radius:2px; display:inline-block; }
+.g-chart { position:relative; width:100%; height:240px; }
+.g-msg { display:none; padding:30px 10px; text-align:center; font-size:0.85em; color:var(--text-mid); }
+.g-tot { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px; font-size:0.85em; color:var(--text-mid); }
+.g-tot b { font-size:1.6em; color:var(--text); font-variant-numeric:tabular-nums; }
+.g-row { margin-bottom:14px; }
+.g-rh { display:flex; justify-content:space-between; align-items:baseline; gap:10px; font-size:0.9em; }
+.g-rv { font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.g-rp { color:var(--text-mid); font-size:0.82em; font-weight:400; margin-left:4px; }
+.g-track { position:relative; height:8px; background:var(--surface3); border-radius:4px; margin:7px 0 4px; }
+.g-fill { height:8px; border-radius:4px; background:var(--blue); }
+.g-fill.over { background:var(--orange); }
+.g-tick { position:absolute; top:-3px; width:2px; height:14px; background:var(--text); border-radius:1px; }
+.g-sub { font-size:0.76em; color:var(--text-mid); min-height:1.2em; }
+.g-sub.over { color:var(--red); font-weight:700; }
+.g-empty { padding:20px 0; text-align:center; color:var(--text-mid); font-size:0.88em; }
+"""
 
-def pagina_grafici_web(self, conto_filtro=""):
+_JS_GRAFICI = r"""var gChart = null;
+var gView = gGet('graficiView', 'and');
+var gPer = gGet('graficiPer', 'anno');
+var gNum = new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0, useGrouping: 'always' });
+
+function gGet(k, d) { try { return sessionStorage.getItem(k) || d; } catch (e) { return d; } }
+function gPut(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }
+function gCss(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function gR(v) { return Math.round(v || 0) || 0; }
+function gEur(v) { return '€ ' + gNum.format(gR(v)); }
+function gSg(v) { return (v < 0 ? '-' : '+') + '€ ' + gNum.format(Math.abs(gR(v))); }
+function gAx(v) {
+    var a = Math.abs(v);
+    return (v < 0 ? '-' : '') + '€ ' + (a >= 1000 ? (a / 1000).toLocaleString('it-IT') + 'k' : a);
+}
+function gEsc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+}
+function gSum(a) { return a.reduce(function (s, v) { return s + (v || 0); }, 0); }
+function gData(o, i) { return (o && o.datasets && o.datasets[i] && o.datasets[i].data) || []; }
+function gSq(c, t) { return '<span><i class="g-sq" style="background:' + c + '"></i>' + t + '</span>'; }
+
+function gPal() {
+    var light = document.documentElement.classList.contains('light');
+    return {
+        blue: gCss('--blue'), orange: gCss('--orange'), surf: gCss('--surface'),
+        tick: light ? '#666' : '#8f8f8f',
+        grid: light ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.06)',
+        base: light ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.35)'
+    };
+}
+
+function gSerie() {
+    var lab, e, u, s, S;
+    if (gPer === 'anno') {
+        lab = (G.mensile.labels || []).slice();
+        e = gData(G.mensile, 0);
+        u = gData(G.mensile, 1);
+        s = gData(G.saldo, 0).map(function (v, i) { return i < G.meseLimite ? v : null; });
+        S = 0;
+        s.forEach(function (v) { if (v !== null) S = v; });
+    } else {
+        var anni = {};
+        (G.storico.labels || []).forEach(function (l) { anni[l] = 1; });
+        (G.saldoAnnuale.labels || []).forEach(function (l) { anni[l] = 1; });
+        lab = Object.keys(anni).sort();
+        var pick = function (obj, i) {
+            var m = {}, dati = gData(obj, i);
+            (obj.labels || []).forEach(function (l, k) { m[l] = dati[k]; });
+            return lab.map(function (l) { return m[l] === undefined ? 0 : m[l]; });
+        };
+        e = pick(G.storico, 0);
+        u = pick(G.storico, 1);
+        s = pick(G.saldoAnnuale, 0);
+        S = gSum(s);
+    }
+    return { lab: lab, e: e, u: u, s: s, S: S, E: gSum(e), U: gSum(u) };
+}
+
+function gAndamento() {
+    var d = gSerie(), P = gPal(), line = gPer === 'anno';
+    document.getElementById('kE').textContent = gEur(d.E);
+    document.getElementById('kU').textContent = gEur(d.U);
+    document.getElementById('kSl').textContent = line ? 'Saldo da inizio anno' : 'Saldo complessivo';
+    var kS = document.getElementById('kS');
+    kS.textContent = gSg(d.S);
+    kS.style.color = d.S < 0 ? 'var(--red)' : '';
+    var nota = '';
+    if (!G.conto && d.E > 0) {
+        nota = d.S >= 0
+            ? 'Hai messo da parte il ' + Math.round(d.S / d.E * 100) + '% di quanto hai incassato'
+            : 'Hai speso più di quanto hai incassato';
+    }
+    document.getElementById('kSn').textContent = nota;
+    if (gChart) { gChart.destroy(); gChart = null; }
+    var ok = typeof Chart !== 'undefined';
+    document.getElementById('gChartBox').style.display = ok ? 'block' : 'none';
+    document.getElementById('gMsg').style.display = ok ? 'none' : 'block';
+    document.getElementById('gLeg').innerHTML = !ok ? '' : (line
+        ? gSq(P.blue, 'Saldo progressivo da gennaio')
+        : gSq(P.blue, 'Saldo positivo') + gSq(P.orange, 'Saldo negativo'));
+    if (!ok) return;
+    var ds = line
+        ? { label: 'Saldo', data: d.s, borderColor: P.blue, backgroundColor: P.blue, borderWidth: 2,
+            pointRadius: 3, pointBackgroundColor: P.blue, pointBorderColor: P.surf, pointBorderWidth: 2,
+            tension: 0, spanGaps: false }
+        : { label: 'Saldo', data: d.s, borderRadius: 4, maxBarThickness: 28,
+            backgroundColor: d.s.map(function (v) { return v >= 0 ? P.blue : P.orange; }) };
+    var font = { family: "'DM Sans', sans-serif", size: 11 };
+    gChart = new Chart(document.getElementById('cAnd').getContext('2d'), {
+        type: line ? 'line' : 'bar',
+        data: { labels: d.lab, datasets: [ds] },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: {
+                    label: function (c) { return ' Saldo: ' + gSg(c.parsed.y); },
+                    afterLabel: function (c) {
+                        return ' Entrate ' + gEur(d.e[c.dataIndex]) + ' · Uscite ' + gEur(d.u[c.dataIndex]);
+                    }
+                } }
+            },
+            scales: {
+                x: { grid: { display: false },
+                     ticks: { color: P.tick, autoSkip: !line, maxRotation: 0, font: font } },
+                y: { border: { display: false },
+                     grid: { color: function (c) { return c.tick.value === 0 ? P.base : P.grid; } },
+                     ticks: { color: P.tick, maxTicksLimit: 6, font: font, callback: gAx } }
+            }
+        }
+    });
+}
+
+function gMensile() {
+    var d = gSerie(), P = gPal(), anno = gPer === 'anno';
+    var mask = function (a) { return a.map(function (v, i) { return anno && i >= G.meseLimite ? null : v; }); };
+    var e = mask(d.e), u = mask(d.u);
+    if (gChart) { gChart.destroy(); gChart = null; }
+    var ok = typeof Chart !== 'undefined';
+    document.getElementById('mChartBox').style.display = ok ? 'block' : 'none';
+    document.getElementById('mMsg').style.display = ok ? 'none' : 'block';
+    document.getElementById('mLeg').innerHTML = ok ? gSq(P.blue, 'Entrate') + gSq(P.orange, 'Uscite') : '';
+    if (!ok) return;
+    var font = { family: "'DM Sans', sans-serif", size: 11 };
+    var spessore = anno ? 12 : 24;
+    gChart = new Chart(document.getElementById('cMes').getContext('2d'), {
+        type: 'bar',
+        data: { labels: d.lab, datasets: [
+            { label: 'Entrate', data: e, backgroundColor: P.blue, borderRadius: 4, maxBarThickness: spessore },
+            { label: 'Uscite', data: u, backgroundColor: P.orange, borderRadius: 4, maxBarThickness: spessore }
+        ] },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: {
+                    label: function (c) { return ' ' + c.dataset.label + ': ' + gEur(c.parsed.y); },
+                    footer: function (items) {
+                        var i = items[0].dataIndex;
+                        if (e[i] === null || u[i] === null) return '';
+                        return 'Differenza: ' + gSg(e[i] - u[i]);
+                    }
+                } }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: P.tick, autoSkip: false, maxRotation: 0, font: font } },
+                y: { beginAtZero: true, border: { display: false }, grid: { color: P.grid },
+                     ticks: { color: P.tick, maxTicksLimit: 6, font: font, callback: gAx } }
+            }
+        }
+    });
+}
+
+function gSpese() {
+    var src = gPer === 'anno' ? G.categorie : G.categorieStoriche;
+    var lab = src.labels || [], v = gData(src, 0);
+    var b = (src.datasets && src.datasets[0] && src.datasets[0].budget) || [];
+    var rows = [];
+    lab.forEach(function (n, i) {
+        if (n === 'N/D' && lab.length === 1) return;
+        if ((v[i] || 0) > 0) rows.push({ n: n || 'Senza categoria', v: v[i], b: gPer === 'anno' ? (b[i] || 0) : 0 });
+    });
+    rows.sort(function (x, y) { return y.v - x.v; });
+    var tot = gSum(rows.map(function (r) { return r.v; }));
+    var mx = 0;
+    rows.forEach(function (r) { mx = Math.max(mx, r.v, r.b); });
+    document.getElementById('sTot').textContent = gEur(tot);
+    document.getElementById('lista').innerHTML = rows.length ? rows.map(function (r) {
+        var over = r.b > 0 && r.v > r.b;
+        var p = Math.round(r.v / tot * 100);
+        var sub = r.b > 0
+            ? (over ? '⚠️ ' + gEur(r.v - r.b) + ' sopra il budget di ' + gEur(r.b) : 'budget ' + gEur(r.b))
+            : '';
+        return '<div class="g-row"><div class="g-rh"><span>' + gEsc(r.n) + '</span>'
+            + '<span class="g-rv">' + gEur(r.v) + '<span class="g-rp">' + (p < 1 ? '&lt;1' : p) + '%</span></span></div>'
+            + '<div class="g-track"><div class="g-fill' + (over ? ' over' : '') + '" style="width:' + (r.v / mx * 100) + '%"></div>'
+            + (r.b > 0 ? '<div class="g-tick" style="left:' + (r.b / mx * 100) + '%"></div>' : '') + '</div>'
+            + '<div class="g-sub' + (over ? ' over' : '') + '">' + sub + '</div></div>';
+    }).join('') : '<div class="g-empty">Nessuna spesa in questo periodo.</div>';
+}
+
+function gShow() {
+    if (['and', 'mes', 'spe'].indexOf(gView) < 0) gView = 'and';
+    var v = gView;
+    document.getElementById('vistaAnd').style.display = v === 'and' ? 'block' : 'none';
+    document.getElementById('vistaMes').style.display = v === 'mes' ? 'block' : 'none';
+    document.getElementById('vistaSpe').style.display = v === 'spe' ? 'block' : 'none';
+    document.getElementById('vMes').textContent = gPer === 'anno' ? '📊 Mensile' : '📊 Annuale';
+    [['vAnd', v === 'and'], ['vMes', v === 'mes'], ['vSpe', v === 'spe'], ['pAnno', gPer === 'anno'], ['pSempre', gPer === 'sempre']].forEach(function (x) {
+        var el = document.getElementById(x[0]);
+        el.classList.toggle('active', x[1]);
+        el.setAttribute('aria-pressed', x[1]);
+    });
+    document.getElementById('yearNav').style.visibility = gPer === 'anno' ? 'visible' : 'hidden';
+    document.getElementById('yLbl').textContent = G.anno;
+    var i = G.anni.indexOf(G.anno);
+    document.getElementById('yPrev').disabled = i <= 0;
+    document.getElementById('yNext').disabled = i < 0 || i >= G.anni.length - 1;
+    if (v === 'and') gAndamento(); else if (v === 'mes') gMensile(); else gSpese();
+}
+function gVai(y) {
+    var u = new URL(location.href);
+    u.searchParams.set('anno', y);
+    location.href = u.toString();
+}
+document.getElementById('vAnd').onclick = function () { gView = 'and'; gPut('graficiView', gView); gShow(); };
+document.getElementById('vMes').onclick = function () { gView = 'mes'; gPut('graficiView', gView); gShow(); };
+document.getElementById('vSpe').onclick = function () { gView = 'spe'; gPut('graficiView', gView); gShow(); };
+document.getElementById('pAnno').onclick = function () { gPer = 'anno'; gPut('graficiPer', gPer); gShow(); };
+document.getElementById('pSempre').onclick = function () { gPer = 'sempre'; gPut('graficiPer', gPer); gShow(); };
+document.getElementById('yPrev').onclick = function () { var i = G.anni.indexOf(G.anno); if (i > 0) gVai(G.anni[i - 1]); };
+document.getElementById('yNext').onclick = function () { var i = G.anni.indexOf(G.anno); if (i >= 0 && i < G.anni.length - 1) gVai(G.anni[i + 1]); };
+
+function applyTheme(t) {
+    var root = document.documentElement, btn = document.getElementById('themeBtn');
+    if (t === 'light') { root.classList.add('light'); if (btn) btn.textContent = '🌙'; }
+    else               { root.classList.remove('light'); if (btn) btn.textContent = '☀️'; }
+    if (document.getElementById('vistaAnd')) gShow();
+}
+function toggleTheme() {
+    var next = (localStorage.getItem('theme') || 'dark') === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('theme', next);
+    applyTheme(next);
+}
+function toggleNavGroup(btn, ev) {
+    if (ev) ev.stopPropagation();
+    var items = btn.nextElementSibling;
+    var giaAperto = items.classList.contains('open');
+    btn.closest('.nav-dropdown').querySelectorAll('.nav-group-items.open').forEach(function (el) {
+        el.classList.remove('open');
+        el.previousElementSibling.querySelector('.nav-arrow').textContent = '▶';
+    });
+    if (!giaAperto) {
+        items.classList.add('open');
+        btn.querySelector('.nav-arrow').textContent = '▼';
+    }
+}
+function toggleMenu() {
+    var m = document.getElementById('extraMenu');
+    m.style.display = m.style.display === 'block' ? 'none' : 'block';
+}
+document.addEventListener('click', function (e) {
+    var menu = document.getElementById('extraMenu');
+    var btn = document.querySelector('.menu-btn');
+    if (menu && menu.style.display === 'block' && !menu.contains(e.target) && e.target !== btn)
+        menu.style.display = 'none';
+});
+applyTheme(localStorage.getItem('theme') || 'dark');
+window.addEventListener('load', function () {
+    if (typeof Chart !== 'undefined' && !gChart && (gView === 'and' || gView === 'mes')) gShow();
+});
+"""
+
+
+def pagina_grafici_web(self, conto_filtro="", anno=None):
     import __main__ as _app
     HOUSEHOLD_LABEL = "Patrimonio Complessivo"
     conto_filtro = (conto_filtro or "").strip()
@@ -26,6 +336,20 @@ def pagina_grafici_web(self, conto_filtro=""):
     oggi = datetime.date.today()
     anno_corrente = oggi.year
     anno_corrente_format = str(anno_corrente)
+    try:
+        anno = int(anno) if anno not in (None, "") else anno_corrente
+    except (TypeError, ValueError):
+        anno = anno_corrente
+    if not 1900 <= anno <= 2200:
+        anno = anno_corrente
+    _anni_disp = {anno_corrente, anno}
+    for _giorno in self.spese.keys():
+        try:
+            _anni_disp.add(int(_giorno.year))
+        except Exception:
+            continue
+    anni_disp = sorted(_anni_disp)
+    mese_limite = oggi.month if anno == anno_corrente else 12
     fallback_storico     = '{"labels": ["N/D"], "datasets": [{"label": "Dati non caricati", "data": [0], "backgroundColor": ["#333"]}]}'
     fallback_mensile     = '{"labels": ["N/D"], "datasets": [{"label": "Dati non caricati", "data": [0], "backgroundColor": ["#333"]}]}'
     fallback_cat         = '{"labels": ["N/D"], "datasets": [{"data": [1], "backgroundColor": ["#333"], "label": "Dati non caricati"}]}'
@@ -37,15 +361,15 @@ def pagina_grafici_web(self, conto_filtro=""):
     except Exception:
         dati_entrate_uscite_storici = fallback_storico
     try:
-        dati_entrate_uscite_mensili = self.get_dati_entrate_uscite_json(conto_filtro or None)
+        dati_entrate_uscite_mensili = self.get_dati_entrate_uscite_json(conto_filtro or None, anno)
     except Exception:
         dati_entrate_uscite_mensili = fallback_mensile
     try:
-        dati_categorie = self.get_dati_categorie_json(conto_filtro or None)
+        dati_categorie = self.get_dati_categorie_json(conto_filtro or None, anno)
     except Exception:
         dati_categorie = fallback_cat
     try:
-        dati_saldo = self.get_dati_saldo_json(conto_filtro or None)
+        dati_saldo = self.get_dati_saldo_json(conto_filtro or None, anno)
     except Exception:
         dati_saldo = fallback_saldo
     try:
@@ -56,6 +380,28 @@ def pagina_grafici_web(self, conto_filtro=""):
         dati_saldo_annuale = self.get_dati_saldo_annuale_json(conto_filtro or None)
     except Exception:
         dati_saldo_annuale = fallback_saldo_annuale
+
+    def _json_o_fallback(testo, fallback):
+        try:
+            return json.loads(testo)
+        except Exception:
+            return json.loads(fallback)
+
+    payload = {
+        "anno": anno,
+        "annoCorrente": anno_corrente,
+        "anni": anni_disp,
+        "meseLimite": mese_limite,
+        "conto": conto_filtro,
+        "storico": _json_o_fallback(dati_entrate_uscite_storici, fallback_storico),
+        "saldoAnnuale": _json_o_fallback(dati_saldo_annuale, fallback_saldo_annuale),
+        "mensile": _json_o_fallback(dati_entrate_uscite_mensili, fallback_mensile),
+        "saldo": _json_o_fallback(dati_saldo, fallback_saldo),
+        "categorie": _json_o_fallback(dati_categorie, fallback_cat),
+        "categorieStoriche": _json_o_fallback(dati_categorie_storiche, fallback_cat_storico),
+    }
+    # "</" va protetto: i nomi delle categorie sono dati dell'utente e finiscono dentro un tag <script>
+    payload_json = json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")
 
     try:
         from moduli import web_pianificate as _wp_g
@@ -78,7 +424,7 @@ def pagina_grafici_web(self, conto_filtro=""):
     }})();
 </script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="/static_lib/chart.js" onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';document.head.appendChild(s);"></script>
 <style>
     :root {{
         --bg:#050505; --surface:#0f0f0f; --surface2:#161616; --surface3:#1e1e1e;
@@ -144,64 +490,7 @@ def pagina_grafici_web(self, conto_filtro=""):
     .nav-group-items.open {{ display:flex; }}
     .main-container {{ max-width:960px; margin:0 auto; padding:14px; animation:fadeIn 0.3s ease; }}
     @keyframes fadeIn {{ from {{ opacity:0; transform:translateY(8px); }} to {{ opacity:1; transform:translateY(0); }} }}
-    .tab-bar {{ display:flex; flex-wrap:wrap; gap:4px; margin-bottom:0; padding:0; }}
-    .tab-btn {{
-        padding:8px 14px; cursor:pointer;
-        font-family:'DM Sans',sans-serif; font-size:0.75em; font-weight:700;
-        color:var(--text-dim); border:1px solid var(--border);
-        background:var(--surface2); border-radius:9px 9px 0 0;
-        transition:all 0.15s; white-space:nowrap; line-height:1.5;
-    }}
-    .tab-btn:hover {{ color:var(--text-mid); background:var(--surface3); }}
-    .tab-btn.active {{
-        color:var(--gold); background:var(--surface);
-        border-color:var(--border); border-bottom-color:var(--surface);
-    }}
-    .chart-frame {{
-        background:var(--surface); border:1px solid var(--border);
-        border-radius:0 var(--radius-lg) var(--radius-lg) var(--radius-lg);
-        padding:16px; position:relative; overflow:hidden;
-    }}
-    .chart-frame::before {{
-        content:''; position:absolute; top:0; left:0; right:0; height:2px;
-        background:linear-gradient(90deg, transparent, var(--gold), var(--blue), transparent);
-    }}
-    .chart-container {{
-        position:relative; width:100%;
-        height:58vh; min-height:320px; max-height:520px;
-    }}
-    .chart-container.donut {{
-        height:auto; min-height:unset; max-height:unset;
-        display:flex; flex-direction:column; align-items:center; gap:14px;
-        padding:8px 0 4px;
-    }}
-    .donut-canvas-wrap {{
-        position:relative;
-        width:min(320px, 78vw);
-        height:min(320px, 78vw);
-        flex-shrink:0;
-    }}
-    .donut-legend {{
-        width:100%; display:flex; flex-direction:column; gap:3px;
-        max-height:220px; overflow-y:auto; padding:0 2px;
-    }}
-    .donut-legend::-webkit-scrollbar {{ width:4px; }}
-    .donut-legend::-webkit-scrollbar-track {{ background:transparent; }}
-    .donut-legend::-webkit-scrollbar-thumb {{ background:var(--border); border-radius:4px; }}
-    .legend-item {{
-        display:flex; align-items:center; gap:8px;
-        font-size:0.78em; color:var(--text-mid); padding:4px 8px;
-        border-radius:7px; transition:background 0.15s;
-    }}
-    .legend-item:hover {{ background:var(--surface2); color:var(--text); }}
-    .legend-dot {{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }}
-    .legend-name {{ flex:1; display:flex; flex-direction:column; gap:1px; }}
-    .legend-budget {{ font-size:0.78em; color:var(--text-dim); }}
-    .legend-budget.over {{ color:var(--red); font-weight:700; }}
-    .legend-item.over-budget {{ background:rgba(224,90,90,0.09); }}
-    .legend-val {{ font-weight:700; color:var(--text); }}
-    .legend-pct {{ color:var(--text-dim); font-size:0.88em; margin-left:3px; }}
-    .tab-pane {{ display:none; }}
+    {_CSS_GRAFICI}
     .btn-home {{
         display:block; text-align:center; padding:13px; margin-top:12px;
         background:linear-gradient(135deg, var(--gold) 0%, #8a6820 100%);
@@ -210,11 +499,6 @@ def pagina_grafici_web(self, conto_filtro=""):
         line-height:1.5; transition:all 0.2s;
     }}
     .btn-home:hover {{ transform:translateY(-1px); box-shadow:0 6px 20px rgba(201,168,76,0.25); }}
-    @media (max-width:500px) {{
-        .tab-btn {{ padding:7px 10px; font-size:0.7em; }}
-        .chart-container {{ height:52vw; min-height:260px; }}
-        .donut-canvas-wrap {{ width:min(260px, 82vw); height:min(260px, 82vw); }}
-    }}
 </style>
 </head>
 <body>
@@ -295,6 +579,7 @@ def pagina_grafici_web(self, conto_filtro=""):
 <main class="main-container">
     <form method="get" action="/grafici_web" style="margin-bottom:12px;">
         {_pian_hidden}
+        <input type="hidden" name="anno" value="{anno}">
         <select name="conto" onchange="this.form.submit()"
             style="width:100%; padding:11px 14px; border-radius:12px; border:1px solid var(--border);
                    background:var(--surface); color:var(--text); font-family:'DM Sans',sans-serif;
@@ -303,204 +588,49 @@ def pagina_grafici_web(self, conto_filtro=""):
         </select>
     </form>
     {pian_toggle_g}
-    <div class="tab-bar">
-        <button class="tab-btn" onclick="openTab('tabStoricoEU', this)">📅 Storico</button>
-        <button class="tab-btn" onclick="openTab('tabMensileEU', this)">🗓️ Mensile</button>
-        <button class="tab-btn" onclick="openTab('tabSaldo', this)">📈 Saldo Mese</button>
-        <button class="tab-btn" onclick="openTab('tabSaldoAnnuale', this)">⚖️ Saldo Annuale</button>
-        <button class="tab-btn" onclick="openTab('tabCategorie', this)">🍩 Uscite</button>
-        <button class="tab-btn" onclick="openTab('tabStoricoCat', this)">📊 Uscite Storiche</button>
+    <div class="g-seg" role="group" aria-label="Vista">
+        <button type="button" class="g-btn" id="vAnd">📈 Andamento</button>
+        <button type="button" class="g-btn" id="vMes">📊 Mensile</button>
+        <button type="button" class="g-btn" id="vSpe">🧾 Spese</button>
     </div>
-    <div class="chart-frame">
-        <div id="tabStoricoEU"    class="tab-pane"><div class="chart-container"><canvas></canvas></div></div>
-        <div id="tabMensileEU"    class="tab-pane"><div class="chart-container"><canvas></canvas></div></div>
-        <div id="tabSaldo"        class="tab-pane"><div class="chart-container"><canvas></canvas></div></div>
-        <div id="tabSaldoAnnuale" class="tab-pane"><div class="chart-container"><canvas></canvas></div></div>
-        <div id="tabCategorie" class="tab-pane">
-            <div class="chart-container donut">
-                <div class="donut-canvas-wrap"><canvas></canvas></div>
-                <div class="donut-legend" id="legendTabCategorie"></div>
-            </div>
-        </div>
-        <div id="tabStoricoCat" class="tab-pane">
-            <div class="chart-container donut">
-                <div class="donut-canvas-wrap"><canvas></canvas></div>
-                <div class="donut-legend" id="legendTabStoricoCat"></div>
-            </div>
+    <div class="g-period">
+        <button type="button" class="g-btn g-small" id="pAnno">Anno</button>
+        <button type="button" class="g-btn g-small" id="pSempre">Sempre</button>
+        <span class="g-spacer"></span>
+        <div class="g-yearnav" id="yearNav">
+            <button type="button" class="g-btn g-small" id="yPrev" aria-label="Anno precedente">‹</button>
+            <span class="g-year" id="yLbl"></span>
+            <button type="button" class="g-btn g-small" id="yNext" aria-label="Anno successivo">›</button>
         </div>
     </div>
-
+    <section id="vistaAnd">
+        <div class="g-tiles">
+            <div class="g-tile"><div class="g-tile-l">Entrate</div><div class="g-tile-v" id="kE"></div></div>
+            <div class="g-tile"><div class="g-tile-l">Uscite</div><div class="g-tile-v" id="kU"></div></div>
+            <div class="g-tile g-hero">
+                <div class="g-tile-l" id="kSl">Saldo</div>
+                <div class="g-tile-v" id="kS"></div>
+                <div class="g-note" id="kSn"></div>
+            </div>
+        </div>
+        <div class="g-panel">
+            <div class="g-legend" id="gLeg"></div>
+            <div class="g-chart" id="gChartBox"><canvas id="cAnd" role="img" aria-label="Andamento del saldo nel periodo selezionato">Andamento del saldo nel periodo selezionato.</canvas></div>
+            <div class="g-msg" id="gMsg">Il grafico non è disponibile: la libreria Chart.js non è stata caricata. I totali qui sopra restano validi.</div>
+        </div>
+    </section>
+    <section id="vistaMes" class="g-panel">
+        <div class="g-legend" id="mLeg"></div>
+        <div class="g-chart" id="mChartBox"><canvas id="cMes" role="img" aria-label="Entrate e uscite affiancate per periodo">Entrate e uscite affiancate per periodo.</canvas></div>
+        <div class="g-msg" id="mMsg">Il grafico non è disponibile: la libreria Chart.js non è stata caricata.</div>
+    </section>
+    <section id="vistaSpe" class="g-panel">
+        <div class="g-tot"><span>Uscite totali</span><b id="sTot"></b></div>
+        <div id="lista"></div>
+    </section>
 </main>
-<script>
-    const chartInstances = {{}};
-    const chartData = {{
-        tabStoricoEU:    {dati_entrate_uscite_storici},
-        tabMensileEU:    {dati_entrate_uscite_mensili},
-        tabSaldo:        {dati_saldo},
-        tabSaldoAnnuale: {dati_saldo_annuale},
-        tabCategorie:    {dati_categorie},
-        tabStoricoCat:   {dati_categorie_storiche}
-    }};
-    function fmtIt(v) {{
-        v = Number(v || 0);
-        const neg = v < 0;
-        const parts = Math.abs(v).toFixed(2).split('.');
-        parts[0] = parts[0].replace(/\\B(?=(\\d{{3}})+(?!\\d))/g, '.');
-        return (neg ? '-' : '') + parts[0] + ',' + parts[1];
-    }}
-    function getChartColors() {{
-        const light = document.documentElement.classList.contains('light');
-        return {{
-            tick:   light ? '#777' : '#555',
-            grid:   light ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.04)',
-            legend: light ? '#555' : '#888'
-        }};
-    }}
-    function applyTheme(t) {{
-        const root = document.documentElement;
-        const btn  = document.getElementById('themeBtn');
-        if (t === 'light') {{ root.classList.add('light'); if (btn) btn.textContent = '🌙'; }}
-        else               {{ root.classList.remove('light'); if (btn) btn.textContent = '☀️'; }}
-        const activeTab = document.querySelector('.tab-btn.active');
-        if (activeTab) {{
-            const tabName = activeTab.getAttribute('onclick').match(/'([^']+)'/)[1];
-            renderChart(tabName);
-        }}
-    }}
-    function toggleTheme() {{
-        const next = (localStorage.getItem('theme') || 'dark') === 'dark' ? 'light' : 'dark';
-        localStorage.setItem('theme', next);
-        applyTheme(next);
-    }}
-    applyTheme(localStorage.getItem('theme') || 'dark');
-    function sortData(data) {{
-        if (!data.labels) return data;
-        const budgets = data.datasets[0].budget || [];
-        let combined = data.labels.map((l, i) => ({{
-            label: l,
-            val: data.datasets[0].data[i],
-            color: data.datasets[0].backgroundColor[i],
-            budget: budgets[i] || 0
-        }}));
-        combined.sort((a, b) => b.val - a.val);
-        data.labels = combined.map(x => x.label);
-        data.datasets[0].data = combined.map(x => x.val);
-        data.datasets[0].backgroundColor = combined.map(x => x.color);
-        data.datasets[0].budget = combined.map(x => x.budget);
-        return data;
-    }}
-    function buildDonutLegend(legendId, data) {{
-        const legendEl = document.getElementById(legendId);
-        if (!legendEl) return;
-        const labels = data.labels || [];
-        const vals = data.datasets[0].data || [];
-        const colors = data.datasets[0].backgroundColor || [];
-        const budgets = data.datasets[0].budget || [];
-        const total = vals.reduce((a, b) => a + b, 0);
-        legendEl.innerHTML = labels.map((lbl, i) => {{
-            const pct = total > 0 ? ((vals[i] / total) * 100).toFixed(1) : '0.0';
-            const budget = budgets[i] || 0;
-            const sfora = budget > 0 && vals[i] > budget;
-            const budgetInfo = budget > 0
-                ? `<span class="legend-budget${{sfora ? ' over' : ''}}">${{sfora ? '⚠️ ' : ''}}budget € ${{fmtIt(budget)}}</span>`
-                : '';
-            return `<div class="legend-item${{sfora ? ' over-budget' : ''}}">
-                <span class="legend-dot" style="background:${{colors[i] || '#888'}}"></span>
-                <span class="legend-name">${{lbl}}${{budgetInfo}}</span>
-                <span class="legend-val">€ ${{fmtIt(vals[i])}}</span>
-                <span class="legend-pct">${{pct}}%</span>
-            </div>`;
-        }}).join('');
-    }}
-    function toggleNavGroup(btn, ev) {{
-        if (ev) ev.stopPropagation();
-        const items = btn.nextElementSibling;
-        const giaAperto = items.classList.contains('open');
-        btn.closest('.nav-dropdown').querySelectorAll('.nav-group-items.open').forEach(function(el) {{
-            el.classList.remove('open');
-            el.previousElementSibling.querySelector('.nav-arrow').textContent = '▶';
-        }});
-        if (!giaAperto) {{
-            items.classList.add('open');
-            btn.querySelector('.nav-arrow').textContent = '▼';
-        }}
-    }}
-    function toggleMenu() {{
-        const m = document.getElementById("extraMenu");
-        m.style.display = m.style.display === "block" ? "none" : "block";
-    }}
-    function openTab(tabName, btn) {{
-        document.querySelectorAll(".tab-pane").forEach(p => p.style.display = "none");
-        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-        document.getElementById(tabName).style.display = "block";
-        btn.classList.add("active");
-        renderChart(tabName);
-    }}
-    function renderChart(tabName) {{
-        if (chartInstances[tabName]) chartInstances[tabName].destroy();
-        const isDonut = tabName === 'tabCategorie' || tabName === 'tabStoricoCat';
-        const ctx = document.querySelector(`#${{tabName}} canvas`).getContext('2d');
-        const cc = getChartColors();
-        let type = 'bar';
-        let opts = {{
-            responsive: true,
-            maintainAspectRatio: isDonut,
-            plugins: {{ legend: {{ display: false }} }},
-            scales: {{}}
-        }};
-        if (tabName === 'tabSaldo' || tabName === 'tabSaldoAnnuale') {{
-            type = 'line';
-        }}
-        if (isDonut) {{
-            type = 'doughnut';
-            opts.cutout = '58%';
-            opts.plugins.tooltip = {{
-                callbacks: {{
-                    label: function(ctx) {{
-                        const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
-                        const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
-                        return ` ${{ctx.label}}: € ${{fmtIt(ctx.parsed)}} (${{pct}}%)`;
-                    }}
-                }}
-            }};
-        }} else {{
-            opts.plugins.legend = {{ labels: {{ color: cc.legend, font: {{ family: 'DM Sans' }} }} }};
-            opts.plugins.tooltip = {{
-                callbacks: {{
-                    label: function(ctx) {{
-                        const dsLabel = ctx.dataset.label ? ctx.dataset.label + ': ' : '';
-                        return ` ${{dsLabel}}€ ${{fmtIt(ctx.parsed.y)}}`;
-                    }}
-                }}
-            }};
-            opts.scales = {{
-                x: {{ ticks: {{ color: cc.tick, font: {{ family: 'DM Sans' }} }}, grid: {{ color: cc.grid }} }},
-                y: {{ ticks: {{ color: cc.tick, font: {{ family: 'DM Sans' }}, callback: v => '€ ' + fmtIt(v) }}, grid: {{ color: cc.grid }} }}
-            }};
-        }}
-        let data = JSON.parse(JSON.stringify(chartData[tabName]));
-        if (isDonut) {{
-            data = sortData(data);
-            if (tabName === 'tabCategorie') {{
-                const budgets = data.datasets[0].budget || [];
-                const vals = data.datasets[0].data || [];
-                const normalBorder = getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || '#0f0f0f';
-                data.datasets[0].borderColor = vals.map((v, i) => (budgets[i] > 0 && v > budgets[i]) ? '#dc3545' : normalBorder);
-                data.datasets[0].borderWidth = vals.map((v, i) => (budgets[i] > 0 && v > budgets[i]) ? 3 : 2);
-            }}
-            const legendId = 'legend' + tabName.charAt(0).toUpperCase() + tabName.slice(1);
-            buildDonutLegend(legendId, data);
-        }}
-        chartInstances[tabName] = new Chart(ctx, {{ type, data, options: opts }});
-    }}
-    document.addEventListener("click", function(e) {{
-        const menu = document.getElementById("extraMenu");
-        const btn = document.querySelector(".menu-btn");
-        if (menu && menu.style.display === "block" && !menu.contains(e.target) && e.target !== btn)
-            menu.style.display = "none";
-    }});
-    document.querySelector('.tab-btn').click();
-</script>
+<script>const G = {payload_json};</script>
+<script>{_JS_GRAFICI}</script>
 </body>
 </html>"""
 

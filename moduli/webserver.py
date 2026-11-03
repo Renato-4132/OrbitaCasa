@@ -328,6 +328,46 @@ def _crea_flask_app(self):
     def ping():
         return Response("ok", mimetype="text/plain")
 
+    _CHARTJS_URL  = "https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
+    _CHARTJS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "chart.umd.min.js")
+    _CHARTJS_LOCK = _th.Lock()
+
+    def _chartjs_bytes():
+        def _valido(d):
+            return len(d) > 100000 and b"Chart" in d and not d.lstrip().startswith(b"<")
+        with _CHARTJS_LOCK:
+            try:
+                if os.path.exists(_CHARTJS_FILE):
+                    with open(_CHARTJS_FILE, "rb") as fh:
+                        dati = fh.read()
+                    if _valido(dati):
+                        return dati
+                import requests
+                r = requests.get(_CHARTJS_URL, timeout=10)
+                dati = r.content
+                if r.status_code != 200 or not _valido(dati):
+                    return None
+                try:
+                    tmp = _CHARTJS_FILE + ".tmp"
+                    with open(tmp, "wb") as fh:
+                        fh.write(dati)
+                    os.replace(tmp, _CHARTJS_FILE)
+                except Exception:
+                    pass
+                return dati
+            except Exception:
+                return None
+
+    @flask_app.route("/static_lib/chart.js")
+    @richiede_login
+    def chartjs_locale():
+        dati = _chartjs_bytes()
+        if dati is None:
+            return Response("", status=404, mimetype="text/plain")
+        r = Response(dati, mimetype="application/javascript")
+        r.headers["Cache-Control"] = "public, max-age=86400"
+        return r
+
     @flask_app.route("/login")
     def login_get():
         r = html_resp(tk_app.html_login(request.full_path))
@@ -503,7 +543,8 @@ def _crea_flask_app(self):
     @richiede_login
     def grafici_web():
         conto_sel = request.args.get("conto", "")
-        return html_resp(tk_app.pagina_grafici_web(conto_sel))
+        anno_sel = request.args.get("anno", "")
+        return html_resp(tk_app.pagina_grafici_web(conto_sel, anno_sel))
 
     @flask_app.route("/portafoglio_web")
     @richiede_login

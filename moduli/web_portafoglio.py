@@ -127,9 +127,9 @@ def get_dati_saldo_annuale_json(self, conto_filtro=None):
     }
     return json.dumps(dati_json)
 
-def get_dati_entrate_uscite_json(self, conto_filtro=None):
+def get_dati_entrate_uscite_json(self, conto_filtro=None, anno=None):
     oggi = datetime.date.today()
-    anno_corrente = oggi.year
+    anno_corrente = int(anno) if anno else oggi.year
     entrate_mensili = [0.0] * 12
     uscite_mensili = [0.0] * 12
     try:
@@ -165,9 +165,9 @@ def get_dati_entrate_uscite_json(self, conto_filtro=None):
     }
     return json.dumps(dati)
 
-def get_dati_saldo_json(self, conto_filtro=None):
+def get_dati_saldo_json(self, conto_filtro=None, anno=None):
     oggi = datetime.date.today()
-    anno_corrente = oggi.year
+    anno_corrente = int(anno) if anno else oggi.year
     saldo_mensile_netto = [0.0] * 12
     try:
         from moduli import web_pianificate as _wp
