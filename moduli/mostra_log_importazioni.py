@@ -223,15 +223,24 @@ def mostra_log_importazioni(self):
         if not sel:
             self.show_custom_warning("Attenzione", "Seleziona una o più righe (Ctrl+clic, Maiusc+clic, oppure Seleziona Tutto).")
             return
-        if not self.show_custom_askyesno(
-                "Elimina a blocco",
-                f"Eliminare {len(sel)} righe selezionate?\n\nVengono cancellate le spese corrispondenti "
-                f"dal database e le righe dal log. Operazione non annullabile."):
+        _solo_log = [i for i in sel if str(tree.item(i, "values")[1]).strip().upper() in ("SALTATA", "DOPPIA")]
+        _con_spesa = len(sel) - len(_solo_log)
+        _riga = lambda n: f"{n} riga" if n == 1 else f"{n} righe"
+        if _con_spesa == 0:
+            _txt = (f"Rimuovere {_riga(len(sel))} dal log?\n\nSono doppioni o movimenti saltati: "
+                    f"nessuna spesa viene cancellata dal database.")
+        else:
+            _txt = (f"Eliminare {_riga(len(sel))} selezionate?\n\nVengono cancellate le spese corrispondenti "
+                    f"dal database e le righe dal log. Operazione non annullabile.")
+            if _solo_log:
+                _txt += (f"\n\n{_riga(len(_solo_log))} (SALTATA/DOPPIA) verranno tolte solo dal log, "
+                         f"senza toccare le spese.")
+        if not self.show_custom_askyesno("Elimina a blocco", _txt):
             return
         eliminate = mancanti = 0
         for iid in sel:
             v = tree.item(iid, "values")
-            if str(v[1]).strip().upper() == "SALTATA":
+            if str(v[1]).strip().upper() in ("SALTATA", "DOPPIA"):
                 continue
             giorno = _parse_data_flessibile(v[2])
             try:
@@ -269,10 +278,54 @@ def mostra_log_importazioni(self):
         self.colora_giorni_spese()
         carica_righe()
         var_sel_tutto.set(False)
-        msg = f"{eliminate} spese eliminate"
+        msg = f"{eliminate} spese eliminate" if eliminate or not _solo_log else f"{_riga(len(_solo_log))} rimosse dal log"
         if mancanti:
             msg += f", {mancanti} non trovate (già modificate o cancellate)"
         self.show_toast(msg, duration=3500)
+
+    def rimuovi_orfane():
+        orfane = []
+        scartate = 0
+        for iid, n_riga in idx_riga.items():
+            v = tree.item(iid, "values")
+            if str(v[1]).strip().upper() in ("SALTATA", "DOPPIA"):
+                orfane.append(n_riga)
+                scartate += 1
+                continue
+            giorno = _parse_data_flessibile(v[2])
+            try:
+                imp = abs(_app._parse_it_float(str(v[4]).replace("€", "").strip()))
+            except Exception:
+                imp = None
+            if _trova_spesa(giorno, str(v[3]).strip(), imp, str(v[5]).strip(), str(v[8]).strip()) is None:
+                orfane.append(n_riga)
+        if not orfane:
+            self.show_toast("Niente da rimuovere: nessuna riga orfana, doppia o saltata.", duration=3000)
+            return
+        n = len(orfane)
+        n_orf = n - scartate
+        dettaglio = []
+        if n_orf:
+            dettaglio.append(f"{n_orf} senza più una spesa corrispondente (cancellata o modificata)")
+        if scartate:
+            dettaglio.append(f"{scartate} doppioni o movimenti saltati (DOPPIA/SALTATA)")
+        if not self.show_custom_askyesno(
+                "Pulisci log",
+                f"Righe da togliere dal log: {n}\n\n- " + "\n- ".join(dettaglio) +
+                "\n\nVengono tolte solo dal log, le spese non vengono toccate. Procedere?"):
+            return
+        try:
+            with open(LOG_IMPORTAZIONI, "r", encoding="utf-8") as f:
+                righe = f.readlines()
+            da_togliere = set(orfane)
+            with open(LOG_IMPORTAZIONI, "w", encoding="utf-8") as f:
+                f.writelines(r for k, r in enumerate(righe) if k not in da_togliere)
+        except Exception as e:
+            self.show_custom_warning("Errore", f"Log non aggiornato: {e}")
+            return
+        carica_righe()
+        var_sel_tutto.set(False)
+        self.show_toast(f"{n} {'riga rimossa' if n == 1 else 'righe rimosse'} dal log.", duration=3000)
 
     def _aggiorna_toggle(event=None):
         tot = len(idx_riga)
@@ -418,7 +471,7 @@ def mostra_log_importazioni(self):
 
     btns = tk.Frame(popup, bg=self.COLOR_BACKGROUND)
     btns.grid(row=2, column=0, pady=10, padx=15, sticky="ew")
-    for i in range(4):
+    for i in range(5):
         btns.columnconfigure(i, weight=1)
     lbl_esporta = ttk.Label(btns, image=self.icone_gui.get("salva"),
             text=" Esporta", compound="left", cursor="hand2",
@@ -432,15 +485,21 @@ def mostra_log_importazioni(self):
             font=("Arial", 9, "bold"))
     lbl_elimina.grid(row=0, column=1, padx=5, sticky="ew")
     lbl_elimina.bind("<Button-1>", lambda e: elimina_selezionate())
+    lbl_orfane = ttk.Label(btns, image=self.icone_gui.get("filtri"),
+            text=" Pulisci log", compound="left", cursor="hand2",
+            background=self.COLOR_BACKGROUND, foreground=self.COLOR_HEADER,
+            font=("Arial", 9, "bold"))
+    lbl_orfane.grid(row=0, column=2, padx=5, sticky="ew")
+    lbl_orfane.bind("<Button-1>", lambda e: rimuovi_orfane())
     lbl_azzera = ttk.Label(btns, image=self.icone_gui.get("delete"),
             text=" Azzera Log", compound="left", cursor="hand2",
             background=self.COLOR_BACKGROUND, foreground=self.COLOR_RED_SMOOTH,
             font=("Arial", 9, "bold"))
-    lbl_azzera.grid(row=0, column=2, padx=5, sticky="ew")
+    lbl_azzera.grid(row=0, column=3, padx=5, sticky="ew")
     lbl_azzera.bind("<Button-1>", lambda e: azzera())
     lbl_chiudi = ttk.Label(btns, image=self.icone_gui.get("chiudi"),
             text=" Chiudi", compound="left", cursor="hand2",
             background=self.COLOR_BACKGROUND, foreground=self.COLOR_HEADER,
             font=("Arial", 9, "bold"))
-    lbl_chiudi.grid(row=0, column=3, padx=5, sticky="ew")
+    lbl_chiudi.grid(row=0, column=4, padx=5, sticky="ew")
     lbl_chiudi.bind("<Button-1>", lambda e: popup.destroy())

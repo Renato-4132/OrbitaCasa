@@ -80,12 +80,16 @@ def _prenota():
 
 def _esegui_protetta(self, manuale, mostra_popup=False):
     self.operazioni_scaricate_sessione = 0
+    self.doppioni_sessione = 0
     try:
         _avvia_sincronizzazione_interna(self, manuale, mostra_popup)
         if not _SYNC_STATO["messaggio"]:
             n = getattr(self, "operazioni_scaricate_sessione", 0) or 0
-            _sync_imposta(f"Completata: {n} nuove operazioni acquisite" if n
-                          else "Completata: nessuna nuova operazione", False)
+            d = getattr(self, "doppioni_sessione", 0) or 0
+            msg = f"Completata: {n} nuove operazioni acquisite" if n else "Completata: nessuna nuova operazione"
+            if d:
+                msg += f" ({d} doppioni scartati)"
+            _sync_imposta(msg, False)
     except Exception as e:
         _sync_imposta(f"Errore: {e}", True)
     finally:
@@ -370,6 +374,7 @@ def _avvia_sincronizzazione_interna(self, manuale=False, mostra_popup=False):
         tutti_ids = []
         id_mittente = {}
         self.operazioni_scaricate_sessione = 0
+        self.doppioni_sessione = 0
         criterio_base = ("UNSEEN " if opz["solo_non_lette"] else "") + f'SINCE "{data_limite}"'
         for i, kw in enumerate(parole_chiave):
             kw = kw.strip().lower()
@@ -489,6 +494,9 @@ def _avvia_sincronizzazione_interna(self, manuale=False, mostra_popup=False):
                                         self.spese.setdefault(data_mov, []).append(nuova_voce)
                                         self.operazioni_scaricate_sessione += 1
                                         _log_riga("ESTRATTO", data_mov, d["desc"], importo_mov, tipo, cat, nuova_voce)
+                                    else:
+                                        self.doppioni_sessione += 1
+                                        _log_riga("DOPPIA", data_mov, d["desc"], importo_mov, tipo, cat)
                                 except Exception as _e_mov:
                                     print(f"Movimento estratto scartato (dati incompleti): {_e_mov}")
                                     continue
@@ -608,6 +616,9 @@ def _avvia_sincronizzazione_interna(self, manuale=False, mostra_popup=False):
                                     print(f"Registrazione documento fallita: {e_reg}")
                             if hasattr(self, 'lbl_sync_count_widget'):
                                 _ui(self.lbl_sync_count_widget.config, text=f"📡 Sync {self.operazioni_scaricate_sessione}")
+                        else:
+                            self.doppioni_sessione += 1
+                            _log_riga("DOPPIA", data_dt, desc, importo, direzione, categoria)
                         _chiudi_mail()
                         if pdf_data:
                             aggiorna_UI(f"ALL· PDF salvato: {azienda}", percentuale, self.operazioni_scaricate_sessione)
@@ -654,6 +665,11 @@ def _avvia_sincronizzazione_interna(self, manuale=False, mostra_popup=False):
         if self.operazioni_scaricate_sessione > 0:
             _ui(self.riproduci_beep)
         _chiudi_popup()
+        n_dopp = getattr(self, "doppioni_sessione", 0) or 0
+        if n_dopp:
+            _ui(self.show_custom_info, "Doppioni scartati",
+                f"{n_dopp} movimenti erano già presenti e non sono stati importati.\n\n"
+                f"Li trovi nel Log Importazioni (Ctrl+Shift+L) con tipo DOPPIA.")
     except Exception as e:
         print(f"Errore Generale: {e}")
         _sync_imposta(f"Errore: {e}", True)
