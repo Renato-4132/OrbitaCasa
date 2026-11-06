@@ -264,7 +264,7 @@ Esegui OrbitaCasa sul tuo server o NAS tramite Docker e gestisci le tue finanze 
 <details>
 <summary><b>Clicca per vedere le app per il telefono</b></summary>
 
-- **OrbitaWeb**: si collega al server web di OrbitaCasa dal telefono. Repo: [Renato-4132/OrbitaNotify](https://github.com/Renato-4132/OrbitaWeb)
+- **OrbitaWeb**: si collega al server web di OrbitaCasa dal telefono. Repo: [Renato-4132/OrbitaWeb](https://github.com/Renato-4132/OrbitaWeb)
 - **OrbitaNotify**: inoltra a OrbitaCasa le notifiche che parlano di soldi, per trasformarle in spese. Repo: [Renato-4132/OrbitaNotify](https://github.com/Renato-4132/OrbitaNotify)
 
 I QR per scaricare gli APK (sempre all'ultima release) sono in OrbitaCasa, nella finestra "Gestione Accessi Remoti" e nella finestra Info.
