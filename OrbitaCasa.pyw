@@ -1425,8 +1425,19 @@ class GestioneSpese(tk.Tk):
             {"categorie": list(self._budget_annuo_sforati), "anno": str(datetime.date.today().year)},
             f"Movimenti oltre soglia annuale – {datetime.date.today().year}"
         ) if getattr(self, '_budget_annuo_sforati', None) else None)
+        self.lbl_notifiche_attesa = ttk.Label(right_info_container, text=" ", font=("Arial", 8, "bold"), foreground=self.COLOR_RED, style="TLabel", cursor="hand2")
+        self.lbl_notifiche_attesa.pack(anchor="w", padx=5, pady=2)
+        self.lbl_notifiche_attesa.bind("<Button-1>", lambda e: self.apri_notifiche_ricevute())
+        add_tt(self.lbl_notifiche_attesa, "Spese da notifiche in attesa di conferma (clic per aprire)")
         btns_row = tk.Frame(right_info_container, bg=self.COLOR_WIDGET_BG)
         btns_row.pack(fill="x", padx=5, pady=2)
+        def _init_notif_attesa():
+            try:
+                from moduli.notifiche_spese import aggiorna_indicatore
+                aggiorna_indicatore(self)
+            except Exception as _e:
+                print(f"Indicatore notifiche: {_e}")
+        self.after(2000, _init_notif_attesa)
         self.lbl_sync_count_widget = ttk.Label(
             btns_row,
             image=self.icone_gui.get("sync"),
@@ -6342,7 +6353,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "175ae3ed98778ef827450cf680d761bbfa9850655188ec726e3cdf3dc7574c85"
+        E_H_B = "885772c8a24a01b90a2a43f76621f933e547a1f079067cc8b220da7b6d0cb13d"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
