@@ -31,22 +31,21 @@
 
 **OrbitaCasa** è un ecosistema progettato per chi vuole il controllo totale sulle proprie finanze senza rinunciare alla **Privacy**. Unisce la potenza di un software gestionale alla semplicità di un'app domestica.
 
-* 🛡️ **Zero Cloud di default**: i tuoi dati risiedono solo sul tuo PC. IA, sync mail e accessi remoti escono dal tuo computer solo se li attivi tu.
+* 🛡️ **Zero Cloud di default**: i tuoi dati restano sul tuo PC. IA, sync mail e accessi remoti li fanno uscire solo se li attivi tu.
 * 💰 **Smart Saving**: algoritmi per il confronto prezzi e il risparmio.
-* 📱 **Mobile Ready**: app Android dedicate (OrbitaWeb e OrbitaNotify), accesso da browser con biometria e QR Code.
+* 📱 **Mobile Ready**: app Android dedicate (OrbitaWeb e OrbitaNotify), accesso da browser con biometria e QR per scaricare gli APK.
 * 📑 **Paperless**: archiviazione digitale di tutti i tuoi documenti PDF.
 * 🔓 **Niente canoni**: gratis, con una licenza "viva" che si allunga più la usi (vedi sotto).
-
+  
 > **Nota tecnica sulla sync:** OrbitaCasa evita deliberatamente le API bancarie (PSD2) per proteggere la privacy dell'utente ed evitare i costi di sottoscrizione che renderebbero il progetto a pagamento. Crediamo in un software libero da canoni e da occhi indiscreti.
 
 **🏅 LICENZA VIVA — GRATIS, A PUNTI**
 
-<details>
-<summary><b>Clicca per i dettagli sulla licenza</b></summary>
+<details> <summary><b>Clicca per i dettagli sulla licenza</b></summary>
 
-Non paghi mai, ma la licenza non è "per sempre" a prescindere: **più usi l'app, più sali di livello, più si allunga**. Ogni traguardo raggiunto estende in automatico la scadenza.
+Non paghi mai, ma la licenza non è "per sempre" a prescindere: più usi l'app, più sali di livello, più si allunga. Ogni traguardo raggiunto estende in automatico la scadenza.
 
-Il codice è distribuito con licenza **Business Source License 1.1**; dal **15 maggio 2029** (Change Date) diventa **GNU GPL v3**.
+Il codice è distribuito con licenza Business Source License 1.1: è consultabile e gratuito da usare, entro i limiti indicati nel file LICENSE del repository. Dal 15 maggio 2029 (Change Date) diventa GNU GPL v3.
 
 </details>
 
