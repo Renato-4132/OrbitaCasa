@@ -22,7 +22,7 @@ def mostra_qr_popup_label(self):
     prot = "https" if USA_SSL and os.path.exists(cert_file) and os.path.exists(key_file) else "http"
     ip_locale = self.get_ip_locale_reale()
     try:
-        r = requests.get('https://api.myip.com', timeout=2).json()
+        r = requests.get('https://api.myip.com', timeout=4).json()
         ip_remoto = r.get('ip', "N/A")
     except Exception:
         ip_remoto = "N/A"
@@ -38,8 +38,8 @@ def mostra_qr_popup_label(self):
     top.transient(self)
     top.title("Gestione Accessi Remoti")
     top.withdraw()
-    window_width = 900
-    window_height = 620
+    window_width = 1100
+    window_height = 633
     app_x = self.winfo_rootx()
     app_y = self.winfo_rooty()
     app_width = self.winfo_width()
@@ -48,24 +48,26 @@ def mostra_qr_popup_label(self):
     center_y = app_y + (app_height // 2) - (window_height // 2)
     top.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
     colore_web = "#007ACC" 
+    colore_android = "#3DDC84"
+    URL_APK = "https://github.com/Renato-4132/OrbitaWeb/releases/latest/download/OrbitaWeb.apk"
     top.configure(bg=self.COLOR_WIDGET_BG)
     top.attributes("-topmost", True)
     top.resizable(False, False)
     def apri_url(url):
         webbrowser.open_new_tab(url)
-    def gen_qr(u):
-        q = segno.make(u, error='L', version=4)
+    def gen_qr(u, ver=4):
+        q = segno.make(u, error='L', version=ver)
         b = io.BytesIO()
-        q.save(b, kind='png', scale=5, dark="black", light="white")
+        q.save(b, kind='png', scale=4, dark="black", light="white")
         b.seek(0)
         return ImageTk.PhotoImage(Image.open(b))
     try:
         main = tk.Frame(top, bg=self.COLOR_WIDGET_BG)
-        main.pack(expand=True, fill="both", padx=20, pady=10)
+        main.pack(expand=True, fill="both", padx=20, pady=4)
         lbl_titolo = ttk.Label(main, text="Gestione Accessi Remoti", style="White.TLabel")
         lbl_titolo.configure(font=("Arial", 22, "bold")) 
-        lbl_titolo.pack(pady=(10, 0))
-        ttk.Label(main, text="Inquadra il QR Code con un altro smartphone o tablet per connetterti al sistema", style="WhiteSmall.TLabel").pack(pady=(0, 20))
+        lbl_titolo.pack(pady=(2, 0))
+        ttk.Label(main, text="Inquadra il QR Code con un altro smartphone o tablet per connetterti al sistema", style="WhiteSmall.TLabel").pack(pady=(0, 4))
         card = tk.Frame(main, bg=self.COLOR_WIDGET_BG)
         card.pack(expand=True)
         col_l = tk.Frame(card, bg=self.COLOR_WIDGET_BG)
@@ -75,7 +77,7 @@ def mostra_qr_popup_label(self):
         img_l = gen_qr(url_locale)
         lbl_img_l = tk.Label(col_l, image=img_l, bg=self.COLOR_WIDGET_BG) 
         lbl_img_l.image = img_l
-        lbl_img_l.pack(pady=10)
+        lbl_img_l.pack(pady=4)
         lbl_url_l = tk.Label(col_l, text=url_locale, font=("Arial", 11, "bold", "underline"), 
                                          bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR, cursor="hand2")
         lbl_url_l.pack()
@@ -92,22 +94,105 @@ def mostra_qr_popup_label(self):
         img_r = gen_qr(url_remoto)
         lbl_img_r = tk.Label(col_r, image=img_r, bg=self.COLOR_WIDGET_BG)
         lbl_img_r.image = img_r
-        lbl_img_r.pack(pady=10)
+        lbl_img_r.pack(pady=4)
         lbl_url_r = tk.Label(col_r, text=url_remoto, font=("Arial", 11, "bold", "underline"), 
                                          bg=self.COLOR_WIDGET_BG, fg=colore_web, cursor="hand2")
         lbl_url_r.pack()
         lbl_url_r.bind("<Button-1>", lambda e: apri_url(url_remoto))
+        tk.Frame(card, width=1, bg=self.COLOR_HEADER_BG).pack(side="left", fill="y", padx=10, pady=10)
+        col_a = tk.Frame(card, bg=self.COLOR_WIDGET_BG)
+        col_a.pack(side="left", padx=40)
+        lbl_apk_t = ttk.Label(col_a, text="App Android", font=("Arial", 14, "bold"), style="White.TLabel")
+        lbl_apk_t.configure(foreground=colore_android)
+        lbl_apk_t.pack()
+        lbl_apk_sub = ttk.Label(col_a, text="(Scarica OrbitaWeb.apk)", style="WhiteSmall.TLabel")
+        lbl_apk_sub.configure(foreground=colore_android)
+        lbl_apk_sub.pack(pady=(0, 5))
+        img_a = gen_qr(URL_APK, ver=None)
+        lbl_img_a = tk.Label(col_a, image=img_a, bg=self.COLOR_WIDGET_BG)
+        lbl_img_a.image = img_a
+        lbl_img_a.pack(pady=4)
+        lbl_url_a = tk.Label(col_a, text="Scarica l'APK", font=("Arial", 11, "bold", "underline"),
+                             bg=self.COLOR_WIDGET_BG, fg=colore_android, cursor="hand2")
+        lbl_url_a.pack()
+        lbl_url_a.bind("<Button-1>", lambda e: apri_url(URL_APK))
         protocollo_attivo = "HTTPS (Cifrato)" if prot == "https" else "HTTP (Non cifrato)"
 
         footer_text = (
-              f"STATO CONNESSIONE: Il server opera attualmente su protocollo {protocollo_attivo}.\n"
-              f"{NAME} predilige connessioni HTTPS per garantire la massima riservatezza dei dati nella LAN.\n"
-              "⚠️ NOTA SUL CERTIFICATO: Essendo un certificato autogenerato, il browser mostrerà un avviso di sicurezza.\n"
-              "Puoi procedere con fiducia (clicca 'Avanzate'): la connessione è cifrata e sicura al 100%.\n"
-              "SICUREZZA WAN: Per accessi remoti, si raccomanda l'uso di una VPN per un tunnel end-to-end protetto."
+              f"STATO: server su protocollo {protocollo_attivo}. Certificato autogenerato: il browser mostrerà un avviso, clicca 'Avanzate' e prosegui (connessione cifrata).\n"
+              "ACCESSO DA FUORI CASA: con 4G/5G/FWA l'inoltro porta spesso non è possibile; si raccomanda una VPN (es. Tailscale)."
           )
         lbl_footer = ttk.Label(main, text=footer_text, style="WhiteSmall.TLabel", justify="center")
-        lbl_footer.pack(pady=20)
+        lbl_footer.pack(pady=(6, 4))
+        lbl_esito = tk.Label(main, text="", justify="left", wraplength=900,
+                             bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR, font=("Arial", 10))
+        def _verifica(event=None):
+            lbl_esito.config(text="Controllo in corso...", fg="gray")
+            righe = []
+            def _lavoro():
+                import socket
+                def porta_aperta(host):
+                    try:
+                        with socket.create_connection((host, PORTA), timeout=2):
+                            return True
+                    except OSError:
+                        return False
+                try:
+                    if porta_aperta("127.0.0.1"):
+                        righe.append("✅ Il server di OrbitaCasa è attivo su questo PC.")
+                        if porta_aperta(ip_locale):
+                            righe.append(f"✅ Il server ascolta sulla rete di casa ({ip_locale}).")
+                        else:
+                            righe.append("❌ Il server ascolta solo su questo PC e non sulla rete di casa.")
+                    else:
+                        righe.append("❌ Il server web non è attivo: abilitalo in Configurazione → Rete & Web Server.")
+                    if dominio:
+                        ip_pub = ip_remoto
+                        if ip_pub == "N/A":
+                            for _u in ("https://api.ipify.org", "https://ifconfig.me/ip", "https://icanhazip.com"):
+                                try:
+                                    ip_pub = requests.get(_u, timeout=4).text.strip() or "N/A"
+                                    if ip_pub != "N/A":
+                                        break
+                                except Exception:
+                                    ip_pub = "N/A"
+                        try:
+                            ip_dom = socket.gethostbyname(dominio)
+                            if ip_pub == "N/A":
+                                righe.append(f"⚠️ Il dominio {dominio} punta a {ip_dom}, ma non riesco a leggere il tuo IP pubblico (nessuna risposta dai servizi online): non posso confrontarli.")
+                            elif ip_dom == ip_pub:
+                                righe.append(f"✅ Il dominio {dominio} punta al tuo IP pubblico ({ip_pub}).")
+                            else:
+                                righe.append(f"❌ Il dominio {dominio} punta a {ip_dom}, il tuo IP pubblico è {ip_pub}: aggiorna il DNS.")
+                        except OSError:
+                            righe.append(f"❌ Il dominio {dominio} non si risolve.")
+                    righe.append("ℹ️ Firewall e accesso da fuori non verificabili da qui: se il telefono non si collega, "
+                                 f"controlla il firewall (porta {PORTA}) e l'inoltro porta sul router.")
+                except Exception as ex_ver:
+                    righe.append(f"❌ Controllo non completato: {ex_ver}")
+                finally:
+                    righe.append("__fine__")
+            def _mostra():
+                try:
+                    if not top.winfo_exists():
+                        return
+                    if not righe or righe[-1] != "__fine__":
+                        top.after(200, _mostra)
+                        return
+                    lbl_esito.config(text="\n".join(righe[:-1]), fg=self.TEXT_COLOR)
+                except tk.TclError:
+                    pass
+            import threading
+            threading.Thread(target=_lavoro, daemon=True).start()
+            top.after(200, _mostra)
+        img_ver = self.icone_gui.get("help")
+        btn_verifica = ttk.Label(main, image=img_ver, text=" Verifica connessione", compound="left",
+                                 cursor="hand2", background=self.COLOR_WIDGET_BG,
+                                 font=("Arial", 9, "bold"))
+        btn_verifica.image = img_ver
+        btn_verifica.pack(pady=(0, 4))
+        btn_verifica.bind("<Button-1>", _verifica)
+        lbl_esito.pack(pady=(0, 4))
         btn_chiudi_qr = ttk.Label(
             main, 
             image=self.icone_gui.get("chiudi"), 

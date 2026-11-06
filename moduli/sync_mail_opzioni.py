@@ -23,7 +23,7 @@ OPZIONI_DEFAULT = {
     "copia_fatture_gmail": True,
 }
 
-REGOLA_VUOTA = {"mittente": "", "categoria": "", "conto": "", "metodo": "", "tag": "", "tipo": ""}
+REGOLA_VUOTA = {"mittente": "", "categoria": "", "conto": "", "metodo": "", "tag": "", "tipo": "", "gemini": "1"}
 
 _ETICHETTE_DATA = {
     "mail": "Data della mail",
@@ -32,7 +32,7 @@ _ETICHETTE_DATA = {
 }
 _ETICHETTE_RICERCA = {True: "Solo mail non lette", False: "Tutte (salta quelle già importate)"}
 _ETICHETTE_IMPORTO = {"ripiego": "Registra con 0,01 €", "salta": "Salta la mail"}
-_ETICHETTE_TIPO = {"": "Automatico (Gemini)", "Entrata": "Entrata", "Uscita": "Uscita"}
+_ETICHETTE_TIPO = {"": "", "Entrata": "Entrata", "Uscita": "Uscita"}
 
 def normalizza_mittenti(raw):
     if raw is None:
@@ -91,6 +91,7 @@ def leggi_regole(cfg):
         regola = dict(REGOLA_VUOTA)
         for k in REGOLA_VUOTA:
             regola[k] = str(r.get(k, "") or "").strip()
+        regola["gemini"] = "0" if str(r.get("gemini", "1")).strip().lower() in ("0", "false", "no") else "1"
         regola["mittente"] = mitt
         if regola["tipo"] not in ("Entrata", "Uscita"):
             regola["tipo"] = ""
@@ -265,18 +266,23 @@ TIP_REGOLA = {
         "Deve essere uguale a uno dei Filtri Email, altrimenti la regola non viene applicata. "
         "Dopo la creazione non si può modificare.",
     "Categoria:":
-        "Categoria dei movimenti di questo mittente. Vuoto = categoria predefinita bollette.",
+        "Categoria dei movimenti di questo mittente. Se vuota la sceglie Gemini (se attivo), "
+        "altrimenti vale la categoria predefinita bollette.",
     "Conto:":
-        "Conto bancario a cui assegnare i movimenti. Vuoto = nessun conto "
-        "(per gli estratti conto si usa il conto delle opzioni).",
+        "Conto bancario a cui assegnare i movimenti. Se vuoto lo sceglie Gemini (se attivo), "
+        "altrimenti nessun conto (per gli estratti conto si usa il conto delle opzioni).",
     "Metodo di pagamento:":
-        "Metodo di pagamento dei movimenti. Vuoto = nessuno.",
+        "Metodo di pagamento dei movimenti. Se vuoto lo sceglie Gemini (se attivo), altrimenti nessuno.",
     "Tag (es. #utenze #casa):":
         "Tag aggiunti ai movimenti, separati da uno spazio.",
     "Tipo movimento:":
-        "Automatico: lo decide Gemini leggendo la mail.\n"
         "Entrata/Uscita: forza il verso.\n"
+        "Vuoto: se Gemini è attivo lo decide lui leggendo la mail, altrimenti Uscita.\n"
         "Negli estratti conto decide comunque il segno dell'importo.",
+    "Gemini":
+        "Se attivo, Gemini compila tutti i campi lasciati vuoti (tipo, categoria, conto, metodo), scegliendo solo tra quelli "
+        "esistenti in Orbita. Se non trova niente di valido si usa il default. "
+        "I campi compilati nella regola non vengono mai toccati. Vale solo per bollette e fatture.",
 }
 
 
@@ -335,6 +341,7 @@ def _editor_regola(app, parent, regola, mittenti_disponibili, gia_usati, categor
     v_conto = tk.StringVar(value=regola.get("conto", ""))
     v_metodo = tk.StringVar(value=regola.get("metodo", ""))
     v_tag = tk.StringVar(value=regola.get("tag", ""))
+    v_gemini = tk.BooleanVar(value=regola.get("gemini", "1") != "0")
     v_tipo = tk.StringVar(value=_ETICHETTE_TIPO.get(regola.get("tipo", ""), _ETICHETTE_TIPO[""]))
 
     modifica = bool(regola.get("mittente"))
@@ -361,11 +368,15 @@ def _editor_regola(app, parent, regola, mittenti_disponibili, gia_usati, categor
     riga(5, "Tipo movimento:", ttk.Combobox(frm, style="Border.TCombobox", textvariable=v_tipo,
                                             values=list(_ETICHETTE_TIPO.values()), width=44, state="readonly"))
 
+    chk_gem = ttk.Checkbutton(frm, text="Gemini compila i campi vuoti (tipo, categoria, conto, metodo)", variable=v_gemini)
+    chk_gem.grid(row=6, column=0, columnspan=2, sticky="w", pady=(8, 2))
+    _tooltip(app, chk_gem, TIP_REGOLA["Gemini"])
+
     ttk.Label(
         frm, foreground="gray", wraplength=520, justify="left",
-        text="Lascia vuoto un campo per usare il comportamento predefinito "
-             "(categoria predefinita bollette, nessun conto, nessun metodo, nessun tag, tipo deciso da Gemini)."
-    ).grid(row=6, column=0, columnspan=2, sticky="w", pady=(8, 2))
+        text="Un campo compilato vale sempre. Se è vuoto: con Gemini attivo lo sceglie lui, "
+             "altrimenti si usa il default (uscita, categoria predefinita bollette, nessun conto, nessun metodo, nessun tag)."
+    ).grid(row=7, column=0, columnspan=2, sticky="w", pady=(2, 2))
 
     def conferma():
         mitt = v_mitt.get().strip().lower()
@@ -387,13 +398,14 @@ def _editor_regola(app, parent, regola, mittenti_disponibili, gia_usati, categor
             "metodo": v_metodo.get().strip(),
             "tag": tag_norm,
             "tipo": tipo_sel,
+            "gemini": "1" if v_gemini.get() else "0",
         })
         win.destroy()
 
     bt = ttk.Frame(frm)
-    bt.grid(row=7, column=0, columnspan=2, pady=(12, 0), sticky="e")
-    _pulsante(app, bt, "chiudi", "Annulla", win.destroy).pack(side="right", padx=(6, 0))
-    _pulsante(app, bt, "salva", "OK", conferma).pack(side="right")
+    bt.grid(row=8, column=0, columnspan=2, pady=(12, 0))
+    _pulsante(app, bt, "salva", "Salva", conferma).pack(side="left", padx=6)
+    _pulsante(app, bt, "chiudi", "Chiudi", win.destroy).pack(side="left", padx=6)
 
     _dimensiona(win, parent)
     win.deiconify()
@@ -426,14 +438,15 @@ class TabImportazione:
 
         ttk.Label(
             lf, foreground="gray", wraplength=640, justify="left",
-            text="Ogni riga assegna categoria, conto, metodo, tag e tipo ai movimenti importati da quel mittente. "
+            text="Ogni riga assegna categoria, conto, metodo, tag e tipo (entrata/uscita) ai movimenti importati da quel mittente; "
+                 "con Gemini attivo compila lui i campi lasciati vuoti, tipo compreso. "
                  "I mittenti da leggere si impostano nel campo «Filtri Email» del tab Sync Email & AI."
         ).pack(anchor="w", pady=(0, 6))
 
-        colonne = ("mittente", "categoria", "conto", "metodo", "tag", "tipo")
+        colonne = ("mittente", "categoria", "conto", "metodo", "tag", "tipo", "gemini")
         intest = {"mittente": "Mittente", "categoria": "Categoria", "conto": "Conto",
-                  "metodo": "Metodo", "tag": "Tag", "tipo": "Tipo"}
-        largh = {"mittente": 210, "categoria": 110, "conto": 100, "metodo": 90, "tag": 100, "tipo": 80}
+                  "metodo": "Metodo", "tag": "Tag", "tipo": "Entrata/Uscita", "gemini": "Gemini"}
+        largh = {"mittente": 210, "categoria": 110, "conto": 100, "metodo": 90, "tag": 100, "tipo": 90, "gemini": 60}
 
         f_tree = ttk.Frame(lf)
         f_tree.pack(fill="both", expand=True)
@@ -442,7 +455,7 @@ class TabImportazione:
         self.tree = ttk.Treeview(f_tree, columns=colonne, show="headings", height=14, selectmode="browse")
         for c in colonne:
             self.tree.heading(c, text=intest[c])
-            self.tree.column(c, width=largh[c], anchor="w")
+            self.tree.column(c, width=largh[c], anchor="center" if c == "gemini" else "w")
         sb = ttk.Scrollbar(f_tree, orient="vertical", command=self.tree.yview)
         sbo = ttk.Scrollbar(f_tree, orient="horizontal", command=self.tree.xview)
         self.tree.configure(yscrollcommand=sb.set, xscrollcommand=sbo.set)
@@ -466,7 +479,8 @@ class TabImportazione:
         for i, r in enumerate(self.regole):
             valori = (
                 r["mittente"], r["categoria"] or "(predefinita)", r["conto"], r["metodo"], r["tag"],
-                _ETICHETTE_TIPO.get(r["tipo"], "Automatico").replace(" (Gemini)", ""),
+                _ETICHETTE_TIPO[r["tipo"]] if r["tipo"] else "",
+                "Sì" if r.get("gemini", "1") != "0" else "No",
             )
             righe.append(valori)
             self.tree.insert("", "end", iid=str(i), values=valori)
@@ -489,7 +503,7 @@ class TabImportazione:
             for riga in righe:
                 w = max(w, fnt.measure(str(riga[n])) + 18)
             w = min(w, 460)
-            self.tree.column(c, width=w, minwidth=w, stretch=True)
+            self.tree.column(c, width=w, minwidth=w, stretch=True, anchor="center" if c == "gemini" else "w")
 
     def _mittenti(self):
         return normalizza_mittenti(self.get_mittenti())

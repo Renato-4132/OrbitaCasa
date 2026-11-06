@@ -264,23 +264,11 @@ def apri_finestra_revisione_universale(self, movimenti):
     lbl_count.pack(side="left", padx=6)
     def salva():
         count, duplicati, errori = 0, 0, []
-        try:
-            with open(PORTAFOGLIO_BANCARIO, "r", encoding="utf-8") as _pf:
-                _db_p = json.load(_pf)
-        except Exception as _ex:
-            _db_p = None
-            print(f"[revisione_universale] Portafoglio non disponibile: {_ex}")
-        _portafoglio_modificato = False
         _spese_pre_import = {
             _data: [(campo(_e, "importo", 0.0), campo(_e, "tipo", ""))
                     for _e in _voci]
             for _data, _voci in self.spese.items()
         }
-        if _db_p is not None:
-            _ids_trasf = {t.get("id", "") for t in _db_p.get("trasferimenti", [])}
-            _prossimo_id_trasf = 1
-            while f"t{_prossimo_id_trasf}" in _ids_trasf:
-                _prossimo_id_trasf += 1
         for mov, var_check, var_data, var_desc, var_imp, entry_data, combo, combo_conto, var_tag, combo_metodo in righe:
             if not var_check.get():
                 continue
@@ -317,50 +305,12 @@ def apri_finestra_revisione_universale(self, movimenti):
             count += 1
             if hasattr(self, 'registra_azione_gamification'):
                 self.registra_azione_gamification("movimento")
-            if nome_conto_rev and nome_conto_rev != "(nessuno)" and _db_p is not None:
-                for _c in _db_p.get("conti", []):
-                    if _c.get("nome") == nome_conto_rev:
-                        _segno = -1 if tipo == "Uscita" else 1
-                        _c["saldo"] = round(float(_c.get("saldo", 0)) + _segno * abs(importo), 2)
-                        _db_p.setdefault("trasferimenti", []).append({
-                            "id": f"t{_prossimo_id_trasf}",
-                            "data": data_mov.strftime("%d-%m-%Y"),
-                            "da": _c["id"] if tipo == "Uscita" else "__spese__",
-                            "a":  "__spese__" if tipo == "Uscita" else _c["id"],
-                            "importo": round(abs(importo), 2),
-                            "note": f"{cat} – {desc}".strip(" –")
-                        })
-                        _ids_trasf.add(f"t{_prossimo_id_trasf}")
-                        _prossimo_id_trasf += 1
-                        while f"t{_prossimo_id_trasf}" in _ids_trasf:
-                            _prossimo_id_trasf += 1
-                        _portafoglio_modificato = True
-                        break
             try:
-                with open(LOG_IMPORTAZIONI, "a", encoding="utf-8") as log:
-                    direzione = "Entrata" if importo >= 0 else "Uscita"
-                    conto_log = nome_conto_rev if nome_conto_rev and nome_conto_rev != "(nessuno)" else "—"
-                    log.write(
-                        f"{datetime.now().strftime('%d/%m/%Y %H:%M'):<17} | "
-                        f"{'IA':<8} | "
-                        f"{data_mov.strftime('%d/%m/%Y'):<10} | "
-                        f"{desc:<50} | "
-                        f"{_app._fmt_it(abs(importo)):>10} € | "
-                        f"{direzione:<7} | "
-                        f"{cat} | "
-                        f"{conto_log} | "
-                        f"{voce.id_spesa} | "
-                        f"{metodo_voce or '—'} | "
-                        f"{' '.join(tag_lista) or '—'}\n"
-                    )
+                from moduli import log_importazioni as _li
+                _li.scrivi_riga("IA", data_mov, desc, importo,
+                                "Entrata" if importo >= 0 else "Uscita", cat, voce)
             except Exception as e:
                 print(f"Errore log importazione: {e}")
-        if _portafoglio_modificato:
-            try:
-                with open(PORTAFOGLIO_BANCARIO, "w", encoding="utf-8") as _pf:
-                    json.dump(_db_p, _pf, indent=2, ensure_ascii=False)
-            except Exception as _ex:
-                print(f"[revisione_universale] Errore salvataggio portafoglio: {_ex}")
         self.save_db()
         try:
             with open(MEM_CAT, "w", encoding="utf-8") as f:

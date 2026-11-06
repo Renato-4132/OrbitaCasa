@@ -7,6 +7,7 @@ import datetime
 import tkinter as tk
 from tkinter import ttk, Toplevel
 
+
 def gestisci_configurazione(self):
     from moduli.sync_mail_opzioni import (
         leggi_opzioni, leggi_regole, normalizza_mittenti, TabImportazione,
@@ -964,7 +965,167 @@ def gestisci_configurazione(self):
     lbl_fetch.pack(side="left", padx=(5, 0))
     lbl_fetch.bind("<Button-1>", lambda e: self.fetch_gemini_models())
     row_sync += 1
-
+    f_token = ttk.Frame(tab_sync)
+    f_token.grid(row=row_sync, column=0, columnspan=3, sticky="we", padx=10, pady=4)
+    try:
+        from moduli.webhook_notifiche import _token
+        _token_val, _ = _token()
+    except Exception:
+        _token_val = "Non disponibile"
+    ttk.Label(f_token, text="Token Webhook:", width=25, anchor="w").pack(side="left")
+    ent_token_val = ttk.Entry(f_token, width=48)
+    ent_token_val.pack(side="left", padx=5, fill="x", expand=False)
+    ent_token_val.insert(0, _token_val)
+    ent_token_val.config(state="readonly")
+    def _copia_token(e=None):
+        config_window.clipboard_clear()
+        config_window.clipboard_append(ent_token_val.get())
+        self.show_toast("Token copiato negli appunti!", duration=2000)
+    img_copia = self.icone_gui.get("salva")
+    btn_copia = ttk.Label(
+        f_token,
+        compound="left",
+        image=img_copia,
+        text=" Copia" if img_copia else "Copia",
+        background=self.COLOR_WIDGET_BG,
+        foreground=self.TEXT_COLOR,
+        cursor="hand2",
+        padding=(8, 4)
+    )
+    btn_copia.image = img_copia
+    btn_copia.pack(side="left", padx=5)
+    btn_copia.bind("<Button-1>", _copia_token)
+    def _rigenera_token(e=None):
+        if not self.show_custom_askyesno(
+                "Rigenera token",
+                "Generare un nuovo token?\n\nIl vecchio smette di funzionare: "
+                "l'app Android va aggiornata con quello nuovo."):
+            return
+        try:
+            from moduli.webhook_notifiche import rigenera_token
+            nuovo = rigenera_token()
+        except Exception as ex:
+            self.show_custom_warning("Errore", f"Token non rigenerato: {ex}")
+            return
+        ent_token_val.config(state="normal")
+        ent_token_val.delete(0, "end")
+        ent_token_val.insert(0, nuovo)
+        ent_token_val.config(state="readonly")
+        _aggiorna_qr_token(nuovo)
+        self.show_toast("Nuovo token generato.", duration=2000)
+    img_rig = self.icone_gui.get("sync")
+    btn_rig = ttk.Label(
+        f_token,
+        compound="left",
+        image=img_rig,
+        text=" Rigenera" if img_rig else "Rigenera",
+        background=self.COLOR_WIDGET_BG,
+        foreground=self.TEXT_COLOR,
+        cursor="hand2",
+        padding=(8, 4)
+    )
+    btn_rig.image = img_rig
+    btn_rig.pack(side="left", padx=5)
+    btn_rig.bind("<Button-1>", _rigenera_token)
+    row_sync += 1
+    f_url = ttk.Frame(tab_sync)
+    f_url.grid(row=row_sync, column=0, columnspan=3, sticky="we", padx=10, pady=4)
+    try:
+        import __main__ as _app_wh
+        import os as _os_wh
+        _prot_wh = "https" if _app_wh.USA_SSL and _os_wh.path.exists(_app_wh.SSL_CERT) and _os_wh.path.exists(_app_wh.SSL_KEY) else "http"
+        _host_wh = (self.get_dominio_ssl() if _app_wh.USA_SSL else "") or self.get_ip_locale_reale()
+        _url_wh = f"{_prot_wh}://{_host_wh}:{_app_wh.PORTA}/api/notifiche"
+    except Exception:
+        _url_wh = "Non disponibile"
+    ttk.Label(f_url, text="Indirizzo Webhook:", width=25, anchor="w").pack(side="left")
+    ent_url_wh = ttk.Entry(f_url, width=48)
+    ent_url_wh.pack(side="left", padx=5, fill="x", expand=False)
+    ent_url_wh.insert(0, _url_wh)
+    ent_url_wh.config(state="readonly")
+    def _copia_url_wh(e=None):
+        config_window.clipboard_clear()
+        config_window.clipboard_append(ent_url_wh.get())
+        self.show_toast("Indirizzo copiato negli appunti!", duration=2000)
+    btn_copia_url = ttk.Label(
+        f_url,
+        compound="left",
+        image=img_copia,
+        text=" Copia" if img_copia else "Copia",
+        background=self.COLOR_WIDGET_BG,
+        foreground=self.TEXT_COLOR,
+        cursor="hand2",
+        padding=(8, 4)
+    )
+    btn_copia_url.image = img_copia
+    btn_copia_url.pack(side="left", padx=5)
+    btn_copia_url.bind("<Button-1>", _copia_url_wh)
+    row_sync += 1
+    def _qr_img(testo, scala=3):
+        import io
+        from __main__ import segno, Image, ImageTk
+        b = io.BytesIO()
+        segno.make(testo, error="L").save(b, kind="png", scale=scala, border=2, dark="black", light="white")
+        b.seek(0)
+        return ImageTk.PhotoImage(Image.open(b))
+    f_qr = ttk.Frame(tab_sync)
+    f_qr.grid(row=row_sync, column=0, columnspan=3, sticky="we", padx=10, pady=4)
+    ttk.Label(f_qr, text="QR Token:", width=25, anchor="w").pack(side="left")
+    lbl_qr_token = ttk.Label(f_qr)
+    lbl_qr_token.pack(side="left", padx=(5, 60))
+    ttk.Label(f_qr, text="QR Indirizzo:", anchor="w").pack(side="left")
+    lbl_qr_url = ttk.Label(f_qr)
+    lbl_qr_url.pack(side="left", padx=(5, 60))
+    url_app = {"v": "https://github.com/Renato-4132/OrbitaNotify/releases/latest"}
+    ttk.Label(f_qr, text="QR Scarica App:", anchor="w").pack(side="left")
+    lbl_qr_app = ttk.Label(f_qr, cursor="hand2")
+    lbl_qr_app.pack(side="left", padx=5)
+    lbl_qr_app.bind("<Button-1>", lambda e: webbrowser.open(url_app["v"]))
+    def _imposta_qr(lbl, valore):
+        try:
+            if valore and valore != "Non disponibile":
+                img = _qr_img(valore)
+                lbl.configure(image=img)
+                lbl.image = img
+            else:
+                lbl.configure(image="")
+                lbl.image = None
+        except Exception as ex_qr:
+            print(f"QR webhook non generato: {ex_qr}")
+    def _aggiorna_qr_token(valore):
+        _imposta_qr(lbl_qr_token, valore)
+    _aggiorna_qr_token(_token_val)
+    _imposta_qr(lbl_qr_url, _url_wh)
+    _imposta_qr(lbl_qr_app, url_app["v"])
+    def _risolvi_apk():
+        try:
+            import urllib.request
+            req = urllib.request.Request(
+                "https://api.github.com/repos/Renato-4132/OrbitaNotify/releases/latest",
+                headers={"User-Agent": "OrbitaCasa"})
+            with urllib.request.urlopen(req, timeout=5) as r:
+                dati = json.loads(r.read().decode("utf-8"))
+            for a in dati.get("assets", []):
+                if a.get("name", "").lower().endswith(".apk"):
+                    url_app["apk"] = a["browser_download_url"]
+                    break
+        except Exception as ex_apk:
+            print(f"APK ultima release non trovato: {ex_apk}")
+        url_app["fatto"] = True
+    def _controlla_apk():
+        if url_app.get("fatto"):
+            if url_app.get("apk"):
+                url_app["v"] = url_app["apk"]
+                _imposta_qr(lbl_qr_app, url_app["v"])
+            return
+        try:
+            config_window.after(300, _controlla_apk)
+        except Exception:
+            pass
+    import threading
+    threading.Thread(target=_risolvi_apk, daemon=True).start()
+    _controlla_apk()
+    row_sync += 1
     ttk.Separator(main_frame, orient='horizontal', style="Rosso.TSeparator").pack(fill="x", pady=(3, 3))
     button_frame = ttk.Frame(main_frame)
     button_frame.pack(pady=(4, 5))

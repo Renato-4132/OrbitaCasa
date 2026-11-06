@@ -190,6 +190,10 @@ def carica_costanti(path_locale):
     g['ANIMALI_FILE'] = os.path.join(DB_DIR, "animali.json")
     g['FIN_FILE'] = os.path.join(DB_DIR, "finanziamenti.json")
     g['MAIL_ELABORATE_FILE'] = os.path.join(DB_DIR, "mail_elaborate.json")
+    g['NOTIFICHE_PROPOSTE_FILE'] = os.path.join(DB_DIR, "notifiche_proposte.json")
+    g['REGOLE_NOTIFICHE_FILE'] = os.path.join(DB_DIR, "regole_notifiche.json")
+    g['NOTIFICHE_RICEVUTE_FILE'] = os.path.join(DB_DIR, "notifiche_ricevute.jsonl")
+    g['WEBHOOK_NOTIFICHE_FILE'] = os.path.join(DB_DIR, "webhook_notifiche.json")
     g['GAMIFICATION_FILE'] = os.path.join(DB_DIR, "gamification.json")
     g['CREDENTIALS_FILE'] = os.path.join(DB_DIR, "webauthn_credentials.json")
         
@@ -209,7 +213,7 @@ def carica_costanti(path_locale):
     g['WARN_TIMEOUT'] = 20000                       # Timeout Messaggi Popup (ms)
     g['USE_WAIT_WINDOW'] = False                    # Timeout chiusura self.show_custom_warning
     g['TOLL'] = 15                                  # Tolleranza Movimenti simili (SmartCat) - Euro
-    g['VERSION'] = "2.5.6"
+    g['VERSION'] = "2.5.7"
     g['ICONIZZA_INATTIVITA'] = True                 # Attiva/disattiva Timer Minimizza
     g['TIMEOUT_INATTIVITA_MS'] = 1200000            # 20 minuti in ms - Timer Minimizza
     g['ANNI_DA_MANTENERE'] = 10                     # Anni conservati nel db

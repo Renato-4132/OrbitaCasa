@@ -23,6 +23,7 @@ SCORCIATOIE_GRUPPI = [
     ("Movimenti", [
         ("<Control-f>",       "Ctrl+F",       "cerca_operazioni",         "Cerca Operaz."),
         ("<Control-n>",       "Ctrl+N",       "open_compare_window",      "Confronto Dati"),
+        ("<Control-Shift-N>", "Ctrl+Shift+N", "apri_notifiche_ricevute",  "Notifiche e Spese"),
         ("<Control-a>",       "Ctrl+A",       "apri_fondo_risparmio",     "Stat. Annuali"),
         ("<Control-z>",       "Ctrl+Z",       "calcola_mancanti",         "Mancanti"),
         ("<F7>",              "F7",           "mostra_spese_simili",      "Spese Simili"),

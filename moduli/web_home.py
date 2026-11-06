@@ -298,6 +298,8 @@ _CSS = r"""
     :root.light header { background:rgba(245,245,240,0.95); }
     .menu-btn { position:absolute; left:14px; top:50%; transform:translateY(-50%); background:var(--surface3); border:1px solid var(--border); color:var(--gold); width:36px; height:36px; border-radius:10px; font-size:1em; cursor:pointer; display:flex; align-items:center; justify-content:center; }
     .theme-toggle { position:absolute; right:14px; top:50%; transform:translateY(-50%); background:var(--surface3); border:1px solid var(--border); border-radius:8px; width:34px; height:34px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:1em; }
+    .logout-btn { position:absolute; right:56px; top:50%; transform:translateY(-50%); background:var(--surface3); border:1px solid var(--border); border-radius:8px; width:34px; height:34px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:1em; text-decoration:none; }
+    .logout-btn:hover { border-color:var(--red, #c0392b); }
     .nav-dropdown { position:absolute; top:calc(100% + 6px); left:10px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-lg); display:none; z-index:1000; width:270px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,0.7); }
     .nav-dropdown a { display:flex; align-items:center; gap:10px; padding:10px 16px; text-decoration:none; color:var(--text-mid); border-bottom:1px solid var(--border); font-size:0.87em; }
     .nav-dropdown a:last-child { border-bottom:none; }
@@ -494,6 +496,7 @@ _HOME = (_HEAD.replace("__TITOLO__", "🏠 Home") + _CSS + r"""
         <div class="header-title">🏠 Home</div>
         <div class="header-sub" id="user-badge" data-nome="__UTENTE__" data-ultimo="__ULTIMO__" onclick="mostraLog()">👤 __UTENTE__</div>
     </div>
+    <a class="logout-btn" href="/logoff" title="Disconnetti">🔓</a>
     <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Cambia tema">🌙</button>
 </header>
 <main>

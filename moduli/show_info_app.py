@@ -26,6 +26,101 @@ def show_info_app(self):
     def apri_github(event):
         webbrowser.open(f"https://github.com/{_app.REPO_OWNER}/{_app.REPO_NAME}")
 
+    url_app = {"v": "https://github.com/Renato-4132/OrbitaNotify/releases/latest"}
+
+    def _risolvi_apk():
+        try:
+            import json
+            import urllib.request
+            req = urllib.request.Request(
+                "https://api.github.com/repos/Renato-4132/OrbitaNotify/releases/latest",
+                headers={"User-Agent": "OrbitaCasa"})
+            with urllib.request.urlopen(req, timeout=5) as r:
+                dati = json.loads(r.read().decode("utf-8"))
+            for a in dati.get("assets", []):
+                if a.get("name", "").lower().endswith(".apk"):
+                    url_app["v"] = a["browser_download_url"]
+                    break
+        except Exception as ex_apk:
+            print(f"APK ultima release non trovato: {ex_apk}")
+
+    threading.Thread(target=_risolvi_apk, daemon=True).start()
+
+    _qr_dlg = [None]
+
+    def _mostra_qr_app(nome, url):
+        if _qr_dlg[0] is not None and _qr_dlg[0].winfo_exists():
+            _qr_dlg[0].destroy()
+        import io
+        import segno
+        from PIL import Image, ImageTk
+        dlg = tk.Toplevel(info_win, bg=self.COLOR_TOPLEVEL)
+        _qr_dlg[0] = dlg
+        dlg.title(f"App Android - {nome}")
+        dlg.resizable(False, False)
+        dlg.transient(info_win)
+        dlg.withdraw()
+        tk.Label(dlg, text=nome, bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR,
+                 font=("Arial", 13, "bold")).pack(padx=30, pady=(14, 2))
+        tk.Label(dlg, text="Inquadra il QR con il telefono per scaricare l'app",
+                 bg=self.COLOR_TOPLEVEL, fg="gray", font=("Arial", 9)).pack(padx=30)
+        try:
+            q = segno.make(url, error='L')
+            b = io.BytesIO()
+            q.save(b, kind='png', scale=6, dark="black", light="white", border=2)
+            b.seek(0)
+            img = ImageTk.PhotoImage(Image.open(b))
+            lbl_img = tk.Label(dlg, image=img, bg="white")
+            lbl_img.image = img
+            lbl_img.pack(pady=10)
+        except Exception as ex_qr:
+            tk.Label(dlg, text=f"QR non generato: {ex_qr}", bg=self.COLOR_TOPLEVEL,
+                     fg="#c0392b", font=("Arial", 8)).pack(pady=10)
+        lbl_url = tk.Label(dlg, text=url, wraplength=300, justify=tk.CENTER,
+                           bg=self.COLOR_TOPLEVEL, fg=self.TEXT_COLOR, cursor="hand2",
+                           font=("Arial", 8, "underline"))
+        lbl_url.pack(padx=20)
+        lbl_url.bind("<Button-1>", lambda e: webbrowser.open(url))
+        tk.Label(dlg, text="Android avviserà che l'APK arriva da fonte sconosciuta:\nconsenti l'installazione dal browser usato.",
+                 bg=self.COLOR_TOPLEVEL, fg="gray", font=("Arial", 8),
+                 justify=tk.CENTER).pack(padx=20, pady=(8, 4))
+        img_ch = self.icone_gui.get("chiudi")
+        btn_ch = tk.Label(dlg, compound="left", image=img_ch, text=" Chiudi",
+                          background=self.COLOR_WIDGET_BG, foreground=self.TEXT_COLOR,
+                          cursor="hand2", padx=15, pady=6, font=("Arial", 9, "bold"))
+        btn_ch.image = img_ch
+        btn_ch.pack(pady=(4, 12))
+        btn_ch.bind("<Button-1>", lambda e: dlg.destroy())
+        def _on_destroy(e):
+            if e.widget is not dlg:
+                return
+            _qr_dlg[0] = None
+            try:
+                if info_win.winfo_exists():
+                    info_win.grab_set()
+            except Exception:
+                pass
+        dlg.bind("<Destroy>", _on_destroy)
+        dlg.bind("<Escape>", lambda e: dlg.destroy())
+        dlg.update_idletasks()
+        w, h = max(dlg.winfo_reqwidth(), 340), dlg.winfo_reqheight()
+        x = info_win.winfo_rootx() + (info_win.winfo_width() // 2) - (w // 2)
+        y = info_win.winfo_rooty() + (info_win.winfo_height() // 2) - (h // 2)
+        dlg.geometry(f"{w}x{h}+{max(0, x)}+{max(0, y)}")
+        dlg.deiconify()
+        dlg.lift()
+        dlg.focus_force()
+        try:
+            dlg.grab_set()
+        except tk.TclError:
+            pass
+
+    def apri_app_android(event):
+        _mostra_qr_app("OrbitaNotify", url_app["v"])
+
+    def apri_app_web(event):
+        _mostra_qr_app("OrbitaWeb", "https://github.com/Renato-4132/OrbitaWeb/releases/latest/download/OrbitaWeb.apk")
+
     def apri_manuale(event):
         self.scarica_manuale()
 
@@ -424,11 +519,11 @@ def show_info_app(self):
     tk.Label(main_frame, text=f"Versione {VERSION} © 2026 Renato-4132 — Tutti i diritti riservati", font=("Arial", 9), bg=self.COLOR_TOPLEVEL, fg="gray").pack()
     links_frame = tk.Frame(main_frame, bg=self.COLOR_TOPLEVEL)
     links_frame.pack(pady=5)
-    for ico_key, txt, cmd in [("email", " Email", apri_email), ("github", " GitHub", apri_github), ("studio", " Manuale Online", apri_manuale), ("studio", " Manuale Risparmio", apri_manuale_risparmio), ("docker", " Docker", apri_docker), ("python", " Python", apri_link_python)]:
+    for ico_key, txt, cmd in [("email", " Email", apri_email), ("github", " GitHub", apri_github), ("studio", " Manuale Online", apri_manuale), ("studio", " Manuale Risparmio", apri_manuale_risparmio), ("docker", " Docker", apri_docker), ("mobile", " App Notify", apri_app_android), ("mobile", " App Web", apri_app_web), ("python", " Python", apri_link_python)]:
         img = self.icone_gui.get(ico_key)
         lbl = tk.Label(links_frame, text=txt, image=img, compound="left", fg="#3498db", bg=self.COLOR_TOPLEVEL, cursor="hand2", font=("Arial", 9))
         lbl.image = img
-        lbl.pack(side=tk.LEFT, padx=10)
+        lbl.pack(side=tk.LEFT, padx=7)
         lbl.bind("<Button-1>", cmd)
     def _crea_tab_scrollabile(parent_tab, testo):
         container = tk.Frame(parent_tab, bg=self.COLOR_WHITE, highlightbackground=self.COLOR_TOPLEVEL, highlightthickness=4, bd=0)

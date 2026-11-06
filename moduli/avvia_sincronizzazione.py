@@ -10,6 +10,7 @@ from tkinter import Toplevel, Label
 from moduli.modello_spesa import SpesaEntry
 from moduli.sync_mail_opzioni import (
     leggi_opzioni, leggi_regole, normalizza_mittenti, CAT_BOLLETTE_DEFAULT,
+    _nomi_conti, _metodi_pagamento,
 )
 
 _MESI_IMAP = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
@@ -199,6 +200,15 @@ def _avvia_sincronizzazione_interna(self, manuale=False, mostra_popup=False):
         except Exception:
             return []
 
+    conti_lista = _nomi_conti(_app)
+    metodi_lista = _metodi_pagamento()
+
+    def _valido(valore, elenco):
+        v = str(valore or "").strip().lower()
+        if not v or v == "null":
+            return ""
+        return next((x for x in elenco if x.lower() == v), "")
+
     import time, re, imaplib, email, email.utils
     from datetime import datetime, timedelta
     cartella_pdf = os.path.join(os.getcwd(), "Fatture_GMail")
@@ -209,15 +219,8 @@ def _avvia_sincronizzazione_interna(self, manuale=False, mostra_popup=False):
     giorni_conserva = max(90, opz["giorni_indietro"] * 2)
 
     def _log_riga(tipo_log, data_mov, desc, importo, direzione, categoria, voce=None):
-        conto = getattr(voce, "conto", "") or "—"
-        id_spesa = getattr(voce, "id_spesa", "")
-        metodo = getattr(voce, "metodo_pagamento", "") or "—"
-        tag = " ".join(getattr(voce, "hashtag", []) or []) or "—"
-        try:
-            with open(LOG_IMPORTAZIONI, "a", encoding="utf-8") as log:
-                log.write(f"{datetime.now().strftime('%d/%m/%Y %H:%M'):<17} | {tipo_log:<8} | {data_mov.strftime('%d/%m/%Y'):<10} | {desc:<50} | {_app._fmt_it(abs(importo)):>10} € | {direzione:<7} | {categoria} | {conto} | {id_spesa} | {metodo} | {tag}\n")
-        except Exception as e_log:
-            print(f"Log importazioni non scritto: {e_log}")
+        from moduli import log_importazioni as _li
+        _li.scrivi_riga(tipo_log, data_mov, desc, importo, direzione, categoria, voce)
 
     popup = None
     lbl_status = bar_cv = lbl_cont = None
@@ -445,7 +448,8 @@ def _avvia_sincronizzazione_interna(self, manuale=False, mostra_popup=False):
                                 contents=[
                                     types.Part.from_bytes(data=pdf_data, mime_type="application/pdf"),
                                     "Questo PDF è un estratto conto bancario con più movimenti? Rispondi SOLO: SI oppure NO."
-                                ]
+                                ],
+                                config=types.GenerateContentConfig(temperature=0)
                             )
                             is_estratto = "SI" in r_check.text.strip().upper()
                         if is_estratto:
@@ -464,7 +468,8 @@ def _avvia_sincronizzazione_interna(self, manuale=False, mostra_popup=False):
                                         '2. Restituisci SOLO un array JSON: [{"data": "YYYY-MM-DD", "desc": "stringa", "importo": float, "categoria": "stringa"}].\n'
                                         f"3. Negativi = uscite, Positivi = entrate.\n{regola_cat}"
                                     )
-                                ]
+                                ],
+                                config=types.GenerateContentConfig(temperature=0)
                             )
                             raw_e = r_estratto.text.strip()
                             if "```json" in raw_e: raw_e = raw_e.split("```json")[1].split("```")[0].strip()
@@ -518,28 +523,56 @@ def _avvia_sincronizzazione_interna(self, manuale=False, mostra_popup=False):
                             aggiorna_UI("📊 Estratto acquisito", percentuale, self.operazioni_scaricate_sessione)
                             time.sleep(opz["pausa_sec"])
                             continue
+                        richiesti = []
+                        if regola.get("gemini", "1") != "0":
+                            if not regola.get("categoria"):
+                                richiesti.append(("categoria", self.categorie))
+                            if not regola.get("conto"):
+                                richiesti.append(("conto", conti_lista))
+                            if not regola.get("metodo"):
+                                richiesti.append(("metodo", metodi_lista))
+                        richiesti = [(k, v) for k, v in richiesti if v]
+                        chiavi_ia = {k for k, _ in richiesti}
+                        extra_json = "".join(f', "{k}": "stringa o null"' for k, _ in richiesti)
+                        extra_regole = ""
+                        for n_r, (k, elenco) in enumerate(richiesti, start=4):
+                            lista_txt = ", ".join('"' + x + '"' for x in elenco)
+                            extra_regole += (f'\n{n_r}. Il campo "{k}" deve essere ESATTAMENTE uno tra: [{lista_txt}]. '
+                                             'Se nessuno corrisponde chiaramente al contenuto della mail, scrivi null.')
                         prompt = f"""Analizza questa mail/bolletta. 
                         Le parole chiave di riferimento sono: {', '.join(parole_chiave)}.
                         Estrai in JSON:
-                        {{"importo": float, "azienda": "nome", "fattura": "numero", "direzione": "Entrata/Uscita", "scadenza": "GG/MM/YYYY o null"}}
+                        {{"importo": float, "azienda": "nome", "fattura": "numero", "direzione": "Entrata/Uscita", "scadenza": "GG/MM/YYYY o null"{extra_json}}}
                         REGOLE: 
                         1. Se non trovi l'importo, scrivi 0.01. 
                         2. Determina Entrata/Uscita. 
-                        3. Il campo "azienda" deve contenere SOLO il nome, senza icone o emoji."""
+                        3. Il campo "azienda" deve contenere SOLO il nome, senza icone o emoji. 
+                        Se la mail è un pagamento con carta, "azienda" è l'esercente scritto nel testo (dopo "c/o" o simili), copiato così com'è, senza tradurlo né sostituirlo con altro. 
+                        Non usare mai il nome della banca o dell'app (es. UniCredit) come azienda. 
+                        Importo, azienda e scelte dei campi devono basarsi SOLO sul testo della mail: data e ora non sono criteri di scelta.{extra_regole}"""
                         response = client.models.generate_content(
                             model=GEMINI,
                             contents=[prompt, f"Oggetto: {oggetto}\nCorpo: {corpo}"] + 
-                                     ([types.Part.from_bytes(data=pdf_data, mime_type="application/pdf")] if pdf_data else [])
+                                     ([types.Part.from_bytes(data=pdf_data, mime_type="application/pdf")] if pdf_data else []),
+                            config=types.GenerateContentConfig(temperature=0)
                         )
                         res_text = response.text.strip().replace("```json", "").replace("```", "")
                         dati = json.loads(res_text)
+                        _m_co = re.search(r'\bc/o\s+(.+?)\s+-\s+\d{1,2}/\d{1,2}/\d{2,4}', corpo, re.I)
+                        if _m_co:
+                            dati["azienda"] = _m_co.group(1).strip()
                         importo = float(dati.get("importo") or 0.01)
                         azienda = dati.get("azienda") or "Fattura"
+                        cat_ia = _valido(dati.get("categoria"), self.categorie) if "categoria" in chiavi_ia else ""
+                        conto_ia = _valido(dati.get("conto"), conti_lista) if "conto" in chiavi_ia else ""
+                        metodo_ia = _valido(dati.get("metodo"), metodi_lista) if "metodo" in chiavi_ia else ""
                         direzione_raw = dati.get("direzione") or "Uscita"
                         _dir = str(direzione_raw).strip().lower()
                         direzione = "Entrata" if (_dir.startswith("entr") and "uscit" not in _dir) else "Uscita"
                         if regola.get("tipo") in ("Entrata", "Uscita"):
                             direzione = regola["tipo"]
+                        elif regola.get("gemini", "1") == "0":
+                            direzione = "Uscita"
                         scadenza_raw = dati.get("scadenza")
                         scadenza_dt = _parse_scadenza(scadenza_raw)
                         data_dt = data_mail
@@ -558,7 +591,7 @@ def _avvia_sincronizzazione_interna(self, manuale=False, mostra_popup=False):
                             aggiorna_UI(f"⏭ Importo non trovato: {azienda}", percentuale, self.operazioni_scaricate_sessione)
                             time.sleep(opz["pausa_sec"])
                             continue
-                        categoria = (regola.get("categoria") or cat_bollette_def).strip()
+                        categoria = (regola.get("categoria") or cat_ia or cat_bollette_def).strip()
                         esiste = False
                         if opz["controllo_doppioni"]:
                             for d_chiave in self.spese:
@@ -572,7 +605,7 @@ def _avvia_sincronizzazione_interna(self, manuale=False, mostra_popup=False):
                             desc_spesa = f"ALL· {desc}" if pdf_data else desc
                             nuova_voce = SpesaEntry.nuova(
                                 categoria, desc_spesa, abs(importo), direzione,
-                                conto=regola.get("conto", ""), metodo_pagamento=regola.get("metodo", ""),
+                                conto=regola.get("conto") or conto_ia, metodo_pagamento=regola.get("metodo") or metodo_ia,
                                 hashtag=_tags_regola(regola))
                             self.spese.setdefault(data_dt, []).append(nuova_voce)
                             self.operazioni_scaricate_sessione += 1
@@ -615,7 +648,7 @@ def _avvia_sincronizzazione_interna(self, manuale=False, mostra_popup=False):
                                 except Exception as e_reg:
                                     print(f"Registrazione documento fallita: {e_reg}")
                             if hasattr(self, 'lbl_sync_count_widget'):
-                                _ui(self.lbl_sync_count_widget.config, text=f"📡 Sync {self.operazioni_scaricate_sessione}")
+                                _ui(self.lbl_sync_count_widget.config, text=f"Sync {self.operazioni_scaricate_sessione}")
                         else:
                             self.doppioni_sessione += 1
                             _log_riga("DOPPIA", data_dt, desc, importo, direzione, categoria)

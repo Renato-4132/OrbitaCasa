@@ -1149,6 +1149,12 @@ def _crea_flask_app(self):
     from moduli.webauthn_login import aggiungi_rotte_webauthn
     aggiungi_rotte_webauthn(flask_app, tk_app, richiede_login, html_resp, get_ip)
 
+    try:
+        from moduli.webhook_notifiche import registra as _registra_webhook_notifiche
+        _registra_webhook_notifiche(flask_app, tk_app, richiede_login)
+    except Exception as _e_wh:
+        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Webhook notifiche non attivo: {_e_wh}")
+
     return flask_app
 
 def start_web_server(self):

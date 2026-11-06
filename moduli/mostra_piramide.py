@@ -129,6 +129,7 @@ def mostra_piramide(self):
                 "moduli": [
                     ("Promemoria",    "Note e avvisi",          _g("gestisci_promemoria")),
                     ("Importa AI",    "Import Gemini",          _g("apri_finestra_importa")),
+                    ("Da Confermare", "Notifiche e spese",      _g("apri_notifiche_ricevute")),
                     ("Log Import",    "Storico import",         _g("mostra_log_importazioni")),
                     ("Stampa",        "Anteprima e stampa",     _g("anteprima_e_stampa_txt")),
                 ],

@@ -316,6 +316,9 @@ def registra_tutti_i_moduli(GestioneSpese):
     
     from moduli.mostra_log_importazioni import mostra_log_importazioni
     _registra(mostra_log_importazioni)
+
+    from moduli.apri_notifiche_ricevute import apri_notifiche_ricevute
+    _registra(apri_notifiche_ricevute)
     
     from moduli.apri_viewer_tabella import scarica_tabella, _apri_viewer_tabella
     _registra(scarica_tabella, _apri_viewer_tabella)

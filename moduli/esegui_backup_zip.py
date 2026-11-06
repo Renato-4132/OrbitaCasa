@@ -209,7 +209,8 @@ def _esegui_backup_json(self):
         _app.SCHEDULE_FILE, _app.VEICOLI_FILE, _app.GAMIFICATION_FILE, _app.CREDENTIALS_FILE, _app.PENSIONE_FILE,
         _app.ANIMALI_FILE, _app.MANUTENZIONE_CASA_FILE, _app.MESSAGGI_VISTI_FILE,
         _app.MAGAZZINO_FILE, _app.SCANNER_FILE, _app.COMMUNITY_POOL_LINK_FILE, _app.FIN_FILE,
-        _app.MAIL_ELABORATE_FILE
+        _app.MAIL_ELABORATE_FILE, _app.NOTIFICHE_PROPOSTE_FILE, _app.REGOLE_NOTIFICHE_FILE,
+        _app.WEBHOOK_NOTIFICHE_FILE, _app.NOTIFICHE_RICEVUTE_FILE
     ]
     try:
         from moduli.community_pool import _safe

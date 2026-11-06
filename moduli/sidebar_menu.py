@@ -191,6 +191,7 @@ SEZIONI = [
             V("Importa Documento AI (Gemini)",              "documenti","apri_finestra_importa"),
             V("Sincronizza Acquisti Email (Gmail)",         "sync",     "avvia_sincronizzazione"),
             V("Log Importazioni",                           "sync",     "mostra_log_importazioni"),
+            V("Notifiche e spese da confermare",            "sync",     "apri_notifiche_ricevute"),
         ]),
     ]),
 

@@ -20,6 +20,7 @@ CHIAVI_BUDGET = ("budget_categorie", "budget_annuale_categorie")
 CHIAVI_TARGET = ("target_mese", "target_anno")
 NOMI_A_CALDO = (
     "MAIL_ELABORATE_FILE", "MESSAGGI_VISTI_FILE", "RIMANDA_FILE",
+    "NOTIFICHE_PROPOSTE_FILE", "REGOLE_NOTIFICHE_FILE", "NOTIFICHE_RICEVUTE_FILE", "WEBHOOK_NOTIFICHE_FILE",
     "CONTROLLO_F_M", "LOG_IMPORTAZIONI", "LOGIN_WEB", "LOGIN_WEB_FAIL",
     "LOGIN_LCL", "ACCESS_CONTROL_WEB", "SCANNER_FILE", "CREDENTIALS_FILE",
     "DOC_DIR", "DOC_PERS_DIR", "EXPORT_FATTURE_DIR", "EXPORT_FILES",
@@ -190,6 +191,10 @@ def _elenco_file_variabili(_app):
         ("Controllo Accessi Web",             "Whitelist/blacklist IP per l'accesso web (web_access_control.json)", "ACCESS_CONTROL_WEB", False),
         ("Messaggi di Servizio (Visti)",      "Elenco degli ID dei messaggi di servizio già letti: azzerandolo, tutti i messaggi ancora validi verranno rinotificati (messaggi_servizio_visti.json)", "MESSAGGI_VISTI_FILE", False),
         ("Mail Elaborate (Sync Email)",       "Elenco delle mail Gmail già scaricate dalla sincronizzazione: azzerandolo, le mail ancora non lette nel periodo impostato verranno riscaricate (mail_elaborate.json)", "MAIL_ELABORATE_FILE", False),
+        ("Notifiche - Spese in attesa",       "Spese proposte dalle notifiche, in attesa o già gestite (notifiche_proposte.json)", "NOTIFICHE_PROPOSTE_FILE", False),
+        ("Notifiche - Regole per app",         "Categoria, conto, metodo e tag ricordati per ogni app di notifica (regole_notifiche.json)", "REGOLE_NOTIFICHE_FILE", False),
+        ("Notifiche - Ricevute",               "Elenco grezzo delle notifiche arrivate dal webhook (notifiche_ricevute.jsonl)", "NOTIFICHE_RICEVUTE_FILE", False),
+        ("Webhook Notifiche - Token",          "⚠ Token del webhook: azzerandolo ne viene creato uno nuovo e l'app Android va riconfigurata (webhook_notifiche.json)", "WEBHOOK_NOTIFICHE_FILE", False),
     ]
     voci = []
     for etichetta, descrizione, nome_costante, is_dir in voci_raw:
