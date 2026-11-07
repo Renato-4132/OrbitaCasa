@@ -7,7 +7,8 @@ import datetime
 
 from moduli.modello_spesa import campo, metodo_pagamento_pulito, METODI_PAGAMENTO
 
-GIORNI_TOLLERANZA = 3
+GIORNI_TOLLERANZA = 5
+GIORNI_SCADENZA = 22
 SOGLIA_DESC = 0.0
 
 METODI_CREDITO = ("C.Credito 1", "C.Credito 2")
@@ -48,6 +49,7 @@ def movimenti_db(spese, conto=None, metodo=None, escludi_metodi=()):
             out.append({
                 "data": d,
                 "descrizione": campo(v, "descrizione", ""),
+                "categoria": campo(v, "categoria", ""),
                 "importo": imp if tipo == "Entrata" else -imp,
                 "conto": campo(v, "conto", ""),
                 "metodo": met,
@@ -63,7 +65,11 @@ def riconcilia(righe, db, giorni=GIORNI_TOLLERANZA):
     d_min = min(r["data"] for r in righe)
     d_max = max(r["data"] for r in righe)
     delta = datetime.timedelta(days=giorni)
-    candidati_db = [m for m in db if d_min - delta <= m["data"] <= d_max + delta]
+    delta_scd = datetime.timedelta(days=GIORNI_SCADENZA)
+    candidati_db = [m for m in db
+                    if (d_min - delta <= m["data"] <= d_max + delta)
+                    or ("SCD:" in str(m["descrizione"]).upper()
+                        and d_min - delta <= m["data"] <= d_max + delta_scd)]
 
     coppie = []
     for i, r in enumerate(righe):
@@ -71,12 +77,19 @@ def riconcilia(righe, db, giorni=GIORNI_TOLLERANZA):
             if abs(r["importo"] - m["importo"]) > 0.005:
                 continue
             dd = abs((r["data"] - m["data"]).days)
+            da_scadenza = False
             if dd > giorni:
-                continue
+                anticipo = (m["data"] - r["data"]).days
+                if not ("SCD:" in str(m["descrizione"]).upper() and 0 < anticipo <= GIORNI_SCADENZA):
+                    continue
+                da_scadenza = True
+                dd = giorni
             s = _sim(r["descrizione"], m["descrizione"])
             if s < SOGLIA_DESC:
                 continue
             score = 0.6 * s + 0.4 * (1 - dd / (giorni + 1))
+            if da_scadenza:
+                score -= anticipo * 0.001
             coppie.append((score, i, j))
 
     coppie.sort(key=lambda t: t[0], reverse=True)
@@ -364,12 +377,13 @@ def apri_riconciliazione(self, movimenti):
             for m in sorted(in_piu, key=lambda x: x["data"]):
                 iid = tree.insert("", "end", tags=("piu",), values=(
                     "IN PIÙ", m["data"].strftime("%d-%m-%Y"), "—", _fmt(m["importo"]),
-                    m["conto"], m["metodo"], m["tag"], m["descrizione"]))
+                    m["conto"], m["metodo"], m["tag"],
+                    (m["categoria"] + " · " if m["categoria"] else "") + m["descrizione"]))
                 tree._metodo_lookup[iid] = {"id_spesa": m["id_spesa"]}
         if f in ("Tutti", "Riconciliati"):
             for r, m in ok:
                 dd = (r["data"] - m["data"]).days
-                nota = m["descrizione"] + (f"  [data DB {m['data'].strftime('%d-%m')}, {dd:+d}g]" if dd else "")
+                nota = (m["categoria"] + " · " if m["categoria"] else "") + m["descrizione"] + (f"  [data DB {m['data'].strftime('%d-%m')}, {dd:+d}g]" if dd else "")
                 iid = tree.insert("", "end", tags=("ok",), values=(
                     "OK", r["data"].strftime("%d-%m-%Y"), r["descrizione"], _fmt(r["importo"]),
                     m["conto"], m["metodo"], m["tag"], nota))
