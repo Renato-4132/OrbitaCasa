@@ -26,6 +26,7 @@ ENTRATA = ("accredit", "hai ricevuto", "ricevuto", "bonifico ricevuto", "bonific
            "received", "refund", "credited")
 
 RE_ESERCENTE = [
+    re.compile(r"\bc/o\s+(.{2,40}?)(?:\s+-\s|\s+\d{1,2}/\d{1,2}(?:/\d{2,4})?\b|[.,;\n]|$)", re.I),
     re.compile(r"(?:presso|a favore di|beneficiario|merchant|esercente)[:\s]+(.{2,40}?)(?:[.,;\n]|\s+(?:il|del|con|per|di|in)\s|$)", re.I),
     re.compile(r"\bda\s+([A-Z][\w&' .-]{1,30}?)(?:[.,;\n]|\s+(?:il|del|con|per)\s|$)"),
     re.compile(r"\ba\s+([A-Z][\w&' .-]{1,30}?)(?:[.,;\n]|\s+(?:il|del|con|per)\s|$)"),
