@@ -10,7 +10,7 @@
 ![macOS](https://img.shields.io/badge/macOS-✔️-lightgrey?style=flat-square&logo=apple&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-✔️-yellow?style=flat-square&logo=linux&logoColor=black)
 ![Docker](https://img.shields.io/badge/Docker-✔️-2496ED?style=flat-square&logo=docker&logoColor=white)
-![Android](https://img.shields.io/badge/Android-App_companion-3DDC84?style=flat-square&logo=android&logoColor=white)
+[![Android](https://img.shields.io/badge/Android-App_companion-3DDC84?style=flat-square&logo=android&logoColor=white)](https://renato-4132.github.io/OrbitaCasa-Android/android.html)
 ![Python](https://img.shields.io/badge/Python-3.13+-3776AB?style=flat-square&logo=python&logoColor=white)
 ![Versione](https://img.shields.io/badge/VERSIONE-2.5.7-orange?style=flat-square)
 ![Licenza](https://img.shields.io/badge/LICENZA-BSL_1.1-4f46e5?style=flat-square)
@@ -33,7 +33,7 @@
 
 * 🛡️ **Zero Cloud di default**: i tuoi dati restano sul tuo PC. IA, sync mail e accessi remoti li fanno uscire solo se li attivi tu.
 * 💰 **Smart Saving**: algoritmi per il confronto prezzi e il risparmio.
-* 📱 **Mobile Ready**: app Android dedicate (OrbitaWeb e OrbitaNotify), accesso da browser con biometria e QR per scaricare gli APK.
+* 📱 **Mobile Ready**: [**OrbitaCasa Mobile**](https://renato-4132.github.io/OrbitaCasa-Android/android.html) (la versione Android, che funziona anche da sola), le app OrbitaWeb e OrbitaNotify, accesso da browser con biometria e QR per scaricare gli APK.
 * 📑 **Paperless**: archiviazione digitale di tutti i tuoi documenti PDF.
 * 🔓 **Niente canoni**: gratis, con una licenza "viva" che si allunga più la usi (vedi sotto).
   
@@ -263,6 +263,7 @@ Esegui OrbitaCasa sul tuo server o NAS tramite Docker e gestisci le tue finanze 
 <details>
 <summary><b>Clicca per vedere le app per il telefono</b></summary>
 
+- **OrbitaCasa Mobile**: la versione Android di OrbitaCasa. Funziona da sola, offline, con i dati sul telefono, e si sincronizza con il desktop tramite uno zip. Registra le spese dalle notifiche della banca. Pagina: [Scopri l'app Android](https://renato-4132.github.io/OrbitaCasa-Android/android.html)
 - **OrbitaWeb**: si collega al server web di OrbitaCasa dal telefono. Repo: [Renato-4132/OrbitaWeb](https://github.com/Renato-4132/OrbitaWeb)
 - **OrbitaNotify**: inoltra a OrbitaCasa le notifiche che parlano di soldi, per trasformarle in spese. Repo: [Renato-4132/OrbitaNotify](https://github.com/Renato-4132/OrbitaNotify)
 
@@ -324,7 +325,7 @@ Serve a gestire:
 - **Alert di budget:** ti avvisa in tempo reale se sfori la soglia impostata su una categoria.
 - **Il "Chi l'ha visto?" delle scadenze:** tiene traccia e avvisa per qualsiasi scadenza immaginabile (documenti, patenti, bollette, revisioni).
 - **Architettura locale:** i dati restano sul vostro PC, con tanto di webserver integrato e accesso biometrico da qualsiasi device.
-- **Il telefono al lavoro:** le notifiche di banca e carte diventano spese da confermare, grazie alle app Android OrbitaNotify e OrbitaWeb.
+- **Il telefono al lavoro:** le notifiche di banca e carte diventano spese da confermare, grazie all'app [OrbitaCasa Mobile](https://renato-4132.github.io/OrbitaCasa-Android/android.html) e alle app Android OrbitaNotify e OrbitaWeb.
 - **AI integrata:** analizza le bollette, calcola i costi medi, prevede le spese future e fa un'analisi finanziaria completa (e questi sono gli unici dati che escono, e solo se volete).
 
 **La grande svolta sulla licenza (e basta con le mazzette)**
