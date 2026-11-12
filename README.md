@@ -33,7 +33,7 @@
 
 * 🛡️ **Zero Cloud di default**: i tuoi dati restano sul tuo PC. IA, sync mail e accessi remoti li fanno uscire solo se li attivi tu.
 * 💰 **Smart Saving**: algoritmi per il confronto prezzi e il risparmio.
-* 📱 **Mobile Ready**: [**OrbitaCasa Mobile**](https://renato-4132.github.io/OrbitaCasa-Android/android.html) (la versione Android, che funziona anche da sola), le app OrbitaWeb e OrbitaNotify, accesso da browser con biometria e QR per scaricare gli APK.
+* 📱 **Mobile Ready**: [**OrbitaCasa Mobile**](https://renato-4132.github.io/OrbitaCasa-Android) (la versione Android, che funziona anche da sola), le app OrbitaWeb e OrbitaNotify, accesso da browser con biometria e QR per scaricare gli APK.
 * 📑 **Paperless**: archiviazione digitale di tutti i tuoi documenti PDF.
 * 🔓 **Niente canoni**: gratis, con una licenza "viva" che si allunga più la usi (vedi sotto).
   
