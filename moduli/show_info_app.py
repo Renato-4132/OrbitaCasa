@@ -59,7 +59,7 @@ def show_info_app(self):
         from PIL import Image, ImageTk
         dlg = tk.Toplevel(info_win, bg=self.COLOR_TOPLEVEL)
         _qr_dlg[0] = dlg
-        dlg.title(f"App Android - {nome}")
+        dlg.title(nome)
         dlg.resizable(False, False)
         dlg.transient(info_win)
         dlg.withdraw()
@@ -106,7 +106,7 @@ def show_info_app(self):
         dlg.bind("<Destroy>", _on_destroy)
         dlg.bind("<Escape>", lambda e: dlg.destroy())
         dlg.update_idletasks()
-        w, h = max(dlg.winfo_reqwidth(), 340), dlg.winfo_reqheight()
+        w, h = max(dlg.winfo_reqwidth(), 380), dlg.winfo_reqheight()
         x = info_win.winfo_rootx() + (info_win.winfo_width() // 2) - (w // 2)
         y = info_win.winfo_rooty() + (info_win.winfo_height() // 2) - (h // 2)
         dlg.geometry(f"{w}x{h}+{max(0, x)}+{max(0, y)}")
