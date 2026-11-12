@@ -1155,6 +1155,12 @@ def _crea_flask_app(self):
     except Exception as _e_wh:
         print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Webhook notifiche non attivo: {_e_wh}")
 
+    try:
+        from moduli.sync_dati import registra as _registra_sync_dati
+        _registra_sync_dati(flask_app, tk_app, richiede_login)
+    except Exception as _e_sd:
+        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Sync dati non attivo: {_e_sd}")
+
     return flask_app
 
 def start_web_server(self):
