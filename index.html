@@ -1,1702 +1,341 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="google-site-verification" content="U6hCUFbKrzJNMpU-uEIVmgBHHCFOPe8JtH6IGH9K5WI" />
-    <title>OrbitaCasa – Gestione Spese, Bollette e Risparmio Familiare</title>
-    <meta name="description" content="OrbitaCasa: gestisci spese, bollette, immobili, mutui e risparmio familiare in un'unica app. Grafici drill-down, simulatore di risparmio, zero cloud. Windows, macOS, Linux.">
-    <link rel="canonical" href="https://renato-4132.github.io/OrbitaCasa/">
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="OrbitaCasa – Gestione Spese, Bollette e Risparmio Familiare">
-    <meta property="og:description" content="Gestisci spese, bollette, immobili, mutui e risparmio in un'unica app, senza cloud di default: i dati restano sul tuo PC.">
-    <meta property="og:image" content="https://github.com/user-attachments/assets/cc6432e4-a670-4e7c-9631-c456046707bb">
-    <meta property="og:url" content="https://renato-4132.github.io/OrbitaCasa/">
-    <meta property="og:locale" content="it_IT">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="OrbitaCasa – Gestione Spese, Bollette e Risparmio Familiare">
-    <meta name="twitter:description" content="Gestisci spese, bollette, immobili, mutui e risparmio familiare in un'unica app. Zero cloud.">
-    <meta name="twitter:image" content="https://github.com/user-attachments/assets/cc6432e4-a670-4e7c-9631-c456046707bb">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root {
-            --accent: #4f46e5;
-            --accent2: #6366f1;
-            --bg: #0a0e1a;
-            --card: #111827;
-            --border: #1e293b;
-        }
-        * { box-sizing: border-box; }
-        body {
-            background-color: var(--bg);
-            color: #e2e8f0;
-            font-family: 'DM Sans', sans-serif;
-            -webkit-font-smoothing: antialiased;
-        }
-        h1, h2, h3, h4 {
-            font-family: 'Barlow Condensed', sans-serif;
-        }
-        .step-number {
-            background: var(--accent);
-            width: 28px; height: 28px;
-            display: flex; align-items: center; justify-content: center;
-            border-radius: 50%;
-            font-weight: bold; font-size: 0.9rem;
-            flex-shrink: 0;
-        }
-        .code-box {
-            background: #000;
-            border-left: 4px solid var(--accent);
-            padding: 1rem;
-            font-family: monospace;
-            color: #10b981;
-            overflow-x: auto;
-            word-break: break-all;
-        }
-        .warning-box {
-            background: rgba(245,158,11,0.1);
-            border: 1px solid #f59e0b;
-            padding: 1rem;
-            border-radius: 0.75rem;
-        }
-        .video-container {
-            position: relative;
-            padding-bottom: 56.25%;
-            height: 0;
-            overflow: hidden;
-            border-radius: 1rem;
-            border: 2px solid #334155;
-        }
-        .video-container video {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-        }
-        .btn-download {
-            background: var(--accent);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 8px;
-            display: inline-flex;
-            align-items: center;
-            font-weight: bold;
-            margin-top: 10px;
-            transition: opacity 0.2s;
-            text-decoration: none;
-        }
-        .btn-download:hover { opacity: 0.9; }
-        .carousel-outer {
-            width: 100%;
-            box-sizing: border-box;
-        }
-        .carousel-wrap {
-            position: relative;
-            border-radius: 1.25rem;
-            overflow: hidden;
-            border: 1px solid var(--border);
-            background: #000;
-            aspect-ratio: 16 / 9;
-            max-height: 520px;
-            width: 100%;
-            display: block;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        @media (max-width: 480px) {
-            .carousel-wrap {
-                aspect-ratio: 4 / 3;
-                border-radius: 0.75rem;
-            }
-        }
-        .carousel-track {
-            display: flex;
-            width: 100%;
-            height: 100%;
-            transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
-            will-change: transform;
-        }
-        .carousel-slide {
-            flex: 0 0 100%;
-            width: 100%;
-            height: 100%;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #000;
-            overflow: hidden;
-        }
-        .carousel-slide img {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            object-position: center center;
-            display: block;
-        }
-        .slide-overlay {
-            position: absolute;
-            bottom: 0; left: 0; right: 0;
-            background: linear-gradient(
-                to top,
-                rgba(0,0,0,0.95) 0%,
-                rgba(0,0,0,0.6) 50%,
-                transparent 100%
-            );
-            padding: clamp(0.8rem, 3vw, 2rem) clamp(0.8rem, 3vw, 2rem) clamp(0.6rem, 2vw, 1.4rem);
-            z-index: 2;
-        }
-        .slide-num {
-            font-size: clamp(9px, 1.5vw, 11px);
-            font-weight: 700;
-            letter-spacing: 0.18em;
-            color: #6366f1;
-            text-transform: uppercase;
-            margin-bottom: 3px;
-            font-family: 'DM Sans', sans-serif;
-        }
-        .slide-title {
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: clamp(1rem, 3.5vw, 1.6rem);
-            font-weight: 800;
-            color: #fff;
-            letter-spacing: -0.01em;
-            line-height: 1.15;
-            margin-bottom: 4px;
-            font-style: italic;
-        }
-        .slide-desc {
-            font-size: clamp(0.65rem, 1.5vw, 0.8rem);
-            color: #94a3b8;
-            font-weight: 400;
-            line-height: 1.4;
-            max-width: 520px;
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        @media (max-width: 480px) {
-            .slide-desc {
-                -webkit-line-clamp: 2;
-                font-size: 0.65rem;
-            }
-            .slide-overlay {
-                padding: 0.7rem 0.75rem 0.6rem;
-            }
-        }
-        .car-btn {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(15,23,42,0.75);
-            border: 1px solid rgba(99,102,241,0.35);
-            color: #a5b4fc;
-            width: clamp(30px, 5vw, 40px);
-            height: clamp(30px, 5vw, 40px);
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            z-index: 10;
-            font-size: clamp(11px, 1.8vw, 14px);
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-        }
-        .car-btn:hover,
-        .car-btn:active {
-            background: rgba(79,70,229,0.55);
-            border-color: #6366f1;
-            color: #fff;
-        }
-        .car-btn.prev { left: clamp(6px, 2vw, 14px); }
-        .car-btn.next { right: clamp(6px, 2vw, 14px); }
-        .car-progress {
-            position: absolute;
-            bottom: 0; left: 0;
-            height: 2px;
-            background: #6366f1;
-            width: 0%;
-            z-index: 5;
-        }
-        .car-dots {
-            display: flex;
-            justify-content: center;
-            gap: 5px;
-            margin-top: 14px;
-            flex-wrap: wrap;
-            padding: 0 1rem;
-        }
-        .car-dot {
-            width: 5px; height: 5px;
-            border-radius: 50%;
-            background: #334155;
-            cursor: pointer;
-            transition: all 0.2s;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .car-dot.active {
-            background: #6366f1;
-            transform: scale(1.5);
-        }
-        .press-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            background: rgba(79,70,229,0.12);
-            border: 1px solid rgba(79,70,229,0.35);
-            border-radius: 999px;
-            padding: 8px 18px 8px 12px;
-            text-decoration: none;
-            transition: all 0.2s;
-        }
-        .press-badge:hover {
-            background: rgba(79,70,229,0.22);
-            border-color: #6366f1;
-        }
-        .press-badge-icon {
-            width: 28px; height: 28px;
-            background: #4f46e5;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 14px;
-            flex-shrink: 0;
-        }
-        .press-quote {
-            background: rgba(79,70,229,0.07);
-            border-left: 3px solid #4f46e5;
-            border-radius: 0 10px 10px 0;
-            padding: 10px 16px;
-            font-style: italic;
-            font-size: 13px;
-            color: #a5b4fc;
-            max-width: 620px;
-            margin: 0 auto;
-        }
-        .story-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            background: linear-gradient(135deg, #4f46e5, #6366f1);
-            color: #fff;
-            border: 1px solid rgba(165,180,252,0.4);
-            border-radius: 999px;
-            padding: 10px 22px;
-            font-family: 'DM Sans', sans-serif;
-            font-size: 13px;
-            font-weight: 700;
-            letter-spacing: 0.04em;
-            cursor: pointer;
-            box-shadow: 0 0 22px rgba(99,102,241,0.35);
-            transition: transform 0.2s, box-shadow 0.2s;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .story-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 0 30px rgba(99,102,241,0.6);
-        }
-        .story-overlay {
-            position: fixed;
-            inset: 0;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 16px;
-            background: rgba(2,6,23,0.86);
-            backdrop-filter: blur(4px);
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.25s, visibility 0.25s;
-        }
-        .story-overlay.open {
-            opacity: 1;
-            visibility: visible;
-        }
-        .story-modal {
-            position: relative;
-            width: 100%;
-            max-width: 720px;
-            max-height: 88vh;
-            display: flex;
-            flex-direction: column;
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 1.25rem;
-            box-shadow: 0 25px 60px rgba(0,0,0,0.6);
-            transform: translateY(14px);
-            transition: transform 0.25s;
-        }
-        .story-overlay.open .story-modal {
-            transform: translateY(0);
-        }
-        .story-scroll {
-            overflow-y: auto;
-            padding: clamp(1.25rem, 4vw, 2.25rem);
-            text-align: left;
-        }
-        .story-close {
-            position: absolute;
-            top: 12px; right: 12px;
-            width: 34px; height: 34px;
-            border-radius: 50%;
-            border: 1px solid var(--border);
-            background: #1e293b;
-            color: #94a3b8;
-            cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            z-index: 2;
-            transition: all 0.2s;
-        }
-        .story-close:hover {
-            background: #4f46e5;
-            border-color: #6366f1;
-            color: #fff;
-        }
-        .story-kicker {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.2em;
-            text-transform: uppercase;
-            color: #6366f1;
-            margin: 0 0 4px;
-        }
-        .story-modal h2 {
-            font-size: clamp(1.9rem, 6vw, 2.6rem);
-            font-weight: 900;
-            font-style: italic;
-            text-transform: uppercase;
-            color: #fff;
-            line-height: 1.05;
-            margin: 0 0 6px;
-        }
-        .story-sub {
-            font-size: 0.9rem;
-            color: #94a3b8;
-            font-style: italic;
-            margin: 0 0 1.5rem;
-            padding-bottom: 1.25rem;
-            border-bottom: 1px solid var(--border);
-        }
-        .story-modal h3 {
-            font-size: 1.25rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: #818cf8;
-            margin: 1.5rem 0 0.5rem;
-        }
-        .story-modal p {
-            font-size: 0.95rem;
-            line-height: 1.7;
-            color: #cbd5e1;
-            margin: 0 0 0.9rem;
-        }
-        .story-modal ul {
-            list-style: none;
-            padding: 0;
-            margin: 0.5rem 0 1rem;
-        }
-        .story-modal li {
-            position: relative;
-            padding-left: 1.4rem;
-            margin-bottom: 0.6rem;
-            font-size: 0.95rem;
-            line-height: 1.6;
-            color: #cbd5e1;
-        }
-        .story-modal li::before {
-            content: '›';
-            position: absolute;
-            left: 0.2rem;
-            color: #6366f1;
-            font-weight: 700;
-        }
-        .story-modal li strong {
-            color: #fff;
-        }
-        .story-motto {
-            border-left: 3px solid #4f46e5;
-            background: rgba(79,70,229,0.08);
-            border-radius: 0 10px 10px 0;
-            padding: 10px 16px;
-            margin: 1rem 0;
-            font-style: italic;
-            color: #a5b4fc;
-        }
-        .story-sign {
-            margin-top: 1.5rem;
-            text-align: right;
-            font-family: 'Barlow Condensed', sans-serif;
-            font-size: 1.3rem;
-            font-style: italic;
-            font-weight: 700;
-            color: #fff;
-        }
-    </style>
+<meta name="google-site-verification" content="U6hCUFbKrzJNMpU-uEIVmgBHHCFOPe8JtH6IGH9K5WI" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OrbitaCasa Mobile – L'app Android per spese e promemoria</title>
+<meta name="description" content="OrbitaCasa Mobile: l'app Android di OrbitaCasa. Funziona da sola, offline, con i dati sul telefono. Si sincronizza con il PC o con uno zip e registra le spese dalle notifiche della banca.">
+<link rel="canonical" href="https://renato-4132.github.io/OrbitaCasa/android.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="OrbitaCasa Mobile – L'app Android">
+<meta property="og:description" content="OrbitaCasa in tasca: dati sul telefono, zero cloud, sincronizzazione con il PC e spese dalle notifiche.">
+<meta property="og:url" content="https://renato-4132.github.io/OrbitaCasa/android.html">
+<meta property="og:locale" content="it_IT">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,700;0,900;1,700;1,900&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0e1a;--card:#111827;--border:#1e293b;--accent:#4f46e5;--accent2:#6366f1;--green:#3ddc84;--text:#e2e8f0;--muted:#94a3b8}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:'Barlow Condensed',sans-serif;color:#fff;line-height:1.05}
+a{color:#a5b4fc}
+a:focus-visible,summary:focus-visible,.btn:focus-visible{outline:2px solid var(--green);outline-offset:3px}
+.wrap{max-width:960px;margin:0 auto;padding:0 20px}
+.top{padding:14px 0;border-bottom:1px solid var(--border);font-size:.85rem}
+.top .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.top a{color:var(--muted);text-decoration:none}
+.top a:hover{color:#fff}
+.hero{padding:56px 0 48px;position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;left:50%;top:0;width:80%;height:100%;transform:translateX(-50%);background:rgba(79,70,229,.07);filter:blur(120px);pointer-events:none}
+.hero .wrap{position:relative;display:grid;grid-template-columns:1.25fr .75fr;gap:40px;align-items:center}
+.ver{display:inline-block;font-size:.8rem;font-weight:700;color:var(--green);border:1px solid rgba(61,220,132,.4);border-radius:999px;padding:3px 12px;margin-bottom:16px}
+.hero h1{font-size:clamp(2.8rem,8vw,5.2rem);font-weight:900;font-style:italic;text-transform:uppercase;margin-bottom:6px}
+.hero h1 span{color:var(--green)}
+.hero .lead{font-size:1.2rem;color:var(--muted);font-weight:300;max-width:34ch;margin:14px 0 26px}
+.btns{display:flex;flex-wrap:wrap;gap:12px}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:10px;font-weight:700;text-decoration:none;color:#fff;background:var(--accent);transition:background .2s}
+.btn:hover{background:var(--accent2)}
+.btn.alt{background:transparent;border:1px solid #334155;color:var(--text)}
+.btn.alt:hover{border-color:var(--accent2)}
+.req{margin-top:14px;font-size:.85rem;color:var(--muted)}
+.qr{background:#fff;border-radius:18px;padding:16px;max-width:260px;justify-self:center;text-align:center}
+.qr svg{width:100%;height:auto;display:block}
+.qr p{color:#0a0e1a;font-size:.82rem;font-weight:700;margin-top:10px;line-height:1.3}
+section{padding:44px 0;border-top:1px solid var(--border)}
+h2{font-size:clamp(1.9rem,4.5vw,2.8rem);font-weight:700;font-style:italic;margin-bottom:10px}
+.sub{color:var(--muted);max-width:62ch;margin-bottom:26px}
+.pillars{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.pillar{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px}
+.pillar h3{font-size:1.35rem;font-weight:700;margin-bottom:4px}
+.pillar p{font-size:.92rem;color:var(--muted)}
+.steps{list-style:none;padding:0;counter-reset:s;display:grid;gap:12px;max-width:720px}
+.steps li{counter-increment:s;display:flex;gap:14px;align-items:flex-start;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.steps li::before{content:counter(s);flex:0 0 28px;height:28px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem}
+.note{background:rgba(245,158,11,.1);border:1px solid #f59e0b;border-radius:12px;padding:14px 16px;margin-top:18px;font-size:.92rem;max-width:720px}
+.groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.group{border-radius:14px;padding:18px 20px;background:var(--card);border:1px solid var(--border);border-left-width:4px}
+.group h3{font-size:1.4rem;margin-bottom:8px}
+.group ul{padding-left:18px;font-size:.92rem;color:var(--muted)}
+.group li{margin:4px 0}
+.group li b{color:#fff;font-weight:500}
+.g1{border-left-color:#f97316}.g2{border-left-color:#22c55e}.g3{border-left-color:#3b82f6}.g4{border-left-color:#eab308}.g5{border-left-color:#a855f7}.g6{border-left-color:var(--green)}
+.notif{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}
+.notif ul{padding-left:18px;color:var(--muted);font-size:.95rem}
+.notif li{margin:7px 0}
+.notif li b{color:#fff;font-weight:500}
+table{width:100%;border-collapse:collapse;font-size:.92rem;max-width:760px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+th{color:#fff;font-weight:500;width:32%}
+td{color:var(--muted)}
+details{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:0 16px;margin-bottom:10px;max-width:760px}
+summary{cursor:pointer;padding:14px 0;font-weight:500;color:#fff}
+details p{padding-bottom:14px;color:var(--muted);font-size:.93rem}
+.eco{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.eco a{display:block;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;text-decoration:none;color:var(--muted);font-size:.92rem}
+.eco a:hover{border-color:var(--accent2)}
+.eco strong{display:block;font-family:'Barlow Condensed',sans-serif;font-size:1.4rem;color:#fff;font-style:italic;margin-bottom:4px}
+footer{padding:32px 0;border-top:1px solid var(--border);text-align:center;font-size:.8rem;color:#64748b}
+footer a{color:#818cf8}
+@media (max-width:760px){.hero .wrap,.notif{grid-template-columns:1fr}.qr{max-width:220px}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn{transition:none}}
+
+.shots{display:grid;grid-template-columns:1fr minmax(240px,300px);gap:40px;align-items:center;max-width:820px;margin:0 auto}
+.shots-cap{order:1}
+.shots-num{font-size:.75rem;font-weight:700;letter-spacing:.18em;color:var(--accent2);text-transform:uppercase;margin-bottom:6px}
+.shots-title{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:clamp(1.8rem,4.5vw,2.6rem);color:#fff;line-height:1.05;margin-bottom:10px}
+.shots-desc{color:var(--muted);font-size:1rem;max-width:36ch;min-height:4.8em}
+.shots-dots{display:flex;flex-wrap:wrap;gap:7px;margin-top:20px;max-width:340px}
+.shots-dot{width:9px;height:9px;border-radius:50%;background:#334155;cursor:pointer;border:0;padding:0;transition:background .2s,transform .2s}
+.shots-dot.active{background:var(--green);transform:scale(1.25)}
+.shots-dot:focus-visible{outline:2px solid var(--green);outline-offset:3px}
+.phone{order:2;position:relative;border-radius:34px;padding:9px;background:#000;border:1px solid #334155;box-shadow:0 20px 60px rgba(79,70,229,.18);aspect-ratio:9/20}
+.phone-view{position:relative;width:100%;height:100%;border-radius:26px;overflow:hidden;background:#000}
+.phone-track{display:flex;width:100%;height:100%;transition:transform .55s cubic-bezier(.4,0,.2,1);will-change:transform}
+.phone-slide{flex:0 0 100%;height:100%}
+.phone-slide img{width:100%;height:100%;object-fit:cover;display:block}
+.phone-prog{position:absolute;left:0;bottom:0;height:3px;width:0;background:var(--green);z-index:2}
+.shots-btn{position:absolute;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:50%;background:rgba(15,23,42,.8);border:1px solid rgba(99,102,241,.45);color:#a5b4fc;font-size:1.1rem;cursor:pointer;z-index:3;line-height:1}
+.shots-btn:hover{background:rgba(79,70,229,.8);color:#fff}
+.shots-btn.prev{left:-18px}.shots-btn.next{right:-18px}
+@media (max-width:760px){.shots{grid-template-columns:1fr;gap:22px;justify-items:center;text-align:center}.shots-cap{order:2}.phone{order:1;width:min(260px,70vw)}.shots-desc{margin:0 auto;min-height:5.5em}.shots-dots{justify-content:center;margin-left:auto;margin-right:auto}.shots-btn.prev{left:-14px}.shots-btn.next{right:-14px}}
+@media (prefers-reduced-motion:reduce){.phone-track{transition:none}}
+</style>
 </head>
-<body class="bg-slate-950 text-slate-200">
-    <header class="relative py-1 pb-0 px-4 text-center bg-slate-950 overflow-hidden">
-        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-full bg-indigo-500/5 blur-[120px] pointer-events-none"></div>
-        <div class="relative z-10">
-            <h1 class="text-5xl md:text-7xl font-black text-white mb-4 tracking-normal uppercase italic">
-                ORBITACASA<span class="text-indigo-500 drop-shadow-[0_0_15px_rgba(99,102,241,0.6)]"></span>
-            </h1>
-            <p class="text-lg md:text-l text-slate-400 mb-8 max-w-2xl mx-auto leading-relaxed font-light">
-                Il centro di comando per la tua gestione domestica, <br class="hidden md:block">
-                dalle <span class="text-slate-200">spese quotidiane</span> al <span class="text-slate-200">risparmio intelligente</span>.
-            </p>
-            <div class="flex flex-wrap justify-center gap-3 mb-8 opacity-90 hover:opacity-100 transition-opacity">
-                <img src="https://img.shields.io/badge/Windows-✔️-blue?logo=windows&logoColor=white" alt="Windows" class="h-6">
-                <img src="https://img.shields.io/badge/macOS-✔️-lightgrey?logo=apple&logoColor=white" alt="macOS" class="h-6">
-                <img src="https://img.shields.io/badge/Linux-✔️-yellow?logo=linux&logoColor=black" alt="Linux" class="h-6">
-                <img src="https://img.shields.io/badge/Docker-✔️-2496ED?logo=docker&logoColor=white" alt="Docker" class="h-6">
-                <a href="https://renato-4132.github.io/OrbitaCasa-Android/" target="_blank" rel="noopener" title="OrbitaCasa Mobile: la versione Android"><img src="https://img.shields.io/badge/Android-App_companion-3DDC84?logo=android&logoColor=white" alt="Android" class="h-6"></a>
-                <img src="https://img.shields.io/badge/Python-3.13+-3776AB?logo=python&logoColor=white" alt="Python" class="h-6">
-                <img src="https://img.shields.io/badge/VERSIONE-2.x-orange" alt="Versione" class="h-6">
-                <img src="https://img.shields.io/badge/MADE%20IN-ITALY%20%F0%9F%87%AE%F0%9F%87%B9-green" alt="Lingua" class="h-6">
-                <img src="https://visitor-badge.laobi.icu/badge?page_id=Renato-4132.OrbitaCasa&left_text=VISITE%20TOTALI&color=4f46e5" alt="Visite" class="h-6">
-                <img src="https://visitor-badge.laobi.icu/badge?page_id=Renato-4132.OrbitaCasa.Installazioni&left_text=INSTALLAZIONI%20TOTALI&color=22c55e" alt="Installazioni" class="h-6">
-            </div>
-            <div class="flex flex-col items-center gap-3 mb-10">
-                <p class="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">Come ci vedono</p>
-                <a href="https://finanzacafona.it/2026/05/app-per-gestire-il-budget-familiare.html"
-                   target="_blank" class="press-badge">
-                    <div class="press-badge-icon">📰</div>
-                    <div style="text-align:left;">
-                        <div style="font-size:11px;font-weight:700;color:#e2e8f0;line-height:1.2;">FinanzaCafona.it</div>
-                        <div style="font-size:10px;color:#6366f1;font-weight:600;">🏆 Top 3 App Budget Familiare · Maggio 2026</div>
-                    </div>
-                </a>
-                <div class="press-quote">
-                    "Questa è forse la chicca dell'articolo e l'app per gestire il budget familiare
-                    <strong style="color:#fff;">più completa fra tutte</strong>"
-                </div>
-                <button type="button" class="story-btn" onclick="openStory()">
-                    <span style="font-size:16px;">📖</span> Come è nata OrbitaCasa: la storia
-                </button>
-            </div>
-            <div class="relative max-w-4xl mx-auto group">
-                <div class="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-slate-800 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-                <img src="https://github.com/user-attachments/assets/cc6432e4-a670-4e7c-9631-c456046707bb"
-                     alt="Anteprima Software"
-                     class="relative w-full rounded-xl shadow-2xl border border-slate-700/50 bg-slate-900 h-auto transform transition duration-500 hover:scale-[1.01]">
-            </div>
-        </div>
-    </header>
-    <main class="max-w-6xl mx-auto px-4 pt-0 py-12">
-        <section class="max-w-4xl mx-auto text-center mb-5">
-            <h2 class="text-2xl font-semibold text-indigo-400 mb-4 uppercase tracking-widest">L'Essenza del Software</h2>
-            <p class="text-l text-slate-300 leading-relaxed mb-8">
-                OrbitaCasa è un ecosistema <span class="text-white font-bold"></span> progettato per chi vuole il controllo totale sulle proprie finanze senza rinunciare alla <span class="text-white font-bold">Privacy</span>. Unisce la potenza di un software gestionale alla semplicità di un'app domestica.
-            </p>
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-6 text-sm">
-                <div class="p-3 bg-slate-800/50 rounded-lg border border-indigo-500">📥 <strong>Importazione & Automazione</strong><br><span class="text-slate-400">Estratti PDF/CSV · Gmail · Ricorrenze · SmartCat · QR Code</span></div>
-                <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700">📊 <strong>Controllo & Analisi</strong><br><span class="text-slate-400">Saldo Bancario · Grafici Drill-Down · Budget · Categorie · Report</span></div>
-                <div class="p-3 bg-slate-800/50 rounded-lg border border-indigo-500">🎯 <strong>Risparmio & Proiezioni</strong><br><span class="text-slate-400">Simulatore · Fondo Risparmio · Metodo 50/30/20 · Proiezione 31/12 · Inflazione</span></div>
-                <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700">🏠 <strong>Gestione Avanzata</strong><br><span class="text-slate-400">Immobili · Veicoli · MyBusiness · Finanziamenti · FairShare · Utenze · Mercati</span></div>
-                <div class="p-3 bg-slate-800/50 rounded-lg border border-indigo-500">🔒 <strong>Privacy & Sicurezza</strong><br><span class="text-slate-400">Zero Cloud · Backup · Password · Crash Recovery · Retention</span></div>
-                <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700">🤖 <strong>Gemini & OpenAI</strong><br><span class="text-indigo-400 font-bold">AI opzionale: condividi solo ciò che scegli</span></div>
-                <div class="p-3 bg-slate-800/50 rounded-lg border border-indigo-500">🏅 <strong>Licenza Gratuita a Punti</strong><br><span class="text-slate-400">Usa l'app normalmente: ogni azione fa guadagnare punti, ogni nuovo livello raggiunto estende in automatico la tua licenza gratuita.</span></div>
-                                <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700">🔥 <strong>Streak & Livelli</strong><br><span class="text-slate-400">Da Novizio a Leggenda (e oltre): mantieni la costanza giorno dopo giorno e scala i livelli a vita.</span></div>
-                <div class="p-3 bg-slate-800/50 rounded-lg border border-indigo-500">🎖️ <strong>Badge Mese & Anno</strong><br><span class="text-slate-400">Oltre al livello a vita, guadagni riconoscimenti dedicati al mese e all'anno in corso.</span></div>
-            </div>
-        </section>
-        <section class="carousel-outer mb-20">
-            <div class="carousel-wrap" id="carousel">
-                <div class="carousel-track" id="carTrack">
-                    </div>
-                <div class="car-progress" id="carProgress"></div>
-                <button class="car-btn prev" onclick="carMove(-1)" aria-label="Precedente">
-                    <i class="fas fa-chevron-left"></i>
-                </button>
-                <button class="car-btn next" onclick="carMove(1)" aria-label="Successivo">
-                    <i class="fas fa-chevron-right"></i>
-                </button>
-            </div>
-            <div class="car-dots" id="carDots"></div>
-        </section>
-        <section class="mb-10">
-        <button class="acc-btn" id="btn-funzioni" onclick="accToggleFunzioni()">
-                <div class="acc-header">
-                        <span style="font-size:22px;">🔥</span>
-                        <div style="flex:1;">
-                                <div class="acc-title-main" style="color:#f97316;">POTENZA IN 80+ FUNZIONI</div>
-                                <div class="acc-sub">Dal calendario heartbeat alle notifiche del telefono · tutto integrato · zero cloud</div>
-                        </div>
-                        <div class="acc-chevron" id="chev-funzioni"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></div>
-                </div>
-        </button>
-        <div class="acc-body-wrap" id="body-funzioni" style="max-height:0;">
-                <div class="acc-body" style="padding-top:20px;">
-                        <ol style="
-                                display:grid;
-                                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-                                gap:8px 24px;
-                                padding-left:0;
-                                list-style:none;
-                                margin:0;
-                        ">
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">01</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Importazione Estratti</strong><br><span style="color:#94a3b8;">PDF e CSV da banca, stipendi, cedolini, spese — il punto di ingresso di tutto</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">02</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Sincronizzazione Gmail</strong><br><span style="color:#94a3b8;">Fatture scaricate e archiviate in automatico dall'email</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">03</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Archivio Documenti Contabili PDF</strong><br><span style="color:#94a3b8;">Ogni movimento collegato al suo documento — tutto aggregato in un posto</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">04</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Scansione Documenti da Scanner</strong><br><span style="color:#94a3b8;">Acquisisci i fogli da scanner USB o di rete direttamente in un PDF, con Analisi AI opzionale</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">05</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Scansiona e salva PDF</strong><br><span style="color:#94a3b8;">Scansiona e salva il PDF dove vuoi, senza archiviarlo</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">06</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">SmartCat</strong><br><span style="color:#94a3b8;">Categorizza da solo basandosi sullo storico — l'utente non ci pensa</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">07</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Gestione Ricorrenze</strong><br><span style="color:#94a3b8;">Inserisci una volta affitto, abbonamenti, stipendio — poi dimentica</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">08</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Spese Pianificate</strong><br><span style="color:#94a3b8;">Dilaziona una spesa in quote automatiche fino alla cifra prefissata</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">09</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Agenda &amp; Promemoria</strong><br><span style="color:#94a3b8;">Appuntamenti e scadenze su calendario, con ripetizioni, avvisi ed email</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">10</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Saldo Bancario</strong><br><span style="color:#94a3b8;">Riconciliazione immediata — quanto ho davvero sul conto</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">11</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Calendario Heartbeat</strong><br><span style="color:#94a3b8;">Vista globale degli impegni finanziari nel tempo</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">12</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Ricerca Multi-Filtro</strong><br><span style="color:#94a3b8;">Trova qualsiasi movimento in un istante</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">13</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Sicurezza Password</strong><br><span style="color:#94a3b8;">Accesso protetto — dati finanziari, non si scherza</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">14</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Backup &amp; Ripristino</strong><br><span style="color:#94a3b8;">Automatico, incrementale, con snapshot e rollback integrato</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">15</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Promemoria Categorie</strong><br><span style="color:#94a3b8;">Avvisi su spese ricorrenti dimenticate rispetto ai mesi passati</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">16</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Profili Multi-Utente</strong><br><span style="color:#94a3b8;">Database separati per più persone o nuclei familiari: ognuno con i propri movimenti, categorie e credenziali</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">17</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Esportazione TXT/PDF/Stampa</strong><br><span style="color:#94a3b8;">I dati sempre esportabili nel formato che serve</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">18</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Configurazione</strong><br><span style="color:#94a3b8;">Tutto configurabile, dati sempre sicuri e portabili</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">19</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Azzeramento Dati Selettivo</strong><br><span style="color:#94a3b8;">Resetta un singolo ambito senza toccare il resto del database</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">20</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Vai al Movimento</strong><br><span style="color:#94a3b8;">Doppio clic su una spesa e la raggiungi nella lista principale</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">21</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Controllo Estratti (Riconciliazione)</strong><br><span style="color:#94a3b8;">Confronto tra database ed estratti di conti e carte, con "Importa Mancanti"</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">22</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Grafici Drill-Down</strong><br><span style="color:#94a3b8;">Analisi visiva profonda — dove vanno davvero i soldi</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">23</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Analisi Categorie</strong><br><span style="color:#94a3b8;">Finestra unica a tab: Dettaglio, Aggrega, Time Machine, Trend, Budget superato, Target</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">24</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Monitoraggio Budget per Categoria</strong><br><span style="color:#94a3b8;">Avviso quando si supera la soglia di spesa, mensile o annuale</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">25</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Fondo Risparmio</strong><br><span style="color:#94a3b8;">Tracking risparmi accantonati e obiettivi</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">26</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Simulatore Risparmio</strong><br><span style="color:#94a3b8;">Calcola come e quando raggiungere un obiettivo</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">27</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Proiezioni Finanziarie</strong><br><span style="color:#94a3b8;">Rendite, spese e patrimonio nel futuro</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">28</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Stampa Report</strong><br><span style="color:#94a3b8;">Documentazione professionale pronta all'uso</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">29</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Analisi Finanziaria con IA</strong><br><span style="color:#94a3b8;">Analisi intelligente dell'andamento complessivo</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">30</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Chiedi al Database con l'IA</strong><br><span style="color:#94a3b8;">Domande in linguaggio naturale su tutti i moduli, con storico ed export PDF/TXT</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">31</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Calcolo Inflazione</strong><br><span style="color:#94a3b8;">Tasso reale calcolato sullo storico personale</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">32</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Invio Estratti Mail</strong><br><span style="color:#94a3b8;">Distribuzione automatica dei report</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">33</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Analisi Mese</strong><br><span style="color:#94a3b8;">Cruscotto e Saldi conti del mese</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">34</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Metodo 50/30/20</strong><br><span style="color:#94a3b8;">Entrate divise in Bisogni 50%, Desideri 30%, Risparmio 20%, con classe assegnata a ogni categoria e andamento mensile/annuale</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">35</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Gestione Immobili</strong><br><span style="color:#94a3b8;">Entrate/uscite per immobile, estratto conto, riepilogo</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">36</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">AutoPark — Gestione Veicoli</strong><br><span style="color:#94a3b8;">Scadenze bollo/assicurazione/revisione, consumi, costo al km, spese per veicolo</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">37</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Gestione MyBusiness</strong><br><span style="color:#94a3b8;">Agenda, preventivi, fatturazione, magazzino</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">38</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Gestione Associativa e Multiconto</strong><br><span style="color:#94a3b8;">Associazione tra entità contabili e conti bancari</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">39</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Finanziamenti, Mutui e Prestiti</strong><br><span style="color:#94a3b8;">Rate, variazioni ed estinzioni, piano di ammortamento e simulatori, anche da browser</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">40</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Algoritmo FairShare</strong><br><span style="color:#94a3b8;">Ripartizione equa spese tra più persone, quote calcolate al centesimo</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">41</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Conti Personali FairShare</strong><br><span style="color:#94a3b8;">Conto individuale per tracciare spese nel gruppo</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">42</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Estratto Analitico &amp; Dare/Avere</strong><br><span style="color:#94a3b8;">Chi deve cosa a chi, con filtri per stato e ordinamento</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">43</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">CommunityPool</strong><br><span style="color:#94a3b8;">Dividi le spese senza svelare il resto dei tuoi conti: pubblichi solo ciò che vuoi, il resto resta tuo</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">44</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Mercati Finanziari</strong><br><span style="color:#94a3b8;">Monitoraggio real-time indici e asset globali</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">45</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Portafoglio Investimenti</strong><br><span style="color:#94a3b8;">Titoli e asset con prezzi live e controvalore</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">46</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Monitor Utenze</strong><br><span style="color:#94a3b8;">Consumi di luce, gas e acqua sotto controllo</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">47</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Manutenzione e Risparmio Casa</strong><br><span style="color:#94a3b8;">Calendario manutenzioni periodiche per impianti ed elettrodomestici</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">48</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Confronto Prezzi</strong><br><span style="color:#94a3b8;">Ottimizza la spesa alimentare nel tempo</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">49</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Analizzatore Semantico IA</strong><br><span style="color:#94a3b8;">Analisi intelligente e confronto multi-documento</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">50</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Fondo Pensione</strong><br><span style="color:#94a3b8;">Piano, versamenti per tipologia, valorizzazioni e riscatti/anticipazioni</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">51</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Portafoglio Bancario Multi-Conto</strong><br><span style="color:#94a3b8;">Riepilogo di tutti i conti con distribuzione per categoria</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">52</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Trasferimenti tra Conti</strong><br><span style="color:#94a3b8;">Pianifica trasferimenti singoli o in serie ricorrenti tra conti</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">53</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Conto Risparmio Automatico</strong><br><span style="color:#94a3b8;">Ogni uscita di una categoria Risparmio genera il trasferimento al conto risparmio</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">54</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Notifiche Email Pianificate</strong><br><span style="color:#94a3b8;">Report multipli programmabili con frequenza personalizzata</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">55</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">StockBox (Magazzino)</strong><br><span style="color:#94a3b8;">Magazzino generico per tutto ciò che vuoi tenere in scorta, con scorta minima e massima</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">56</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">OrbitaNotify: notifiche → spese</strong><br><span style="color:#94a3b8;">L'app Android legge le notifiche di banca, carte e negozi e le trasforma in spese da confermare (o registrate in automatico, per app)</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">57</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">OrbitaWeb (app Android)</strong><br><span style="color:#94a3b8;">Collega il telefono al server web di OrbitaCasa</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">58</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Home e Calendario web</strong><br><span style="color:#94a3b8;">Pagina iniziale a tessere e calendario cliccabile con i movimenti del giorno</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">59</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Webserver Remoto</strong><br><span style="color:#94a3b8;">Consulta i dati da smartphone anche in remoto, con agenda, chat IA, pagina Mutui e Prestiti, accesso biometrico e "Verifica connessione"</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">60</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Movimenti da Web</strong><br><span style="color:#94a3b8;">Inserimento, modifica e ricerca avanzata con tag, orario e metodo di pagamento</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">61</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Chiedi all'IA da Browser</strong><br><span style="color:#94a3b8;">La chat sui tuoi dati anche dal telefono, con i dati che restano sul tuo PC</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">62</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">StockBox da Telefono</strong><br><span style="color:#94a3b8;">Carica e scarica articoli con il barcode e ricava la Lista spesa dalle scorte</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">63</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Docker &amp; Accesso via Browser</strong><br><span style="color:#94a3b8;">OrbitaCasa su server o NAS, usato da qualsiasi PC o tablet</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">64</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">QR di Download App</strong><br><span style="color:#94a3b8;">Gli APK delle app Android sempre all'ultima release, da scansionare</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">65</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Archivio Documenti Personali</strong><br><span style="color:#94a3b8;">Documenti sempre a portata di mano, con scadenze</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">66</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Modulo Dieta</strong><br><span style="color:#94a3b8;">Pasti, macronutrienti, peso e grafico BMI</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">67</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Pet Care</strong><br><span style="color:#94a3b8;">Profili degli animali, vaccinazioni e scadenze veterinarie, promemoria cura e peso sotto controllo</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">68</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Rubrica Vcard/Android</strong><br><span style="color:#94a3b8;">Esporta/importa contatti dallo smartphone</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">69</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Retention Automatica</strong><br><span style="color:#94a3b8;">Rimuove automaticamente i dati più vecchi</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">70</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Tasti Shortcut Personali</strong><br><span style="color:#94a3b8;">Funzioni rapide con combinazioni di tasti</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">71</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Temi Personalizzabili</strong><br><span style="color:#94a3b8;">Interfaccia adattata al proprio stile</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">72</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Smart Info Point</strong><br><span style="color:#94a3b8;">Tooltip ricchi su movimenti, tabelle, grafici e documenti con statistiche di spesa</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">73</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Carosello Grafici</strong><br><span style="color:#94a3b8;">Tour automatico degli andamenti all'avvio</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">74</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Auto-Iconizza</strong><br><span style="color:#94a3b8;">Riduzione a icona per inattività</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">75</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Notifiche Auto-chiudenti</strong><br><span style="color:#94a3b8;">Avvisi che scompaiono dopo tempo prestabilito</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">76</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Aggiornamenti Automatici</strong><br><span style="color:#94a3b8;">App, moduli e librerie Python aggiornati da GitHub, con backup e ripristino</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">77</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Messaggi di Servizio e Changelog</strong><br><span style="color:#94a3b8;">Novità e avvisi dentro l'app, senza popup invadenti</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">78</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Licenza a Punti (Gamification)</strong><br><span style="color:#94a3b8;">Usa l'app, sali di livello, allunghi la licenza gratuita</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">79</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Streak &amp; Livelli</strong><br><span style="color:#94a3b8;">Da Novizio a Leggenda (e oltre): mantieni la costanza giorno dopo giorno e scala i livelli a vita</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">80</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Badge Mese &amp; Anno</strong><br><span style="color:#94a3b8;">Oltre al livello a vita, guadagni riconoscimenti dedicati al mese e all'anno in corso</span></span>
-                                </li>
-                                <li style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.18);border-radius:10px;">
-                                    <span style="color:#f97316;font-weight:900;font-size:13px;min-width:24px;padding-top:1px;">81</span>
-                                    <span style="font-size:12px;color:#e2e8f0;line-height:1.45;"><strong style="color:#fff;">Profilo Demo</strong><br><span style="color:#94a3b8;">Prova l'app con dati di esempio</span></span>
-                                </li>
-                        </ol>
-                </div>
-        </div>
-        <script>
-                function accToggleFunzioni() {
-                        const btn  = document.getElementById('btn-funzioni');
-                        const body = document.getElementById('body-funzioni');
-                        const chev = document.getElementById('chev-funzioni');
-                        const isOpen = body.style.maxHeight !== '0px' && body.style.maxHeight !== '';
-                        if (isOpen) {
-                                body.style.maxHeight = '0px';
-                                btn.classList.remove('open');
-                                chev.classList.remove('open');
-                        } else {
-                                body.style.maxHeight = body.scrollHeight + 'px';
-                                btn.classList.add('open');
-                                chev.classList.add('open');
-                        }
-                }
-        </script>
-        </section>
-        <section class="mb-5">
-            <style>
-                .priv-btn { width: 100%; background: #111827; border: 1px solid #1e293b; color: #e2e8f0; padding: 0; cursor: pointer; text-align: left; border-radius: 16px; overflow: hidden; transition: all 0.2s; }
-                .priv-btn:hover { border-color: #4f46e5; }
-                .priv-btn.open { border-color: #4f46e5; margin-bottom: 0; }
-                .priv-header { display: flex; align-items: center; gap: 16px; padding: 18px 24px; }
-                .priv-chevron { width: 28px; height: 28px; border-radius: 50%; background: #1e293b; display: flex; align-items: center; justify-content: center; transition: transform 0.35s ease; }
-                .priv-btn.open .priv-chevron { transform: rotate(180deg); background: #4f46e5; }
-                .priv-body-wrap { background: transparent; overflow: hidden; max-height: 0; transition: max-height 0.4s ease-out; }
-                .priv-body-wrap.open { max-height: 1000px; }
-            </style>
-            <button class="priv-btn" id="btn-privacy-main" onclick="togglePrivacyMain()">
-                <div class="priv-header">
-                    <span style="font-size:22px;">🛡️</span>
-                    <div style="flex:1; text-align: left;">
-                        <div class="text-lg font-bold italic text-[#fcd34d] font-['Barlow_Condensed'] uppercase tracking-tight">"I tuoi dati sono tuoi. Punto."</div>
-                        <div class="text-xs text-slate-500">Zero Cloud · Trasparenza Totale · Accesso Remoto Sicuro</div>
-                    </div>
-                    <div class="priv-chevron">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="6 9 12 15 18 9"/>
-                        </svg>
-                    </div>
-                </div>
-            </button>
-            <div class="priv-body-wrap" id="body-privacy-main">
-                <div class="p-6 pt-6"> <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
-                        <div class="flex flex-col items-center text-center">
-                            <i class="fas fa-shield-alt text-4xl text-green-500 mb-4"></i>
-                            <p class="text-sm font-bold text-white mb-1">Zero Cloud di default</p>
-                            <p class="text-xs text-slate-400">Il database risiede sul tuo PC. Escono dati solo se attivi tu IA, sync mail o accesso remoto.</p>
-                        </div>
-                        <div class="flex flex-col items-center text-center">
-                            <i class="fas fa-eye-slash text-4xl text-red-500 mb-4"></i>
-                            <p class="text-sm font-bold text-white mb-1">AI Opzionale</p>
-                            <p class="text-xs text-slate-400">Analizza estratti e documenti con Gemini AI. Solo tu decidi cosa condividere — la funzione è opzionale.</p>
-                        </div>
-                        <div class="flex flex-col items-center text-center">
-                            <i class="fas fa-user-lock text-4xl text-indigo-500 mb-4"></i>
-                            <p class="text-sm font-bold text-white mb-1">Accesso Remoto Sicuro</p>
-                            <p class="text-xs text-slate-400">Se usi il Webserver fuori casa, <span class="text-indigo-400 font-bold">consigliamo una VPN</span>. Proteggi i tuoi dati da occhi indiscreti.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <script>
-                function togglePrivacyMain() {
-                    const btn = document.getElementById('btn-privacy-main');
-                    const body = document.getElementById('body-privacy-main');
-                    const isOpen = btn.classList.contains('open');
-                    if (isOpen) {
-                        btn.classList.remove('open');
-                        body.style.maxHeight = "0px";
-                    } else {
-                        btn.classList.add('open');
-                        body.style.maxHeight = body.scrollHeight + "px";
-                    }
-                }
-            </script>
-        </section>
-        <hr style="border:none;border-top:1px solid #4f46e5;margin:20px 0;">
-        
-                <section class="mb-20">
-          <style>
-            .acc-btn { width:100%; background:#111827; border:1px solid #1e293b; color:#e2e8f0; padding:0; cursor:pointer; text-align:left; border-radius:16px; overflow:hidden; margin-bottom:12px; transition:border-color 0.2s; }
-            .acc-btn:hover { border-color:#4f46e5; }
-            .acc-btn.open { border-color:#4f46e5; border-radius:16px 16px 0 0; margin-bottom:0; border-bottom:none; }
-            .acc-header { display:flex; align-items:center; gap:16px; padding:18px 24px; }
-            .acc-title-main { font-size:18px; font-weight:700; font-style:italic; font-family:'Barlow Condensed',sans-serif; }
-            .acc-sub { font-size:12px; color:#64748b; margin-top:2px; }
-            .acc-chevron { width:28px; height:28px; border-radius:50%; background:#1e293b; border:1px solid #334155; display:flex; align-items:center; justify-content:center; transition:transform 0.35s cubic-bezier(0.4,0,0.2,1), background 0.2s; flex-shrink:0; }
-            .acc-btn.open .acc-chevron { transform:rotate(180deg); background:#4f46e5; border-color:#4f46e5; }
-            .acc-chevron svg { width:14px; height:14px; fill:none; stroke:#94a3b8; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; }
-            .acc-btn.open .acc-chevron svg { stroke:#fff; }
-            .acc-body-wrap { background:#111827; border:1px solid #4f46e5; border-top:none; border-radius:0 0 16px 16px; overflow:hidden; max-height:0; transition:max-height 0.45s cubic-bezier(0.4,0,0.2,1); margin-bottom:12px; }
-            .acc-body-wrap.open { max-height:600px; }
-            .acc-body { padding:0 24px 24px; }
-            .note-row { display:flex; align-items:flex-start; gap:10px; background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.25); border-radius:10px; padding:10px 14px; margin-top:4px; }
-            .note-badge { background:#6366f1; color:#fff; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:12px; flex-shrink:0; margin-top:1px; }
-          </style>
-          <button class="acc-btn" id="btn-win" onclick="accToggle('win')">
-            <div class="acc-header">
-              <span style="font-size:22px;">🪟</span>
-              <div style="flex:1;">
-                <div class="acc-title-main" style="color:#60a5fa;">Installer Windows (Automatico)</div>
-                <div class="acc-sub">Installer .zip · configurazione guidata · profili multipli</div>
-             </div>
-              <div class="acc-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></div>
-            </div>
-          </button>
-          <div class="acc-body-wrap" id="body-win">
-            <div class="acc-body">
-              <div class="flex items-start gap-3 mb-4">
-                <span class="step-number mt-1">1</span>
-                <div><p>Scarica l'installer:</p>
-                  <a href="https://github.com/Renato-4132/OrbitaCasa/raw/main/O.C.Win.Installer.zip" class="btn-download"><i class="fas fa-file-archive mr-2"></i> Scarica .zip</a>
-                </div>
-              </div>
-              <div class="flex items-start gap-3 mb-4">
-                <span class="step-number mt-1">2</span>
-                <p>Estrai ed esegui il file EXE per la configurazione automatica.</p>
-              </div>
-              <hr style="border:none;border-top:1px solid #1e293b;margin:12px 0;">
-              <div class="note-row">
-                <div class="note-badge">!</div>
-                <p style="font-size:12px;color:#a5b4fc;font-style:italic;margin:0;line-height:1.5;">Rieseguendo l'installer potrai creare nuovi profili utente separati.</p>
-              </div>
-            </div>
-          </div>          
-          <button class="acc-btn" id="btn-mac" onclick="accToggle('mac')">
-            <div class="acc-header">
-              <span style="font-size:22px;">🍎</span>
-              <div style="flex:1;">
-                <div class="acc-title-main" style="color:#e5e7eb;">Installer macOS (Sperimentale)</div>
-                <div class="acc-sub">Script .command · installa Python da solo se manca · non ancora testato su tutte le versioni di macOS</div>
-              </div>
-              <div class="acc-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></div>
-            </div>
-          </button>
-          <div class="acc-body-wrap" id="body-mac">
-            <div class="acc-body">
-              <div class="flex items-start gap-3 mb-4">
-                <span class="step-number mt-1">1</span>
-                <div><p>Scarica l'installer:</p>
-                  <a href="https://github.com/Renato-4132/OrbitaCasa/raw/main/O.C.Mac_Setup.zip" class="btn-download"><i class="fas fa-file-archive mr-2"></i> Scarica .zip</a>
-                </div>
-              </div>
-              <div class="flex items-start gap-3 mb-4">
-                <span class="step-number mt-1">2</span>
-                <p>Estrai lo zip, poi fai <strong style="color:#e2e8f0;">tasto destro → Apri</strong> sul file <span style="color:#818cf8;font-weight:700;">OrbitaCasa_Mac_Installer.command</span> (il doppio click semplice non basta la prima volta: macOS blocca gli script scaricati da internet).</p>
-              </div>
-              <div class="warning-box" style="font-size:11px;margin:10px 0;">
-                <strong>⚠️ Sperimentale:</strong> se Python non è installato lo script lo installa da solo tramite Homebrew, poi chiede il nome del profilo, scarica OrbitaCasa e lo avvia. Non ancora testato su tutte le versioni di macOS — in caso di problemi resta valida anche la <b class="text-orange-400">Procedura Manuale Universale</b> qui sotto.
-              </div>
-            </div>
-          </div>
-          
-          <button class="acc-btn" id="btn-uni" onclick="accToggle('uni')">
-            <div class="acc-header">
-              <span style="font-size:22px;">🌐</span>
-              <div style="flex:1;">
-                <div class="acc-title-main" style="color:#f59e0b;">Universale — Windows / Mac / Linux</div>
-                <div class="acc-sub">Installer Python · si apre nel browser · richiede Python installato</div>
-              </div>
-              <div class="acc-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></div>
-            </div>
-          </button>
-          <div class="acc-body-wrap" id="body-uni">
-            <div class="acc-body">
-              <div class="flex items-start gap-3 mb-4">
-                <span class="step-number mt-1">1</span>
-                <div><p>Scarica l'installer universale:</p>
-                  <a href="https://github.com/Renato-4132/OrbitaCasa/raw/refs/heads/main/OrbitaCasa_Installer.pyw.zip" class="btn-download"><i class="fas fa-file-archive mr-2"></i> Scarica .zip</a>
-                </div>
-              </div>
-              <div class="flex items-start gap-3 mb-4">
-                <span class="step-number mt-1">2</span>
-                <p>Estrai ed esegui il file <strong style="color:#e2e8f0;">OrbitaCasa_Installer.pyw</strong> — si aprirà nel browser per guidarti nella configurazione.</p>
-              </div>
-              <hr style="border:none;border-top:1px solid #1e293b;margin:12px 0;">
-              <div class="note-row">
-                <div class="note-badge">!</div>
-                <p style="font-size:12px;color:#a5b4fc;font-style:italic;margin:0;line-height:1.5;">Prerequisito: Python 3.13+ installato con <strong>Add Python to PATH</strong> spuntato.</p>
-              </div>
-            </div>
-          </div>
-          <button class="acc-btn" id="btn-src" onclick="accToggle('src')">
-            <div class="acc-header">
-              <span style="font-size:22px;">⌨️</span>
-              <div style="flex:1;">
-                <div class="acc-title-main" style="color:#4ade80;">Procedura Manuale Universale</div>
-                <div class="acc-sub">Python 3.13+ · pip · codice grezzo</div>
-              </div>
-              <div class="acc-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></div>
-            </div>
-          </button>
-          <div class="acc-body-wrap" id="body-src">
-            <div class="acc-body">
-              <p style="font-size:13px;color:#64748b;margin:0 0 10px;">Procedura Manuale :</p>
-              <ol style="list-style:decimal;padding-left:18px;margin:8px 0;">
-                <li style="font-size:13px;color:#94a3b8;margin-bottom:6px;">Installa <a href="https://www.python.org/downloads/" target="_blank" style="color:#818cf8;font-weight:700;">Python 3.13+</a> — spunta <strong style="color:#e2e8f0;">"Add Python to PATH"</strong>.</li>
-                <li style="font-size:13px;color:#94a3b8;margin-bottom:6px;">Crea una cartella dedicata — <strong style="color:#e2e8f0;">il nome sarà il tuo Nome Profilo</strong>.</li>
-                <li style="font-size:13px;color:#94a3b8;">Inserisci il file <span style="color:#818cf8;font-weight:700;">OrbitaCasa.pyw</span> all'interno.</li>
-              </ol>
-              <button type="button" onclick="scaricaOrbitaCasaPyw(this)" class="btn-download" style="cursor:pointer;border:none;font-family:inherit;font-size:inherit;"><i class="fas fa-file-code mr-2"></i> Scarica OrbitaCasa.pyw</button>
-              <div class="warning-box" style="font-size:11px;margin:10px 0;">
-                <strong>Prerequisito Python:</strong> ⚠️ IMPORTANTE ⚠️ Durante l'installazione (v3.13+), spunta <b class="text-orange-400">"Add Python to PATH"</b>.
-              </div>
-              <p style="font-size:11px;color:#475569;margin:12px 0 0;font-style:italic;">Librerie (solo in caso di errori all'avvio):</p>
-              <div class="code-box" style="font-size:10px;margin-top:6px;">pip install tkcalendar google-genai requests flask Pillow segno pywin32 cryptography pystray pymupdf yfinance tkinterdnd2 webauthn</div>
-            </div>
-          </div>
-          <button class="acc-btn" id="btn-docker" onclick="accToggle('docker')">
-            <div class="acc-header">
-              <span style="font-size:22px;">🐳</span>
-              <div style="flex:1;">
-                <div class="acc-title-main" style="color:#38bdf8;">Docker & Accesso via Browser</div>
-                <div class="acc-sub">Server / NAS / Raspberry Pi · gestisci le finanze da PC o tablet in rete, comodamente dal divano</div>
-              </div>
-              <div class="acc-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></div>
-            </div>
-          </button>
-          <div class="acc-body-wrap" id="body-docker">
-            <div class="acc-body">
-              <p style="font-size:13px;color:#94a3b8;margin:0 0 14px;">Esegui OrbitaCasa sul tuo server o NAS tramite Docker e gestisci le tue finanze domestiche direttamente dal browser di qualsiasi PC o tablet remoto, senza installazioni locali.</p>
-              <div class="flex items-start gap-3 mb-4">
-                <span class="step-number mt-1">1</span>
-                <div><p>Scarica il pacchetto Docker e scegli la cartella per il tuo caso: <span style="color:#818cf8;font-weight:700;">orbitacasa-docker-linux/</span> (server Linux/NAS) o <span style="color:#818cf8;font-weight:700;">orbitacasa-docker-win-mac/</span> (Docker Desktop su Windows/Mac).</p>
-                  <a href="https://github.com/Renato-4132/OrbitaCasa/raw/main/orbitacasa-docker.zip" class="btn-download"><i class="fas fa-file-archive mr-2"></i> Scarica .zip</a>
-                </div>
-              </div>
-              <div class="flex items-start gap-3 mb-4">
-                <span class="step-number mt-1">2</span>
-                <p>Aggiungi <span style="color:#818cf8;font-weight:700;">OrbitaCasa.pyw</span> nella cartella scelta, poi avvia con:</p>
-              </div>
-              <div class="code-box" style="font-size:12px;margin:-8px 0 14px 44px;">docker compose up -d --build</div>
-              <div class="flex items-start gap-3 mb-4">
-                <span class="step-number mt-1">3</span>
-                <p>Apri <span style="color:#818cf8;font-weight:700;">https://IP-DEL-SERVER:5800</span> dal browser (certificato autofirmato: accetta l'avviso "non sicuro" la prima volta).</p>
-              </div>
-              <hr style="border:none;border-top:1px solid #1e293b;margin:12px 0;">
-              <div class="note-row">
-                <div class="note-badge">!</div>
-                <p style="font-size:12px;color:#a5b4fc;font-style:italic;margin:0;line-height:1.5;">Essendo via browser, puoi aprire lo stesso indirizzo anche da tablet o da un altro PC sulla stessa rete Wi-Fi di casa — comodo per guardarlo dal divano. Dettagli e configurazione avanzata nel LEGGIMI.md incluso nello zip.</p>
-              </div>
-            </div>
-          </div>
-          <button class="acc-btn" id="btn-android" onclick="accToggle('android')">
-            <div class="acc-header">
-              <span style="font-size:22px;">📱</span>
-              <div style="flex:1;">
-                <div class="acc-title-main" style="color:#4ade80;">App Android</div>
-                <div class="acc-sub">OrbitaCasa Mobile, OrbitaWeb e OrbitaNotify · l'app a sé, il collegamento al server, le notifiche in spese</div>
-              </div>
-              <div class="acc-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></div>
-            </div>
-          </button>
-          <div class="acc-body-wrap" id="body-android">
-            <div class="acc-body">
-              <div class="flex items-start gap-3 mb-4">
-                <span class="step-number mt-1">1</span>
-                <p><span style="color:#4ade80;font-weight:700;">OrbitaCasa Mobile</span>: la versione Android di OrbitaCasa. Funziona da sola, offline, con i dati sul telefono, e si sincronizza con il desktop tramite uno zip. Registra le spese dalle notifiche della banca, con promemoria, conti, documenti e molto altro. <a href="https://renato-4132.github.io/OrbitaCasa-Android/" target="_blank" rel="noopener" style="color:#4ade80;font-weight:700;">Scopri l'app Android</a></p>
-              </div>
-              <div class="flex items-start gap-3 mb-4">
-                <span class="step-number mt-1">2</span>
-                <p><span style="color:#818cf8;font-weight:700;">OrbitaWeb</span>: si collega al server web di OrbitaCasa dal telefono. <a href="https://github.com/Renato-4132/OrbitaWeb" target="_blank" style="color:#818cf8;font-weight:700;">Repo GitHub</a></p>
-              </div>
-              <div class="flex items-start gap-3 mb-4">
-                <span class="step-number mt-1">3</span>
-                <p><span style="color:#818cf8;font-weight:700;">OrbitaNotify</span>: inoltra a OrbitaCasa le notifiche che parlano di soldi, per trasformarle in spese da confermare. <a href="https://github.com/Renato-4132/OrbitaNotify" target="_blank" style="color:#818cf8;font-weight:700;">Repo GitHub</a></p>
-              </div>
-              <hr style="border:none;border-top:1px solid #1e293b;margin:12px 0;">
-              <div class="note-row">
-                <div class="note-badge">!</div>
-                <p style="font-size:12px;color:#a5b4fc;font-style:italic;margin:0;line-height:1.5;">I QR per scaricare gli APK (sempre all'ultima release) sono in OrbitaCasa, nella finestra "Gestione Accessi Remoti" e nella finestra Info.</p>
-              </div>
-            </div>
-          </div>
-          <script>
-          async function scaricaOrbitaCasaPyw(btn) {
-            const url = 'https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/main/OrbitaCasa.pyw?t=' + Date.now();
-            const originalHTML = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Download in corso...';
-            try {
-              const response = await fetch(url, { cache: 'no-store' });
-              if (!response.ok) throw new Error('Risposta non ok: ' + response.status);
-              const blob = await response.blob();
-              const blobUrl = URL.createObjectURL(blob);
-              const link = document.createElement('a');
-              link.href = blobUrl;
-              link.download = 'OrbitaCasa.pyw';
-              document.body.appendChild(link);
-              link.click();
-              link.remove();
-              URL.revokeObjectURL(blobUrl);
-            } catch (err) {
-              alert('Download automatico non riuscito (' + err.message + '). Apro il file raw: usa poi "Salva pagina con nome" dal browser.');
-              window.open('https://raw.githubusercontent.com/Renato-4132/OrbitaCasa/main/OrbitaCasa.pyw', '_blank');
-            } finally {
-              btn.disabled = false;
-              btn.innerHTML = originalHTML;
-            }
-          }
-          function accToggle(id) {
-            const isOpen = document.getElementById('btn-'+id).classList.contains('open');
-            ['win','mac','uni','src','docker','android'].forEach(k => {
-              document.getElementById('btn-'+k).classList.remove('open');
-              document.getElementById('body-'+k).classList.remove('open');
-            });
-            if (!isOpen) {
-              document.getElementById('btn-'+id).classList.add('open');
-              document.getElementById('body-'+id).classList.add('open');
-            }
-          }
-          </script>
-        </section>
-        <style>
-          .video-toggle-btn { width:100%; background:transparent; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; padding:10px 0; }
-          .video-toggle-btn .vchevron { width:24px; height:24px; border-radius:50%; background:#1e293b; display:flex; align-items:center; justify-content:center; transition:transform 0.3s ease; }
-          .video-toggle-btn.collapsed .vchevron { transform: rotate(-90deg); }
-          .video-wrap.collapsed { display:none; }
-        </style>
-        <section class="space-y-1 mb-2">
-            <button class="video-toggle-btn collapsed" id="btn-vid1" onclick="toggleVideo('vid1')">
-                <h2 class="text-4xl font-bold text-center text-white italic" style="margin:0;">Addio fogli Excel !</h2>
-                <div class="vchevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>
-            </button>
-            <div class="video-wrap collapsed" id="wrap-vid1">
-                <div class="video-container shadow-2xl">
-                    <video controls autoplay loop muted playsinline>
-                        <source src="https://github.com/Renato-4132/OrbitaCasa/raw/main/screenshots/OrbitaCasa.mp4" type="video/mp4">
-                    </video>
-                </div>
-            </div>
-        </section>
-        <section class="space-y-1 mb-2">
-            <button class="video-toggle-btn collapsed" id="btn-vid2" onclick="toggleVideo('vid2')">
-                <h2 class="text-4xl font-bold text-center text-white italic" style="margin:0;">Quick Tour</h2>
-                <div class="vchevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>
-            </button>
-            <div class="video-wrap collapsed" id="wrap-vid2">
-                <div class="video-container shadow-2xl">
-                    <video controls autoplay loop muted playsinline>
-                        <source src="https://github.com/Renato-4132/OrbitaCasa/raw/main/screenshots/O.C-Tour-Pro.mp4" type="video/mp4">
-                    </video>
-                </div>
-            </div>
-            <div class="text-center mt-12">
-                <a href="https://github.com/Renato-4132/OrbitaCasa" target="_blank"
-                   class="inline-flex items-center px-10 py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-full transition-all">
-                    <i class="fab fa-github mr-3 text-2xl"></i> Repository GitHub Ufficiale
-                </a>
-            </div>
-            <div class="flex flex-wrap gap-2 justify-center w-full">
-                        <a href="https://www.facebook.com/orbitahome/" target="_blank" class="bg-[#1877F2] text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider inline-flex items-center gap-2 hover:opacity-90 transition-opacity">
-                                <i class="fab fa-facebook-f text-sm"></i> Segui su Facebook
-                        </a>
-                </div>
-            <p class="text-sm text-slate-300 font-semibold max-w-lg mx-auto text-center mt-8 leading-relaxed">Disclaimer: Nessun portafoglio è stato maltrattato durante lo sviluppo di questo software.<br>Per i malati della sicurezza: quando un aggiornamento va a buon fine, l'app manda un piccolo "ce l'ho fatta!", niente importi né dettagli, solo per farmi capire che il rilascio non ha fatto disastri e per gestire il rinnovo automatico della licenza. Le vostre finanze restano affari vostri.</p>
-        </section>
+<body>
+<div class="top"><div class="wrap">
+<a href="https://renato-4132.github.io/OrbitaCasa/">← OrbitaCasa per desktop</a>
+<a href="https://github.com/Renato-4132/OrbitaCasa-Android">Codice su GitHub</a>
+</div></div>
 
-    </main>
-    <footer class="py-8 text-center border-t border-slate-800 mt-10">
-        <div class="mb-4">
-            <p class="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold mb-1 italic">Assistenza Tecnica</p>
-            <a href="mailto:helporbitacasa@gmail.com" class="text-xs text-indigo-400/80 hover:text-indigo-400">helporbitacasa@gmail.com</a>
-        </div>
-        <p class="text-xs text-slate-500 max-w-xl mx-auto text-center mb-3 leading-relaxed">Codice consultabile e uso gratuito: 10 giorni di prova, poi licenza gratuita a punti. Non sono consentiti redistribuzione, vendita, aggiramento del sistema di licenza e uso commerciale competitivo senza autorizzazione scritta. Dal 15/05/2029 il codice passa a GPL v3. Dettagli nel file <a href="https://github.com/Renato-4132/OrbitaCasa/blob/main/LICENSE" target="_blank" class="text-indigo-400/80 hover:text-indigo-400">LICENSE</a>.</p>
-        <p class="text-[10px] text-slate-600 uppercase tracking-widest font-black italic">OrbitaCasa 2026 - Licenza BSL 1.1 (GPL v3 dal 15/05/2029)</p>
-    </footer>
-    <div class="story-overlay" id="storyOverlay" aria-hidden="true" onclick="if (event.target === this) closeStory()">
-        <div class="story-modal" role="dialog" aria-modal="true" aria-labelledby="storyTitle">
-            <button type="button" class="story-close" onclick="closeStory()" aria-label="Chiudi">
-                <i class="fas fa-times"></i>
-            </button>
-            <div class="story-scroll">
-                <p class="story-kicker">Dietro le quinte</p>
-                <h2 id="storyTitle">La storia di OrbitaCasa</h2>
-                <p class="story-sub">Da una scrivania tappezzata di post-it a più di 100.000 righe di codice.</p>
+<header class="hero"><div class="wrap">
+<div>
+<span class="ver">Versione 1.0.65 · Android 8.0+</span>
+<h1>Orbita<span>Casa</span> Mobile</h1>
+<p class="lead">OrbitaCasa in tasca. Funziona da sola, con i dati sul telefono, e si allinea al PC quando vuoi.</p>
+<div class="btns">
+<a class="btn" href="https://github.com/Renato-4132/OrbitaCasa-Android/releases/latest">Scarica l'APK</a>
+<a class="btn alt" href="#schermate">Guarda le schermate</a>
+<a class="btn alt" href="#installa">Come si installa</a>
+</div>
+<p class="req">Gratuita, senza account, senza abbonamento e senza pubblicità.</p>
+</div>
+<div class="qr" role="img" aria-label="QR code per scaricare l'ultima versione dell'APK">
+<svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 39 39" shape-rendering="crispEdges" class="segno"><path fill="#fff" d="M0 0h39v39h-39z"/><path class="qrline" stroke="#0a0e1a" d="M1 1.5h7m1 0h2m1 0h1m2 0h3m2 0h3m3 0h3m2 0h7m-37 1h1m5 0h1m2 0h1m3 0h2m2 0h3m1 0h4m1 0h1m1 0h1m1 0h1m5 0h1m-37 1h1m1 0h3m1 0h1m3 0h2m2 0h4m3 0h1m2 0h1m1 0h1m1 0h1m1 0h1m1 0h3m1 0h1m-37 1h1m1 0h3m1 0h1m1 0h3m4 0h1m2 0h1m3 0h1m2 0h4m1 0h1m1 0h3m1 0h1m-37 1h1m1 0h3m1 0h1m1 0h2m1 0h2m1 0h2m1 0h2m4 0h1m2 0h3m1 0h1m1 0h3m1 0h1m-37 1h1m5 0h1m1 0h4m2 0h1m1 0h2m1 0h2m3 0h1m5 0h1m5 0h1m-37 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-29 1h2m1 0h1m1 0h1m1 0h2m2 0h1m1 0h1m1 0h2m1 0h1m-27 1h1m3 0h1m1 0h3m5 0h3m2 0h2m3 0h1m2 0h7m2 0h1m-37 1h2m3 0h1m1 0h2m1 0h1m1 0h1m1 0h1m2 0h3m1 0h2m1 0h1m1 0h3m3 0h2m1 0h1m-36 1h2m1 0h1m1 0h3m2 0h2m3 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h3m4 0h3m-35 1h4m1 0h1m3 0h3m1 0h1m1 0h7m1 0h1m2 0h2m2 0h1m3 0h2m-33 1h1m2 0h1m1 0h1m3 0h1m1 0h1m2 0h1m3 0h1m7 0h3m1 0h4m-37 1h1m1 0h1m1 0h2m1 0h3m2 0h4m5 0h3m2 0h2m4 0h2m-31 1h1m1 0h2m2 0h2m2 0h1m1 0h1m1 0h1m2 0h1m2 0h2m1 0h3m2 0h4m-34 1h1m2 0h1m4 0h1m1 0h3m1 0h6m1 0h2m4 0h1m2 0h2m1 0h3m-37 1h1m2 0h1m2 0h2m1 0h4m5 0h1m3 0h1m1 0h1m4 0h2m2 0h3m-35 1h4m4 0h5m2 0h1m2 0h2m3 0h1m1 0h3m3 0h1m2 0h1m-35 1h1m1 0h9m2 0h1m1 0h3m1 0h2m1 0h1m2 0h2m1 0h5m-34 1h2m1 0h2m6 0h3m3 0h1m3 0h4m1 0h1m1 0h1m2 0h2m1 0h2m-36 1h3m1 0h3m2 0h3m1 0h3m1 0h1m1 0h3m2 0h1m1 0h1m2 0h3m2 0h1m-35 1h1m6 0h5m3 0h5m2 0h2m1 0h5m1 0h2m-32 1h2m3 0h1m2 0h2m1 0h4m2 0h1m1 0h4m3 0h1m2 0h5m-35 1h1m3 0h1m4 0h1m1 0h1m1 0h1m2 0h1m2 0h3m2 0h1m1 0h2m1 0h1m1 0h2m1 0h1m-35 1h1m2 0h4m2 0h1m1 0h2m1 0h1m1 0h1m3 0h1m2 0h1m4 0h4m1 0h2m1 0h1m-37 1h2m1 0h2m2 0h1m2 0h1m1 0h1m1 0h1m3 0h2m2 0h2m3 0h2m2 0h4m-32 1h1m2 0h1m1 0h1m2 0h2m1 0h2m1 0h1m1 0h1m1 0h7m-26 1h1m1 0h1m2 0h1m3 0h2m1 0h8m4 0h4m1 0h1m2 0h1m-35 1h9m2 0h4m1 0h1m3 0h2m2 0h2m2 0h5m1 0h1m1 0h1m-29 1h1m1 0h1m2 0h4m1 0h1m1 0h4m1 0h1m1 0h2m3 0h1m3 0h1m-37 1h7m1 0h2m1 0h1m2 0h2m1 0h1m5 0h2m1 0h1m1 0h1m1 0h1m1 0h1m-33 1h1m5 0h1m8 0h5m2 0h3m3 0h1m3 0h3m-35 1h1m1 0h3m1 0h1m1 0h1m1 0h1m1 0h2m4 0h2m2 0h1m5 0h8m-36 1h1m1 0h3m1 0h1m2 0h1m4 0h1m1 0h1m2 0h2m2 0h1m1 0h2m2 0h3m2 0h1m1 0h1m-37 1h1m1 0h3m1 0h1m2 0h1m1 0h2m1 0h1m1 0h1m3 0h1m1 0h4m1 0h1m1 0h2m3 0h1m-35 1h1m5 0h1m5 0h2m3 0h2m2 0h1m1 0h2m2 0h1m4 0h1m1 0h2m-36 1h7m1 0h1m1 0h2m1 0h3m1 0h1m1 0h1m1 0h1m2 0h1m2 0h1m1 0h3m2 0h3"/></svg>
+<p>Inquadra dal telefono per scaricare sempre l'ultima versione</p>
+</div>
+</div></header>
 
-                <h3>Chi c'è dietro</h3>
-                <p>Mi chiamo Renato e programmo da 40 anni, e in tutto questo tempo ho scritto tante di quelle cose che i pivelli leoni da tastiera di oggi nemmeno se le immaginano.<br>
-                   Non ho una laurea né un titolo di studio, ma non mi sono mai mancate la voglia di imparare e la fantasia per creare cose a cui magari nessuno aveva ancora pensato.<br>
-                   Ho scritto dei software che hanno lasciato una storia.</p>
-                <p>Poi sono arrivate la famiglia e una lunga pausa, ma senza mai perdere la voglia di creare.</p>
+<section id="schermate"><div class="wrap">
+<h2>L'app, schermata per schermata</h2>
+<p class="sub">Un giro tra le schermate principali. Scorri con le frecce, con il dito o con la tastiera.</p>
+<div class="shots" id="shots" aria-roledescription="carousello" aria-label="Schermate dell'app">
+<div class="shots-cap">
+<div class="shots-num" id="shotsNum"></div>
+<div class="shots-title" id="shotsTitle"></div>
+<p class="shots-desc" id="shotsDesc" aria-live="polite"></p>
+<div class="shots-dots" id="shotsDots"></div>
+</div>
+<div class="phone">
+<div class="phone-view" id="shotsView">
+<div class="phone-track" id="shotsTrack"></div>
+<div class="phone-prog" id="shotsProg"></div>
+</div>
+<button class="shots-btn prev" id="shotsPrev" aria-label="Schermata precedente">&#8249;</button>
+<button class="shots-btn next" id="shotsNext" aria-label="Schermata successiva">&#8250;</button>
+</div>
+</div>
+</div></section>
 
-                <h3>Colpa dei post-it</h3>
-                <p>Per anni ho tenuto i conti di casa con un'app sullo smartphone che andava sempre in crash e mi faceva perdere i dati, con un foglio Excel e con un archivio per documenti, fatture e bollette.<br>
-                   Finché un giorno ho visto la mia compagna tappezzare la scrivania di post-it per tenere i conti.<br>
-                   E lì ho detto: così non si può andare avanti.</p>
-                <p>Classificatori, garanzie, fatture, buste paga: un foglio Excel, per quanto potente, non sarebbe mai arrivato dove volevo io.<br>
-                   Ho scritto 100 righe di codice e l'ho chiamato «Spese».<br>
-                   Dopo un mese si chiamava già CasaFacile, e potevamo inserire i conti e guardarci le statistiche.</p>
+<main>
+<section><div class="wrap">
+<h2>Dati tuoi, sul tuo telefono</h2>
+<p class="sub">Non serve il PC acceso, né un server o una connessione. L'app legge e scrive gli stessi file di OrbitaCasa desktop, senza perdere i campi che non conosce.</p>
+<div class="pillars">
+<div class="pillar"><h3>Zero cloud</h3><p>I dati restano sul telefono. Il backup automatico di Android è disattivato.</p></div>
+<div class="pillar"><h3>Offline</h3><p>Nessun server, nessun account. Internet serve solo se attivi la sync, Gemini o cerchi aggiornamenti.</p></div>
+<div class="pillar"><h3>Sync con il PC</h3><p>Allinei movimenti, archivi e documenti con OrbitaCasa desktop, nella rete di casa. Oppure usi lo zip.</p></div>
+<div class="pillar"><h3>Blocco app</h3><p>Impronta, volto o sblocco del dispositivo.</p></div>
+</div>
+</div></section>
 
-                <h3>L'ambizione, questa brutta bestia</h3>
-                <p>Poi, siccome l'ambizione è una brutta bestia (e forse eravamo troppo gasati), è diventato CasaFacilePro.<br>
-                   A maggio l'ho ribattezzato OrbitaCasa.<br>
-                   Non si trattava più di fare due conti: volevo sapere dove fossero le fatture, capire davvero dove andavano i soldi e tenere traccia dei consumi.<br>
-                   Dopo più di una bolletta stratosferica per colpa di una perdita, la cosa era diventata personale.</p>
-                <p>Il buon Vittorio, su Finanza Cafona, ci ha dedicato una recensione top e l'effetto è stato devastante: in tanti l'hanno installata.<br>
-                   Tra notti insonni, un saggio copia-incolla e un pizzico di IA, siamo arrivati a più di 100.000 righe di codice.</p>
+<section id="installa"><div class="wrap">
+<h2>Installazione</h2>
+<p class="sub">L'app non è sul Play Store: si scarica da GitHub.</p>
+<ol class="steps">
+<li><span>Apri la pagina delle <a href="https://github.com/Renato-4132/OrbitaCasa-Android/releases/latest">release</a> dal telefono, oppure inquadra il QR qui sopra.</span></li>
+<li><span>Scarica l'APK dell'ultima versione e aprilo. Se Android lo chiede, consenti l'installazione da questa fonte.</span></li>
+<li><span>Apri l'app e porta i tuoi dati: con la <b>sync</b> (Home → Strumenti → Sync PC), con lo <b>zip</b> di OrbitaCasa desktop (Importa / Esporta), oppure parti da zero aggiungendo il primo conto. Per provarla prima, c'è la modalità demo.</span></li>
+<li><span>Quando torni al PC, la sync tiene tutto allineato. Uno zip esportato ogni tanto resta un ottimo backup.</span></li>
+</ol>
+<div class="note"><strong>Aggiornamenti.</strong> L'app controlla l'ultima release all'avvio e da Home → Strumenti → Aggiornamenti, e ti porta al download. Il nuovo APK deve avere la stessa firma di quello installato.</div>
+</div></section>
 
-                <h3>Cosa sa fare oggi</h3>
-                <p>Nel frattempo siamo cresciuti.<br>
-                   OrbitaCasa vanta ora oltre 80 funzioni diverse, un manuale di oltre 100 pagine e tante cose che altri software nemmeno si sognano.<br>
-                   Serve a gestire:</p>
-                <ul>
-                    <li>Conti personali e famiglia.</li>
-                    <li>Finanziamenti personali con gestione delle rate, immobili, parco auto e mezzi e micro-attività.</li>
-                    <li>Fondi risparmio, gestione della manutenzione casa, gestione dei nostri cari animaletti domestici.</li>
-                    <li><strong>Organizzazione chirurgica:</strong> ogni spesa è puntualmente assegnata a uno specifico conto o a un tag dedicato, con in più la possibilità di dilazionare le spese in automatico fino al raggiungimento della quota prefissata.</li>
-                    <li><strong>Importazione e archiviazione documentale:</strong> potete importare gli estratti conto per i vostri movimenti, e archiviare in un unico posto documenti, fatture e bollette, anche scansionandoli direttamente dallo scanner di casa.</li>
-                    <li><strong>Report ed email automatiche:</strong> l'app vi manda report ed estratti conto giornalieri, settimanali o mensili direttamente via email.</li>
-                    <li><strong>Alert di budget:</strong> ti avvisa in tempo reale se sfori la soglia impostata su una categoria.</li>
-                    <li><strong>Il "Chi l'ha visto?" delle scadenze:</strong> tiene traccia e avvisa per qualsiasi scadenza immaginabile (documenti, patenti, bollette, revisioni).</li>
-                    <li><strong>Architettura locale:</strong> i dati restano sul vostro PC, con tanto di webserver integrato e accesso biometrico da qualsiasi device. Zero Cloud di default.</li>
-                    <li><strong>Il telefono al lavoro:</strong> le notifiche di banca e carte diventano spese da confermare, grazie all'app <a href="https://renato-4132.github.io/OrbitaCasa-Android/" target="_blank" rel="noopener" style="color:#4ade80;font-weight:700;">OrbitaCasa Mobile</a> e alle app Android OrbitaNotify e OrbitaWeb.</li>
-                    <li><strong>AI integrata:</strong> analizza le bollette, calcola i costi medi, prevede le spese future e fa un'analisi finanziaria completa (e, insieme a sync mail e accesso remoto, sono i soli casi in cui i dati escono dal PC, e solo se li attivate voi).</li>
-                </ul>
+<section><div class="wrap">
+<h2>Sincronizza con il PC</h2>
+<p class="sub">Da Home → Strumenti → Sync PC colleghi il telefono a OrbitaCasa acceso sul PC, nella rete di casa. Niente server di terzi.</p>
+<div class="notif">
+<ul>
+<li><b>Si allineano</b> movimenti (anche le eliminazioni), impostazioni e categorie, archivi e documenti contabili e personali.</li>
+<li><b>Configurazione veloce:</b> indirizzo del PC e token (lo stesso del webhook) si inseriscono a mano o <b>inquadrando un QR</b>.</li>
+<li><b>Sincronizza all'apertura</b> dell'app, se lo spunti: parte al massimo ogni 10 minuti.</li>
+<li>Puoi usare anche <b>l'importazione e l'esportazione con lo zip</b>, quando preferisci.</li>
+</ul>
+<ul>
+<li><b>Solo HTTPS</b>, con il certificato del PC memorizzato al primo collegamento: se cambia, l'app si ferma e ti chiede di ricollegare.</li>
+<li><b>Conflitti:</b> se lo stesso dato cambia su entrambi i lati, vince il PC e la copia del telefono resta in una cartella di sicurezza.</li>
+<li><b>Copia di sicurezza</b> dei dati prima di ogni sincronizzazione.</li>
+<li>In <b>modalità demo</b> la sync è disattivata, per non mescolare i dati di esempio con quelli del PC.</li>
+</ul>
+</div>
+</div></section>
 
-                <h3>La grande svolta sulla licenza (e basta con le mazzette)</h3>
-                <p>Visto il tempo investito, all'inizio avevo pensato a un bel canone in abbonamento.<br>
-                   Poi ho capito che mi dà molta più soddisfazione parlare con le persone, cercare di risolvere i loro problemi e leggere i vostri feedback.<br>
-                   Risultato? Nessun abbonamento commerciale.<br>
-                   Ho sempre pensato di tenerlo gratuito, perché tanti «sciagurati» come me potessero iniziare a gestire la propria casa, e tutto quello che le ruota intorno, con semplicità.</p>
-                <p>Il codice licenza c'è ancora, ma viene concesso completamente gratis.<br>
-                   Ho lasciato tutta la logica per un motivo preciso: tenere traccia di quello che mi chiedete, per potervi ricontattare all'occorrenza.<br>
-                   Visto che per la privacy non conservo né i nomi né i dati, l'unico riferimento è l'ID assegnato a ogni installazione: con quello posso scrivere un log e seguire le richieste di ciascuno.</p>
-                <p>Poi c'è l'altro motivo: invogliare le persone a usarla davvero, senza lasciarla scadere.<br>
-                   Per questo il sistema assegna dei livelli di utilizzo: chi la usa con costanza viene premiato con l'allungamento automatico della licenza di mese in mese, senza scadenze traumatiche o la rottura di dover fare continue richieste.<br>
-                   Più la usi per metterti in riga, più lei ti regala serenità.</p>
+<section><div class="wrap">
+<h2>Le spese arrivano da sole</h2>
+<p class="sub">La lettura delle notifiche trasforma i messaggi di banche e carte in movimenti, direttamente nell'app.</p>
+<div class="notif">
+<ul>
+<li><b>Interruttore generale, spento di default.</b> Da spento il servizio non legge nulla. Il permesso viene chiesto solo quando lo accendi.</li>
+<li><b>Regole per app:</b> parole da includere ed escludere, giorni, fascia oraria, conto, metodo e tag.</li>
+<li><b>Registrazione automatica</b> se la regola la prevede e l'app trova la categoria. Altrimenti la spesa resta in «Da confermare».</li>
+<li><b>Prova testo:</b> incolli una notifica e vedi cosa ne capirebbe l'app, senza registrare nulla.</li>
+</ul>
+<ul>
+<li><b>Importo e tipo</b> riconosciuti con le stesse regole del desktop. Gli importi dopo «saldo», «disponibile» o «residuo» vengono ignorati.</li>
+<li><b>Doppioni scartati:</b> stessa descrizione e stesso importo nello stesso giorno.</li>
+<li><b>Gemini come ripiego</b> solo se lo attivi con un interruttore separato: il testo della notifica viene inviato a Google.</li>
+<li>Con OrbitaNotify attiva sulla stessa regola, la notifica verrebbe gestita due volte: lascia accesa una sola app.</li>
+</ul>
+</div>
+<div class="note">Su Android 13 o superiore, un APK installato fuori dal Play Store può avere l'accesso alle notifiche bloccato. Se la schermata del permesso è grigia: Info app di OrbitaCasa → tre puntini → «Consenti impostazioni con restrizioni».</div>
+</div></section>
 
-                <h3>Per chi è?</h3>
-                <p>L'idea originaria era nata per aiutare un gruppo di disgraziati della finanza domestica (tipo il sottoscritto).<br>
-                   Poi, tra richieste folli arrivate su Reddit, idee rubate su Facebook e ore passate a studiare podcast e pagine di settore, l'ho resa una suite il cui motto è:</p>
-                <div class="story-motto">«Per tanti, ma non per tutti.»</div>
-                <p>Se cercate una gestione veramente meticolosa delle finanze e di tutto ciò che orbita intorno alla vostra casa (da qui il nome, OrbitaCasa), fateci un giro.</p>
+<section><div class="wrap">
+<h2>Cosa puoi fare dal telefono</h2>
+<p class="sub">Le stesse funzioni di tutti i giorni del desktop, pensate per lo schermo piccolo.</p>
+<div class="groups">
+<div class="group g1"><h3>Movimenti e pianificazione</h3><ul>
+<li><b>Movimenti del mese</b> con entrate, uscite e saldo</li><li><b>Calendario</b> dei movimenti per giorno</li><li><b>Pianifica</b> una spesa in quote</li><li><b>Promemoria</b> con avviso all'ora e riepilogo del giorno</li><li><b>Notifiche</b> con la coda «Da confermare» e le regole</li><li><b>Cerca operazioni</b> con filtri e tag</li></ul></div>
+<div class="group g2"><h3>Analisi e controllo</h3><ul>
+<li><b>Grafici</b> di entrate e uscite</li><li><b>Checkout:</b> le categorie abituali che questo mese mancano</li><li><b>Proiezione mese</b> per categoria, con budget</li></ul></div>
+<div class="group g3"><h3>Finanze</h3><ul>
+<li><b>Conti:</b> fino a 10, con saldo iniziale e IBAN, e trasferimenti</li><li><b>Categorie e Target</b> con classi 50/30/20</li><li><b>Ricorrenze</b> come affitto e abbonamenti</li><li><b>Finanziamenti</b> con piano di ammortamento</li><li><b>Fondo Risparmio</b> e obiettivi</li><li><b>SmartCat:</b> suggerisce la categoria dallo storico</li></ul></div>
+<div class="group g4"><h3>Casa e beni</h3><ul>
+<li><b>Documenti contabili</b> collegati ai movimenti</li><li><b>Documenti personali</b> con scadenze</li><li><b>Utenze:</b> letture e consumi su 12 mesi</li><li><b>FairShare:</b> spese divise tra più persone</li><li><b>AutoPark</b> e <b>ImmoBil</b></li><li><b>Pet Care</b></li></ul></div>
+<div class="group g5"><h3>Strumenti</h3><ul>
+<li><b>Importa / Esporta</b> lo zip di OrbitaCasa</li><li><b>Sync PC</b> con scansione dei QR</li><li><b>Estrazione con Gemini</b> da PDF o foto, se inserisci la tua chiave (anche con QR)</li><li><b>Modalità demo:</b> dati di esempio da provare, con uscita quando vuoi e i tuoi dati al sicuro</li><li><b>Barra di navigazione</b> personalizzabile e <b>tema</b> chiaro e scuro</li><li><b>Info e contatti:</b> supporto, siti e manuali PDF</li></ul></div>
+</div>
+</div></section>
 
-                <h3>Grazie</h3>
-                <p>Devo ringraziare tutti quelli che sono stati presenti in questo percorso.<br>
-                   Prima di tutti Vittorio, che mi ha sempre dato una spinta morale per andare avanti.<br>
-                   Poi i mod, le pagine di finanza su Reddit, chi ha contribuito con le proprie idee (compresi chi lavora in U.C. e I.S.P.) e le pagine Facebook da cui ho preso spunto, come «Maleducati Finanziari» e «La Budgettista».<br>
-                   E voi che leggete e ascoltate sempre con ironia.</p>
-                <p>Per qualsiasi richiesta resto a disposizione via email.<br>
-                   Grazie e buon divertimento!</p>
-                <div class="story-sign">— Renato</div>
-            </div>
-        </div>
-    </div>
-    <script>
-    const slides = [
-        { 
-        img: 'cruscotto',    
-          title: 'Cruscotto Termico',        
-          desc: 'Analisi visiva istantanea di entrate, uscite e saldi tramite tachimetri intuitivi. Tieni sotto controllo la percentuale del tuo budget senza calcoli complessi.' 
-        },
-        {
-          img: 'importa',      
-          title: 'Importa Estratti Conto',   
-          desc: 'Carica PDF di estratti conto bancari: l\'AI legge i movimenti, li categorizza e li importa evitando duplicati.' 
-        },
-        { 
-          img: 'gmail',        
-          title: 'Sincronizzazione Gmail',   
-          desc: 'Scansiona automaticamente le email: se trova bollette o estratti conto in allegato, importa i movimenti e archivia i PDF.' 
-        },
-        { 
-          img: 'archivio',     
-          title: 'Archivio Contabili PDF',   
-          desc: 'Allega PDF a ogni spesa o documento. Estratti conto, fatture, ricevute: tutto archiviato e consultabile in un istante.' 
-        },
-        { 
-          img: 'docpersonali', 
-          title: 'Archivio Documenti PDF',   
-          desc: 'Archivia fatture, polizze, manuali con tag e ricerca full-text. Collega documenti a spese o contratti.' 
-        },        
-        { 
-          img: 'banca', 
-          title: 'Gestione Associativa e Multiconto', 
-          desc: 'Logica di segregazione contabile con associazione univoca tra entità e conti bancari dedicati, per una gestione isolata dei flussi e reportistica specifica.' 
-        },
-        { 
-          img: 'saldo_banca', 
-          title: 'Analisi Finanziaria Storica', 
-          desc: 'Rappresentazione grafica evoluta dello storico saldi, Entrate e Uscite, basata sulla nuova logica multconto per monitorare l\'andamento nel tempo.' 
-        },
-        { 
-          img: 'movimenti_banca', 
-          title: 'Dettaglio Movimenti e Riconciliazione', 
-          desc: 'Gestione granulare delle operazioni bancarie con assegnazione dinamica del conto e verifica immediata tra entrate e uscite.' 
-        },
-        { 
-          img: 'fairshare',    
-          title: 'Fair Share',               
-          desc: 'Dividi le spese condivise tra più persone in modo equo. Calcola chi deve quanto a chi e genera un riepilogo da inviare.' 
-        },
-        { 
-          img: 'calendario',   
-          title: 'Calendario Heartbeat',     
-          desc: 'Visualizza entrate e uscite direttamente sul calendario con indicatori animati. Un colpo d\'occhio e sai subito come sta andando il mese.' 
-        },
-        { 
-          img: 'proiezione',   
-          title: 'Proiezione al 31/12',      
-          desc: 'Sulla base delle spese correnti e delle ricorrenze future, stima il saldo a fine anno con margine di errore minimo.' 
-        },
-        { 
-          img: 'ricorrenze',   
-          title: 'Gestione Ricorrenze',      
-          desc: 'Bollette, abbonamenti, affitti: configurali una volta e vengono registrati in automatico ogni mese, senza dimenticarsi nulla.' 
-        },
-        { 
-          img: 'grafici',      
-          title: 'Grafici Drill-Down',       
-          desc: 'Analizza le spese per categoria con grafici interattivi. Clicca su una voce e scendi nel dettaglio fino alla singola transazione.' 
-        },
-        { 
-          img: 'utenze',       
-          title: 'Monitor Utenze',           
-          desc: 'Tieni traccia dei consumi di luce, gas e acqua nel tempo. Individua aumenti anomali e confronta i periodi.' 
-        },
-        { 
-          img: 'risparmio',    
-          title: 'Simulatore Risparmio',     
-          desc: 'Inserisci un obiettivo di risparmio e il simulatore calcola quanto accantonare ogni mese per raggiungerlo.' 
-        },
-        { 
-          img: 'wifi',         
-          title: 'Webserver Wi-Fi',          
-          desc: 'Avvia un server web integrato e accedi a OrbitaCasa dal tuo smartphone o tablet in Wi-Fi, senza app aggiuntive.' 
-        },
-        { 
-          img: 'spesa',        
-          title: 'Confronto Prezzi',         
-          desc: 'Registra i prezzi della spesa nel tempo e confronta prodotto per prodotto tra diversi supermercati per la scelta più conveniente.' 
-        },
-        { 
-          img: 'mutui',        
-          title: 'Finanziamenti e Ammortamento',    
-          desc: 'Segui rate, estinzioni parziali e debito residuo dei tuoi finanziamenti, con piano di ammortamento e simulatori.' 
-        },
-        { 
-          img: 'qrcode',       
-          title: 'Generatore QR Code',       
-          desc: 'Genera QR code per accesso rapido al webserver, condivisione di dati o link interni. Personalizzabile con logo e colori.' 
-        },
-        { 
-          img: 'backup',       
-          title: 'Backup Configurazione',    
-          desc: 'Esporta e ripristina l\'intera configurazione del profilo. Cambio PC o reinstallazione in pochi secondi.' 
-        },
-        { 
-          img: 'rubrica',      
-          title: 'Rubrica Android',          
-          desc: 'Sincronizza i contatti Android con la rubrica interna.' 
-        },
-        { 
-          img: 'stampa',       
-          title: 'Stampa Report',            
-          desc: 'Genera report mensili, annuali o personalizzati pronti per la stampa o l\'esportazione PDF, con intestazione configurabile.' 
-        },
-        { 
-          img: 'saldo',        
-          title: 'Saldo Bancario',           
-          desc: 'Riconcilia il saldo del conto corrente con i movimenti registrati. Evidenzia automaticamente le discrepanze.' 
-        },
-        { 
-          img: 'ricerca',      
-          title: 'Ricerca & Filtri Avanzati',
-          desc: 'Cerca tra migliaia di movimenti con filtri su data, importo, categoria, descrizione e metodo di pagamento.' 
-        },
-        { 
-          img: 'multiutente',  
-          title: 'Accesso Multi-Postazione', 
-          desc: 'Accedi al tuo profilo da qualsiasi postazione: PC, laptop o tablet. Stesso account, stessi dati, ovunque tu sia in casa.' 
-        },
-        { 
-          img: 'sicurezza',    
-          title: 'Sicurezza & Password',     
-          desc: 'Accesso protetto da password cifrata. Blocco automatico dopo N tentativi falliti e log degli accessi.' 
-        },
-        { 
-          img: 'remoto',       
-          title: 'Accesso Remoto SSL',       
-          desc: 'Accedi al webserver da qualsiasi rete in modo sicuro e crittografato.' 
-        },
-        { 
-          img: 'categorie',    
-          title: 'Categorie Personalizzate', 
-          desc: 'Crea e rinomina le categorie di spesa come vuoi, definendo per ognuna se rappresenta un\'entrata o un\'uscita.' 
-        },
-        { 
-          img: 'temi',         
-          title: 'Temi Personalizzati',      
-          desc: 'Scegli tra diversi temi dark e light o crea il tuo con colori custom. L\'interfaccia si adatta al tuo stile.' 
-        },
-        { 
-          img: 'infopoint',    
-          title: 'Smart Info Point',         
-          desc: 'Widget informativo sempre visibile con saldo, spese del giorno e prossime scadenze. Il cruscotto a colpo d\'occhio.' 
-        },
-        { 
-          img: 'smartcat',     
-          title: 'SmartCat AI',              
-          desc: 'Suggerisce automaticamente la categoria per ogni nuovo movimento analizzando le tue spese degli ultimi 365 giorni. Nessuna AI esterna.' 
-        },
-        { 
-          img: 'crash',        
-          title: 'Crash Recovery',           
-          desc: 'Se il database si corrompe, ripristina automaticamente l\'ultimo salvataggio valido, evitando qualsiasi perdita di dati.' 
-        },
-        { 
-          img: 'promemoria',   
-          title: 'Agenda & Promemoria',           
-          desc: 'Calendario con appuntamenti e scadenze, ripetizioni, avvisi ed email. Esporta in .ics o con QR code su Google Calendar.' 
-        },
-        { 
-          img: 'popup',        
-          title: 'Popup Auto-Close',         
-          desc: 'Le notifiche di sistema si chiudono da soli dopo pochi secondi. Nessun click inutile, nessuna interruzione al lavoro.' 
-        },
-        { 
-          img: 'iconizza',     
-          title: 'Auto-Iconizza',            
-          desc: 'Configura la minimizzazione automatica al tray di sistema dopo un periodo di inattività. L\'app resta attiva senza disturbare.' 
-        },
-        { 
-          img: 'carosello',    
-          title: 'Carosello di Avvio',       
-          desc: 'All\'avvio, uno slideshow mostra statistiche personalizzate e grafici finanziari.' 
-        },
-        { 
-          img: 'backup_snapshot', 
-          title: 'Sistema di Backup Evoluto (PRG)', 
-          desc: 'Gestione unificata di snapshot, backup incrementali e procedura di rollback integrato per ripristino istantaneo.' 
-        },
-        { 
-          img: 'openai',       
-          title: 'Analisi AI',               
-          desc: 'Interroga l\'AI sui tuoi dati finanziari: dove spendi di più, come ottimizzare il budget, proiezioni future.' 
-        },
-        { 
-          img: 'shortcut',     
-          title: 'Tasti Rapidi',             
-          desc: 'Scorciatoie da tastiera configurabili per le azioni più frequenti. Inserisci una spesa, apri un report, tutto senza mouse.' 
-        },
-        { 
-          img: 'mfinanza',     
-          title: 'Modulo Finanza',           
-          desc: 'Monitora investimenti, portafoglio titoli e rendimenti nel tempo integrandoli con il flusso di cassa familiare.' 
-        },
-        { 
-          img: 'pip',          
-          title: 'Aggiornamento Automatico', 
-          desc: 'Verifica e installa gli aggiornamenti delle dipendenze Python direttamente dall\'interfaccia, senza toccare il terminale.' 
-        },
-        { 
-          img: 'bollette',     
-          title: 'Analisi Documenti e Fatture', 
-          desc: 'L\'AI analizza e confronta più immagini o documenti PDF eseguendo un\'analisi dettagliata e un confronto preciso tra bollette, fatture e contratti.' 
-        },
-        { 
-          img: 'step1_idle', 
-          title: 'Analisi IA - Step 1',     
-          desc: 'Stato iniziale: trascina il tuo documento PDF o premi seleziona file per iniziare.' 
-        },
-        { 
-          img: 'step2_selected', 
-          title: 'Analisi IA - Step 2', 
-          desc: 'File pronto: verifica le informazioni preliminari della bolletta o fattura prima dell\'elaborazione.' 
-        },
-        { 
-          img: 'step3_loading', 
-          title: 'Analisi IA - Step 3',  
-          desc: 'Analisi in corso: l\'intelligenza artificiale estrae automaticamente importo, azienda, categoria e scadenze.' 
-        },
-        { 
-          img: 'step4_success', 
-          title: 'Analisi IA - Step 4',  
-          desc: 'Movimento creato: il documento viene archiviato e contabilizzato automaticamente nei registri.'
-        },
-        { 
-          img: 'immobili',     
-          title: 'Gestione Immobili', 
-          desc: 'Anagrafica proprietà, registro entrate/uscite per immobile, estratto conto e riepilogo totale con grafici e filtri per mese e anno.' 
-        },
-        { 
-          img: 'autopark',     
-         title: 'Gestione Parco Auto', 
-          desc: 'Anagrafica completa per mezzi privati e aziendali con tracciamento scadenze per bollo, assicurazione, revisione e tagliandi.' 
-        },
-        { 
-          img: 'autoparkgfx',     
-          title: 'Statistiche e Spese Auto', 
-          desc: 'Registro dettagliato dei movimenti e delle spese per carburante e manutenzione, con calcolo dei consumi e grafici analitici dei costi.' 
-        },
-        { 
-          img: 'studio',       
-          title: 'Modulo Studio',            
-          desc: 'Organizza e monitora le attività del tuo studio professionale, gestendo scadenze, clienti e flussi economici integrati con la contabilità di casa.'
-        },
-        { 
-          img: 'schedulatore', 
-          title: 'Schedulatore Notifiche Email', 
-          desc: 'Pianifica l\'invio automatico di report finanziari via email: estratto mensile, annuale, giornaliero, settimanale, ricorrenti mancanti, allerta saldo negativo e promemoria libero. Orario, frequenza e destinatario completamente configurabili.' 
-        },
-        { 
-          img: 'inflazione',   
-          title: 'Calcolatore Inflazione ISTAT', 
-          desc: 'Rivaluta qualsiasi importo nel tempo usando i dati NIC ISTAT. Mostra il valore rivalutato, il potere d\'acquisto perso e l\'inflazione media annua con grafico ad area interattivo.' 
-        },
-        { 
-          img: 'orbita-docker',       
-          title: 'Docker & Accesso via Browser', 
-          desc: 'Esegui OrbitaCasa su server o NAS tramite Docker e gestiscilo comodamente dal browser di PC o tablet, anche da remoto.' 
-        },
-        { 
-          img: 'chiedi_ia',       
-          title: 'Chiedi al Database con l\'IA', 
-          desc: 'Fai domande in linguaggio naturale su spese, conti, veicoli, immobili e tutti i moduli: Gemini analizza i tuoi dati in tempo reale e ti risponde. Disponibile anche da browser, con allegati PDF, immagini e file di testo.' 
-        },
-        { 
-          img: 'stockbox',       
-          title: 'StockBox — Magazzino', 
-          desc: 'Un magazzino generico, lo usi per quello che serve a te: carica e scarica gli articoli col codice a barre, anche dal telefono, e imposta scorta minima e massima.' 
-        },
-        
-    ];
-    const BASE     = 'https://github.com/Renato-4132/OrbitaCasa/raw/main/screenshots/';
-    const INTERVAL = 10000;
-    let cur = 0, autoTimer = null;
-    const track  = document.getElementById('carTrack');
-    const dotsEl = document.getElementById('carDots');
-    const prog   = document.getElementById('carProgress');
-    slides.forEach((s, i) => {
-        const slide = document.createElement('div');
-        slide.className = 'carousel-slide';
-        slide.innerHTML = `
-            <img src="${BASE}${s.img}.png"
-                 alt="${s.title}"
-                 loading="${i < 3 ? 'eager' : 'lazy'}"
-                 decoding="async">
-            <div class="slide-overlay">
-                <div class="slide-num">${String(i + 1).padStart(2, '0')} &nbsp;/&nbsp; ${slides.length}</div>
-                <div class="slide-title">${s.title}</div>
-                <div class="slide-desc">${s.desc}</div>
-            </div>`;
-        track.appendChild(slide);
-        const dot = document.createElement('div');
-        dot.className = 'car-dot' + (i === 0 ? ' active' : '');
-        dot.addEventListener('click', () => goTo(i));
-        dotsEl.appendChild(dot);
-    });
-    function goTo(n) {
-        cur = ((n % slides.length) + slides.length) % slides.length;
-        track.style.transform = `translateX(-${cur * 100}%)`;
-        document.querySelectorAll('.car-dot').forEach((d, i) => {
-            d.classList.toggle('active', i === cur);
-        });
-        animateProgress();
-    }
-    function carMove(dir) { goTo(cur + dir); }
-    function animateProgress() {
-        prog.style.transition = 'none';
-        prog.style.width = '0%';
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-            prog.style.transition = `width ${INTERVAL}ms linear`;
-            prog.style.width = '100%';
-        }));
-    }
-    function startAuto() {
-        clearInterval(autoTimer);
-        autoTimer = setInterval(() => goTo(cur + 1), INTERVAL);
-        animateProgress();
-    }
-    const carousel = document.getElementById('carousel');
-    carousel.addEventListener('mouseenter', () => {
-        clearInterval(autoTimer);
-        prog.style.transition = 'none';
-    });
-    carousel.addEventListener('mouseleave', startAuto);
-    let touchStartX = 0, touchStartY = 0;
-    carousel.addEventListener('touchstart', e => {
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
-    }, { passive: true });
-    carousel.addEventListener('touchend', e => {
-        const dx = e.changedTouches[0].clientX - touchStartX;
-        const dy = e.changedTouches[0].clientY - touchStartY;
-        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 35) {
-            carMove(dx < 0 ? 1 : -1);
-        }
-    }, { passive: true });
-    document.addEventListener('keydown', e => {
-        if (e.key === 'ArrowLeft')  carMove(-1);
-        if (e.key === 'ArrowRight') carMove(1);
-    });
-    goTo(0);
-    startAuto();
-    window.carMove = carMove;
+<section><div class="wrap">
+<h2>Privacy e permessi</h2>
+<p class="sub">I dati non escono dal telefono, a meno che tu non attivi una funzione che lo richiede. Nessun account, nessuna telemetria.</p>
+<table>
+<tr><th>Biometria</th><td>Blocco app (opzionale)</td></tr>
+<tr><th>Notifiche</th><td>Avvisi dei promemoria e esito delle spese rilevate</td></tr>
+<tr><th>Accesso alle notifiche</th><td>Lettura delle notifiche di banche e carte. Si attiva solo con l'interruttore</td></tr>
+<tr><th>Avvio del dispositivo</th><td>Riprogrammare gli avvisi dopo un riavvio o un aggiornamento</td></tr>
+<tr><th>Internet</th><td>Sync con il tuo PC (HTTPS, certificato fissato), Gemini (con la tua chiave) e ricerca aggiornamenti su GitHub</td></tr>
+</table>
+<p class="sub" style="margin-top:14px">La chiave Gemini resta nelle impostazioni private dell'app.</p>
+</div></section>
 
-    function toggleVideo(id) {
-        const btn  = document.getElementById('btn-' + id);
-        const wrap = document.getElementById('wrap-' + id);
-        const collapsed = wrap.classList.toggle('collapsed');
-        btn.classList.toggle('collapsed', collapsed);
-    }
+<section><div class="wrap">
+<h2>Domande frequenti</h2>
+<details><summary>Android mi avvisa che l'app non è sicura. È normale?</summary><p>L'app non passa dal Play Store e Play Protect può segnalarla. Il codice è pubblico su GitHub e puoi controllarlo. Se tieni attiva la lettura delle notifiche, il sistema può essere ancora più cauto.</p></details>
+<details><summary>Devo avere OrbitaCasa sul PC?</summary><p>No. L'app funziona da sola. Il desktop serve solo se vuoi portare i dati sul telefono o riportarli indietro, con la sync o con lo zip.</p></details>
+<details><summary>Sync o zip: quale scelgo?</summary><p>La sync allinea tutto da sola quando sei nella rete di casa. Lo zip va bene per un backup o se il PC non è raggiungibile. Puoi usarli insieme.</p></details>
+<details><summary>Cosa non funziona in modalità demo?</summary><p>Solo la sincronizzazione con il PC, manuale e automatica. Il resto dell'app lavora sui dati di esempio e puoi uscirne quando vuoi.</p></details>
+<details><summary>Che differenza c'è con OrbitaWeb?</summary><p>OrbitaCasa Mobile funziona da sola, con i dati sul telefono. OrbitaWeb si collega a un OrbitaCasa acceso sul tuo PC o server. Puoi usarle insieme.</p></details>
+<details><summary>Il QR porta sempre all'ultima versione?</summary><p>Sì, porta alla pagina «ultima release» su GitHub, che si aggiorna a ogni nuova versione.</p></details>
+</div></section>
 
-    let storyLastFocus = null;
-    function openStory() {
-        const ov = document.getElementById('storyOverlay');
-        storyLastFocus = document.activeElement;
-        ov.classList.add('open');
-        ov.setAttribute('aria-hidden', 'false');
-        document.body.style.overflow = 'hidden';
-        ov.querySelector('.story-scroll').scrollTop = 0;
-        ov.querySelector('.story-close').focus();
-    }
-    function closeStory() {
-        const ov = document.getElementById('storyOverlay');
-        if (!ov.classList.contains('open')) return;
-        ov.classList.remove('open');
-        ov.setAttribute('aria-hidden', 'true');
-        document.body.style.overflow = '';
-        if (storyLastFocus) storyLastFocus.focus();
-    }
-    document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') closeStory();
-    });
-    </script>
+<section><div class="wrap">
+<h2>Il resto della famiglia</h2>
+<p class="sub">Scegli quello che ti serve, si possono usare insieme.</p>
+<div class="eco">
+<a href="https://renato-4132.github.io/OrbitaCasa/"><strong>OrbitaCasa</strong>L'app desktop completa per Windows, macOS e Linux.</a>
+<a href="https://github.com/Renato-4132/OrbitaWeb"><strong>OrbitaWeb</strong>Collega il telefono al server web di OrbitaCasa.</a>
+<a href="https://github.com/Renato-4132/OrbitaNotify"><strong>OrbitaNotify</strong>Trasforma le notifiche di banca e carte in spese da confermare.</a>
+</div>
+</div></section>
+</main>
+
+<footer><div class="wrap">
+<p>Assistenza tecnica: <a href="mailto:helporbitacasa@gmail.com">helporbitacasa@gmail.com</a></p>
+<p style="margin-top:8px">OrbitaCasa 2026 – licenza: vedi il file LICENSE del repository.</p>
+</div></footer>
+<script>
+(function(){
+var BASE='screenshots/android/';
+var S=[
+['01-home','Home','Il riepilogo del mese in un colpo d\'occhio e tutte le funzioni raggruppate in sezioni.'],
+['02-nuova-operazione','Nuova operazione','Registri un\'uscita o un\'entrata in pochi tocchi. SmartCat propone la categoria dallo storico.'],
+['03-movimenti','Movimenti del mese','Entrate, uscite e saldo del mese, con ricerca e navigazione tra i mesi.'],
+['04-calendario','Calendario','Ogni giorno con i suoi movimenti: tocca una data per vedere il dettaglio.'],
+['05-pianifica','Pianifica','Dilaziona una spesa in quote mensili e vedi quanto accantonare e quanto hai già messo da parte.'],
+['06-promemoria','Promemoria','Un\'agenda con avvisi all\'ora giusta e il riepilogo del giorno.'],
+['07-notifiche','Notifiche → spese','Le notifiche di banche e carte diventano movimenti, con regole per app e prova del testo.'],
+['08-ricerca','Cerca operazioni','Ricerca per testo e filtri avanzati, anche per tag, con totali e condivisione dei risultati.'],
+['09-grafici','Grafici e statistiche','Andamento di entrate e uscite, in vista annuale, mensile e per spese.'],
+['10-checkout','Checkout','Le categorie in cui spendi di solito ma che questo mese non hai ancora registrato.'],
+['11-previsione','Proiezione mese','Per categoria: speso finora, previsione a fine mese e budget.'],
+['12-conti','Conti','Fino a 10 conti con saldo e tipo, e trasferimenti tra un conto e l\'altro.'],
+['13-categorie','Categorie','Le spese del mese per categoria, con budget e classe 50/30/20.'],
+['14-target','Target','Target di spesa mensile e annuale e budget per categoria, con barre di avanzamento.'],
+['15-ricorrenze','Ricorrenze','Affitto, abbonamenti, stipendio: li inserisci una volta sola.'],
+['16-finanziamenti','Finanziamenti','Rate e piano di ammortamento, con calcolatori: simulazione, rata sostenibile, estinzione anticipata.'],
+['17-fondo','Fondo Risparmio','Fondo di emergenza con obiettivi a 3, 6 e 12 mesi e risparmio degli ultimi 365 giorni.'],
+['18-doc-contabili','Documenti contabili','L\'archivio dei documenti collegati ai movimenti, raggruppati per anno.'],
+['19-doc-personali','Documenti personali','Un profilo per persona, con categorie e scadenze evidenziate.'],
+['20-utenze','Utenze','Letture e consumi su 12 mesi, con il confronto sull\'anno precedente.'],
+['21-fairshare','FairShare','Spese divise tra più persone: chi deve a chi, con i debiti compensati.'],
+['22-autopark','AutoPark','I veicoli con le scadenze (bollo, assicurazione, revisione) e i costi.'],
+['23-immobil','ImmoBil','Gli immobili con contratti, scadenze, canoni e voci di spesa.'],
+['24-petcare','Pet Care','Gli animali con vaccinazioni, antiparassitari e spese del veterinario.'],
+['25-strumenti','Strumenti','Importa ed esporta lo zip, sync con il PC, chiave Gemini, aggiornamenti e modalità demo.']
+];
+var INTERVAL=6000,cur=0,timer=null;
+var track=document.getElementById('shotsTrack'),dots=document.getElementById('shotsDots'),prog=document.getElementById('shotsProg');
+var num=document.getElementById('shotsNum'),tit=document.getElementById('shotsTitle'),desc=document.getElementById('shotsDesc');
+var box=document.getElementById('shots');
+S.forEach(function(s,i){
+var d=document.createElement('div');d.className='phone-slide';
+var im=document.createElement('img');im.src=BASE+s[0]+'.jpg';im.alt='Schermata '+s[1]+' di OrbitaCasa Mobile';
+im.width=540;im.height=1200;im.decoding='async';im.loading=i<2?'eager':'lazy';
+d.appendChild(im);track.appendChild(d);
+var b=document.createElement('button');b.className='shots-dot'+(i===0?' active':'');b.setAttribute('aria-label','Vai alla schermata '+(i+1)+': '+s[1]);
+b.addEventListener('click',function(){go(i);start();});dots.appendChild(b);
+});
+function bar(){
+prog.style.transition='none';prog.style.width='0%';
+if(window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;
+requestAnimationFrame(function(){requestAnimationFrame(function(){prog.style.transition='width '+INTERVAL+'ms linear';prog.style.width='100%';});});
+}
+function go(n){
+cur=((n%S.length)+S.length)%S.length;
+track.style.transform='translateX(-'+(cur*100)+'%)';
+num.textContent=String(cur+1).padStart(2,'0')+'  /  '+S.length;
+tit.textContent=S[cur][1];desc.textContent=S[cur][2];
+Array.prototype.forEach.call(dots.children,function(d,i){d.classList.toggle('active',i===cur);});
+bar();
+}
+function start(){clearInterval(timer);if(window.matchMedia('(prefers-reduced-motion:reduce)').matches)return;timer=setInterval(function(){go(cur+1);},INTERVAL);bar();}
+document.getElementById('shotsPrev').addEventListener('click',function(){go(cur-1);start();});
+document.getElementById('shotsNext').addEventListener('click',function(){go(cur+1);start();});
+box.addEventListener('mouseenter',function(){clearInterval(timer);prog.style.transition='none';});
+box.addEventListener('mouseleave',start);
+var x0=0,y0=0;
+box.addEventListener('touchstart',function(e){x0=e.touches[0].clientX;y0=e.touches[0].clientY;},{passive:true});
+box.addEventListener('touchend',function(e){var dx=e.changedTouches[0].clientX-x0,dy=e.changedTouches[0].clientY-y0;if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>35){go(cur+(dx<0?1:-1));start();}},{passive:true});
+document.addEventListener('keydown',function(e){
+var r=box.getBoundingClientRect();if(r.bottom<0||r.top>window.innerHeight)return;
+if(e.key==='ArrowLeft'){go(cur-1);start();}if(e.key==='ArrowRight'){go(cur+1);start();}
+});
+go(0);start();
+})();
+</script>
 </body>
 </html>
