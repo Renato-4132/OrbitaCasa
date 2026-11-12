@@ -28,23 +28,26 @@ def show_info_app(self):
 
     url_app = {"v": "https://github.com/Renato-4132/OrbitaNotify/releases/latest"}
 
-    def _risolvi_apk():
+    url_android = {"v": "https://github.com/Renato-4132/OrbitaCasa-Android/releases/latest"}
+
+    def _risolvi_apk(repo, dest):
         try:
             import json
             import urllib.request
             req = urllib.request.Request(
-                "https://api.github.com/repos/Renato-4132/OrbitaNotify/releases/latest",
+                f"https://api.github.com/repos/Renato-4132/{repo}/releases/latest",
                 headers={"User-Agent": "OrbitaCasa"})
             with urllib.request.urlopen(req, timeout=5) as r:
                 dati = json.loads(r.read().decode("utf-8"))
             for a in dati.get("assets", []):
                 if a.get("name", "").lower().endswith(".apk"):
-                    url_app["v"] = a["browser_download_url"]
+                    dest["v"] = a["browser_download_url"]
                     break
         except Exception as ex_apk:
-            print(f"APK ultima release non trovato: {ex_apk}")
+            print(f"APK ultima release di {repo} non trovato: {ex_apk}")
 
-    threading.Thread(target=_risolvi_apk, daemon=True).start()
+    threading.Thread(target=_risolvi_apk, args=("OrbitaNotify", url_app), daemon=True).start()
+    threading.Thread(target=_risolvi_apk, args=("OrbitaCasa-Android", url_android), daemon=True).start()
 
     _qr_dlg = [None]
 
@@ -117,6 +120,9 @@ def show_info_app(self):
 
     def apri_app_android(event):
         _mostra_qr_app("OrbitaNotify", url_app["v"])
+
+    def apri_app_orbitacasa(event):
+        _mostra_qr_app("OrbitaCasa Android", url_android["v"])
 
     def apri_app_web(event):
         _mostra_qr_app("OrbitaWeb", "https://github.com/Renato-4132/OrbitaWeb/releases/latest/download/OrbitaWeb.apk")
@@ -312,6 +318,7 @@ def show_info_app(self):
             "            * Estratti Carte di Credito: Elaborazione dei fogli riepilogativi delle transazioni card.\n"
             "            * Fatture Varie: Non solo le elettroniche, ma anche proforma e ricevute fiscali.\n"
             "            * Documentazione Finanziaria: Qualsiasi modulo con rilevanza per la gestione della contabilità.\n"
+            "• 📱 APP ANDROID (OrbitaCasa Android): sincronizza con il PC movimenti, categorie, archivi e documenti. Sul telefono: 🔗 Sync con il PC, poi 📷 Scansiona QR indirizzo e QR token (Configurazione sul PC). Se un dato cambia su entrambi i lati vince il PC e la copia del telefono resta in una cartella di sicurezza.\n"
             "• 📂 CARTELLA PDF: Apre la directory locale dei file elaborati.\n"
             "• 🔙 RESET SYNC: Ricarica i contatori e forza il controllo file.\n"
             "• 📄 APRI PDF: Visualizza l'ultimo documento PDF elaborato.\n"
@@ -519,9 +526,12 @@ def show_info_app(self):
     tk.Label(main_frame, text=f"Versione {VERSION} © 2026 Renato-4132 — Tutti i diritti riservati", font=("Arial", 9), bg=self.COLOR_TOPLEVEL, fg="gray").pack()
     links_frame = tk.Frame(main_frame, bg=self.COLOR_TOPLEVEL)
     links_frame.pack(pady=5)
-    for ico_key, txt, cmd in [("email", " Email", apri_email), ("github", " GitHub", apri_github), ("studio", " Manuale Online", apri_manuale), ("studio", " Manuale Risparmio", apri_manuale_risparmio), ("docker", " Docker", apri_docker), ("mobile", " App Notify", apri_app_android), ("mobile", " App Web", apri_app_web), ("python", " Python", apri_link_python)]:
+    for ico_key, txt, cmd in [("email", " Email", apri_email), ("github", " GitHub", apri_github), ("studio", " Manuale Online", apri_manuale), ("studio", " Manuale Risparmio", apri_manuale_risparmio), ("docker", " Docker", apri_docker), ("mobile", " OrbitaCasa Android", apri_app_orbitacasa), ("mobile", " App Notify", apri_app_android), ("mobile", " App Web", apri_app_web), ("python", " Python", apri_link_python)]:
         img = self.icone_gui.get(ico_key)
-        lbl = tk.Label(links_frame, text=txt, image=img, compound="left", fg="#3498db", bg=self.COLOR_TOPLEVEL, cursor="hand2", font=("Arial", 9))
+        _evid = cmd is apri_app_orbitacasa
+        lbl = tk.Label(links_frame, text=txt, image=img, compound="left",
+                       fg="#e67e22" if _evid else "#3498db", bg=self.COLOR_TOPLEVEL, cursor="hand2",
+                       font=("Arial", 9, "bold") if _evid else ("Arial", 9))
         lbl.image = img
         lbl.pack(side=tk.LEFT, padx=7)
         lbl.bind("<Button-1>", cmd)
