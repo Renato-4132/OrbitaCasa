@@ -10,7 +10,7 @@
 ![macOS](https://img.shields.io/badge/macOS-✔️-lightgrey?style=flat-square&logo=apple&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-✔️-yellow?style=flat-square&logo=linux&logoColor=black)
 ![Docker](https://img.shields.io/badge/Docker-✔️-2496ED?style=flat-square&logo=docker&logoColor=white)
-[![Android](https://img.shields.io/badge/Android-App_companion-3DDC84?style=flat-square&logo=android&logoColor=white)](https://renato-4132.github.io/OrbitaCasa-Android/android.html)
+[![Android](https://img.shields.io/badge/Android-App_companion-3DDC84?style=flat-square&logo=android&logoColor=white)](https://renato-4132.github.io/OrbitaCasa-Android)
 ![Python](https://img.shields.io/badge/Python-3.13+-3776AB?style=flat-square&logo=python&logoColor=white)
 ![Versione](https://img.shields.io/badge/VERSIONE-2.5.7-orange?style=flat-square)
 ![Licenza](https://img.shields.io/badge/LICENZA-BSL_1.1-4f46e5?style=flat-square)
