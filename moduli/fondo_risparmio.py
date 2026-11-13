@@ -853,6 +853,16 @@ def apri_fondo_risparmio(self):
         fondo_var = tk.StringVar(value=f"{fr_dati.get('fondo_attuale', 0):.2f}".replace(".", ","))
         ttk.Entry(frm_att_row, textvariable=fondo_var, width=12).pack(
             side="left", padx=(0, 16))
+        tk.Label(frm_att_row, text="Tasso interesse annuo (%):",
+                 bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR,
+                 font=("Arial", 9)).pack(side="left", padx=(0, 4))
+        try:
+            _tasso_ini = float(fr_dati.get("tasso_annuo", 0) or 0)
+        except (TypeError, ValueError):
+            _tasso_ini = 0.0
+        tasso_var = tk.StringVar(value=f"{_tasso_ini:.2f}".replace(".", ","))
+        ttk.Entry(frm_att_row, textvariable=tasso_var, width=7).pack(
+            side="left", padx=(0, 16))
         lbl_stato = tk.Label(frm_att_row, text="",
                              bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR,
                              font=("Arial", 9, "bold"))
@@ -860,6 +870,10 @@ def apri_fondo_risparmio(self):
         lbl_meteo_em = tk.Label(frm_att_row, image="",
                                 bg=self.COLOR_WIDGET_BG)
         lbl_meteo_em.pack(side="right", padx=8)
+        lbl_interessi = tk.Label(frm_att, text="",
+                                 bg=self.COLOR_WIDGET_BG, fg=self.TEXT_COLOR,
+                                 font=("Arial", 9))
+        lbl_interessi.pack(anchor="w", padx=8, pady=(0, 6))
         frm_barre = tk.Frame(tab_emergenza, bg=self.COLOR_BACKGROUND)
         frm_barre.pack(fill="x", padx=12, pady=4)
         cvs_3  = tk.Canvas(frm_barre, height=26, bg=self.COLOR_WIDGET_BG,
@@ -901,9 +915,24 @@ def apri_fondo_risparmio(self):
             except ValueError:
                 fondo = 0.0
                 _fondo_valido = False
-            if _fondo_valido:
-                fr_dati["fondo_attuale"] = fondo
+            try:
+                tasso = float(tasso_var.get().replace(",", "."))
+                _tasso_valido = 0.0 <= tasso <= 100.0
+            except ValueError:
+                tasso = 0.0
+                _tasso_valido = False
+            if _fondo_valido or _tasso_valido:
+                if _fondo_valido:
+                    fr_dati["fondo_attuale"] = fondo
+                if _tasso_valido:
+                    fr_dati["tasso_annuo"] = tasso
                 _salva_fr(fr_dati)
+            if _tasso_valido and tasso > 0:
+                _annui = fondo * tasso / 100
+                lbl_interessi.config(
+                    text=f"Interessi stimati (lordo): {fmt(_annui)}/anno · {fmt(_annui / 12)}/mese")
+            else:
+                lbl_interessi.config(text="")
             win.after(50, lambda: _draw_barra(cvs_3,  spesa_mm * 3,  "Obiettivo 3 mesi  "))
             win.after(50, lambda: _draw_barra(cvs_6,  spesa_mm * 6,  "Obiettivo 6 mesi  "))
             win.after(50, lambda: _draw_barra(cvs_12, spesa_mm * 12, "Obiettivo 12 mesi "))
@@ -927,6 +956,7 @@ def apri_fondo_risparmio(self):
             lbl_stato.config(text=testo, fg=col)
             self.avvia_animazione_meteo(lbl_meteo_em, tipo_m)
         fondo_var.trace_add("write", _aggiorna)
+        tasso_var.trace_add("write", _aggiorna)
         cvs_3.bind("<Configure>",
             lambda e: _draw_barra(cvs_3,  spesa_mm * 3,  "Obiettivo 3 mesi  "))
         cvs_6.bind("<Configure>",

@@ -4,8 +4,9 @@
 import os
 import json
 import datetime
+import threading
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog
 
 def _fmt_it(v, spec=",.2f"):
     s = format(v, spec)
@@ -154,14 +155,18 @@ def apri_fondo_pensione(self):
 
     bar_bottom = tk.Frame(win, bg=bg)
     bar_bottom.pack(fill=tk.X, side=tk.BOTTOM, pady=(4, 8))
+    bar_bottom_in = tk.Frame(bar_bottom, bg=bg)
+    bar_bottom_in.pack()
+    _btn(bar_bottom_in, "importa_pdf", "📥 Importa PDF del fondo",
+         lambda: _importa_pdf(), side="left", padx=14)
     img_chiudi = self.icone_gui.get("chiudi")
-    btn_chiudi = tk.Label(bar_bottom, compound="left", image=img_chiudi,
+    btn_chiudi = tk.Label(bar_bottom_in, compound="left", image=img_chiudi,
                           text=" Chiudi" if img_chiudi else "❌ Chiudi",
                           background=bg, foreground=fg,
                           cursor="hand2", padx=15, pady=6, font=("Arial", 9, "bold"))
     if img_chiudi:
         btn_chiudi.image = img_chiudi
-    btn_chiudi.pack()
+    btn_chiudi.pack(side="left", padx=14)
     btn_chiudi.bind("<Button-1>", lambda e: win.destroy())
 
     def _totali():
@@ -774,6 +779,123 @@ def apri_fondo_pensione(self):
             ],
             after_change=_build_dashboard,
         )
+
+    def _importa_pdf():
+        """Legge un PDF del fondo con Gemini e propone le voci nuove (anteprima prima di salvare)."""
+        import __main__ as _app
+        from moduli.pensione_import import PROMPT, SEZIONI, estrai_json, leggi, applica
+        API_KEY = getattr(_app, "API_KEY", "")
+        GEMINI = getattr(_app, "GEMINI", "")
+        genai_client = getattr(_app, "genai_client", None)
+        types = getattr(_app, "types", None)
+        if not API_KEY or genai_client is None or types is None:
+            self.show_custom_warning("Configurazione AI Necessaria",
+                "Questa funzione richiede una chiave API Gemini (gratuita).\n\n"
+                "Vai nella sezione Impostazioni e clicca sul pulsante 'Ottieni'.\n")
+            return
+        path = filedialog.askopenfilename(
+            parent=win, title="Scegli il PDF del fondo pensione",
+            filetypes=[("Documenti PDF", "*.pdf")])
+        if not path:
+            return
+
+        from moduli.spinner_animato import crea_spinner_animato
+        splash = tk.Toplevel(win, bg=self.COLOR_WIDGET_BG)
+        splash.withdraw()
+        splash.overrideredirect(True)
+        splash.attributes("-topmost", True)
+        sw, sh = 320, 75
+        sx = win.winfo_rootx() + (win.winfo_width() // 2) - (sw // 2)
+        sy = win.winfo_rooty() + (win.winfo_height() // 2) - (sh // 2)
+        splash.geometry(f"{sw}x{sh}+{sx}+{sy}")
+        frm_s = tk.Frame(splash, bg=self.COLOR_WIDGET_BG,
+                         highlightbackground=self.COLOR_HIGHLIGHT, highlightthickness=1)
+        frm_s.pack(expand=True, fill="both")
+        inn = tk.Frame(frm_s, bg=self.COLOR_WIDGET_BG)
+        inn.pack(expand=True)
+        cvs_sp, _ = crea_spinner_animato(inn, self.COLOR_WIDGET_BG, size=28, tick_ms=30)
+        cvs_sp.pack(side="left", padx=(0, 8))
+        tk.Label(inn, text="Gemini sta leggendo il PDF...", font=("Segoe UI", 9, "bold"),
+                 bg=self.COLOR_WIDGET_BG, fg=self.COLOR_HIGHLIGHT).pack(side="left")
+        splash.deiconify()
+        splash.update()
+
+        def _run():
+            risultato, errore = None, None
+            try:
+                with open(path, "rb") as fh:
+                    dati_pdf = fh.read()
+                if len(dati_pdf) > 18 * 1024 * 1024:
+                    raise ValueError("PDF troppo grande (massimo 18 MB)")
+                client = genai_client.Client(api_key=API_KEY)
+                parts = [types.Part.from_bytes(data=dati_pdf, mime_type="application/pdf"), PROMPT]
+                risposta = client.models.generate_content(model=GEMINI, contents=parts)
+                risultato = estrai_json(risposta.text)
+            except Exception as err:
+                errore = str(err)
+
+            def _mostra():
+                if splash.winfo_exists():
+                    splash.destroy()
+                if not win.winfo_exists():
+                    return
+                if errore is not None:
+                    self.show_custom_warning("Importa PDF", f"Lettura non riuscita:\n{errore}")
+                    return
+                nuove, gia = leggi(risultato, db)
+                _anteprima(nuove, gia)
+            self.after(0, _mostra)
+
+        def _anteprima(nuove, gia):
+            if not nuove:
+                extra = f" ({gia} già presenti)" if gia else ""
+                self.show_toast(f"Nessun dato nuovo da importare{extra}")
+                return
+            dlg = tk.Toplevel(win, bg=bg)
+            dlg.title("Importa PDF — anteprima")
+            dlg.transient(win)
+            titolo = f"{len(nuove)} voci da importare" + (f" · {gia} già presenti" if gia else "")
+            tk.Label(dlg, text=titolo, bg=bg, fg=fg,
+                     font=("Arial", 10, "bold")).pack(anchor="w", padx=12, pady=(10, 2))
+            tk.Label(dlg, text="Togli dalla selezione (Ctrl/Maiusc + clic) le righe da non importare. "
+                               "Il PDF è letto da Gemini: controlla i dati.",
+                     bg=bg, fg="gray", font=("Arial", 8)).pack(anchor="w", padx=12, pady=(0, 6))
+            cols = ("data", "sezione", "tipo", "importo")
+            tv = ttk.Treeview(dlg, columns=cols, show="headings",
+                              height=min(14, len(nuove)), selectmode="extended")
+            for c, t_, w_, a_ in (("data", "Data", 90, "center"), ("sezione", "Sezione", 110, "w"),
+                                  ("tipo", "Tipo", 190, "w"), ("importo", "Importo €", 100, "e")):
+                tv.heading(c, text=t_)
+                tv.column(c, width=w_, anchor=a_)
+            for i, pr in enumerate(nuove):
+                tv.insert("", "end", iid=str(i), values=(
+                    pr["data"], SEZIONI[pr["chiave"]], pr["tipo"] or "—", _fmt_it(pr["importo"])))
+            tv.selection_set(tv.get_children())
+            tv.pack(fill="both", expand=True, padx=12, pady=4)
+
+            def _conferma():
+                scelte = [nuove[int(i)] for i in tv.selection()]
+                if not scelte:
+                    self.show_toast("Nessuna riga selezionata.")
+                    return
+                n = applica(db, scelte)
+                salva_db(db)
+                dlg.destroy()
+                _build_versamenti()
+                _build_valorizzazioni()
+                _build_riscatti()
+                _build_dashboard()
+                self.show_toast(f"Importate {n} voci")
+
+            frm_b = tk.Frame(dlg, bg=bg)
+            frm_b.pack(pady=(4, 10))
+            _btn(frm_b, "salva", "Importa selezionate", _conferma, side="left", padx=12)
+            _btn(frm_b, "chiudi", "Annulla", dlg.destroy, side="left", padx=12)
+            dlg.update_idletasks()
+            dlg.geometry(f"+{win.winfo_rootx() + 160}+{win.winfo_rooty() + 90}")
+            dlg.grab_set()
+
+        threading.Thread(target=_run, daemon=True).start()
 
     _build_dashboard()
     _build_anagrafica()
