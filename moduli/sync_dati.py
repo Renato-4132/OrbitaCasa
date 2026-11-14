@@ -273,7 +273,12 @@ def registra(flask_app, tk_app, richiede_login):
             n = _su_tk(tk_app, lambda: sum(len(l) for l in tk_app.spese.values()))
         except Exception as e:
             return _json({"ok": False, "errore": str(e)}, 503)
-        return _json({"ok": True, "proto": PROTO, "movimenti": n,
+        try:
+            import __main__ as _app_main
+            profilo = str(getattr(_app_main, "PROFILO_ATTIVO", "") or "")
+        except Exception:
+            profilo = ""
+        return _json({"ok": True, "proto": PROTO, "movimenti": n, "profilo": profilo,
                       "ora": datetime.datetime.now().isoformat(timespec="seconds")})
 
     @flask_app.route("/api/sync/indice", methods=["GET"])
@@ -538,8 +543,120 @@ def _elenco_personali():
     return out
 
 
+def _db_profilo(nome):
+    import __main__ as _app
+    if nome == "Principale":
+        return os.path.join(_app.PATH_LOCALE, "db")
+    return os.path.join(_app.PROFILI_DIR, nome, "db")
+
+
+def _config_profilo(nome):
+    try:
+        with open(os.path.join(_db_profilo(nome), "config.json"), "r", encoding="utf-8") as f:
+            c = json.load(f)
+        if not isinstance(c, dict):
+            c = {}
+    except Exception:
+        c = {}
+    try:
+        porta = int(c.get("webserver_port", 8080))
+    except Exception:
+        porta = 8080
+    return {"server": bool(c.get("webserver_enabled", False)),
+            "ssl": bool(c.get("usa_ssl", True)),
+            "porta": porta}
+
+
+def _hash_pw_profilo(nome):
+    try:
+        with open(os.path.join(_db_profilo(nome), "password.json"), "r", encoding="utf-8") as f:
+            h = json.load(f).get("hash")
+        if not h:
+            return None
+        if str(h) == hashlib.sha256(b"").hexdigest():
+            return None
+        return str(h)
+    except Exception:
+        return None
+
+
+def _token_profilo(nome):
+    import secrets
+    from moduli.webhook_notifiche import _scrivi_atomico, _LOCK
+    p = os.path.join(_db_profilo(nome), "webhook_notifiche.json")
+    with _LOCK:
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                t = str(json.load(f).get("token", "")).strip()
+            if t:
+                return t
+        except Exception:
+            pass
+        t = secrets.token_urlsafe(32)
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        _scrivi_atomico(p, json.dumps({"token": t}, indent=2))
+        return t
+
+
 def _registra_extra(flask_app, tk_app, _json, _nega, _corpo):
     from flask import request, Response, send_file
+
+    @flask_app.route("/api/sync/profili", methods=["GET"])
+    def sd_api_sync_profili():
+        rifiuto = _nega()
+        if rifiuto is not None:
+            return rifiuto
+        try:
+            import __main__ as _app
+            from moduli.profili import elenco_profili
+            attivo = str(getattr(_app, "PROFILO_ATTIVO", "") or "")
+            out = []
+            for nome in elenco_profili(tk_app):
+                c = _config_profilo(nome)
+                out.append({"nome": nome, "server": c["server"], "ssl": c["ssl"], "porta": c["porta"],
+                            "password": _hash_pw_profilo(nome) is not None})
+        except Exception as e:
+            return _json({"ok": False, "errore": str(e)}, 503)
+        return _json({"ok": True, "attivo": attivo, "profili": out})
+
+    @flask_app.route("/api/sync/cambia_profilo", methods=["POST"])
+    def sd_api_sync_cambia_profilo():
+        rifiuto = _nega()
+        if rifiuto is not None:
+            return rifiuto
+        p, err = _corpo()
+        if err is not None:
+            return err
+        nome = str(p.get("nome", "")).strip()
+        try:
+            import __main__ as _app
+            from moduli.profili import elenco_profili
+            if nome not in elenco_profili(tk_app):
+                return _json({"ok": False, "errore": "Profilo non trovato sul PC"}, 404)
+            if nome == getattr(_app, "PROFILO_ATTIVO", ""):
+                return _json({"ok": False, "errore": "Questo profilo è già attivo sul PC"}, 409)
+            c = _config_profilo(nome)
+            if not c["server"]:
+                return _json({"ok": False, "errore": "Nel profilo «%s» il Web Server è spento: attivalo dalla Configurazione sul PC, altrimenti il telefono non potrebbe più collegarsi" % nome}, 409)
+            if not c["ssl"]:
+                return _json({"ok": False, "errore": "Nel profilo «%s» l'HTTPS è disattivato: il telefono si collega solo in HTTPS" % nome}, 409)
+            h_atteso = _hash_pw_profilo(nome)
+            if h_atteso is not None:
+                import hmac
+                from moduli.sicurezza_rete import hash_pw
+                inviata = str(p.get("password", ""))
+                if not inviata:
+                    return _json({"ok": False, "errore": "Il profilo «%s» è protetto da password" % nome, "password": True}, 403)
+                if not hmac.compare_digest(hash_pw(inviata).encode("utf-8"), h_atteso.encode("utf-8")):
+                    _registra_fallimento(request.remote_addr or "?")
+                    return _json({"ok": False, "errore": "Password del profilo «%s» errata" % nome, "password": True}, 403)
+            token = _token_profilo(nome)
+            esito = tk_app.esegui_switch_profilo_web(nome)
+        except Exception as e:
+            return _json({"ok": False, "errore": str(e)}, 503)
+        if not esito.get("ok"):
+            return _json({"ok": False, "errore": esito.get("errore", "Cambio profilo non riuscito")}, 409)
+        return _json({"ok": True, "profilo": nome, "token": token, "porta": c["porta"]})
 
     @flask_app.route("/api/sync/blocchi", methods=["GET"])
     def sd_api_sync_blocchi_leggi():
