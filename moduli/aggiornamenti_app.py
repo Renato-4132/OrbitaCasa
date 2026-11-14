@@ -50,6 +50,17 @@ def _imposta_permessi_file(nome_file, nome_tmp):
     except Exception as perm_err:
         print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Impossibile impostare i permessi su {nome_file}: {perm_err}")
 
+def _dopo(win, fn):
+    def _w():
+        try:
+            fn()
+        except tk.TclError:
+            pass
+    try:
+        win.after(0, _w)
+    except tk.TclError:
+        pass
+
 def _log_errore_aggiornamento(titolo, err):
     try:
         import __main__ as _app
@@ -1074,7 +1085,7 @@ def aggiorna_librerie_pip(self):
         def _aggiorna_py():
             if popup.winfo_exists():
                 lbl_py_stato.config(text=esito[0], fg=esito[1])
-        self.after(0, _aggiorna_py)
+        _dopo(self, _aggiorna_py)
     threading.Thread(target=_verifica_python, daemon=True).start()
     frame_checks = tk.Frame(body, bg=self.COLOR_WIDGET_BG,
                             highlightbackground=self.COLOR_HEADER_BG, highlightthickness=1)
@@ -1158,8 +1169,8 @@ def aggiorna_librerie_pip(self):
                 else:
                     lbl.config(text=f"v{v}", fg="gray60")
                     lib_da_aggiornare[pkg] = True
-            self.after(0, _aggiorna_lbl)
-        self.after(0, lambda: lbl_check_ver.config(text="✓ Versioni verificate") if popup.winfo_exists() else None)
+            _dopo(self, _aggiorna_lbl)
+        _dopo(self, lambda: lbl_check_ver.config(text="✓ Versioni verificate") if popup.winfo_exists() else None)
     def _refresh_versioni(e=None):
         if getattr(btn_refresh_ver, "_in_corso", False):
             return
@@ -1176,7 +1187,7 @@ def aggiorna_librerie_pip(self):
         def _fine():
             btn_refresh_ver._in_corso = False
             btn_refresh_ver.config(cursor="hand2")
-        threading.Thread(target=lambda: (_carica_versioni_disponibili(), self.after(0, _fine)), daemon=True).start()
+        threading.Thread(target=lambda: (_carica_versioni_disponibili(), _dopo(self, _fine)), daemon=True).start()
     btn_refresh_ver.bind("<Button-1>", _refresh_versioni)
     threading.Thread(target=_carica_versioni_disponibili, daemon=True).start()
     tk.Label(body, text="Output:", bg=self.COLOR_BACKGROUND,
@@ -1255,27 +1266,27 @@ def aggiorna_librerie_pip(self):
         self.after(800, esegui_kill)
 
     def _abilita_riavvia():
+        self.btn_aggiorna_lib.pack_forget()
         btn_riavvia.config(cursor="hand2")
         btn_riavvia.bind("<Button-1>", _riavvia)
-        self.btn_aggiorna_lib.pack_forget()
 
     def _esegui():
         selezionate = [(pkg, var) for pkg, var in vars_lib if var.get()]
         if not selezionate:
-            self.after(0, lambda: _log("⚠️ Nessuna libreria selezionata."))
-            self.after(0, lambda: btn_avvia.config(cursor="hand2", fg=self.TEXT_COLOR))
-            self.after(0, lambda: btn_avvia.bind("<Button-1>", _avvia_click))
+            _dopo(self, lambda: _log("⚠️ Nessuna libreria selezionata."))
+            _dopo(self, lambda: btn_avvia.config(cursor="hand2", fg=self.TEXT_COLOR))
+            _dopo(self, lambda: btn_avvia.bind("<Button-1>", _avvia_click))
             return
-        self.after(0, lambda: _log(f"Avvio aggiornamento {len(selezionate)} librerie...\n"))
+        _dopo(self, lambda: _log(f"Avvio aggiornamento {len(selezionate)} librerie...\n"))
         if not _connessione_pypi_disponibile():
-            self.after(0, lambda: _log("❌ Nessuna connessione a Internet: impossibile contattare PyPI. Aggiornamento annullato."))
-            self.after(0, lambda: btn_avvia.config(cursor="hand2", fg=self.TEXT_COLOR))
-            self.after(0, lambda: btn_avvia.bind("<Button-1>", _avvia_click))
+            _dopo(self, lambda: _log("❌ Nessuna connessione a Internet: impossibile contattare PyPI. Aggiornamento annullato."))
+            _dopo(self, lambda: btn_avvia.config(cursor="hand2", fg=self.TEXT_COLOR))
+            _dopo(self, lambda: btn_avvia.bind("<Button-1>", _avvia_click))
             return
         aggiornati = 0
         errori = 0
         for pkg, _ in selezionate:
-            self.after(0, lambda l=pkg: _log(f"⏳ {l}..."))
+            _dopo(self, lambda l=pkg: _log(f"⏳ {l}..."))
             try:
                 result = subprocess.run(
                     [sys.executable, "-m", "pip", "install", "-U", pkg, "--break-system-packages"],
@@ -1284,35 +1295,35 @@ def aggiorna_librerie_pip(self):
                 if result.returncode == 0:
                     aggiornati += 1
                     nuova_ver = _versione_installata(pkg)
-                    self.after(0, lambda l=pkg, v=nuova_ver: _log(f"✓ {l} aggiornato → v{v}" if v else f"✓ {l} aggiornato"))
+                    _dopo(self, lambda l=pkg, v=nuova_ver: _log(f"✓ {l} aggiornato → v{v}" if v else f"✓ {l} aggiornato"))
                     if pkg in righe_ver:
                         lbl_inst_w, lbl_disp_w, _ = righe_ver[pkg]
                         def _aggiorna_riga_lib(lbl_i=lbl_inst_w, lbl_d=lbl_disp_w, v=nuova_ver, p=pkg):
+                            lib_da_aggiornare[p] = False
                             lbl_i.config(text=f"v{v}" if v else "n/d", fg="#2E7D32")
                             lbl_d.config(text=f"v{v}" if v else "n/d", fg="#2E7D32")
-                            lib_da_aggiornare[p] = False
-                        self.after(0, _aggiorna_riga_lib)
+                        _dopo(self, _aggiorna_riga_lib)
                     for p, v_ in vars_lib:
                         if p == pkg:
-                            self.after(0, lambda vv=v_: vv.set(False))
+                            _dopo(self, lambda vv=v_: vv.set(False))
                             break
                 else:
                     errori += 1
                     err = result.stderr.strip().splitlines()[-1] if result.stderr.strip() else "errore"
-                    self.after(0, lambda l=pkg, e=err: _log(f"⚠️ {l}: {e[:80]}"))
+                    _dopo(self, lambda l=pkg, e=err: _log(f"⚠️ {l}: {e[:80]}"))
             except subprocess.TimeoutExpired:
                 errori += 1
-                self.after(0, lambda l=pkg: _log(f"❌ {l}: timeout"))
+                _dopo(self, lambda l=pkg: _log(f"❌ {l}: timeout"))
             except Exception as ex:
                 errori += 1
-                self.after(0, lambda l=pkg, e=str(ex): _log(f"❌ {l}: {e}"))
+                _dopo(self, lambda l=pkg, e=str(ex): _log(f"❌ {l}: {e}"))
         msg = f"\n✅ Completato. {len(selezionate)-errori} ok, {errori} errori." if errori else "\n✅ Completato. Tutte le librerie aggiornate."
-        self.after(0, lambda: _log(msg))
+        _dopo(self, lambda: _log(msg))
         if aggiornati:
-            self.after(0, _abilita_riavvia)
+            _dopo(self, _abilita_riavvia)
         else:
-            self.after(0, lambda: btn_avvia.config(cursor="hand2", fg=self.TEXT_COLOR))
-            self.after(0, lambda: btn_avvia.bind("<Button-1>", _avvia_click))
+            _dopo(self, lambda: btn_avvia.config(cursor="hand2", fg=self.TEXT_COLOR))
+            _dopo(self, lambda: btn_avvia.bind("<Button-1>", _avvia_click))
     def _avvia_click(e=None):
         btn_avvia.config(cursor="X_cursor")
         btn_avvia.unbind("<Button-1>")
@@ -1547,13 +1558,13 @@ def verifica_moduli_git(self):
                 btn_avvia.config(cursor="X_cursor")
                 btn_avvia.unbind("<Button-1>")
                 _log("⚠️ Sincronizzazione moduli bloccata: aggiorna prima il programma (.pyw).")
-            self.after(0, _blocca)
+            _dopo(self, _blocca)
             return
         try:
             elenco = _boot_lista_moduli_remoti()
         except Exception as e:
             msg_err = str(e)
-            self.after(0, lambda m=msg_err: lbl_check_stato.config(text=f"❌ Impossibile contattare GitHub: {m}", fg="#C62828"))
+            _dopo(self, lambda m=msg_err: lbl_check_stato.config(text=f"❌ Impossibile contattare GitHub: {m}", fg="#C62828"))
             return
         elenco_remoto_cache[:] = elenco
         def _popola():
@@ -1601,7 +1612,7 @@ def verifica_moduli_git(self):
                 diversi += 1
             lbl_check_stato.config(text="✓ Elenco verificato")
             _log(f"Verifica completata: {len(elenco_ord)} moduli controllati, {diversi} da aggiornare.")
-        self.after(0, _popola)
+        _dopo(self, _popola)
     def _refresh_lista(e=None):
         if getattr(btn_refresh_lista, "_in_corso", False):
             return
@@ -1628,25 +1639,25 @@ def verifica_moduli_git(self):
         def _fine():
             btn_refresh_lista._in_corso = False
             btn_refresh_lista.config(cursor="hand2")
-        threading.Thread(target=lambda: (_carica_elenco(), self.after(0, _fine)), daemon=True).start()
+        threading.Thread(target=lambda: (_carica_elenco(), _dopo(self, _fine)), daemon=True).start()
     btn_refresh_lista.bind("<Button-1>", _refresh_lista)
     threading.Thread(target=_carica_elenco, daemon=True).start()
     def _esegui():
         if not pyw_allineato_ref["ok"]:
-            self.after(0, lambda: _log("⚠️ Aggiornamento bloccato: il programma (.pyw) non è allineato all'ultima versione."))
+            _dopo(self, lambda: _log("⚠️ Aggiornamento bloccato: il programma (.pyw) non è allineato all'ultima versione."))
             return
         if not elenco_remoto_cache:
-            self.after(0, lambda: _log("⚠️ Elenco remoto non ancora disponibile, riprova tra poco."))
-            self.after(0, lambda: btn_avvia.config(cursor="hand2"))
-            self.after(0, lambda: btn_avvia.bind("<Button-1>", _avvia_click))
+            _dopo(self, lambda: _log("⚠️ Elenco remoto non ancora disponibile, riprova tra poco."))
+            _dopo(self, lambda: btn_avvia.config(cursor="hand2"))
+            _dopo(self, lambda: btn_avvia.bind("<Button-1>", _avvia_click))
             return
         selezionati = {nome for nome, v in vars_moduli if v.get()}
         if not selezionati:
-            self.after(0, lambda: _log("⚠️ Nessun modulo selezionato."))
-            self.after(0, lambda: btn_avvia.config(cursor="hand2"))
-            self.after(0, lambda: btn_avvia.bind("<Button-1>", _avvia_click))
+            _dopo(self, lambda: _log("⚠️ Nessun modulo selezionato."))
+            _dopo(self, lambda: btn_avvia.config(cursor="hand2"))
+            _dopo(self, lambda: btn_avvia.bind("<Button-1>", _avvia_click))
             return
-        self.after(0, lambda: _log(f"Avvio verifica e aggiornamento di {len(selezionati)} moduli...\n"))
+        _dopo(self, lambda: _log(f"Avvio verifica e aggiornamento di {len(selezionati)} moduli...\n"))
         aggiornati = 0
         errori = 0
         for voce in elenco_remoto_cache:
@@ -1671,7 +1682,7 @@ def verifica_moduli_git(self):
                     raise ValueError("SHA non corrispondente dopo il download (file corrotto o troncato)")
                 os.replace(dest_tmp, dest)
                 aggiornati += 1
-                self.after(0, lambda n=nome: _log(f"✓ {n} aggiornato"))
+                _dopo(self, lambda n=nome: _log(f"✓ {n} aggiornato"))
                 if nome in righe_stato:
                     dimensione_kb = os.path.getsize(dest) / 1024
                     data_mod = datetime.datetime.fromtimestamp(os.path.getmtime(dest)).strftime("%d/%m/%Y")
@@ -1685,7 +1696,7 @@ def verifica_moduli_git(self):
                             if nm == n:
                                 v.set(False)
                                 break
-                    self.after(0, _aggiorna_riga)
+                    _dopo(self, _aggiorna_riga)
             except Exception as e:
                 if os.path.exists(dest_tmp):
                     try:
@@ -1693,14 +1704,14 @@ def verifica_moduli_git(self):
                     except Exception:
                         pass
                 errori += 1
-                self.after(0, lambda n=nome, err=e: _log(f"❌ {n}: {err}"))
+                _dopo(self, lambda n=nome, err=e: _log(f"❌ {n}: {err}"))
         eliminati = 0
         for nome in sorted(selezionati & orfani_set):
             try:
                 os.remove(os.path.join(MODULI_DIR, nome))
                 eliminati += 1
                 orfani_set.discard(nome)
-                self.after(0, lambda n=nome: _log(f"✓ {n} eliminato (orfano)"))
+                _dopo(self, lambda n=nome: _log(f"✓ {n} eliminato (orfano)"))
                 def _riga_eliminata(n=nome):
                     if n in righe_stato:
                         righe_stato[n][0].config(text="✓ eliminato", fg="#2E7D32")
@@ -1708,10 +1719,10 @@ def verifica_moduli_git(self):
                         if nm == n:
                             v.set(False)
                             break
-                self.after(0, _riga_eliminata)
+                _dopo(self, _riga_eliminata)
             except Exception as e:
                 errori += 1
-                self.after(0, lambda n=nome, err=e: _log(f"❌ {n}: {err}"))
+                _dopo(self, lambda n=nome, err=e: _log(f"❌ {n}: {err}"))
         parti = []
         if aggiornati:
             parti.append(f"{aggiornati} moduli aggiornati")
@@ -1720,9 +1731,9 @@ def verifica_moduli_git(self):
         if errori:
             parti.append(f"{errori} errori")
         msg = ("\n✅ Completato. " + ", ".join(parti) + ".") if parti else "\n✅ I moduli selezionati erano già aggiornati."
-        self.after(0, lambda: _log(msg))
+        _dopo(self, lambda: _log(msg))
         if aggiornati:
-            self.after(0, _abilita_riavvia)
+            _dopo(self, _abilita_riavvia)
             def _chiedi_changelog():
                 vedi = self.show_custom_askyesno(
                     title="Moduli aggiornati",
@@ -1734,8 +1745,8 @@ def verifica_moduli_git(self):
                     self.visualizza_changelog()
             self.after(300, _chiedi_changelog)
         else:
-            self.after(0, lambda: btn_avvia.config(cursor="hand2"))
-            self.after(0, lambda: btn_avvia.bind("<Button-1>", _avvia_click))
+            _dopo(self, lambda: btn_avvia.config(cursor="hand2"))
+            _dopo(self, lambda: btn_avvia.bind("<Button-1>", _avvia_click))
     def _riavvia(e=None):
         self.show_toast("Riavvio In Corso !", duration=3000)
         def esegui_kill():
@@ -1753,9 +1764,9 @@ def verifica_moduli_git(self):
             os._exit(0)
         self.after(800, esegui_kill)
     def _abilita_riavvia():
+        self.btn_verifica_moduli.pack_forget()
         btn_riavvia.config(cursor="hand2")
         btn_riavvia.bind("<Button-1>", _riavvia)
-        self.btn_verifica_moduli.pack_forget()
     def _avvia_click(e=None):
         orf_sel = [n for n, v in vars_moduli if v.get() and n in orfani_set]
         if orf_sel and not self.show_custom_askyesno(
