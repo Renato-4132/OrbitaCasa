@@ -170,7 +170,7 @@ def apri_pannello_topic(self, topic):
         if includi_info_var.get():
             corpo += (
                 f"\n--- Info Sistema ---\n"
-                f"C.F. Pro: v{VERSION}\n"
+                f"{_app.NAME}: v{VERSION}\n"
                 f"OS: {platform.system()} {platform.release()} ({platform.version()})\n"
                 f"Architettura: {platform.architecture()[0]}\n"
                 f"Machine: {platform.machine()}\n"
