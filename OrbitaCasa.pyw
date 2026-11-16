@@ -6353,7 +6353,7 @@ def _rb():
         pass
 def _rc():
     try:
-        E_H_B = "885772c8a24a01b90a2a43f76621f933e547a1f079067cc8b220da7b6d0cb13d"
+        E_H_B = "be9f3624e8edaa7e7d026ea9377b755f931c99fcc3243aa9ecaaeae9e38b72d8"
         righe = open(__file__, "rb").readlines()
         contenuto = b"".join(r for r in righe if b"E_H_B" not in r)
         _h = hashlib.sha256(contenuto).hexdigest()
@@ -6932,6 +6932,7 @@ _MAPPA_CONFIG_GLOBALI = (
     ("TIMEOUT_INATTIVITA_MS", "inactivity_timeout_ms", 1200000),
     ("SALVA_GEOMETRIA_INIZIALE", "load_saved_geometry", False),
     ("ABILITA_WEBSERVER", "webserver_enabled", False),
+    ("ABILITA_API_APP", "api_app_enabled", False),
     ("USA_SSL", "usa_ssl", False),
     ("PORTA", "webserver_port", 8080),
     ("ANNI_DA_MANTENERE", "anni_da_mantenere", 10),
