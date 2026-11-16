@@ -271,6 +271,8 @@ def gestisci_configurazione(self):
             webserver_port = self.var_port.get()
             if webserver_port < 1024 or webserver_port > 65535:
                 raise ValueError("La porta Webserver non è valida (range 1024-65535).")
+            if self.var_api_app_enabled.get() and not self.var_webserver_enabled.get():
+                raise ValueError("Android e Notify richiedono il Web Server: attivalo oppure disattiva l'accesso da Android/Notify.")
             udp_1 = self.var_udp_port_1.get()
             udp_2 = self.var_udp_port_2.get()
             if udp_1 < 1024 or udp_1 > 65535 or udp_2 < 1024 or udp_2 > 65535:
@@ -745,11 +747,34 @@ def gestisci_configurazione(self):
 
     ttk.Separator(tab_rete, orient='horizontal', style="Rosso.TSeparator").grid(row=row_rete, column=0, columnspan=3, sticky="ew", pady=5)
     row_rete += 1
-    create_checkbutton(tab_rete, "Abilita Web Server all'avvio", self.var_webserver_enabled, row_rete, column=0)
+    def _on_toggle_webserver():
+        if not self.var_webserver_enabled.get() and self.var_api_app_enabled.get():
+            if self.show_custom_askyesno(
+                    "Disattivare anche Android/Notify?",
+                    "Android e Notify funzionano solo con il Web Server attivo.\n\n"
+                    "Disattivando il Web Server verrà disattivato anche l'accesso da Notify e OrbitaCasa Android.\n\n"
+                    "Vuoi procedere?"):
+                self.var_api_app_enabled.set(False)
+            else:
+                self.var_webserver_enabled.set(True)
+
+    def _on_toggle_api_app():
+        if self.var_api_app_enabled.get() and not self.var_webserver_enabled.get():
+            if self.show_custom_askyesno(
+                    "Web Server richiesto",
+                    "Android e Notify comunicano tramite il Web Server, che al momento è disattivato.\n\n"
+                    "Vuoi attivare anche il Web Server?"):
+                self.var_webserver_enabled.set(True)
+            else:
+                self.var_api_app_enabled.set(False)
+
+    cb_webserver = create_checkbutton(tab_rete, "Abilita Web Server all'avvio", self.var_webserver_enabled, row_rete, column=0)
+    cb_webserver.configure(command=_on_toggle_webserver)
     create_entry(tab_rete, "Porta Web Server (8080 default)", self.var_port, row_rete, column=1)
     create_checkbutton(tab_rete, "Usa SSL (HTTPS)", self.var_usa_ssl, row_rete, column=2)
     row_rete += 1
-    create_checkbutton(tab_rete, "Abilita accesso da Notify e OrbitaCasa Android", self.var_api_app_enabled, row_rete, column=0)
+    cb_api_app = create_checkbutton(tab_rete, "Abilita accesso da Notify e OrbitaCasa Android", self.var_api_app_enabled, row_rete, column=0)
+    cb_api_app.configure(command=_on_toggle_api_app)
     row_rete += 1
     ttk.Separator(tab_rete, orient='horizontal', style="Rosso.TSeparator").grid(row=row_rete, column=0, columnspan=3, sticky="ew", pady=5)
     row_rete += 1
