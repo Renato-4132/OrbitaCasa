@@ -255,7 +255,7 @@ def applica_configurazione_a_caldo(self):
                 self._job_ricorrenti = self.after(3000, self.controlla_ricorrenti_a_fine_mese)
         passo("promemoria ricorrenti", _ricorrenti)
 
-    if percorsi_cambiati or cambiato("webserver_enabled", "usa_ssl", "webserver_port", "gemini_api_key", "email_user",
+    if percorsi_cambiati or cambiato("webserver_enabled", "api_app_enabled", "usa_ssl", "webserver_port", "gemini_api_key", "email_user",
                 "app_password", "parole_chiave", "shared_db", "shared_db_path"):
         passo("web server", lambda: self._riavvia_webserver_a_caldo())
 

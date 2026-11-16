@@ -122,6 +122,7 @@ def gestisci_configurazione(self):
     self.var_beep_enabled = tk.BooleanVar(value=beep_enabled_iniziale)
     self.var_auto_login = tk.BooleanVar(value=config.get("enable_auto_login_flow", DEFAULT_CONFIG["enable_auto_login_flow"]))
     self.var_webserver_enabled = tk.BooleanVar(value=config.get("webserver_enabled", DEFAULT_CONFIG["webserver_enabled"]))
+    self.var_api_app_enabled = tk.BooleanVar(value=config.get("api_app_enabled", DEFAULT_CONFIG["api_app_enabled"]))
     self.var_usa_ssl = tk.BooleanVar(value=config.get("usa_ssl", DEFAULT_CONFIG.get("usa_ssl", True)))
     self.var_timeout_minuti = tk.DoubleVar(value=timeout_minuti_iniziale)
     self.var_port = tk.IntVar(value=config.get("webserver_port", DEFAULT_CONFIG["webserver_port"]))
@@ -180,6 +181,7 @@ def gestisci_configurazione(self):
         _reset_stato["attivo"] = True
         self.var_auto_login.set(DEFAULT_CONFIG["enable_auto_login_flow"])
         self.var_webserver_enabled.set(DEFAULT_CONFIG["webserver_enabled"])
+        self.var_api_app_enabled.set(DEFAULT_CONFIG["api_app_enabled"])
         self.var_usa_ssl.set(DEFAULT_CONFIG.get("usa_ssl", True))
         self.var_port.set(DEFAULT_CONFIG["webserver_port"])
         self.var_bank_link.set(DEFAULT_CONFIG.get("bank_link", ""))
@@ -330,6 +332,7 @@ def gestisci_configurazione(self):
             nuova_config = {
                 "enable_auto_login_flow": self.var_auto_login.get(),
                 "webserver_enabled": self.var_webserver_enabled.get(),
+                "api_app_enabled": self.var_api_app_enabled.get(),
                 "usa_ssl": self.var_usa_ssl.get(),
                 "inactivity_timeout_ms": timeout_ms,
                 "webserver_port": webserver_port,
@@ -624,7 +627,7 @@ def gestisci_configurazione(self):
         help_window.geometry(f"{fixed_width}x{fixed_height}+{c_x}+{c_y}")
         help_window.deiconify()
     notebook = ttk.Notebook(main_frame)
-    notebook.pack(fill="both", expand=True, pady=(0, 8))
+    notebook.pack(side="top", fill="both", expand=True, pady=(0, 4))
 
     tab_generali = ttk.Frame(notebook, padding="10 10 10 5")
     tab_rete     = ttk.Frame(notebook, padding="10 10 10 5")
@@ -745,6 +748,8 @@ def gestisci_configurazione(self):
     create_checkbutton(tab_rete, "Abilita Web Server all'avvio", self.var_webserver_enabled, row_rete, column=0)
     create_entry(tab_rete, "Porta Web Server (8080 default)", self.var_port, row_rete, column=1)
     create_checkbutton(tab_rete, "Usa SSL (HTTPS)", self.var_usa_ssl, row_rete, column=2)
+    row_rete += 1
+    create_checkbutton(tab_rete, "Abilita accesso da Notify e OrbitaCasa Android", self.var_api_app_enabled, row_rete, column=0)
     row_rete += 1
     ttk.Separator(tab_rete, orient='horizontal', style="Rosso.TSeparator").grid(row=row_rete, column=0, columnspan=3, sticky="ew", pady=5)
     row_rete += 1
@@ -873,7 +878,7 @@ def gestisci_configurazione(self):
     ttk.Label(f_keys, text="Filtri Email:", width=25, anchor="nw").pack(side="left", anchor="nw")
     txt_keys = tk.Text(
         f_keys,
-        height=5,
+        height=3,
         width=100,
         wrap="word",
         bg=self.COLOR_WIDGET_BG,
@@ -1061,42 +1066,77 @@ def gestisci_configurazione(self):
     btn_copia_url.pack(side="left", padx=5)
     btn_copia_url.bind("<Button-1>", _copia_url_wh)
     row_sync += 1
-    def _qr_img(testo, scala=3):
+    def _qr_img(testo, scala=2):
         import io
         from __main__ import segno, Image, ImageTk
         b = io.BytesIO()
         segno.make(testo, error="L").save(b, kind="png", scale=scala, border=2, dark="black", light="white")
         b.seek(0)
         return ImageTk.PhotoImage(Image.open(b))
-    f_qr = ttk.Frame(tab_sync)
-    f_qr.grid(row=row_sync, column=0, columnspan=3, sticky="we", padx=10, pady=4)
-    ttk.Label(f_qr, text="QR Token:", width=25, anchor="w").pack(side="left")
-    lbl_qr_token = ttk.Label(f_qr)
-    lbl_qr_token.pack(side="left", padx=(5, 60))
-    ttk.Label(f_qr, text="QR Indirizzo:", anchor="w").pack(side="left")
-    lbl_qr_url = ttk.Label(f_qr)
-    lbl_qr_url.pack(side="left", padx=(5, 60))
-    url_app = {"v": "https://github.com/Renato-4132/OrbitaNotify/releases/latest"}
-    ttk.Label(f_qr, text="QR Scarica App:", anchor="w").pack(side="left")
-    lbl_qr_app = ttk.Label(f_qr, cursor="hand2")
-    lbl_qr_app.pack(side="left", padx=5)
-    lbl_qr_app.bind("<Button-1>", lambda e: webbrowser.open(url_app["v"]))
     def _imposta_qr(lbl, valore):
         try:
             if valore and valore != "Non disponibile":
                 img = _qr_img(valore)
-                lbl.configure(image=img)
+                lbl.configure(image=img, text="")
                 lbl.image = img
             else:
                 lbl.configure(image="")
                 lbl.image = None
         except Exception as ex_qr:
             print(f"QR webhook non generato: {ex_qr}")
+    url_app = {"v": "https://github.com/Renato-4132/OrbitaNotify/releases/latest"}
+    f_qr = ttk.Frame(tab_sync)
+    f_qr.grid(row=row_sync, column=0, columnspan=3, sticky="we", padx=10, pady=4)
+    f_qr.columnconfigure(0, weight=3, uniform="qr")
+    f_qr.columnconfigure(1, weight=3, uniform="qr")
+    box_notify = ttk.LabelFrame(f_qr, text=" OrbitaNotify ")
+    box_notify.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+    box_sync = ttk.LabelFrame(f_qr, text=" OrbitaCasa Android (Sync) ")
+    box_sync.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
+    def _cella(box, col, titolo, cursore=""):
+        c = ttk.Frame(box)
+        c.grid(row=0, column=col, padx=12, pady=6)
+        ttk.Label(c, text=titolo, anchor="center").pack()
+        l = ttk.Label(c, cursor=cursore) if cursore else ttk.Label(c)
+        l.pack(pady=(2, 0))
+        return l
+    lbl_qr_token = _cella(box_notify, 0, "Token")
+    lbl_qr_url = _cella(box_notify, 1, "Indirizzo")
+    lbl_qr_app = _cella(box_notify, 2, "Scarica app", "hand2")
+    lbl_qr_app.bind("<Button-1>", lambda e: webbrowser.open(url_app["v"]))
+    lbl_qr_sync_url = _cella(box_sync, 0, "Indirizzo")
+    lbl_qr_sync_token = _cella(box_sync, 1, "Token")
+    lbl_qr_gemini = _cella(box_sync, 2, "Chiave Gemini", "hand2")
+    _url_sync = _url_wh.split("/api/")[0] if _url_wh != "Non disponibile" else _url_wh
     def _aggiorna_qr_token(valore):
         _imposta_qr(lbl_qr_token, valore)
+        _imposta_qr(lbl_qr_sync_token, valore)
+    gem_vis = {"v": False}
+    def _aggiorna_qr_gemini(*_a):
+        try:
+            k = self.var_gemini_api_key.get().strip()
+            if gem_vis["v"] and k:
+                _imposta_qr(lbl_qr_gemini, k)
+            else:
+                lbl_qr_gemini.configure(image="", text=("Clic per\nmostrare" if k else "Nessuna\nchiave"))
+                lbl_qr_gemini.image = None
+        except Exception:
+            pass
+    def _toggle_qr_gemini(e=None):
+        if not self.var_gemini_api_key.get().strip():
+            return
+        gem_vis["v"] = not gem_vis["v"]
+        _aggiorna_qr_gemini()
+    lbl_qr_gemini.bind("<Button-1>", _toggle_qr_gemini)
+    try:
+        self.var_gemini_api_key.trace_add("write", _aggiorna_qr_gemini)
+    except Exception:
+        pass
     _aggiorna_qr_token(_token_val)
     _imposta_qr(lbl_qr_url, _url_wh)
+    _imposta_qr(lbl_qr_sync_url, _url_sync)
     _imposta_qr(lbl_qr_app, url_app["v"])
+    _aggiorna_qr_gemini()
     def _risolvi_apk():
         try:
             import urllib.request
@@ -1128,7 +1168,7 @@ def gestisci_configurazione(self):
     row_sync += 1
     ttk.Separator(main_frame, orient='horizontal', style="Rosso.TSeparator").pack(fill="x", pady=(3, 3))
     button_frame = ttk.Frame(main_frame)
-    button_frame.pack(pady=(4, 5))
+    button_frame.pack(side="bottom", pady=(2, 4))
     img_salva_cfg = self.icone_gui.get("salva")
     save_button = ttk.Label(
             button_frame,

@@ -238,6 +238,7 @@ def carica_costanti(path_locale):
     g['DEFAULT_CONFIG'] = {
         "enable_auto_login_flow": False,
         "webserver_enabled": False,
+        "api_app_enabled": False,
         "iconizza_inattivita": True,
         "inactivity_timeout_ms": 1200000,
         "webserver_port": 8080,

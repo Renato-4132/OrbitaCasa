@@ -563,6 +563,7 @@ def _config_profilo(nome):
     except Exception:
         porta = 8080
     return {"server": bool(c.get("webserver_enabled", False)),
+            "api_app": bool(c.get("api_app_enabled", False)),
             "ssl": bool(c.get("usa_ssl", True)),
             "porta": porta}
 

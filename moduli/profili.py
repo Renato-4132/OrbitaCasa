@@ -48,7 +48,7 @@ def _copia_certificati_e_licenza(db_sorgente, db_destinazione):
                 pass
 
 
-_CHIAVI_WEBSERVER_DA_PROPAGARE = ("webserver_enabled", "webserver_port", "usa_ssl")
+_CHIAVI_WEBSERVER_DA_PROPAGARE = ("webserver_enabled", "api_app_enabled", "webserver_port", "usa_ssl")
 
 def _propaga_config_webserver(db_sorgente, db_destinazione):
     src = os.path.join(db_sorgente, "config.json")
