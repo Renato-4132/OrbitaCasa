@@ -1091,7 +1091,7 @@ def gestisci_configurazione(self):
     btn_copia_url.pack(side="left", padx=5)
     btn_copia_url.bind("<Button-1>", _copia_url_wh)
     row_sync += 1
-    def _qr_img(testo, scala=2):
+    def _qr_img(testo, scala=3):
         import io
         from __main__ import segno, Image, ImageTk
         b = io.BytesIO()
@@ -1104,34 +1104,60 @@ def gestisci_configurazione(self):
                 img = _qr_img(valore)
                 lbl.configure(image=img, text="")
                 lbl.image = img
+                lbl._valore_qr = valore
             else:
                 lbl.configure(image="")
                 lbl.image = None
+                lbl._valore_qr = None
         except Exception as ex_qr:
             print(f"QR webhook non generato: {ex_qr}")
     url_app = {"v": "https://github.com/Renato-4132/OrbitaNotify/releases/latest"}
+    url_app_android = {"v": "https://github.com/Renato-4132/OrbitaCasa-Android/releases/latest"}
     f_qr = ttk.Frame(tab_sync)
     f_qr.grid(row=row_sync, column=0, columnspan=3, sticky="we", padx=10, pady=4)
     f_qr.columnconfigure(0, weight=3, uniform="qr")
-    f_qr.columnconfigure(1, weight=3, uniform="qr")
+    f_qr.columnconfigure(1, weight=4, uniform="qr")
     box_notify = ttk.LabelFrame(f_qr, text=" OrbitaNotify ")
     box_notify.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
     box_sync = ttk.LabelFrame(f_qr, text=" OrbitaCasa Android (Sync) ")
     box_sync.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
-    def _cella(box, col, titolo, cursore=""):
+    def _cella(box, col, titolo, cursore="hand2"):
         c = ttk.Frame(box)
-        c.grid(row=0, column=col, padx=12, pady=6)
+        c.grid(row=0, column=col, padx=20, pady=8)
         ttk.Label(c, text=titolo, anchor="center").pack()
         l = ttk.Label(c, cursor=cursore) if cursore else ttk.Label(c)
         l.pack(pady=(2, 0))
         return l
+    def _copia_qr(lbl, nome):
+        valore = getattr(lbl, "_valore_qr", None)
+        if not valore:
+            self.show_toast(f"{nome}: niente da copiare.", duration=2000)
+            return
+        try:
+            config_window.clipboard_clear()
+            config_window.clipboard_append(valore)
+            config_window.update()
+            self.show_toast(f"{nome} copiato negli appunti!", duration=2000)
+        except Exception as ex_cp:
+            print(f"Copia QR non riuscita: {ex_cp}")
+            self.show_toast("Copia negli appunti non riuscita.", duration=2000)
+    def _lega_copia(lbl, nome):
+        lbl.bind("<Button-1>", lambda e: _copia_qr(lbl, nome))
     lbl_qr_token = _cella(box_notify, 0, "Token")
     lbl_qr_url = _cella(box_notify, 1, "Indirizzo")
-    lbl_qr_app = _cella(box_notify, 2, "Scarica app", "hand2")
-    lbl_qr_app.bind("<Button-1>", lambda e: webbrowser.open(url_app["v"]))
+    lbl_qr_app = _cella(box_notify, 2, "Scarica app")
     lbl_qr_sync_url = _cella(box_sync, 0, "Indirizzo")
     lbl_qr_sync_token = _cella(box_sync, 1, "Token")
-    lbl_qr_gemini = _cella(box_sync, 2, "Chiave Gemini", "hand2")
+    lbl_qr_sync_app = _cella(box_sync, 2, "Scarica app")
+    lbl_qr_gemini = _cella(box_sync, 3, "Chiave Gemini")
+    _lega_copia(lbl_qr_token, "Token")
+    _lega_copia(lbl_qr_url, "Indirizzo")
+    _lega_copia(lbl_qr_app, "Link app Notify")
+    _lega_copia(lbl_qr_sync_url, "Indirizzo")
+    _lega_copia(lbl_qr_sync_token, "Token")
+    _lega_copia(lbl_qr_sync_app, "Link app Android")
+    lbl_qr_app.bind("<Double-Button-1>", lambda e: webbrowser.open(url_app["v"]))
+    lbl_qr_sync_app.bind("<Double-Button-1>", lambda e: webbrowser.open(url_app_android["v"]))
     _url_sync = _url_wh.split("/api/")[0] if _url_wh != "Non disponibile" else _url_wh
     def _aggiorna_qr_token(valore):
         _imposta_qr(lbl_qr_token, valore)
@@ -1145,14 +1171,23 @@ def gestisci_configurazione(self):
             else:
                 lbl_qr_gemini.configure(image="", text=("Clic per\nmostrare" if k else "Nessuna\nchiave"))
                 lbl_qr_gemini.image = None
+                lbl_qr_gemini._valore_qr = None
         except Exception:
             pass
-    def _toggle_qr_gemini(e=None):
+    def _clic_qr_gemini(e=None):
         if not self.var_gemini_api_key.get().strip():
             return
-        gem_vis["v"] = not gem_vis["v"]
-        _aggiorna_qr_gemini()
-    lbl_qr_gemini.bind("<Button-1>", _toggle_qr_gemini)
+        if not gem_vis["v"]:
+            gem_vis["v"] = True
+            _aggiorna_qr_gemini()
+        else:
+            _copia_qr(lbl_qr_gemini, "Chiave Gemini")
+    def _nascondi_qr_gemini(e=None):
+        if gem_vis["v"]:
+            gem_vis["v"] = False
+            _aggiorna_qr_gemini()
+    lbl_qr_gemini.bind("<Button-1>", _clic_qr_gemini)
+    lbl_qr_gemini.bind("<Button-3>", _nascondi_qr_gemini)
     try:
         self.var_gemini_api_key.trace_add("write", _aggiorna_qr_gemini)
     except Exception:
@@ -1161,35 +1196,40 @@ def gestisci_configurazione(self):
     _imposta_qr(lbl_qr_url, _url_wh)
     _imposta_qr(lbl_qr_sync_url, _url_sync)
     _imposta_qr(lbl_qr_app, url_app["v"])
+    _imposta_qr(lbl_qr_sync_app, url_app_android["v"])
     _aggiorna_qr_gemini()
-    def _risolvi_apk():
+    def _risolvi_apk(repo, d):
+        # Cerca l'APK nell'ultima release del repo; se non lo trova resta il link alla pagina release
         try:
             import urllib.request
             req = urllib.request.Request(
-                "https://api.github.com/repos/Renato-4132/OrbitaNotify/releases/latest",
+                f"https://api.github.com/repos/{repo}/releases/latest",
                 headers={"User-Agent": "OrbitaCasa"})
             with urllib.request.urlopen(req, timeout=5) as r:
                 dati = json.loads(r.read().decode("utf-8"))
             for a in dati.get("assets", []):
                 if a.get("name", "").lower().endswith(".apk"):
-                    url_app["apk"] = a["browser_download_url"]
+                    d["apk"] = a["browser_download_url"]
                     break
         except Exception as ex_apk:
-            print(f"APK ultima release non trovato: {ex_apk}")
-        url_app["fatto"] = True
-    def _controlla_apk():
-        if url_app.get("fatto"):
-            if url_app.get("apk"):
-                url_app["v"] = url_app["apk"]
-                _imposta_qr(lbl_qr_app, url_app["v"])
+            print(f"APK ultima release non trovato ({repo}): {ex_apk}")
+        d["fatto"] = True
+    def _controlla_apk(d, lbl):
+        if d.get("fatto"):
+            if d.get("apk"):
+                d["v"] = d["apk"]
+                _imposta_qr(lbl, d["v"])
             return
         try:
-            config_window.after(300, _controlla_apk)
+            config_window.after(300, lambda: _controlla_apk(d, lbl))
         except Exception:
             pass
     import threading
-    threading.Thread(target=_risolvi_apk, daemon=True).start()
-    _controlla_apk()
+    for _repo_apk, _d_apk, _lbl_apk in (
+            ("Renato-4132/OrbitaNotify", url_app, lbl_qr_app),
+            ("Renato-4132/OrbitaCasa-Android", url_app_android, lbl_qr_sync_app)):
+        threading.Thread(target=_risolvi_apk, args=(_repo_apk, _d_apk), daemon=True).start()
+        _controlla_apk(_d_apk, _lbl_apk)
     row_sync += 1
     ttk.Separator(main_frame, orient='horizontal', style="Rosso.TSeparator").pack(fill="x", pady=(3, 3))
     button_frame = ttk.Frame(main_frame)
