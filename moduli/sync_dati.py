@@ -857,3 +857,28 @@ def _registra_extra(flask_app, tk_app, _json, _nega, _corpo):
         except Exception as e:
             return _json({"ok": False, "errore": f"scrittura fallita: {e}"}, 500)
         return _json({"ok": True, "esistente": False, "mt": mt})
+
+    @flask_app.route("/api/sync/pool", methods=["GET"])
+    def sd_api_sync_pool():
+        rifiuto = _nega()
+        if rifiuto is not None:
+            return rifiuto
+        try:
+            r = tk_app.community_pool_web_dati(request.args.get("primo") == "1")
+        except Exception as e:
+            return _json({"ok": False, "errore": str(e)}, 503)
+        return _json(r)
+
+    @flask_app.route("/api/sync/pool/azione", methods=["POST"])
+    def sd_api_sync_pool_azione():
+        rifiuto = _nega()
+        if rifiuto is not None:
+            return rifiuto
+        p, err = _corpo()
+        if err is not None:
+            return err
+        try:
+            r, codice = tk_app.community_pool_web_azione(p)
+        except Exception as e:
+            return _json({"ok": False, "errore": str(e)}, 503)
+        return _json(r, codice)
